@@ -1,0 +1,17 @@
+# Dependencies
+frontend/node_modules/
+backend/node_modules/
+
+# Build files
+frontend/.next/
+frontend/out/
+backend/dist/
+
+# Environment variables
+frontend/.env
+frontend/.env.local
+backend/.env
+
+# Editor/system files
+.vscode/
+.DS_Store
