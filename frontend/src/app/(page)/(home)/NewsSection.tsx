@@ -4,7 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { news, newsCategories, NewsItem } from "@/config/news";
-import { ArrowRight, Calendar, User, ChevronRight, Search, ArrowDownUp, LayoutGrid, Newspaper, Users, Megaphone, X } from "lucide-react";
+import { ArrowRight, Calendar, User, ChevronRight, Search, ArrowDownUp, LayoutGrid, Newspaper, Users, Megaphone, X, RotateCcw } from "lucide-react";
 
 interface Props {
   preview?: boolean;
@@ -66,7 +66,7 @@ function FeaturedEvent({ item, onSelect }: { item: NewsItem; onSelect: () => voi
   );
 }
 
-function NewsDetailPanel({ item }: { item: NewsItem }) {
+function NewsDetailPanel({ item, onClose }: { item: NewsItem; onClose: () => void }) {
   return (
     <aside className="self-start overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm xl:sticky xl:top-6">
       <div className="relative h-44">
@@ -75,6 +75,14 @@ function NewsDetailPanel({ item }: { item: NewsItem }) {
         <span className={`absolute bottom-3 left-4 text-xs px-2.5 py-1 rounded-full font-semibold ${categoryBadgeClass[item.category]}`}>
           {item.category}
         </span>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Đóng chi tiết bài viết"
+          className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-black/35 text-white backdrop-blur-sm transition-colors hover:bg-black/55 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+        >
+          <X size={16} />
+        </button>
       </div>
       <div className="p-5">
         <h3 className="text-xl font-black leading-snug text-[#16241a]">{item.title}</h3>
@@ -130,6 +138,26 @@ export default function NewsSection({ preview = false }: Props) {
     return sortOrder === "newest" ? difference : -difference;
   });
   const isSearching = searchQuery.trim() !== "";
+  // Matches the Employees filter bar: the reset button only appears once
+  // something is actually filtered.
+  const hasActiveFilters = searchQuery.trim() !== "" || activeCategory !== newsCategories[0];
+  const clearFilters = () => {
+    setSearchQuery("");
+    setActiveCategory(newsCategories[0]);
+  };
+
+  /**
+   * Opening an article always does both things, in this order: move the
+   * category filter to the article's own category, then highlight it in the
+   * detail panel. The featured card has always behaved this way; applying it to
+   * the grid cards too keeps the two consistent — a grid card used to open the
+   * panel while leaving the chips on "Tất cả", which looked like the filter and
+   * the panel disagreed about what was being shown.
+   */
+  const openArticle = (item: NewsItem) => {
+    setActiveCategory(item.category);
+    setSelectedNews(item);
+  };
   // While searching we drop the hero-style featured card so every result sits in
   // the grid and can open the detail panel on the right.
   const showFeatured = !preview && !isSearching && activeCategory === newsCategories[0];
@@ -137,10 +165,15 @@ export default function NewsSection({ preview = false }: Props) {
     ? sortedItems.find((item) => categoryBadgeClass[item.category] === "badge-event") ?? null
     : null;
   const gridItems = featuredEvent ? sortedItems.filter((item) => item.id !== featuredEvent.id) : sortedItems;
-  const showDetailPanel = !preview && !showFeatured && sortedItems.length > 0;
-  const selectedItem = selectedNews && sortedItems.some((item) => item.id === selectedNews.id)
-    ? selectedNews
-    : sortedItems[0] ?? null;
+  // The panel opens on click and stays closed until then. It used to be forced
+  // open on the grid-only tabs, which meant clicking a card while the featured
+  // hero was showing (e.g. the "Thông báo" post) selected it but rendered
+  // nothing — the panel only existed when `showFeatured` was false.
+  const selectedItem =
+    !preview && selectedNews && sortedItems.some((item) => item.id === selectedNews.id)
+      ? selectedNews
+      : null;
+  const showDetailPanel = selectedItem !== null;
 
   return (
     <section className={preview ? "bg-white py-8 sm:py-12 xl:py-16" : "bg-white pb-8 sm:pb-12 xl:pb-16"}>
@@ -251,13 +284,13 @@ export default function NewsSection({ preview = false }: Props) {
                   <ArrowDownUp size={17} aria-hidden="true" className="text-[#087a43]" />
                   {sortOrder === "newest" ? "Mới nhất" : "Cũ nhất"}
                 </button>
-                {(searchQuery !== "" || activeCategory !== "Tất cả") && (
+                {hasActiveFilters && (
                   <button
                     type="button"
-                    onClick={() => { setSearchQuery(""); setActiveCategory("Tất cả"); }}
-                    className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#f5f7f6] px-3 text-sm font-semibold text-[#087a43] transition-colors hover:bg-[#edf7ef] hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#087a43] sm:gap-2.5 sm:px-4"
+                    onClick={clearFilters}
+                    className="inline-flex min-h-11 items-center gap-2 rounded-xl border-green-100 bg-green-50 px-3 py-2.5 text-sm font-bold text-[#087a43] shadow-[0_2px_8px_rgba(15,73,45,0.06)] transition-colors hover:bg-green-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#087a43] sm:gap-2.5 sm:px-4"
                   >
-                    <X size={17} aria-hidden="true" /> Xóa bộ lọc
+                    <RotateCcw size={17} aria-hidden="true" /> Xóa tất cả bộ lọc
                   </button>
                 )}
               </div>
@@ -266,14 +299,18 @@ export default function NewsSection({ preview = false }: Props) {
         )}
         {/* News Grid */}
         {featuredEvent && (
-          <FeaturedEvent item={featuredEvent} onSelect={() => { setActiveCategory(featuredEvent.category); setSelectedNews(featuredEvent); }} />
+          <FeaturedEvent item={featuredEvent} onSelect={() => openArticle(featuredEvent)} />
         )}
         <div className={showDetailPanel ? "grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_360px]" : ""}>
-          <div className={`grid grid-cols-1 gap-4 sm:gap-5 ${preview ? "md:grid-cols-2 xl:grid-cols-4" : "md:grid-cols-3"}`}>
+          <div
+          className={`grid grid-cols-1 gap-4 sm:gap-5 ${
+            preview ? "md:grid-cols-2 xl:grid-cols-4" : "md:grid-cols-3"
+          }`}
+        >
             {gridItems.map((item, index) => (
               <div
                 key={item.id}
-                onClick={() => setSelectedNews(item)}
+                onClick={() => openArticle(item)}
                 className={`group relative h-56 sm:h-64 cursor-pointer overflow-hidden rounded-2xl shadow-md transition-all hover:-translate-y-1 hover:shadow-xl ${preview && index === 0 ? "xl:col-span-2" : ""}`}
               >
                 <Image
@@ -311,7 +348,9 @@ export default function NewsSection({ preview = false }: Props) {
               </div>
             ))}
           </div>
-          {showDetailPanel && selectedItem && <NewsDetailPanel item={selectedItem} />}
+          {showDetailPanel && selectedItem && (
+            <NewsDetailPanel item={selectedItem} onClose={() => setSelectedNews(null)} />
+          )}
         </div>
 
         {/* No results */}

@@ -174,3 +174,89 @@ body {
     animation: none;
   }
 }
+
+/* ----------------------------------------------------------------------- *
+ * Admin authentication screens (/admin/login)
+ * ----------------------------------------------------------------------- */
+
+/* Screen entrance: fade + rise, mirrors the prototype's motion transition. */
+@keyframes auth-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-auth-in {
+  animation: auth-in 0.35s ease-out both;
+}
+
+/* Toast entrance */
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.animate-toast-in {
+  animation: toast-in 0.25s ease-out both;
+}
+
+/* Invalid OTP: horizontal shake */
+@keyframes shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20%,
+  60% {
+    transform: translateX(-6px);
+  }
+  40%,
+  80% {
+    transform: translateX(6px);
+  }
+}
+.animate-shake {
+  animation: shake 0.4s ease-in-out;
+}
+
+/* Ambient background orbs drift */
+@keyframes asia-orb-drift {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(20px, -25px) scale(1.08);
+  }
+  66% {
+    transform: translate(-15px, 15px) scale(0.95);
+  }
+}
+
+/* OTP digit boxes: square sizing not present in the default spacing scale. */
+.h-13 {
+  height: 3.25rem;
+}
+.w-13 {
+  width: 3.25rem;
+}
+.h-15 {
+  height: 3.75rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-auth-in,
+  .animate-toast-in,
+  .animate-shake {
+    animation: none;
+  }
+}
