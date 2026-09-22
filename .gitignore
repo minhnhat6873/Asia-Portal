@@ -7,10 +7,16 @@ frontend/.next/
 frontend/out/
 backend/dist/
 
-# Environment variables
-frontend/.env
-frontend/.env.local
-backend/.env
+# Environment variables - never commit secrets at any directory level
+.env
+.env.*
+**/.env
+**/.env.*
+!.env.example
+!**/.env.example
+
+# Local project handoff notes
+PROJECT_ROADMAP.md
 
 # Editor/system files
 .vscode/
