@@ -2,12 +2,12 @@ import bcrypt from "bcryptjs";
 import { model, models, Schema } from "mongoose";
 
 import {
-  ADMIN_ROLES,
-  ADMIN_STATUSES,
-  type AdminAccount,
-} from "../interfaces/admin.interface";
+  ACCOUNT_ROLES,
+  ACCOUNT_STATUSES,
+  type Account,
+} from "../interfaces/account.interface";
 
-const adminSchema = new Schema<AdminAccount>(
+const accountSchema = new Schema<Account>(
   {
     name: { type: String, required: true, trim: true },
     email: {
@@ -26,16 +26,21 @@ const adminSchema = new Schema<AdminAccount>(
     },
     role: {
       type: String,
-      enum: ADMIN_ROLES,
+      enum: ACCOUNT_ROLES,
       required: true,
-      default: "manager",
+      default: "user",
     },
     status: {
       type: String,
-      enum: ADMIN_STATUSES,
+      enum: ACCOUNT_STATUSES,
       required: true,
-      default: "active",
+      default: "pending",
       index: true,
+    },
+    permissionGroupIds: {
+      type: [Schema.Types.ObjectId],
+      ref: "PermissionGroup",
+      default: [],
     },
   },
   {
@@ -44,11 +49,12 @@ const adminSchema = new Schema<AdminAccount>(
   },
 );
 
-adminSchema.pre("save", async function hashPassword() {
+accountSchema.pre("save", async function hashPassword() {
   if (!this.isModified("password")) return;
   this.password = await bcrypt.hash(this.password, 12);
 });
 
-const AdminModel = models.Admin || model<AdminAccount>("Admin", adminSchema);
+// Giữ nguyên tên model để tiếp tục dùng collection MongoDB `admins` hiện có.
+const AccountModel = models.Admin || model<Account>("Admin", accountSchema);
 
-export default AdminModel;
+export default AccountModel;

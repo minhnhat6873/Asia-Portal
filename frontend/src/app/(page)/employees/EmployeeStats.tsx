@@ -1,12 +1,19 @@
 import { Building2, UsersRound, ChartNoAxesColumnIncreasing } from "lucide-react";
 
-const stats = [
-  { label: "Nhân viên", value: "500+", icon: UsersRound },
-  { label: "Phòng ban", value: "12", icon: Building2 },
-  { label: "Đang hoạt động", value: "95%", icon: ChartNoAxesColumnIncreasing },
-];
-
-export default function EmployeeStats() {
+export default function EmployeeStats({
+  total,
+  departments,
+  positions,
+}: {
+  total: number;
+  departments: number;
+  positions: number;
+}) {
+  const stats = [
+    { label: "Nhân viên", value: total, icon: UsersRound },
+    { label: "Phòng ban", value: departments, icon: Building2 },
+    { label: "Chức vụ", value: positions, icon: ChartNoAxesColumnIncreasing },
+  ];
   return (
     <section className="grid grid-cols-3 gap-2 sm:gap-3">
       {stats.map(({ label, value, icon: Icon }) => (

@@ -1,10 +1,10 @@
 import Image from "next/image";
-import type { Employee } from "@/config/employees";
+import type { Employee } from "@/types/employee";
 import { getEmployeeAvatar, getEmployeeCode } from "./employeeUtils";
 
 interface EmployeeListProps {
   employees: Employee[];
-  selectedId: number;
+  selectedId?: string;
   onSelect: (employee: Employee) => void;
 }
 
@@ -22,7 +22,7 @@ export default function EmployeeList({ employees, selectedId, onSelect }: Employ
           </tr>
         </thead>
         <tbody>
-          {employees.slice(0, 12).map((employee, index) => {
+          {employees.map((employee, index) => {
             const selected = employee.id === selectedId;
             return (
               <tr

@@ -1,6 +1,6 @@
 import Joi from "joi";
 
-import { EMPLOYEE_STATUSES } from "../interfaces/employee.interface";
+import { EMPLOYEE_STATUSES } from "../../interfaces/employee.interface";
 
 const employeeFields = {
   employeeCode: Joi.string().trim().uppercase().max(20),

@@ -2,33 +2,34 @@ import { Router } from "express";
 
 import {
   createEmployee,
-  getAdminEmployeeById,
-  getAdminEmployees,
+  getEmployeeById,
+  getEmployees,
   updateEmployee,
-} from "../../controllers/employee.controller";
+} from "../../controllers/admin/employee.controller";
+import {
+  requireEmployeeUpdatePermission,
+  requirePermissions,
+} from "../../middlewares/auth.middleware";
 import { validateBody } from "../../middlewares/validate.middleware";
 import {
   createEmployeeSchema,
   updateEmployeeSchema,
-} from "../../validates/employee.validate";
+} from "../../validates/admin/employee.validate";
 
 const router = Router();
 
-// TODO: Gắn middleware xác thực admin trước khi triển khai production.
-
-// GET /admin/employees - Admin xem cả nhân viên active và inactive.
-router.get("/", getAdminEmployees);
-
-// GET /admin/employees/:id - Admin xem chi tiết mọi trạng thái nhân viên.
-router.get("/:id", getAdminEmployeeById);
-
-// POST /admin/employees - Admin thêm nhân viên mới.
-router.post("/", validateBody(createEmployeeSchema), createEmployee);
-
-// PATCH /admin/employees/:id - Admin cập nhật hoặc đổi trạng thái nhân viên.
+router.get("/", requirePermissions("employees:view"), getEmployees);
+router.get("/:id", requirePermissions("employees:view"), getEmployeeById);
+router.post(
+  "/",
+  requirePermissions("employees:create"),
+  validateBody(createEmployeeSchema),
+  createEmployee,
+);
 router.patch(
   "/:id",
   validateBody(updateEmployeeSchema),
+  requireEmployeeUpdatePermission,
   updateEmployee,
 );
 

@@ -1,18 +1,17 @@
 import Image from "next/image";
 import { BriefcaseBusiness, Building2, CalendarDays, Mail, MapPin, Phone, UserRound } from "lucide-react";
-import type { Employee } from "@/config/employees";
-import { getEmployeeAvatar } from "./employeeUtils";
+import type { Employee } from "@/types/employee";
+import { formatJoinDate, getEmployeeAvatar } from "./employeeUtils";
 
 export default function EmployeeProfile({ employee }: { employee: Employee }) {
   const details = [
-    { icon: UserRound, label: "Mã nhân viên", value: `ACF${String(employee.id).padStart(4, "0")}` },
-    { icon: CalendarDays, label: "Ngày gia nhập", value: employee.joinDate },
+    { icon: UserRound, label: "Mã nhân viên", value: employee.employeeCode },
+    { icon: CalendarDays, label: "Ngày gia nhập", value: formatJoinDate(employee.joinDate) },
     { icon: BriefcaseBusiness, label: "Chức vụ", value: employee.position },
     { icon: Building2, label: "Phòng ban", value: employee.department },
     { icon: MapPin, label: "Văn phòng", value: employee.location },
     { icon: Mail, label: "Email", value: employee.email },
     { icon: Phone, label: "Số điện thoại", value: employee.phone },
-    { icon: CalendarDays, label: "Ngày sinh", value: employee.birthday },
   ];
 
   return (

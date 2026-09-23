@@ -2,34 +2,31 @@ import { Router } from "express";
 import rateLimit from "express-rate-limit";
 
 import {
-  getCurrentAdmin,
+  getCurrentAccount,
   login,
   logout,
-} from "../../controllers/auth.controller";
+} from "../../controllers/admin/auth.controller";
 import { requireAdminAuth } from "../../middlewares/auth.middleware";
 import { validateBody } from "../../middlewares/validate.middleware";
-import { loginSchema } from "../../validates/auth.validate";
+import { securityConfig } from "../../config/security.config";
+import { loginSchema } from "../../validates/admin/auth.validate";
 
 const router = Router();
 
 const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  limit: 10,
+  windowMs: securityConfig.rateLimitWindowMs,
+  limit: securityConfig.authRateLimitMax,
   standardHeaders: "draft-8",
   legacyHeaders: false,
+  skipSuccessfulRequests: true,
   message: {
     success: false,
     message: "Đăng nhập quá nhiều lần, vui lòng thử lại sau 15 phút",
   },
 });
 
-// POST /admin/auth/login - Đăng nhập admin hoặc manager.
 router.post("/login", loginLimiter, validateBody(loginSchema), login);
-
-// POST /admin/auth/logout - Xóa cookie đăng nhập.
 router.post("/logout", logout);
-
-// GET /admin/auth/me - Lấy tài khoản đang đăng nhập.
-router.get("/me", requireAdminAuth, getCurrentAdmin);
+router.get("/me", requireAdminAuth, getCurrentAccount);
 
 export default router;

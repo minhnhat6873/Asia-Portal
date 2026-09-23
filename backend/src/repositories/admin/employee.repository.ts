@@ -4,8 +4,8 @@ import type {
   CreateEmployeeInput,
   Employee,
   UpdateEmployeeInput,
-} from "../interfaces/employee.interface";
-import EmployeeModel from "../models/employee.model";
+} from "../../interfaces/employee.interface";
+import EmployeeModel from "../../models/employee.model";
 
 interface FindEmployeesOptions {
   filter: QueryFilter<Employee>;
@@ -14,7 +14,7 @@ interface FindEmployeesOptions {
   sort: Record<string, SortOrder>;
 }
 
-export const employeeRepository = {
+export const adminEmployeeRepository = {
   create(data: CreateEmployeeInput) {
     return EmployeeModel.create(data);
   },

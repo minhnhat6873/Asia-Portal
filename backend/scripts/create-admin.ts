@@ -3,8 +3,8 @@ import "dotenv/config";
 import mongoose from "mongoose";
 
 import { connectDatabase } from "../src/config/database.config";
-import { ADMIN_ROLES, type AdminRole } from "../src/interfaces/admin.interface";
-import AdminModel from "../src/models/admin.model";
+import { ACCOUNT_ROLES, type AccountRole } from "../src/interfaces/account.interface";
+import AccountModel from "../src/models/account.model";
 
 function getRequiredEnv(name: string): string {
   const value = process.env[name]?.trim();
@@ -16,10 +16,10 @@ async function createInitialAdmin(): Promise<void> {
   const name = getRequiredEnv("SEED_ADMIN_NAME");
   const email = getRequiredEnv("SEED_ADMIN_EMAIL").toLowerCase();
   const password = getRequiredEnv("SEED_ADMIN_PASSWORD");
-  const roleValue = (process.env.SEED_ADMIN_ROLE?.trim() || "admin") as AdminRole;
+  const roleValue = (process.env.SEED_ADMIN_ROLE?.trim() || "admin") as AccountRole;
 
-  if (!ADMIN_ROLES.includes(roleValue)) {
-    throw new Error("SEED_ADMIN_ROLE chỉ được là admin hoặc manager");
+  if (roleValue !== "admin") {
+    throw new Error("SEED_ADMIN_ROLE phải là admin");
   }
 
   if (password.length < 8) {
@@ -28,13 +28,13 @@ async function createInitialAdmin(): Promise<void> {
 
   await connectDatabase();
 
-  const existingAccount = await AdminModel.findOne({ email }).lean();
+  const existingAccount = await AccountModel.findOne({ email }).lean();
   if (existingAccount) {
     console.log("Tài khoản quản trị với email này đã tồn tại, không tạo thêm.");
     return;
   }
 
-  await AdminModel.create({
+  await AccountModel.create({
     name,
     email,
     password,
@@ -42,7 +42,7 @@ async function createInitialAdmin(): Promise<void> {
     status: "active",
   });
 
-  console.log(`Đã tạo tài khoản ${roleValue} đầu tiên thành công.`);
+  console.log("Đã tạo tài khoản admin đầu tiên thành công.");
 }
 
 createInitialAdmin()

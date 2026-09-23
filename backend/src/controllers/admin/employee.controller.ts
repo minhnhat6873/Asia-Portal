@@ -4,61 +4,29 @@ import type {
   CreateEmployeeInput,
   EmployeeListQuery,
   UpdateEmployeeInput,
-} from "../interfaces/employee.interface";
-import { employeeService } from "../services/employee.service";
+} from "../../interfaces/employee.interface";
+import { adminEmployeeService } from "../../services/admin/employee.service";
 
-export async function getPublicEmployees(
+export async function getEmployees(
   request: Request<unknown, unknown, unknown, EmployeeListQuery>,
   response: Response,
   next: NextFunction,
 ): Promise<void> {
   try {
-    const result = await employeeService.getEmployees({
-      ...request.query,
-      status: "active",
-    });
+    const result = await adminEmployeeService.getEmployees(request.query);
     response.status(200).json({ success: true, data: result });
   } catch (error) {
     next(error);
   }
 }
 
-export async function getPublicEmployeeById(
+export async function getEmployeeById(
   request: Request<{ id: string }>,
   response: Response,
   next: NextFunction,
 ): Promise<void> {
   try {
-    const employee = await employeeService.getEmployeeById(
-      request.params.id,
-      true,
-    );
-    response.status(200).json({ success: true, data: employee });
-  } catch (error) {
-    next(error);
-  }
-}
-
-export async function getAdminEmployees(
-  request: Request<unknown, unknown, unknown, EmployeeListQuery>,
-  response: Response,
-  next: NextFunction,
-): Promise<void> {
-  try {
-    const result = await employeeService.getEmployees(request.query);
-    response.status(200).json({ success: true, data: result });
-  } catch (error) {
-    next(error);
-  }
-}
-
-export async function getAdminEmployeeById(
-  request: Request<{ id: string }>,
-  response: Response,
-  next: NextFunction,
-): Promise<void> {
-  try {
-    const employee = await employeeService.getEmployeeById(request.params.id);
+    const employee = await adminEmployeeService.getEmployeeById(request.params.id);
     response.status(200).json({ success: true, data: employee });
   } catch (error) {
     next(error);
@@ -71,7 +39,7 @@ export async function createEmployee(
   next: NextFunction,
 ): Promise<void> {
   try {
-    const employee = await employeeService.createEmployee(request.body);
+    const employee = await adminEmployeeService.createEmployee(request.body);
     response.status(201).json({
       success: true,
       message: "Tạo nhân viên thành công",
@@ -88,7 +56,7 @@ export async function updateEmployee(
   next: NextFunction,
 ): Promise<void> {
   try {
-    const employee = await employeeService.updateEmployee(
+    const employee = await adminEmployeeService.updateEmployee(
       request.params.id,
       request.body,
     );

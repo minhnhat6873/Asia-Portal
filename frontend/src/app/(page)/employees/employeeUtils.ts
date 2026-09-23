@@ -1,12 +1,15 @@
-import type { Employee } from "@/config/employees";
+import type { Employee } from "@/types/employee";
 
 export function getEmployeeAvatar(employee: Employee) {
-  if (employee.avatar && employee.avatar !== "/assets/images/default-avatar.png") {
-    return employee.avatar;
-  }
-  return employee.id <= 7 ? `/assets/images/employee-${employee.id}.png` : "/assets/images/default-avatar.png";
+  return employee.avatar || "/assets/images/default-avatar.png";
 }
 
 export function getEmployeeCode(employee: Employee) {
-  return `ACF${String(employee.id).padStart(4, "0")}`;
+  return employee.employeeCode;
+}
+
+export function formatJoinDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat("vi-VN").format(date);
 }

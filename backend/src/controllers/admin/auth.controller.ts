@@ -3,9 +3,9 @@ import type { NextFunction, Request, Response } from "express";
 import {
   AUTH_COOKIE_NAME,
   getAuthCookieOptions,
-} from "../config/auth.config";
-import type { LoginInput } from "../interfaces/admin.interface";
-import { authService } from "../services/auth.service";
+} from "../../config/auth.config";
+import type { LoginInput } from "../../interfaces/account.interface";
+import { adminAuthService } from "../../services/admin/auth.service";
 
 export async function login(
   request: Request<unknown, unknown, LoginInput>,
@@ -13,7 +13,7 @@ export async function login(
   next: NextFunction,
 ): Promise<void> {
   try {
-    const { admin, token } = await authService.login(request.body);
+    const { admin, token } = await adminAuthService.login(request.body);
     response.cookie(AUTH_COOKIE_NAME, token, getAuthCookieOptions());
     response.status(200).json({
       success: true,
@@ -39,7 +39,7 @@ export function logout(_request: Request, response: Response): void {
   });
 }
 
-export function getCurrentAdmin(request: Request, response: Response): void {
+export function getCurrentAccount(request: Request, response: Response): void {
   response.status(200).json({
     success: true,
     data: request.admin,

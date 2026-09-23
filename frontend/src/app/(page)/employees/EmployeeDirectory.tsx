@@ -3,20 +3,25 @@
 import { useState } from "react";
 import Image from "next/image";
 import { Building2, ChevronRight, LayoutGrid, List, MapPin } from "lucide-react";
-import type { Employee } from "@/config/employees";
+import type { Employee } from "@/types/employee";
 import EmployeeList from "./EmployeeList";
 import { getEmployeeAvatar } from "./employeeUtils";
 
 interface EmployeeDirectoryProps {
   employees: Employee[];
-  selectedId: number;
+  selectedId?: string;
+  total: number;
+  page: number;
+  limit: number;
   onSelect: (employee: Employee) => void;
   onOpenProfile: () => void;
 }
 
-export default function EmployeeDirectory({ employees, selectedId, onSelect, onOpenProfile }: EmployeeDirectoryProps) {
+export default function EmployeeDirectory({ employees, selectedId, total, page, limit, onSelect, onOpenProfile }: EmployeeDirectoryProps) {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
-  const displayedEmployees = employees.slice(0, 12);
+  const displayedEmployees = employees;
+  const from = total ? (page - 1) * limit + 1 : 0;
+  const to = total ? from + displayedEmployees.length - 1 : 0;
   const selectEmployee = (employee: Employee) => {
     onSelect(employee);
     onOpenProfile();
@@ -26,7 +31,7 @@ export default function EmployeeDirectory({ employees, selectedId, onSelect, onO
     <section>
       <div className="mb-3 flex items-center justify-between gap-4 sm:mb-4">
         <p className="text-sm font-medium text-slate-500">
-          Hiển thị <span className="font-semibold text-slate-600">1 - {displayedEmployees.length}</span> trong <span className="font-semibold text-slate-600">532</span> nhân viên
+          Hiển thị <span className="font-semibold text-slate-600">{from} - {to}</span> trong <span className="font-semibold text-slate-600">{total}</span> nhân viên
         </p>
         <div className="flex items-center gap-1.5">
           <button type="button" onClick={() => setViewMode("grid")} aria-label="Hiển thị dạng lưới" className={`rounded-xl p-3 shadow-sm transition-colors ${viewMode === "grid" ? "bg-[#159447] text-white" : "border border-slate-200 bg-white text-slate-500"}`}><LayoutGrid size={20} /></button>

@@ -13,6 +13,14 @@ export function globalErrorHandler(
   response: Response,
   _next: NextFunction,
 ): void {
+  if ((error as Error)?.message === "CORS_ORIGIN_NOT_ALLOWED") {
+    response.status(403).json({
+      success: false,
+      message: "Origin này không được phép gọi API",
+    });
+    return;
+  }
+
   if (error instanceof AppError) {
     response.status(error.statusCode).json({
       success: false,

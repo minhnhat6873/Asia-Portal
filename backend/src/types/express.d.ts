@@ -1,9 +1,9 @@
-import type { AuthenticatedAdmin } from "../interfaces/admin.interface";
+import type { AuthenticatedAccount } from "../interfaces/account.interface";
 
 declare global {
   namespace Express {
     interface Request {
-      admin?: AuthenticatedAdmin;
+      admin?: AuthenticatedAccount;
     }
   }
 }

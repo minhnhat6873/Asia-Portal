@@ -5,10 +5,10 @@ import type {
   Employee,
   EmployeeListQuery,
   UpdateEmployeeInput,
-} from "../interfaces/employee.interface";
-import { employeeRepository } from "../repositories/employee.repository";
-import { AppError } from "../utils/errors/AppError";
-import { escapeRegex } from "../utils/regex/escapeRegex";
+} from "../../interfaces/employee.interface";
+import { adminEmployeeRepository } from "../../repositories/admin/employee.repository";
+import { AppError } from "../../utils/errors/AppError";
+import { escapeRegex } from "../../utils/regex/escapeRegex";
 
 function ensureValidId(id: string): void {
   if (!mongoose.isValidObjectId(id)) {
@@ -16,7 +16,7 @@ function ensureValidId(id: string): void {
   }
 }
 
-export const employeeService = {
+export const adminEmployeeService = {
   async getEmployees(query: EmployeeListQuery) {
     const page = Math.max(Number(query.page) || 1, 1);
     const limit = Math.min(Math.max(Number(query.limit) || 12, 1), 100);
@@ -28,6 +28,7 @@ export const employeeService = {
         { name: keyword },
         { employeeCode: keyword },
         { email: keyword },
+        { phone: keyword },
         { department: keyword },
         { position: keyword },
       ];
@@ -39,13 +40,13 @@ export const employeeService = {
 
     const sortDirection = query.sort === "oldest" ? 1 : -1;
     const [items, total] = await Promise.all([
-      employeeRepository.findAll({
+      adminEmployeeRepository.findAll({
         filter,
         skip: (page - 1) * limit,
         limit,
-        sort: { createdAt: sortDirection },
+        sort: { joinDate: sortDirection },
       }),
-      employeeRepository.count(filter),
+      adminEmployeeRepository.count(filter),
     ]);
 
     return {
@@ -59,47 +60,43 @@ export const employeeService = {
     };
   },
 
-  async getEmployeeById(id: string, activeOnly = false) {
+  async getEmployeeById(id: string) {
     ensureValidId(id);
-    const employee = await employeeRepository.findById(id);
-
-    if (!employee || (activeOnly && employee.status !== "active")) {
-      throw new AppError(404, "Không tìm thấy nhân viên");
-    }
-
+    const employee = await adminEmployeeRepository.findById(id);
+    if (!employee) throw new AppError(404, "Không tìm thấy nhân viên");
     return employee;
   },
 
   async createEmployee(data: CreateEmployeeInput) {
     const [emailExists, codeExists] = await Promise.all([
-      employeeRepository.findByEmail(data.email),
-      employeeRepository.findByEmployeeCode(data.employeeCode),
+      adminEmployeeRepository.findByEmail(data.email),
+      adminEmployeeRepository.findByEmployeeCode(data.employeeCode),
     ]);
 
     if (emailExists) throw new AppError(409, "Email nhân viên đã tồn tại");
     if (codeExists) throw new AppError(409, "Mã nhân viên đã tồn tại");
 
-    return employeeRepository.create(data);
+    return adminEmployeeRepository.create(data);
   },
 
   async updateEmployee(id: string, data: UpdateEmployeeInput) {
     ensureValidId(id);
 
     if (data.email) {
-      const employee = await employeeRepository.findByEmail(data.email);
+      const employee = await adminEmployeeRepository.findByEmail(data.email);
       if (employee && employee._id.toString() !== id) {
         throw new AppError(409, "Email nhân viên đã tồn tại");
       }
     }
 
     if (data.employeeCode) {
-      const employee = await employeeRepository.findByEmployeeCode(data.employeeCode);
+      const employee = await adminEmployeeRepository.findByEmployeeCode(data.employeeCode);
       if (employee && employee._id.toString() !== id) {
         throw new AppError(409, "Mã nhân viên đã tồn tại");
       }
     }
 
-    const updatedEmployee = await employeeRepository.updateById(id, data);
+    const updatedEmployee = await adminEmployeeRepository.updateById(id, data);
     if (!updatedEmployee) throw new AppError(404, "Không tìm thấy nhân viên");
     return updatedEmployee;
   },
