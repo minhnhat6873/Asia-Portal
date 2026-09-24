@@ -2,7 +2,7 @@
 
 /* eslint-disable @next/next/no-img-element */
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -14,7 +14,8 @@ import {
   UserPlus,
   UsersRound,
 } from "lucide-react";
-import { JOINERS_DATA, TEAM_DATA, type Person } from "./welcomeData";
+import { buildJoinersData, buildTeamData, type Person } from "./welcomeData";
+import { useEmployees } from "@/lib/usePortalContent";
 
 /** Any lucide glyph, reused for the small section eyebrows. */
 type SectionIcon = typeof UsersRound;
@@ -193,34 +194,46 @@ function CarouselSection({
  * The paired carousels — one shared index keeps them advancing together
  * ------------------------------------------------------------------------- */
 
-/** Number of slides is the shorter list, so both carousels stay in step. */
-const SLIDE_COUNT = Math.min(TEAM_DATA.length, JOINERS_DATA.length);
-
 export default function CarouselPair() {
   const [index, setIndex] = useState(0);
   const [direction, setDirection] = useState<"next" | "prev">("next");
   const [paused, setPaused] = useState(false);
 
+  // Live roster: shows the static config until the admin writes, then reflects
+  // every admin add / edit / delete (same source as /employees and the home page).
+  const employees = useEmployees();
+  const teamData = useMemo(() => buildTeamData(employees), [employees]);
+  const joinersData = useMemo(() => buildJoinersData(employees), [employees]);
+
+  // Number of slides is the shorter list, so both carousels stay in step.
+  const slideCount = Math.min(teamData.length, joinersData.length);
+
   const go = (delta: 1 | -1) => {
-    if (SLIDE_COUNT <= 1) return;
+    if (slideCount <= 1) return;
     setDirection(delta === 1 ? "next" : "prev");
-    setIndex((prev) => (prev + delta + SLIDE_COUNT) % SLIDE_COUNT);
+    setIndex((prev) => (prev + delta + slideCount) % slideCount);
   };
 
   // Single shared timer drives BOTH carousels, so they advance together.
   useEffect(() => {
-    if (paused || SLIDE_COUNT <= 1) return;
+    if (paused || slideCount <= 1) return;
     const timer = window.setTimeout(() => {
       setDirection("next");
-      setIndex((prev) => (prev + 1) % SLIDE_COUNT);
+      setIndex((prev) => (prev + 1) % slideCount);
     }, AUTOPLAY_MS);
     return () => window.clearTimeout(timer);
-  }, [index, paused]);
+  }, [index, paused, slideCount]);
+
+  // Keep the shared index valid when the roster shrinks under it (an admin
+  // deleting people), otherwise the modulo would skip cards.
+  useEffect(() => {
+    setIndex((prev) => (slideCount > 0 ? prev % slideCount : 0));
+  }, [slideCount]);
 
   const teamMember =
-    TEAM_DATA.length > 0 ? TEAM_DATA[index % TEAM_DATA.length] : undefined;
+    teamData.length > 0 ? teamData[index % teamData.length] : undefined;
   const joiner =
-    JOINERS_DATA.length > 0 ? JOINERS_DATA[index % JOINERS_DATA.length] : undefined;
+    joinersData.length > 0 ? joinersData[index % joinersData.length] : undefined;
 
   return (
     <div
@@ -235,8 +248,8 @@ export default function CarouselPair() {
         title="Đội ngũ Công ty"
         subtitle="Gặp gỡ những người dẫn dắt và truyền cảm hứng tại Asia F&B"
         counterText={`Card ${
-          TEAM_DATA.length === 0 ? 0 : index + 1
-        } of ${TEAM_DATA.length}`}
+          teamData.length === 0 ? 0 : index + 1
+        } of ${teamData.length}`}
         person={teamMember}
         index={index}
         direction={direction}
@@ -250,7 +263,7 @@ export default function CarouselPair() {
         eyebrow="Tân Binh Asia F&B"
         title="Thành viên Gia nhập Gần nhất"
         subtitle="Chào mừng các đồng nghiệp mới vừa gia nhập gia đình Wana & Asia F&B"
-        counterText={`Card ${index + 1} of ${JOINERS_DATA.length}`}
+        counterText={`Card ${index + 1} of ${joinersData.length}`}
         person={joiner}
         index={index}
         direction={direction}

@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronLeft, ChevronRight, Menu, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, LayoutDashboard, Menu, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import InternalSystemsMenu from "./InternalSystemsMenu";
 
@@ -47,7 +47,7 @@ export default function Navbar() {
     <header className="sticky top-0 z-50 border-b border-gray-100 bg-white shadow-sm">
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
         <div className="relative flex h-16 items-center sm:h-20">
-          <Link href="/" className="flex shrink-0 items-center" onClick={closeMobileMenu}>
+          <Link href="/" className="flex shrink-0 items-center gap-2" onClick={closeMobileMenu}>
             <Image
               src="/assets/images/asia-logo.png"
               alt="Asia Food & Beverage JSC"
@@ -56,6 +56,9 @@ export default function Navbar() {
               className="h-11 w-11 object-contain sm:h-14 sm:w-14"
               priority
             />
+            <span className="hidden sm:block font-bold text-xl text-wana-green-dark tracking-tight">
+              
+            </span>
           </Link>
 
           <div className="absolute left-1/2 hidden w-max -translate-x-1/2 items-center gap-1 xl:flex">
@@ -65,29 +68,31 @@ export default function Navbar() {
                   key={link.href}
                   href={link.href}
                   className={`relative whitespace-nowrap px-4 py-2 text-base font-medium transition-all ${
-                    isActive(link.href) ? "font-semibold text-[#1a7a1a]" : "text-gray-600 hover:text-[#1a7a1a]"
+                    isActive(link.href) ? "font-semibold text-wana-green" : "text-gray-600 hover:text-wana-green"
                   }`}
                 >
                   {link.label}
-                  {isActive(link.href) && <span className="absolute bottom-0 left-1/2 h-0.5 w-5 -translate-x-1/2 rounded-full bg-[#1a7a1a]" />}
+                  {isActive(link.href) && <span className="absolute bottom-0 left-1/2 h-0.5 w-5 -translate-x-1/2 rounded-full bg-wana-green" />}
                 </Link>
               ))}
             </nav>
             <InternalSystemsMenu />
           </div>
 
-          <button
-            type="button"
-            aria-label="Mở menu"
-            aria-expanded={mobileOpen}
-            onClick={() => {
-              setMobileView("main");
-              setMobileOpen(true);
-            }}
-            className="ml-auto inline-flex h-10 w-10 items-center justify-center rounded-xl text-[#0d5c0d] transition-colors hover:bg-green-50 xl:hidden"
-          >
-            <Menu size={25} />
-          </button>
+          <div className="ml-auto flex items-center gap-2">
+            <button
+              type="button"
+              aria-label="Mở menu"
+              aria-expanded={mobileOpen}
+              onClick={() => {
+                setMobileView("main");
+                setMobileOpen(true);
+              }}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-wana-green-dark transition-colors hover:bg-wana-green-50 xl:hidden"
+            >
+              <Menu size={25} />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -105,12 +110,15 @@ export default function Navbar() {
                 <button
                   type="button"
                   onClick={() => setMobileView("main")}
-                  className="inline-flex items-center gap-1 text-sm font-semibold text-slate-600 hover:text-[#0d5c0d]"
+                  className="inline-flex items-center gap-1 text-sm font-semibold text-slate-600 hover:text-wana-green-dark"
                 >
                   <ChevronLeft size={19} /> Quay lại
                 </button>
               ) : (
-                <Image src="/assets/images/asia-logo.png" alt="Asia Food & Beverage JSC" width={40} height={40} className="h-10 w-10 object-contain" />
+                <div className="flex items-center gap-2">
+                  <Image src="/assets/images/asia-logo.png" alt="Asia Food & Beverage JSC" width={40} height={40} className="h-10 w-10 object-contain" />
+                  <span className="font-bold text-lg text-wana-green-dark">asiafnbbeverage</span>
+                </div>
               )}
               <button
                 type="button"
@@ -130,7 +138,7 @@ export default function Navbar() {
                     href={link.href}
                     onClick={closeMobileMenu}
                     className={`flex min-h-14 items-center rounded-xl px-3 text-base font-semibold transition-colors ${
-                      isActive(link.href) ? "bg-green-50 text-[#0d5c0d]" : "text-slate-800 hover:bg-slate-50"
+                      isActive(link.href) ? "bg-wana-green-50 text-wana-green-dark" : "text-slate-800 hover:bg-slate-50"
                     }`}
                   >
                     {link.label}
@@ -140,15 +148,23 @@ export default function Navbar() {
                 <button
                   type="button"
                   onClick={() => setMobileView("systems")}
-                  className="flex min-h-14 items-center justify-between rounded-xl px-3 text-left text-base font-bold text-[#0d5c0d] transition-colors hover:bg-green-50"
+                  className="flex min-h-14 items-center justify-between rounded-xl px-3 text-left text-base font-bold text-wana-green-dark transition-colors hover:bg-wana-green-50"
                 >
                   Hệ thống nội bộ Wana
                   <ChevronRight size={20} />
                 </button>
+                <Link
+                  href="/admin"
+                  onClick={closeMobileMenu}
+                  className="flex min-h-14 items-center justify-between rounded-xl px-3 text-left text-base font-bold text-wana-green-dark transition-colors hover:bg-wana-green-50"
+                >
+                  Trang quản trị hệ thống
+                  <LayoutDashboard size={20} />
+                </Link>
               </nav>
             ) : (
               <div className="flex flex-1 flex-col px-3 py-3">
-                <p className="px-3 pb-2 pt-1 text-xs font-bold uppercase tracking-[0.16em] text-[#1a7a1a]">Hệ thống nội bộ</p>
+                <p className="px-3 pb-2 pt-1 text-xs font-bold uppercase tracking-[0.16em] text-wana-green">Hệ thống nội bộ</p>
                 {internalSystems.map((system) => (
                   <a
                     key={system.label}
@@ -156,7 +172,7 @@ export default function Navbar() {
                     target="_blank"
                     rel="noreferrer"
                     onClick={closeMobileMenu}
-                    className="flex min-h-16 items-center rounded-xl px-3 transition-colors hover:bg-green-50"
+                    className="flex min-h-16 items-center rounded-xl px-3 transition-colors hover:bg-wana-green-50"
                   >
                     <span>
                       <span className="block text-base font-bold text-slate-800">{system.label}</span>

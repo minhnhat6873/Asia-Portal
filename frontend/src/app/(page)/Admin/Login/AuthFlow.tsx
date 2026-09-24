@@ -4,16 +4,21 @@
  * One client component owns the whole thing: the four screens (Đăng nhập ·
  * Đăng ký · Quên mật khẩu · Xác thực OTP), the ambient background, the toast
  * queue and the shared brand styles. Modelled on the "TestAdmin" prototype and
- * re-skinned with the Asia Internal Portal palette (`globals.css` tokens):
+ * re-skinned with the Asia F&B brand:
+ *   Black canvas (#060806) with the Asia F&B round badge.
  *   --wana-green  #1a7a1a   primary
  *   --wana-green-dark #0d5c0d  gradients
- *   --wana-yellow #f5c800   accent
+ *   --wana-yellow #f5c800   accent (matches the gold ring in the logo)
  */
 
 "use client";
 
+import Image from "next/image";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { AlertCircle, ArrowLeft, ArrowRight, Check, CheckCircle2, Eye, EyeOff, Info, KeyRound, Lock, LockKeyhole, Mail, Phone, RotateCcw, ShieldAlert, ShieldCheck, Sparkles, User, X } from "lucide-react";
+import { findRegisteredAccount, saveRegisteredAccount, setAdminSession } from "@/lib/adminSession";
+import { registerPendingUser } from "@/app/(page)/admin/Dashboard/utils/storage";
 
 /* ========================================================================== *
  * Types
@@ -35,51 +40,155 @@ type ShowToast = (title: string, message?: string, type?: ToastType) => void;
 const DEMO_CODE = "123456";
 
 /* ========================================================================== *
- * Shared styles
+ * Shared styles — black canvas, gold accent, Asia F&B badge
  * ========================================================================== */
 
 const CARD =
-  "relative rounded-2xl bg-white/90 backdrop-blur-xl border-emerald-900/10 shadow-xl shadow-emerald-900/5 p-6 sm:p-8 transition-all duration-300";
+  "relative rounded-2xl bg-[#0d100e]/90 backdrop-blur-xl border border-white/10 shadow-2xl shadow-black/60 p-7 sm:p-10 transition-all duration-300";
 
 /** Gradient highlight pinned to the card's top edge; `via` sets the hue. */
-function cardAccent(via = "via-[#1a7a1a]/80") {
+function cardAccent(via = "via-[#f5c800]/70") {
   return `absolute top-0 left-6 right-6 h-[2px] bg-gradient-to-r from-transparent ${via} to-transparent`;
 }
 
 const INPUT =
-  "w-full pl-10 py-2.5 text-sm rounded-xl bg-emerald-50/40 border-emerald-900/15 text-zinc-900 placeholder:text-zinc-400 outline-none transition-all duration-200 focus:border-[#1a7a1a] focus:ring-4 focus:ring-[#1a7a1a]/15";
+  "w-full pl-10 py-2.5 text-sm rounded-xl bg-white/[0.04] border border-white/12 text-white placeholder:text-zinc-500 outline-none transition-all duration-200 focus:border-[#f5c800] focus:ring-4 focus:ring-[#f5c800]/15";
 
 const INPUT_ERROR = "border-rose-500 focus:border-rose-500 focus:ring-rose-500/15";
-const LABEL = "block text-xs font-semibold text-zinc-700 mb-1.5";
-const ERROR_TEXT = "text-xs text-rose-500 mt-1 pl-1 font-medium";
-const INPUT_ICON = "absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-zinc-400";
+const LABEL = "block text-xs font-semibold text-zinc-300 mb-1.5";
+const ERROR_TEXT = "text-xs text-rose-400 mt-1 pl-1 font-medium";
+const INPUT_ICON = "absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-zinc-500";
 
+/** Gold primary action — the logo's ring colour, on the black canvas. */
 const PRIMARY_BTN =
-  "w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#0d5c0d] via-[#1a7a1a] to-[#2d9e2d] text-white font-semibold text-sm shadow-md shadow-[#1a7a1a]/25 flex items-center justify-center gap-2 transition-all duration-200 hover:brightness-110 active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed";
+  "w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#d4aa00] via-[#f5c800] to-[#e0b400] text-[#1a1a1a] font-bold text-sm shadow-lg shadow-[#f5c800]/20 flex items-center justify-center gap-2 transition-all duration-200 hover:brightness-110 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed";
 
 const ACCENT_BTN =
-  "w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#d4aa00] via-[#f5c800] to-[#1a7a1a] text-[#1a1a1a] font-semibold text-sm shadow-md shadow-[#f5c800]/30 flex items-center justify-center gap-2 transition-all duration-200 hover:brightness-105 active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed";
+  "w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-[#d4aa00] via-[#f5c800] to-[#e0b400] text-[#1a1a1a] font-bold text-sm shadow-lg shadow-[#f5c800]/20 flex items-center justify-center gap-2 transition-all duration-200 hover:brightness-110 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed";
 
 const EYEBROW =
-  "inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border-emerald-200/70 text-[#0d5c0d] text-xs font-semibold mb-3";
+  "inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/[0.06] border border-[#f5c800]/25 text-[#f5c800] text-xs font-semibold mb-3";
 
-const TITLE = "text-2xl sm:text-3xl font-bold tracking-tight text-zinc-900";
-const SUBTITLE = "text-sm text-zinc-500 mt-1.5";
-const FOOTER_TEXT = "mt-6 text-center text-xs text-zinc-500";
-const LINK = "font-semibold text-[#1a7a1a] hover:text-[#0d5c0d] transition-colors";
+const TITLE = "text-2xl sm:text-3xl font-bold tracking-tight text-white";
+const SUBTITLE = "text-sm text-zinc-400 mt-1.5";
+const FOOTER_TEXT = "mt-6 text-center text-xs text-zinc-400";
+const LINK = "font-semibold text-[#f5c800] hover:text-[#ffd633] transition-colors";
 
 /** Rounded icon badge heading the Forgot/OTP screens. */
 function iconBadge(tone: "amber" | "green") {
   return `w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-3 border ${
     tone === "amber"
-      ? "bg-amber-500/10 border-amber-500/20 text-[#b8860b]"
-      : "bg-emerald-500/10 border-emerald-500/20 text-[#1a7a1a]"
+      ? "bg-[#f5c800]/10 border-[#f5c800]/25 text-[#f5c800]"
+      : "bg-white/[0.06] border-white/15 text-[#f5c800]"
   }`;
 }
 
 /** Spinner shown inside a button while a simulated request is in flight. */
 function ButtonSpinner() {
-  return <span className="h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white" />;
+  return <span className="h-5 w-5 animate-spin rounded-full border-2 border-black/20 border-t-black" />;
+}
+
+/* -------------------------------------------------------------------------- *
+ * Floating field — the faded placeholder overlay
+ * -------------------------------------------------------------------------- */
+
+/**
+ * An input whose placeholder is a faded overlay label rather than a real
+ * `placeholder` attribute. The label sits over the field at reduced opacity and
+ * fades out the moment the field is focused or holds text, so the field is clean
+ * while typing and the hint returns when it is emptied and blurred.
+ *
+ * `icon` renders inside the left gutter; `trailing` renders inside the right
+ * gutter (e.g. the show/hide password button).
+ */
+function FloatingField({
+  id,
+  type = "text",
+  value,
+  onChange,
+  label,
+  placeholder,
+  icon,
+  trailing,
+  invalid,
+  autoComplete,
+  inputMode,
+}: {
+  id: string;
+  type?: string;
+  value: string;
+  onChange: (value: string) => void;
+  /** The field name, shown as the small caption above the input. */
+  label: string;
+  /** The faded hint shown inside the field until the user engages it. */
+  placeholder: string;
+  icon: React.ReactNode;
+  trailing?: React.ReactNode;
+  invalid?: boolean;
+  autoComplete?: string;
+  inputMode?: React.HTMLAttributes<HTMLInputElement>["inputMode"];
+}) {
+  const [focused, setFocused] = useState(false);
+  // The hint hides as soon as the field is active OR already filled.
+  const hintHidden = focused || value.length > 0;
+
+  return (
+    <div className="relative">
+      <span
+        aria-hidden="true"
+        className={`pointer-events-none absolute inset-y-0 left-0 z-10 flex items-center pl-3.5 transition-colors ${invalid ? "text-rose-400" : focused ? "text-[#f5c800]" : "text-zinc-500"}`}
+      >
+        {icon}
+      </span>
+
+      <input
+        id={id}
+        type={type}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        aria-label={label}
+        autoComplete={autoComplete}
+        inputMode={inputMode}
+        className={`${INPUT} ${trailing ? "pr-11" : "pr-4"} ${invalid ? INPUT_ERROR : ""}`}
+      />
+
+      {/* Faded hint overlay — fades out on focus / once there is text. */}
+      <span
+        aria-hidden="true"
+        className={`pointer-events-none absolute inset-y-0 left-10 right-4 flex items-center truncate text-sm transition-opacity duration-200 ${
+          hintHidden ? "opacity-0" : "opacity-45"
+        } ${invalid ? "text-rose-300" : "text-zinc-400"}`}
+      >
+        {placeholder}
+      </span>
+
+      {trailing}
+    </div>
+  );
+}
+
+/**
+ * The Asia F&B round badge, shown at the head of the login card. The PNG has a
+ * white background, so it sits on a white disc to blend into the black canvas.
+ */
+function BrandBadge({ size = 84 }: { size?: number }) {
+  return (
+    <div
+      style={{ width: size, height: size }}
+      className="relative mx-auto mb-4 overflow-hidden rounded-full bg-white ring-2 ring-[#f5c800]/40 shadow-lg shadow-black/40"
+    >
+      <Image
+        src="/assets/images/asia-logo.png"
+        alt="Asia Food & Beverage"
+        fill
+        priority
+        sizes={`${size}px`}
+        className="object-contain"
+      />
+    </div>
+  );
 }
 
 /* ========================================================================== *
@@ -88,25 +197,28 @@ function ButtonSpinner() {
 
 function AmbientBackground() {
   return (
-    <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-b from-emerald-50/60 via-white to-emerald-50/40" />
-      <div className="absolute inset-0 opacity-[0.05] bg-[radial-gradient(#1a7a1a_1px,transparent_1px)] [background-size:24px_24px]" />
+    <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden bg-[#060806]">
+      {/* Black base with a soft green glow from the top and a gold sheen below. */}
+      <div className="absolute inset-0 bg-gradient-to-b from-[#0a1410] via-[#060806] to-[#0b0a04]" />
+      <div className="absolute inset-0 opacity-[0.06] bg-[radial-gradient(#f5c800_1px,transparent_1px)] [background-size:26px_26px]" />
       <div
         style={{ animation: "asia-orb-drift 18s ease-in-out infinite" }}
-        className="absolute -left-32 -top-36 h-96 w-96 rounded-full bg-gradient-to-tr from-[#1a7a1a]/15 via-[#f5c800]/10 to-transparent blur-3xl sm:h-[500px] sm:w-[500px]"
+        className="absolute -left-32 -top-36 h-96 w-96 rounded-full bg-gradient-to-tr from-[#1a7a1a]/25 via-[#f5c800]/10 to-transparent blur-3xl sm:h-[500px] sm:w-[500px]"
       />
       <div
         style={{ animation: "asia-orb-drift 22s ease-in-out 2s infinite reverse" }}
-        className="absolute -bottom-40 -right-36 h-96 w-96 rounded-full bg-gradient-to-br from-[#2d9e2d]/12 via-[#1a7a1a]/10 to-transparent blur-3xl sm:h-[540px] sm:w-[540px]"
+        className="absolute -bottom-40 -right-36 h-96 w-96 rounded-full bg-gradient-to-br from-[#f5c800]/12 via-[#1a7a1a]/15 to-transparent blur-3xl sm:h-[540px] sm:w-[540px]"
       />
+      {/* Gold hairline along the very top edge. */}
+      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#f5c800]/50 to-transparent" />
     </div>
   );
 }
 
 const TOAST_TONES: Record<ToastType, string> = {
-  success: "bg-emerald-50/95 border-emerald-300 text-emerald-900",
-  error: "bg-rose-50/95 border-rose-300 text-rose-900",
-  info: "bg-[#f5c800]/15 border-[#f5c800]/60 text-[#4a3c00]",
+  success: "bg-[#0d100e]/95 border-emerald-500/40 text-emerald-200",
+  error: "bg-[#0d100e]/95 border-rose-500/40 text-rose-200",
+  info: "bg-[#0d100e]/95 border-[#f5c800]/45 text-[#f5c800]",
 };
 
 function ToastContainer({
@@ -138,7 +250,7 @@ function ToastContainer({
             type="button"
             onClick={() => onDismiss(t.id)}
             aria-label="Đóng thông báo"
-            className="p-1 text-zinc-400 transition-colors hover:text-zinc-600"
+            className="p-1 text-zinc-500 transition-colors hover:text-zinc-300"
           >
             <X className="h-4 w-4" />
           </button>
@@ -159,8 +271,9 @@ function LoginScreen({
   onNavigate: (v: AuthView) => void;
   showToast: ShowToast;
 }) {
-  const [identifier, setIdentifier] = useState("nhanvien@asiafnb.vn");
-  const [password, setPassword] = useState("Asia@2026");
+  const router = useRouter();
+  const [identifier, setIdentifier] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
@@ -182,7 +295,17 @@ function LoginScreen({
     setIsLoading(true);
     setTimeout(() => {
       setIsLoading(false);
+      // Persist the session, then land the admin straight on the management
+      // dashboard rather than the public home page.
+      const account = findRegisteredAccount(identifier.trim());
+      setAdminSession({
+        email: account?.email ?? identifier.trim(),
+        fullName: account?.fullName ?? "admin",
+        role: "Toàn quyền Admin",
+      });
       showToast("Đăng nhập thành công!", "Chào mừng bạn quay lại cổng thông tin nội bộ Asia F&B.", "success");
+      router.push("/admin");
+      router.refresh();
     }, 1200);
   };
 
@@ -194,11 +317,12 @@ function LoginScreen({
   };
 
   return (
-    <div className="mx-auto w-full max-w-md animate-auth-in">
+    <div className="mx-auto w-full max-w-lg animate-auth-in">
       <div className={CARD}>
         <div className={cardAccent()} />
 
-        <div className="mb-6 text-center">
+        <div className="mb-7 text-center">
+          <BrandBadge size={96} />
           <div className={EYEBROW}>
             <Sparkles className="h-3.5 w-3.5" />
             <span>Chào mừng trở lại</span>
@@ -209,28 +333,26 @@ function LoginScreen({
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className={LABEL}>Email hoặc Số điện thoại</label>
-            <div className="relative">
-              <div className={INPUT_ICON}>
-                <Mail className="h-4 w-4" />
-              </div>
-              <input
-                type="text"
-                value={identifier}
-                onChange={(e) => {
-                  setIdentifier(e.target.value);
-                  if (errors.identifier) setErrors({ ...errors, identifier: undefined });
-                }}
-                placeholder="name@asiafnb.vn hoặc 0912..."
-                className={`${INPUT} pr-4 ${errors.identifier ? INPUT_ERROR : ""}`}
-              />
-            </div>
+            <label htmlFor="login-identifier" className={LABEL}>Email hoặc Số điện thoại</label>
+            <FloatingField
+              id="login-identifier"
+              value={identifier}
+              onChange={(value) => {
+                setIdentifier(value);
+                if (errors.identifier) setErrors({ ...errors, identifier: undefined });
+              }}
+              label="Email hoặc Số điện thoại"
+              placeholder="name@asiafnb.vn hoặc 0912..."
+              icon={<Mail className="h-4 w-4" />}
+              invalid={Boolean(errors.identifier)}
+              autoComplete="username"
+            />
             {errors.identifier && <p className={ERROR_TEXT}>{errors.identifier}</p>}
           </div>
 
           <div>
             <div className="mb-1.5 flex items-center justify-between">
-              <label className="text-xs font-semibold text-zinc-700">Mật khẩu</label>
+              <label htmlFor="login-password" className="text-xs font-semibold text-zinc-300">Mật khẩu</label>
               <button
                 type="button"
                 onClick={() => onNavigate("forgot-password")}
@@ -239,29 +361,30 @@ function LoginScreen({
                 Quên mật khẩu?
               </button>
             </div>
-            <div className="relative">
-              <div className={INPUT_ICON}>
-                <Lock className="h-4 w-4" />
-              </div>
-              <input
-                type={showPassword ? "text" : "password"}
-                value={password}
-                onChange={(e) => {
-                  setPassword(e.target.value);
-                  if (errors.password) setErrors({ ...errors, password: undefined });
-                }}
-                placeholder="Nhập mật khẩu..."
-                className={`${INPUT} pr-11 ${errors.password ? INPUT_ERROR : ""}`}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                aria-label="Hiện/ẩn mật khẩu"
-                className="absolute inset-y-0 right-0 flex items-center pr-3.5 text-zinc-400 transition-colors hover:text-zinc-600"
-              >
-                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
-            </div>
+            <FloatingField
+              id="login-password"
+              type={showPassword ? "text" : "password"}
+              value={password}
+              onChange={(value) => {
+                setPassword(value);
+                if (errors.password) setErrors({ ...errors, password: undefined });
+              }}
+              label="Mật khẩu"
+              placeholder="Nhập mật khẩu..."
+              icon={<Lock className="h-4 w-4" />}
+              invalid={Boolean(errors.password)}
+              autoComplete="current-password"
+              trailing={
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  aria-label="Hiện/ẩn mật khẩu"
+                  className="absolute inset-y-0 right-0 flex items-center pr-3.5 text-zinc-500 transition-colors hover:text-zinc-300"
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              }
+            />
             {errors.password && <p className={ERROR_TEXT}>{errors.password}</p>}
           </div>
 
@@ -275,12 +398,12 @@ function LoginScreen({
               />
               <span
                 className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${
-                  rememberMe ? "bg-[#1a7a1a] border-[#1a7a1a] text-white" : "border-zinc-300 bg-white"
+                  rememberMe ? "bg-[#f5c800] border-[#f5c800] text-black" : "border-white/25 bg-white/5"
                 }`}
               >
                 {rememberMe && <Check className="h-3 w-3 stroke-[3]" />}
               </span>
-              <span className="text-xs font-medium text-zinc-600">Ghi nhớ đăng nhập</span>
+              <span className="text-xs font-medium text-zinc-300">Ghi nhớ đăng nhập</span>
             </label>
 
             <button
@@ -352,7 +475,7 @@ function RegisterScreen({
   /** Live password-strength score (8+ chars, uppercase, digit, symbol). */
   const strength = useMemo(() => {
     const { password } = form;
-    if (!password) return { score: 0, label: "Chưa nhập", color: "bg-zinc-200" };
+    if (!password) return { score: 0, label: "Chưa nhập", color: "bg-white/15" };
 
     let score = 0;
     if (password.length >= 8) score += 1;
@@ -396,6 +519,8 @@ function RegisterScreen({
     setIsLoading(true);
     setTimeout(() => {
       setIsLoading(false);
+      saveRegisteredAccount({ email: email.trim(), fullName: fullName.trim(), phone: phone.trim() });
+      registerPendingUser({ fullName, email, phone });
       showToast("Tạo tài khoản thành công!", "Chúng tôi đã gửi mã OTP xác thực kích hoạt tài khoản.", "success");
       onRegisterSuccess(email, phone);
     }, 1200);
@@ -436,6 +561,7 @@ function RegisterScreen({
         <div className={cardAccent()} />
 
         <div className="mb-6 text-center">
+          <BrandBadge size={72} />
           <div className={EYEBROW}>
             <Sparkles className="h-3.5 w-3.5" />
             <span>Tạo tài khoản mới</span>
@@ -446,88 +572,85 @@ function RegisterScreen({
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className={LABEL}>Họ và tên</label>
-            <div className="relative">
-              <div className={INPUT_ICON}>
-                <User className="h-4 w-4" />
-              </div>
-              <input
-                type="text"
-                value={form.fullName}
-                onChange={(e) => set("fullName")(e.target.value)}
-                placeholder="Nguyễn Văn A"
-                className={`${INPUT} pr-4 ${errors.fullName ? INPUT_ERROR : ""}`}
-              />
-            </div>
+            <label htmlFor="reg-fullname" className={LABEL}>Họ và tên</label>
+            <FloatingField
+              id="reg-fullname"
+              value={form.fullName}
+              onChange={set("fullName")}
+              label="Họ và tên"
+              placeholder="Nguyễn Văn A"
+              icon={<User className="h-4 w-4" />}
+              invalid={Boolean(errors.fullName)}
+              autoComplete="name"
+            />
             {errors.fullName && <p className={ERROR_TEXT}>{errors.fullName}</p>}
           </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-              <label className={LABEL}>Email</label>
-              <div className="relative">
-                <div className={INPUT_ICON}>
-                  <Mail className="h-4 w-4" />
-                </div>
-                <input
-                  type="email"
-                  value={form.email}
-                  onChange={(e) => set("email")(e.target.value)}
-                  placeholder="name@asiafnb.vn"
-                  className={`${INPUT} pr-3 ${errors.email ? INPUT_ERROR : ""}`}
-                />
-              </div>
+              <label htmlFor="reg-email" className={LABEL}>Email</label>
+              <FloatingField
+                id="reg-email"
+                type="email"
+                value={form.email}
+                onChange={set("email")}
+                label="Email"
+                placeholder="name@asiafnb.vn"
+                icon={<Mail className="h-4 w-4" />}
+                invalid={Boolean(errors.email)}
+                autoComplete="email"
+              />
               {errors.email && <p className={ERROR_TEXT}>{errors.email}</p>}
             </div>
 
             <div>
-              <label className={LABEL}>Số điện thoại</label>
-              <div className="relative">
-                <div className={INPUT_ICON}>
-                  <Phone className="h-4 w-4" />
-                </div>
-                <input
-                  type="tel"
-                  value={form.phone}
-                  onChange={(e) => set("phone")(e.target.value)}
-                  placeholder="0912 345 678"
-                  className={`${INPUT} pr-3 ${errors.phone ? INPUT_ERROR : ""}`}
-                />
-              </div>
+              <label htmlFor="reg-phone" className={LABEL}>Số điện thoại</label>
+              <FloatingField
+                id="reg-phone"
+                type="tel"
+                value={form.phone}
+                onChange={set("phone")}
+                label="Số điện thoại"
+                placeholder="0912 345 678"
+                icon={<Phone className="h-4 w-4" />}
+                invalid={Boolean(errors.phone)}
+                autoComplete="tel"
+              />
               {errors.phone && <p className={ERROR_TEXT}>{errors.phone}</p>}
             </div>
           </div>
 
           <div>
-            <label className={LABEL}>Mật khẩu</label>
-            <div className="relative">
-              <div className={INPUT_ICON}>
-                <Lock className="h-4 w-4" />
-              </div>
-              <input
-                type={showPassword ? "text" : "password"}
-                value={form.password}
-                onChange={(e) => set("password")(e.target.value)}
-                placeholder="Tối thiểu 8 ký tự, chữ hoa, số & ký tự đặc biệt"
-                className={`${INPUT} pr-11 ${errors.password ? INPUT_ERROR : ""}`}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                aria-label="Hiện/ẩn mật khẩu"
-                className="absolute inset-y-0 right-0 flex items-center pr-3.5 text-zinc-400 transition-colors hover:text-zinc-600"
-              >
-                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
-            </div>
+            <label htmlFor="reg-password" className={LABEL}>Mật khẩu</label>
+            <FloatingField
+              id="reg-password"
+              type={showPassword ? "text" : "password"}
+              value={form.password}
+              onChange={set("password")}
+              label="Mật khẩu"
+              placeholder="Tối thiểu 8 ký tự, chữ hoa, số & ký tự đặc biệt"
+              icon={<Lock className="h-4 w-4" />}
+              invalid={Boolean(errors.password)}
+              autoComplete="new-password"
+              trailing={
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  aria-label="Hiện/ẩn mật khẩu"
+                  className="absolute inset-y-0 right-0 flex items-center pr-3.5 text-zinc-500 transition-colors hover:text-zinc-300"
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              }
+            />
 
             {form.password && (
               <div className="mt-2 space-y-1.5">
                 <div className="flex items-center justify-between text-[11px]">
-                  <span className="text-zinc-500">Độ mạnh mật khẩu:</span>
-                  <span className="font-semibold text-zinc-700">{strength.label}</span>
+                  <span className="text-zinc-400">Độ mạnh mật khẩu:</span>
+                  <span className="font-semibold text-zinc-200">{strength.label}</span>
                 </div>
-                <div className="h-1.5 w-full overflow-hidden rounded-full bg-zinc-200">
+                <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
                   <div
                     className={`h-full rounded-full transition-all duration-300 ${strength.color}`}
                     style={{ width: `${strength.score}%` }}
@@ -545,19 +668,18 @@ function RegisterScreen({
           </div>
 
           <div>
-            <label className={LABEL}>Xác nhận lại mật khẩu</label>
-            <div className="relative">
-              <div className={INPUT_ICON}>
-                <ShieldCheck className="h-4 w-4" />
-              </div>
-              <input
-                type={showPassword ? "text" : "password"}
-                value={form.confirmPassword}
-                onChange={(e) => set("confirmPassword")(e.target.value)}
-                placeholder="Nhập lại mật khẩu vừa tạo"
-                className={`${INPUT} pr-4 ${errors.confirmPassword ? INPUT_ERROR : ""}`}
-              />
-            </div>
+            <label htmlFor="reg-confirm" className={LABEL}>Xác nhận lại mật khẩu</label>
+            <FloatingField
+              id="reg-confirm"
+              type={showPassword ? "text" : "password"}
+              value={form.confirmPassword}
+              onChange={set("confirmPassword")}
+              label="Xác nhận lại mật khẩu"
+              placeholder="Nhập lại mật khẩu vừa tạo"
+              icon={<ShieldCheck className="h-4 w-4" />}
+              invalid={Boolean(errors.confirmPassword)}
+              autoComplete="new-password"
+            />
             {errors.confirmPassword && <p className={ERROR_TEXT}>{errors.confirmPassword}</p>}
           </div>
 
@@ -574,12 +696,12 @@ function RegisterScreen({
               />
               <span
                 className={`w-4 h-4 mt-0.5 rounded border flex items-center justify-center shrink-0 transition-colors ${
-                  agreeTerms ? "bg-[#1a7a1a] border-[#1a7a1a] text-white" : "border-zinc-300 bg-white"
+                  agreeTerms ? "bg-[#f5c800] border-[#f5c800] text-black" : "border-white/25 bg-white/5"
                 }`}
               >
                 {agreeTerms && <Check className="h-3 w-3 stroke-[3]" />}
               </span>
-              <span className="text-xs leading-relaxed text-zinc-600">
+              <span className="text-xs leading-relaxed text-zinc-300">
                 Tôi đồng ý với{" "}
                 <button
                   type="button"
@@ -651,7 +773,7 @@ function ForgotPasswordScreen({
   onRequestOtp: (email: string) => void;
   showToast: ShowToast;
 }) {
-  const [email, setEmail] = useState("nhanvien@asiafnb.vn");
+  const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -698,28 +820,27 @@ function ForgotPasswordScreen({
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className={LABEL}>Địa chỉ Email đã đăng ký</label>
-            <div className="relative">
-              <div className={INPUT_ICON}>
-                <Mail className="h-4 w-4" />
-              </div>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => {
-                  setEmail(e.target.value);
-                  if (error) setError("");
-                }}
-                placeholder="name@asiafnb.vn"
-                className={`${INPUT} pr-4 ${error ? INPUT_ERROR : ""}`}
-              />
-            </div>
+            <label htmlFor="forgot-email" className={LABEL}>Địa chỉ Email đã đăng ký</label>
+            <FloatingField
+              id="forgot-email"
+              type="email"
+              value={email}
+              onChange={(value) => {
+                setEmail(value);
+                if (error) setError("");
+              }}
+              label="Địa chỉ Email đã đăng ký"
+              placeholder="name@asiafnb.vn"
+              icon={<Mail className="h-4 w-4" />}
+              invalid={Boolean(error)}
+              autoComplete="email"
+            />
           </div>
 
           {error && <p className="pl-1 text-xs font-medium text-rose-500">{error}</p>}
 
-          <div className="flex items-start gap-2.5 rounded-xl border-emerald-900/10 bg-emerald-50/60 p-3 text-xs leading-relaxed text-zinc-500">
-            <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-[#b8860b]" />
+          <div className="flex items-start gap-2.5 rounded-xl border border-white/10 bg-white/[0.04] p-3 text-xs leading-relaxed text-zinc-400">
+            <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-[#f5c800]" />
             <span>
               Mã xác thực có hiệu lực trong 5 phút. Vui lòng không chia sẻ mã này với bất kỳ ai để bảo vệ
               tài khoản.
@@ -742,7 +863,7 @@ function ForgotPasswordScreen({
           <button
             type="button"
             onClick={() => onNavigate("login")}
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-zinc-600 transition-colors hover:text-zinc-900"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-zinc-400 transition-colors hover:text-white"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
             <span>Quay lại trang Đăng nhập</span>
@@ -761,10 +882,12 @@ function OtpScreen({
   onNavigate,
   target,
   showToast,
+  onAuthenticated,
 }: {
   onNavigate: (v: AuthView) => void;
   target: string;
   showToast: ShowToast;
+  onAuthenticated: (email: string) => void;
 }) {
   const [otp, setOtp] = useState<string[]>(Array(6).fill(""));
   const [isVerifying, setIsVerifying] = useState(false);
@@ -836,8 +959,8 @@ function OtpScreen({
         showToast("Mã OTP không đúng", `Mã xác thực không hợp lệ. Vui lòng thử lại với ${DEMO_CODE}.`, "error");
         return;
       }
-      setIsSuccess(true);
       showToast("Xác thực thành công!", "Tài khoản của bạn đã được xác minh thành công.", "success");
+      onAuthenticated(target);
     }, 1100);
   };
 
@@ -848,17 +971,17 @@ function OtpScreen({
 
         {isSuccess ? (
           <div className="py-4 text-center">
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-3xl border-[#1a7a1a]/30 bg-emerald-500/15 text-[#1a7a1a]">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-3xl border border-[#f5c800]/30 bg-[#f5c800]/10 text-[#f5c800]">
               <CheckCircle2 className="h-9 w-9" />
             </div>
-            <h2 className="text-2xl font-bold text-zinc-900">Xác thực thành công!</h2>
-            <p className="mt-2 text-sm leading-relaxed text-zinc-500">
+            <h2 className="text-2xl font-bold text-white">Xác thực thành công!</h2>
+            <p className="mt-2 text-sm leading-relaxed text-zinc-400">
               Mã OTP hợp lệ. Danh tính của bạn qua Email đã được chứng thực 100%.
             </p>
 
-            <div className="my-6 space-y-3 rounded-xl border-emerald-900/10 bg-emerald-50/50 p-4 text-left">
-              <div className="flex items-center gap-2 text-xs font-semibold text-zinc-700">
-                <LockKeyhole className="h-4 w-4 text-[#1a7a1a]" />
+            <div className="my-6 space-y-3 rounded-xl border border-white/10 bg-white/[0.04] p-4 text-left">
+              <div className="flex items-center gap-2 text-xs font-semibold text-zinc-300">
+                <LockKeyhole className="h-4 w-4 text-[#f5c800]" />
                 <span>Đặt mật khẩu mới (Nếu đang khôi phục tài khoản)</span>
               </div>
               <input
@@ -882,9 +1005,9 @@ function OtpScreen({
                 type="button"
                 onClick={() => {
                   showToast("Đã cập nhật!", "Bạn có thể đăng nhập ngay với thông tin mới.", "success");
-                  onNavigate("login");
+                  onAuthenticated(target);
                 }}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#0d5c0d] to-[#2d9e2d] px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-[#1a7a1a]/25 transition-all duration-200 hover:brightness-110"
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#d4aa00] via-[#f5c800] to-[#e0b400] px-4 py-2.5 text-sm font-bold text-[#1a1a1a] shadow-lg shadow-[#f5c800]/20 transition-all duration-200 hover:brightness-110"
               >
                 <span>Hoàn tất &amp; Đăng nhập</span>
                 <ArrowRight className="h-4 w-4" />
@@ -896,7 +1019,7 @@ function OtpScreen({
                   setIsSuccess(false);
                   setOtp(Array(6).fill(""));
                 }}
-                className="w-full py-2 text-xs text-zinc-500 transition-colors hover:text-zinc-800"
+                className="w-full py-2 text-xs text-zinc-400 transition-colors hover:text-zinc-200"
               >
                 Thử lại quy trình xác thực OTP
               </button>
@@ -910,8 +1033,8 @@ function OtpScreen({
               </div>
               <h1 className={TITLE}>Xác thực mã OTP</h1>
               <p className={`${SUBTITLE} leading-relaxed`}>Nhập mã số gồm 6 chữ số vừa được gửi đến</p>
-              <div className="mt-1 inline-flex items-center gap-1.5 rounded-full border-emerald-200/70 bg-emerald-50 px-3 py-1 text-xs font-semibold text-[#0d5c0d]">
-                <Mail className="h-3.5 w-3.5 text-[#1a7a1a]" />
+              <div className="mt-1 inline-flex items-center gap-1.5 rounded-full border border-[#f5c800]/25 bg-white/[0.06] px-3 py-1 text-xs font-semibold text-[#f5c800]">
+                <Mail className="h-3.5 w-3.5 text-[#f5c800]" />
                 <span>{target}</span>
               </div>
             </div>
@@ -937,12 +1060,12 @@ function OtpScreen({
                       onChange={(e) => handleDigit(idx, e.target.value)}
                       onKeyDown={(e) => handleKeyDown(idx, e)}
                       onPaste={handlePaste}
-                      className={`h-13 w-11 rounded-xl border bg-emerald-50/50 text-center text-xl font-bold text-zinc-900 outline-none transition-all duration-200 sm:h-15 sm:w-13 sm:text-2xl ${
+                      className={`h-13 w-11 rounded-xl border bg-white/[0.04] text-center text-xl font-bold text-white outline-none transition-all duration-200 sm:h-15 sm:w-13 sm:text-2xl ${
                         hasError
-                          ? "border-rose-500 text-rose-600 focus:ring-4 focus:ring-rose-500/15"
+                          ? "border-rose-500 text-rose-300 focus:ring-4 focus:ring-rose-500/15"
                           : digit
-                          ? "border-[#1a7a1a] bg-emerald-50/70 ring-2 ring-[#1a7a1a]/20"
-                          : "border-emerald-900/15 focus:border-[#1a7a1a] focus:ring-4 focus:ring-[#1a7a1a]/15"
+                          ? "border-[#f5c800] bg-[#f5c800]/10 ring-2 ring-[#f5c800]/25"
+                          : "border-white/15 focus:border-[#f5c800] focus:ring-4 focus:ring-[#f5c800]/15"
                       }`}
                     />
                   ))}
@@ -1017,7 +1140,7 @@ function OtpScreen({
               <button
                 type="button"
                 onClick={() => onNavigate("login")}
-                className="inline-flex items-center gap-1.5 text-xs font-semibold text-zinc-600 transition-colors hover:text-zinc-900"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-zinc-400 transition-colors hover:text-white"
               >
                 <ArrowLeft className="h-3.5 w-3.5" />
                 <span>Quay lại Đăng nhập</span>
@@ -1056,8 +1179,16 @@ export default function AuthFlow() {
     setView("otp");
   };
 
+  const router = useRouter();
+
+  /** A successful OTP confirmation returns the user to the login screen. */
+  const completeOtp = useCallback(() => {
+    setView("login");
+    router.replace("/admin/login");
+  }, [router]);
+
   return (
-    <main className="relative flex min-h-screen flex-col justify-between selection:bg-[#1a7a1a] selection:text-white">
+    <main className="relative flex min-h-screen flex-col justify-between selection:bg-[#f5c800] selection:text-black">
       <AmbientBackground />
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
 
@@ -1078,14 +1209,19 @@ export default function AuthFlow() {
           )}
 
           {view === "otp" && (
-            <OtpScreen onNavigate={setView} target={otpTarget} showToast={showToast} />
+            <OtpScreen
+              onNavigate={setView}
+              target={otpTarget}
+              showToast={showToast}
+              onAuthenticated={completeOtp}
+            />
           )}
         </div>
       </div>
 
-      <footer className="mx-auto w-full max-w-5xl border-t border-emerald-900/10 px-4 py-6 text-xs text-zinc-500">
+      <footer className="mx-auto w-full max-w-5xl border-t border-white/10 px-4 py-6 text-xs text-zinc-500">
         <div className="flex items-center justify-center gap-2 text-center">
-          <span className="h-2 w-2 animate-pulse rounded-full bg-[#1a7a1a]" />
+          <span className="h-2 w-2 animate-pulse rounded-full bg-[#f5c800]" />
           <span>Asia Internal Portal • Hệ thống xác thực nội bộ Asia Food &amp; Beverage</span>
         </div>
       </footer>

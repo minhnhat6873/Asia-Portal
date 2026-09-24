@@ -68,16 +68,26 @@ export const PEOPLE: Person[] = employees.map(toPerson);
 /** The board / leadership department label, taken from the config. */
 const BOARD = departments[1];
 
+/* ------------------------------------------------------------------------- *
+ * Live builders — the carousels call these with the employee list from the
+ * shared store, so they also pick up anyone the admin dashboard adds.
+ * ------------------------------------------------------------------------- */
+
 /** Leadership & management: the first 3 people from the board department. */
-export const TEAM_DATA: Person[] = PEOPLE.filter(
-  (person) => person.dept === BOARD
-).slice(0, 3);
+export function buildTeamData(list: Employee[]): Person[] {
+  return list
+    .map(toPerson)
+    .filter((person) => person.dept === BOARD)
+    .slice(0, 3);
+}
 
 /** Newest employees first - the "new joiner" list. */
-export const JOINERS_DATA: Person[] = [...employees]
-  .sort((a, b) => parseVnDate(b.joinDate) - parseVnDate(a.joinDate))
-  .slice(0, 3)
-  .map(toPerson);
+export function buildJoinersData(list: Employee[]): Person[] {
+  return [...list]
+    .sort((a, b) => parseVnDate(b.joinDate) - parseVnDate(a.joinDate))
+    .slice(0, 3)
+    .map(toPerson);
+}
 
 /* ------------------------------------------------------------------------- *
  * Resources — feeds the "Công cụ & Tài nguyên" grid

@@ -29,8 +29,8 @@ export default function InternalSystemsMenu() {
         aria-haspopup="menu"
         className={`inline-flex whitespace-nowrap items-center gap-2 rounded-lg border px-4 py-2 text-base font-semibold transition-colors ${
           open
-            ? "border-[#1a7a1a] bg-green-50 text-[#0d5c0d]"
-            : "border-transparent text-[#0d5c0d] hover:border-green-100 hover:bg-green-50"
+            ? "border-wana-green bg-wana-green-50 text-wana-green-dark"
+            : "border-transparent text-wana-green-dark hover:border-wana-green-100 hover:bg-wana-green-50"
         }`}
       >
         Hệ thống nội bộ Wana
@@ -47,9 +47,9 @@ export default function InternalSystemsMenu() {
                 target="_blank"
                 rel="noreferrer"
                 role="menuitem"
-                className="group flex items-center gap-3 rounded-xl p-3 transition-colors hover:bg-green-50"
+                className="group flex items-center gap-3 rounded-xl p-3 transition-colors hover:bg-wana-green-50"
               >
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-green-50 text-[#159447] transition-colors group-hover:bg-[#159447] group-hover:text-white">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-wana-green-50 text-wana-green transition-colors group-hover:bg-wana-green group-hover:text-white">
                   <Icon size={23} strokeWidth={2.2} />
                 </span>
                 <span className="min-w-0 flex-1">

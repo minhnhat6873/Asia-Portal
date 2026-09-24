@@ -5,6 +5,22 @@
   --breakpoint-lg: 992px;
   --breakpoint-xl: 1200px;
   --breakpoint-2xl: 1200px;
+
+  --color-wana-green: #1a7a1a;
+  --color-wana-green-dark: #0d5c0d;
+  --color-wana-green-light: #e8f5e9;
+  --color-wana-green-50: #f0fdf0;
+  --color-wana-green-100: #dcfce7;
+  --color-wana-green-200: #bbf7d0;
+  --color-wana-green-500: #22c55e;
+  --color-wana-green-600: #16a34a;
+  --color-wana-green-700: #15803d;
+  --color-wana-green-800: #166534;
+  --color-wana-green-900: #14532d;
+  --color-wana-yellow: #f5c800;
+  --color-wana-yellow-dark: #d4aa00;
+  --color-wana-yellow-50: #fefce8;
+  --color-wana-yellow-100: #fef9c3;
 }
 
 :root {
@@ -32,13 +48,13 @@ body {
   background: #f1f1f1;
 }
 ::-webkit-scrollbar-thumb {
-  background: #1a7a1a;
+  background: var(--wana-green);
   border-radius: 3px;
 }
 
 /* Wana gradient */
 .wana-gradient {
-  background: linear-gradient(135deg, #0d5c0d 0%, #1a7a1a 50%, #2d9e2d 100%);
+  background: linear-gradient(135deg, var(--wana-green-dark) 0%, var(--wana-green) 50%, #2d9e2d 100%);
 }
 
 /* Hero overlay */
@@ -49,6 +65,38 @@ body {
     rgba(13, 92, 13, 0.6) 50%,
     rgba(13, 92, 13, 0.1) 100%
   );
+}
+
+/* Permission card hover flash - ô quyền con nháy highlight khi hover */
+@keyframes perm-flash {
+  0%,
+  100% {
+    background-color: rgba(26, 122, 26, 0.06);
+    border-color: rgba(26, 122, 26, 0.35);
+  }
+  50% {
+    background-color: rgba(26, 122, 26, 0.16);
+    border-color: var(--wana-green);
+  }
+}
+.perm-card:hover {
+  animation: perm-flash 0.9s ease-in-out infinite;
+}
+
+/* Pending accounts alert - nhấp nháy viền cam liên tục khi có tài khoản chờ duyệt */
+@keyframes pending-alert {
+  0%,
+  100% {
+    border-color: rgb(249 115 22 / 0.35);
+    box-shadow: 0 0 0 0 rgb(249 115 22 / 0);
+  }
+  50% {
+    border-color: rgb(249 115 22);
+    box-shadow: 0 0 16px 3px rgb(249 115 22 / 0.4);
+  }
+}
+.pending-alert {
+  animation: pending-alert 1.4s ease-in-out infinite;
 }
 
 /* Card hover effect */
@@ -117,7 +165,7 @@ body {
 }
 
 /* Badge */
-.badge-event { background-color: #1a7a1a; color: white; }
+.badge-event { background-color: var(--wana-green); color: white; }
 .badge-news { background-color: #0077b6; color: white; }
 .badge-hr { background-color: #9b2226; color: white; }
 .badge-announce { background-color: #e76f51; color: white; }
@@ -173,6 +221,83 @@ body {
   .profile-in-left {
     animation: none;
   }
+}
+
+/* Asia F&B theme for the access-control screens migrated into Admin. */
+.asia-access-control {
+  color: #173f24;
+}
+
+.asia-access-control [class*="bg-slate-900"],
+.asia-access-control [class*="bg-[#0c121e]"],
+.asia-access-control [class*="bg-[#0b101b]"] {
+  background-color: #ffffff !important;
+}
+
+.asia-access-control [class*="bg-slate-950"] {
+  background-color: #f8fafc !important;
+}
+
+.asia-access-control [class*="bg-slate-800"],
+.asia-access-control [class*="bg-slate-700"] {
+  background-color: #f1f5f9 !important;
+}
+
+.asia-access-control [class*="border-slate"] {
+  border-color: #e2e8f0 !important;
+}
+
+.asia-access-control [class*="from-emerald-950"],
+.asia-access-control [class*="via-slate-900"],
+.asia-access-control [class*="to-slate-900"] {
+  background-image: linear-gradient(120deg, #edf9f0 0%, #ffffff 62%, #f4fbf5 100%) !important;
+}
+
+.asia-access-control :is(h1, h2, h3, h4, th) {
+  color: #0f172a !important;
+}
+
+.asia-access-control :is(p, span, label, td, div)[class*="text-slate-"] {
+  color: #475569 !important;
+}
+
+.asia-access-control :is(p, span, td, div)[class*="text-white"] {
+  color: #0f172a !important;
+}
+
+.asia-access-control button :is(span, p)[class*="text-white"] {
+  color: #ffffff !important;
+}
+
+.asia-access-control input,
+.asia-access-control select {
+  background-color: #ffffff !important;
+  border-color: rgba(22, 101, 52, 0.24) !important;
+  color: #163f24 !important;
+}
+
+.asia-access-control button:hover {
+  border-color: rgba(22, 163, 74, 0.45);
+}
+
+/* Keep System Settings visually identical to the white Permission screen. */
+.asia-system-settings [class*="bg-emerald-950"],
+.asia-system-settings [class*="bg-emerald-900"] {
+  background-color: #ecf9f0 !important;
+}
+
+.asia-system-settings [class*="border-emerald-8"],
+.asia-system-settings [class*="border-emerald-9"] {
+  border-color: #b7e4c7 !important;
+}
+
+.asia-system-settings [class*="text-emerald-300"],
+.asia-system-settings [class*="text-emerald-400"] {
+  color: #087a43 !important;
+}
+
+.asia-system-settings [class*="shadow-emerald"] {
+  box-shadow: 0 8px 20px rgba(22, 101, 52, 0.1) !important;
 }
 
 /* ----------------------------------------------------------------------- *

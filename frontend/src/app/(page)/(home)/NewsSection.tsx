@@ -3,7 +3,8 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { news, newsCategories, NewsItem } from "@/config/news";
+import { newsCategories, NewsItem } from "@/config/news";
+import { useNews } from "@/lib/usePortalContent";
 import { ArrowRight, Calendar, User, ChevronRight, Search, ArrowDownUp, LayoutGrid, Newspaper, Users, Megaphone, X, RotateCcw } from "lucide-react";
 
 interface Props {
@@ -115,6 +116,9 @@ const categoryBadgeClass: Record<string, string> = {
 };
 
 export default function NewsSection({ preview = false }: Props) {
+  // Live content: static config until the admin dashboard publishes, then the
+  // admin's published posts only (drafts stay admin-side).
+  const news = useNews();
   const [activeCategory, setActiveCategory] = useState("Tất cả");
   const [searchQuery, setSearchQuery] = useState("");
   const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
@@ -124,7 +128,12 @@ export default function NewsSection({ preview = false }: Props) {
     (n) => activeCategory === "Tất cả" || n.category === activeCategory
   );
 
-  const displayed = preview ? filtered.filter((n) => n.featured).slice(0, 3) : filtered;
+  // On the home page preview we surface the newest featured posts; when the
+  // admin has published their own posts those become the featured ones.
+  const featuredPosts = filtered.filter((n) => n.featured);
+  const displayed = preview
+    ? (featuredPosts.length ? featuredPosts : filtered).slice(0, 3)
+    : filtered;
   const searched = displayed.filter((item) => {
     const query = searchQuery.trim().toLocaleLowerCase();
     return !query || item.title.toLocaleLowerCase().includes(query) || item.excerpt.toLocaleLowerCase().includes(query);
