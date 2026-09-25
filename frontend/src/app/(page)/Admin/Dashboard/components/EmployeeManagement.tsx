@@ -19,6 +19,8 @@ import {
   X
 } from 'lucide-react';
 import { Employee, EmployeeStatus } from '../types';
+import { AdminSelect } from './AdminSelect';
+import { DEPARTMENTS } from '@/config/departments';
 
 interface EmployeeManagementProps {
   employees: Employee[];
@@ -29,20 +31,7 @@ interface EmployeeManagementProps {
   onCloseDossier: () => void;
   onOpenDossier: (emp: Employee) => void;
   onNavigateToAdd?: () => void;
-  openAddModalTrigger?: boolean;
-  onResetAddTrigger?: () => void;
 }
-
-const DEPARTMENTS = [
-  'Phòng IT',
-  'Phòng Marketing',
-  'Ban Giám Đốc',
-  'Phòng R&D',
-  'Phòng Quản Lý Chất Lượng',
-  'Phòng Kế Toán',
-  'Phòng Nhân Sự',
-  'Phòng Vận Hành Nhà Máy'
-];
 
 export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
   employees,
@@ -53,8 +42,6 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
   onCloseDossier,
   onOpenDossier,
   onNavigateToAdd,
-  openAddModalTrigger,
-  onResetAddTrigger,
 }) => {
   // Search & Filter State
   const [searchQuery, setSearchQuery] = useState('');
@@ -69,13 +56,6 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-
-  React.useEffect(() => {
-    if (openAddModalTrigger) {
-      setIsAddModalOpen(true);
-      onResetAddTrigger?.();
-    }
-  }, [openAddModalTrigger]);
 
   // Form State: 100% straight and balanced (no chicken avatar)
   const [formData, setFormData] = useState({
@@ -266,29 +246,9 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
 
         {/* Filters */}
         <div className="flex items-center gap-2 flex-wrap">
-          <select
-            value={selectedDept}
-            onChange={(e) => setSelectedDept(e.target.value)}
-            className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-          >
-            <option value="all">Tất cả phòng ban</option>
-            {DEPARTMENTS.map((dept) => (
-              <option key={dept} value={dept}>
-                {dept}
-              </option>
-            ))}
-          </select>
+          <AdminSelect value={selectedDept} onChange={setSelectedDept} className="min-w-52" searchPlaceholder="Tìm kiếm phòng ban..." options={[{ value: 'all', label: 'Tất cả phòng ban' }, ...DEPARTMENTS.map((dept) => ({ value: dept, label: dept }))]} />
 
-          <select
-            value={selectedStatus}
-            onChange={(e) => setSelectedStatus(e.target.value)}
-            className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-          >
-            <option value="all">Tất cả trạng thái</option>
-            <option value="active">Đang làm việc</option>
-            <option value="probation">Thử việc</option>
-            <option value="inactive">Đã nghỉ</option>
-          </select>
+          <AdminSelect value={selectedStatus} onChange={(value) => setSelectedStatus(value as 'all' | EmployeeStatus)} className="min-w-44" searchPlaceholder="Tìm kiếm trạng thái..." options={[{ value: 'all', label: 'Tất cả trạng thái' }, { value: 'active', label: 'Đang làm việc' }, { value: 'probation', label: 'Thử việc' }]} />
 
           {/* Toggle View Mode (Image 5) */}
           <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">

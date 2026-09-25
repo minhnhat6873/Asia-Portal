@@ -224,16 +224,14 @@ export default function CarouselPair() {
     return () => window.clearTimeout(timer);
   }, [index, paused, slideCount]);
 
-  // Keep the shared index valid when the roster shrinks under it (an admin
-  // deleting people), otherwise the modulo would skip cards.
-  useEffect(() => {
-    setIndex((prev) => (slideCount > 0 ? prev % slideCount : 0));
-  }, [slideCount]);
+  // Derive a valid display index when the roster shrinks. This avoids a
+  // redundant state update during an effect while keeping both cards aligned.
+  const displayIndex = slideCount > 0 ? index % slideCount : 0;
 
   const teamMember =
-    teamData.length > 0 ? teamData[index % teamData.length] : undefined;
+    teamData.length > 0 ? teamData[displayIndex % teamData.length] : undefined;
   const joiner =
-    joinersData.length > 0 ? joinersData[index % joinersData.length] : undefined;
+    joinersData.length > 0 ? joinersData[displayIndex % joinersData.length] : undefined;
 
   return (
     <div
@@ -248,10 +246,10 @@ export default function CarouselPair() {
         title="Đội ngũ Công ty"
         subtitle="Gặp gỡ những người dẫn dắt và truyền cảm hứng tại Asia F&B"
         counterText={`Card ${
-          teamData.length === 0 ? 0 : index + 1
+          teamData.length === 0 ? 0 : displayIndex + 1
         } of ${teamData.length}`}
         person={teamMember}
-        index={index}
+        index={displayIndex}
         direction={direction}
         onPrev={() => go(-1)}
         onNext={() => go(1)}
@@ -263,9 +261,9 @@ export default function CarouselPair() {
         eyebrow="Tân Binh Asia F&B"
         title="Thành viên Gia nhập Gần nhất"
         subtitle="Chào mừng các đồng nghiệp mới vừa gia nhập gia đình Wana & Asia F&B"
-        counterText={`Card ${index + 1} of ${joinersData.length}`}
+        counterText={`Card ${joinersData.length === 0 ? 0 : displayIndex + 1} of ${joinersData.length}`}
         person={joiner}
-        index={index}
+        index={displayIndex}
         direction={direction}
         onPrev={() => go(-1)}
         onNext={() => go(1)}

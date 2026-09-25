@@ -16,24 +16,14 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { Employee, EmployeeStatus } from '../types';
+import { AdminSelect } from './AdminSelect';
+import { DEPARTMENTS } from '@/config/departments';
 
 interface AddEmployeePageProps {
   onBack: () => void;
   onSave: (employee: Omit<Employee, 'id'>) => void;
   existingCount: number;
 }
-
-const DEPARTMENTS = [
-  'Phòng IT',
-  'Phòng Marketing',
-  'Ban Giám Đốc',
-  'Phòng Logistics',
-  'Phòng R&D',
-  'Phòng Quản Lý Chất Lượng',
-  'Phòng Kế Toán',
-  'Phòng Nhân Sự',
-  'Phòng Vận Hành Nhà Máy'
-];
 
 const PRESET_AVATARS = [
   'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=400&q=80',
@@ -60,7 +50,7 @@ export const AddEmployeePage: React.FC<AddEmployeePageProps> = ({
     status: 'active' as EmployeeStatus,
     joinDate: '22/09/2026',
     birthDate: '15/08/1996',
-    location: 'Hồ Chí Minh',
+    location: 'Văn Phòng Á Châu Dĩ An',
     email: '',
     phone: '',
     avatar: PRESET_AVATARS[0],
@@ -95,7 +85,7 @@ export const AddEmployeePage: React.FC<AddEmployeePageProps> = ({
       status: 'active',
       joinDate: '22/09/2026',
       birthDate: '15/08/1996',
-      location: 'Hồ Chí Minh',
+      location: 'Văn Phòng Á Châu Dĩ An',
       email: '',
       phone: '',
       avatar: PRESET_AVATARS[0],
@@ -177,9 +167,6 @@ export const AddEmployeePage: React.FC<AddEmployeePageProps> = ({
                 Nhập các trường bên dưới; bản xem trước bên phải sẽ cập nhật tức thì.
               </p>
             </div>
-            <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
-              Biểu mẫu 2 cột cân đối
-            </span>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -232,17 +219,7 @@ export const AddEmployeePage: React.FC<AddEmployeePageProps> = ({
                 <label className="block text-xs font-bold text-slate-700 mb-1.5">
                   Phòng ban <span className="text-rose-500">*</span>
                 </label>
-                <select
-                  value={formData.department}
-                  onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                  className="w-full px-3.5 py-2.5 text-xs bg-slate-50/70 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
-                >
-                  {DEPARTMENTS.map((dept) => (
-                    <option key={dept} value={dept}>
-                      {dept}
-                    </option>
-                  ))}
-                </select>
+                <AdminSelect value={formData.department} onChange={(department) => setFormData({ ...formData, department })} options={DEPARTMENTS.map((value) => ({ value, label: value }))} className="w-full" searchable={false} showSelectionCheck={false} />
               </div>
             </div>
 
@@ -280,29 +257,13 @@ export const AddEmployeePage: React.FC<AddEmployeePageProps> = ({
                 <label className="block text-xs font-bold text-slate-700 mb-1.5">
                   Văn phòng / Địa điểm làm việc
                 </label>
-                <select
-                  value={formData.location}
-                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                  className="w-full px-3.5 py-2.5 text-xs bg-slate-50/70 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
-                >
-                  <option value="Hồ Chí Minh">Hồ Chí Minh (Trụ sở chính)</option>
-                  <option value="Bình Dương">Bình Dương (Nhà máy số 1)</option>
-                  <option value="Long An">Long An (Nhà máy số 2)</option>
-                </select>
+                <AdminSelect value={formData.location} onChange={(location) => setFormData({ ...formData, location })} options={[{ value: 'Văn Phòng Á Châu Dĩ An', label: 'Văn Phòng Á Châu Dĩ An' }, { value: 'Bình Dương', label: 'Bình Dương (Nhà máy số 1)' }, { value: 'Long An', label: 'Long An (Nhà máy số 2)' }]} className="w-full" searchable={false} showSelectionCheck={false} />
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1.5">
                   Trạng thái làm việc
                 </label>
-                <select
-                  value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value as EmployeeStatus })}
-                  className="w-full px-3.5 py-2.5 text-xs bg-slate-50/70 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
-                >
-                  <option value="active">Đang làm việc</option>
-                  <option value="probation">Thử việc</option>
-                  <option value="inactive">Đã nghỉ việc</option>
-                </select>
+                <AdminSelect value={formData.status} onChange={(status) => setFormData({ ...formData, status: status as EmployeeStatus })} options={[{ value: 'active', label: 'Đang làm việc' }, { value: 'probation', label: 'Thử việc' }]} className="w-full" searchable={false} showSelectionCheck={false} />
               </div>
             </div>
 
@@ -316,7 +277,7 @@ export const AddEmployeePage: React.FC<AddEmployeePageProps> = ({
                   type="email"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  placeholder="nhanvien@asia-food.com"
+                  placeholder="Nhanvien@asiafnb.com"
                   className="w-full px-3.5 py-2.5 text-xs bg-slate-50/70 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
                 />
               </div>
@@ -554,7 +515,7 @@ export const AddEmployeePage: React.FC<AddEmployeePageProps> = ({
                     Văn phòng
                   </span>
                   <span className="font-semibold text-slate-800">
-                    {formData.location || 'Hồ Chí Minh'}
+                    {formData.location || 'Văn Phòng Á Châu Dĩ An'}
                   </span>
                 </div>
 

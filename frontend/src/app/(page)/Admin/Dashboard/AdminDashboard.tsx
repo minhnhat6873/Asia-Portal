@@ -31,13 +31,14 @@ import { AddEmployeePage } from './components/AddEmployeePage';
 import { AddMediaPage } from './components/AddMediaPage';
 import { DEFAULT_ROLE_PERMISSIONS, PermissionsManagement } from './components/PermissionsManagement';
 import { AccessControlTabs } from '@/features/access-control/AccessControlTabs';
+import AccountPage from '@/app/(page)/admin/account/page';
 import { Toast, ToastMessage } from './components/Toast';
 import AccountMenu from '@/app/components/layout/AccountMenu';
 import { subscribePortalContent } from '@/lib/portalContent';
 import { Menu } from 'lucide-react';
 
 const ACTIVE_TAB_STORAGE_KEY = 'asia.admin.active-tab';
-const ADMIN_TABS: ActiveTab[] = ['overview', 'employees', 'add-employee', 'media', 'add-media', 'permissions', 'system-settings'];
+const ADMIN_TABS: ActiveTab[] = ['overview', 'employees', 'add-employee', 'media', 'add-media', 'permissions', 'system-settings', 'account'];
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('overview');
@@ -130,6 +131,7 @@ export default function App() {
       ...item,
       id: `trash-${crypto.randomUUID()}`,
       deletedAt: new Date().toLocaleString('vi-VN'),
+      deletedBy: currentUser?.fullName,
     };
     setTrashItems((items) => {
       const payloadId =
@@ -447,6 +449,7 @@ export default function App() {
               <DashboardOverview
                 employees={employees}
                 mediaPosts={mediaPosts}
+                users={users}
                 onNavigate={(tab) => setActiveTab(tab)}
                 onOpenAddEmployee={() => setActiveTab('add-employee')}
                 onOpenAddMedia={() => setActiveTab('add-media')}
@@ -456,6 +459,8 @@ export default function App() {
                 }}
               />
             )}
+
+            {activeTab === 'account' && <AccountPage embedded />}
 
             {/* 2. Danh sách Quản lý Nhân sự */}
             {activeTab === 'employees' && (

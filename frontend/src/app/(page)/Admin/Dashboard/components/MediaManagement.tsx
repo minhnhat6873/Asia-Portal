@@ -14,6 +14,7 @@ import {
   List
 } from 'lucide-react';
 import { MediaPost, MediaCategory } from '../types';
+import { AdminSelect } from './AdminSelect';
 
 interface MediaManagementProps {
   mediaPosts: MediaPost[];
@@ -23,15 +24,13 @@ interface MediaManagementProps {
   previewPost: MediaPost | null;
   onSelectPreview: (post: MediaPost | null) => void;
   onNavigateToAdd?: () => void;
-  openAddModalTrigger?: boolean;
-  onResetAddTrigger?: () => void;
 }
 
 const CATEGORIES: MediaCategory[] = [
-  'Tin tức',
   'Sự kiện',
-  'Thông cáo báo chí',
-  'Sản phẩm mới'
+  'Tin tức',
+  'Nhân sự',
+  'Thông báo'
 ];
 
 export const MediaManagement: React.FC<MediaManagementProps> = ({
@@ -42,8 +41,6 @@ export const MediaManagement: React.FC<MediaManagementProps> = ({
   previewPost,
   onSelectPreview,
   onNavigateToAdd,
-  openAddModalTrigger,
-  onResetAddTrigger,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -54,13 +51,6 @@ export const MediaManagement: React.FC<MediaManagementProps> = ({
   const [editingPost, setEditingPost] = useState<MediaPost | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  React.useEffect(() => {
-    if (openAddModalTrigger) {
-      setIsAddModalOpen(true);
-      onResetAddTrigger?.();
-    }
-  }, [openAddModalTrigger]);
-
   // Form State - balanced and clean
   const [formData, setFormData] = useState({
     title: '',
@@ -68,7 +58,7 @@ export const MediaManagement: React.FC<MediaManagementProps> = ({
     summary: '',
     content: '',
     coverImage: 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&w=1000&q=80',
-    authorDepartment: 'Phòng Marketing',
+    authorDepartment: 'Phòng MKT',
     publishDate: '22/09/2026',
     status: 'published' as 'published' | 'draft'
   });
@@ -102,7 +92,7 @@ export const MediaManagement: React.FC<MediaManagementProps> = ({
       summary: '',
       content: '',
       coverImage: 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&w=1000&q=80',
-      authorDepartment: 'Phòng Marketing',
+      authorDepartment: 'Phòng MKT',
       publishDate: '22/09/2026',
       status: 'published'
     });
@@ -133,7 +123,7 @@ export const MediaManagement: React.FC<MediaManagementProps> = ({
       summary: formData.summary.trim(),
       content: formData.content.trim(),
       coverImage: formData.coverImage.trim() || 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&w=1000&q=80',
-      authorDepartment: formData.authorDepartment.trim() || 'Phòng Marketing',
+      authorDepartment: formData.authorDepartment || 'Phòng MKT',
       publishDate: formData.publishDate.trim() || '22/09/2026',
       status: formData.status
     });
@@ -162,6 +152,7 @@ export const MediaManagement: React.FC<MediaManagementProps> = ({
 
   // The detail drawer stays closed until the user explicitly selects a post.
   const activePost = previewPost;
+  const isTrashedPreview = !!activePost && !mediaPosts.some((post) => post.id === activePost.id);
 
   return (
     <div className="space-y-6">
@@ -181,18 +172,7 @@ export const MediaManagement: React.FC<MediaManagementProps> = ({
 
         {/* Filters and Actions */}
         <div className="flex items-center gap-2 flex-wrap">
-          <select
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
-            className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
-          >
-            <option value="all">Tất cả chuyên mục</option>
-            {CATEGORIES.map((cat) => (
-              <option key={cat} value={cat}>
-                {cat}
-              </option>
-            ))}
-          </select>
+          <AdminSelect value={selectedCategory} onChange={setSelectedCategory} options={[{ value: 'all', label: 'Tất cả chuyên mục' }, ...CATEGORIES.map((value) => ({ value, label: value }))]} className="min-w-52" searchable={false} showSelectionCheck={false} />
 
           {/* Toggle View Mode (Image 5) */}
           <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
@@ -384,7 +364,7 @@ export const MediaManagement: React.FC<MediaManagementProps> = ({
                   <span className="text-[11px] text-slate-400">
                     Trạng thái: <strong>{activePost.status === 'published' ? 'Đã xuất bản' : 'Bản nháp'}</strong>
                   </span>
-                  <div className="flex items-center gap-2">
+                  {!isTrashedPreview && <div className="flex items-center gap-2">
                     <button
                       onClick={() => handleOpenEdit(activePost)}
                       className="px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-sky-50 text-slate-700 hover:text-sky-700 text-xs font-semibold transition-colors flex items-center gap-1"
@@ -397,7 +377,7 @@ export const MediaManagement: React.FC<MediaManagementProps> = ({
                     >
                       <Trash2 className="w-3.5 h-3.5" /> Xóa
                     </button>
-                  </div>
+                  </div>}
                 </div>
               </div>
             </div>
@@ -578,14 +558,15 @@ export const MediaManagement: React.FC<MediaManagementProps> = ({
                 </div>
                 <div>
                   <label className="font-semibold text-slate-700 block mb-1">Người đăng / Phòng ban phụ trách *</label>
-                  <input
-                    type="text"
+                  <select
                     required
                     value={formData.authorDepartment}
                     onChange={(e) => setFormData({ ...formData, authorDepartment: e.target.value })}
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/20"
-                    placeholder="Phòng Marketing"
-                  />
+                  >
+                    <option value="Phòng HR&AD">Phòng HR&AD</option>
+                    <option value="Phòng MKT">Phòng MKT</option>
+                  </select>
                 </div>
               </div>
 

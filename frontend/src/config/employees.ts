@@ -1,3 +1,5 @@
+import { DEPARTMENTS } from './departments';
+
 export interface Employee {
   id: number;
   name: string;
@@ -11,17 +13,7 @@ export interface Employee {
   joinDate: string;
 }
 
-export const departments = [
-  "Tất cả phòng ban",
-  "Ban Giám Đốc",
-  "Phòng Kinh Doanh",
-  "Phòng Marketing",
-  "Phòng Sản Xuất",
-  "Phòng Kế Toán",
-  "Phòng IT",
-  "Phòng Nhân Sự",
-  "Phòng Logistics",
-];
+export const departments = ["Tất cả phòng ban", ...DEPARTMENTS];
 
 export const employees: Employee[] = [
   {

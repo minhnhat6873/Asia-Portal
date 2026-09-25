@@ -8,7 +8,7 @@ interface PendingAccountsModalProps {
   users: User[];
   roles: Role[];
   onClose: () => void;
-  /** Duyệt tài khoản: nếu có roleId thì gán quyền luôn, nếu không chỉ kích hoạt */
+  /** Duyệt tài khoản: nếu không chọn role, tài khoản chỉ được kích hoạt và giữ trạng thái không có quyền. */
   onApproveUser: (userId: string, roleId?: string) => void;
   /** Từ chối duyệt: tài khoản bị hạ xuống 'suspended' và rời danh sách chờ */
   onRejectUser: (userId: string) => void;
@@ -123,13 +123,13 @@ export const PendingAccountsModal: React.FC<PendingAccountsModalProps> = ({
                   key={user.id}
                   className="flex items-center gap-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-2xs"
                 >
-                  <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl border-2 border-emerald-300 bg-emerald-50">
+                  <div className="shrink-0">
                     <Image
                       src="/assets/images/asia-logo.png"
                       alt="Asia F&B Beverage"
                       width={52}
                       height={52}
-                      className="object-contain"
+                      className="rounded-full object-cover"
                     />
                   </div>
                   <div className="min-w-0 flex-1">
@@ -165,7 +165,7 @@ export const PendingAccountsModal: React.FC<PendingAccountsModalProps> = ({
         {view === 'confirm' && confirmTarget && (
           <div className="p-6 space-y-4">
             <div className="px-6 py-4 -mx-6 -mt-6 mb-2 bg-slate-800/30 border-b border-slate-800/60 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-white border border-emerald-600/40 flex items-center justify-center shrink-0 overflow-hidden">
+              <div className="w-10 h-10 rounded-full border border-slate-900 bg-transparent flex items-center justify-center shrink-0 overflow-hidden">
                 <Image
                   src="/assets/images/asia-logo.png"
                   alt="Asia F&B Beverage"
@@ -212,7 +212,7 @@ export const PendingAccountsModal: React.FC<PendingAccountsModalProps> = ({
             {/* User Info Bar — pattern như AssignRoleModal */}
             <div className="px-6 py-4 bg-slate-800/30 border-b border-slate-800/60 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-white border border-emerald-600/40 flex items-center justify-center shrink-0 overflow-hidden">
+                <div className="w-10 h-10 rounded-full border border-slate-900 bg-transparent flex items-center justify-center shrink-0 overflow-hidden">
                   <Image
                     src="/assets/images/asia-logo.png"
                     alt="Asia F&B Beverage"

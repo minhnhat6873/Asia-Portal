@@ -16,7 +16,7 @@ export interface Employee {
   bio?: string; // Tab Mô tả
 }
 
-export type MediaCategory = 'Tin tức' | 'Sự kiện' | 'Thông cáo báo chí' | 'Sản phẩm mới' | 'Nhân sự';
+export type MediaCategory = 'Sự kiện' | 'Tin tức' | 'Nhân sự' | 'Thông báo';
 
 export interface MediaPost {
   id: string;
@@ -38,10 +38,12 @@ export interface TrashItem {
   entityType: TrashEntityType;
   title: string;
   deletedAt: string;
+  /** Tài khoản thực hiện xóa. Các bản ghi cũ có thể chưa có dữ liệu này. */
+  deletedBy?: string;
   payload: unknown;
 }
 
-export type ActiveTab = 'overview' | 'employees' | 'media' | 'add-employee' | 'add-media' | 'permissions' | 'system-settings';
+export type ActiveTab = 'overview' | 'employees' | 'media' | 'add-employee' | 'add-media' | 'permissions' | 'system-settings' | 'account';
 
 /* -------------------------------------------------------------------------- *
  * Account roles & permissions — the "Phân quyền quản lý" tab

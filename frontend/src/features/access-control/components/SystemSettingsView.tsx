@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { Role, SystemPermission, ModuleCategory, User, AuditLog } from '../types';
-import type { TrashItem } from '@/app/(page)/admin/Dashboard/types';
+import type { Employee, MediaPost, TrashItem, UserAccount } from '@/app/(page)/admin/Dashboard/types';
+import EmployeeProfile from '@/app/(page)/employees/EmployeeProfile';
+import type { Employee as EmployeeProfileData } from '@/types/employee';
 import {
   ShieldCheck,
   PlusCircle,
   Layers,
-  CheckCircle2,
   AlertCircle,
   Search,
   Check,
@@ -20,12 +21,11 @@ import {
   ArrowRight,
   Shield,
   Filter,
-  CheckSquare,
-  Square,
   Lock,
   ExternalLink,
   X,
   RotateCcw,
+  Eye,
 } from 'lucide-react';
 
 interface SystemSettingsViewProps {
@@ -90,6 +90,9 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
   const [trashSearchQuery, setTrashSearchQuery] = useState('');
   const [trashTypeFilter, setTrashTypeFilter] = useState<'all' | TrashItem['entityType']>('all');
   const [selectedTrashIds, setSelectedTrashIds] = useState<string[]>([]);
+  const [trashDeleteTarget, setTrashDeleteTarget] = useState<TrashItem | 'all' | null>(null);
+  const [trashEmployeeDetail, setTrashEmployeeDetail] = useState<Employee | null>(null);
+  const [trashMediaDetail, setTrashMediaDetail] = useState<MediaPost | null>(null);
 
   // -------------------------------------------------------------
   // STATE FOR "TẠO QUYỀN" (User specifies Name + picks available permissions)
@@ -196,13 +199,14 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
   };
 
   const colorOptions = [
-    { label: 'Xanh ngọc (Emerald)', value: 'emerald', bg: 'bg-emerald-500' },
-    { label: 'Xanh dương (Blue)', value: 'blue', bg: 'bg-blue-500' },
-    { label: 'Hổ phách (Amber)', value: 'amber', bg: 'bg-amber-500' },
-    { label: 'Đỏ hồng (Rose)', value: 'rose', bg: 'bg-rose-500' },
-    { label: 'Tím hoa (Purple)', value: 'purple', bg: 'bg-purple-500' },
-    { label: 'Chàm đậm (Indigo)', value: 'indigo', bg: 'bg-indigo-500' },
+    { label: 'Xanh ngọc (Emerald)', value: 'emerald', bg: 'bg-emerald-500', text: 'text-emerald-400' },
+    { label: 'Xanh dương (Blue)', value: 'blue', bg: 'bg-blue-500', text: 'text-blue-400' },
+    { label: 'Hổ phách (Amber)', value: 'amber', bg: 'bg-amber-500', text: 'text-amber-400' },
+    { label: 'Đỏ hồng (Rose)', value: 'rose', bg: 'bg-rose-500', text: 'text-rose-400' },
+    { label: 'Tím hoa (Purple)', value: 'purple', bg: 'bg-purple-500', text: 'text-purple-400' },
+    { label: 'Chàm đậm (Indigo)', value: 'indigo', bg: 'bg-indigo-500', text: 'text-indigo-400' },
   ];
+  const selectedRoleColorClass = colorOptions.find((color) => color.value === newRoleColor)?.text ?? 'text-emerald-400';
 
   const filteredTrashItems = trashItems.filter((item) => {
     const matchesType = trashTypeFilter === 'all' || item.entityType === trashTypeFilter;
@@ -461,11 +465,11 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
 
           {/* Right Column: fixed detailed view */}
           {/* This is the core requirement: "khi bấm vào sẽ thấy có những quyền nào tôi đã gán vào cho nó" */}
-          <div className="lg:col-span-7 bg-slate-900/60 border border-slate-800 rounded-2xl p-6 space-y-6 min-h-[36rem]">
+          <div className="min-h-[36rem] space-y-6 rounded-2xl border border-slate-200 bg-white p-6 lg:col-span-7">
             {selectedRole ? (
               <>
                 {/* Detail Header */}
-                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 pb-5 border-b border-slate-800">
+                <div className="flex flex-col justify-between gap-4 border-b border-slate-200 pb-5 sm:flex-row sm:items-start">
                   <div>
                     <div className="flex items-center gap-2.5">
                       <div
@@ -483,17 +487,17 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                       />
                       <h2 className="text-xl font-bold text-emerald-950">{selectedRole.name}</h2>
                       {selectedRole.isSystemDefault && (
-                        <span className="text-[11px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded font-medium border border-slate-700">
+                        <span className="rounded border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-600">
                           Quyền mặc định
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-slate-700 mt-1 max-w-xl">
+                    <p className="mt-1 max-w-xl text-xs text-slate-600">
                       {selectedRole.description}
                     </p>
-                    <div className="flex items-center gap-4 mt-2 text-xs text-slate-600 font-mono">
+                    <div className="mt-2 flex items-center gap-4 font-mono text-xs text-slate-600">
                       <span>
-                        Đã gán: <strong className="text-emerald-400">{selectedRole.permissionIds.length}</strong> / {permissions.length} quyền
+                        Đã gán: <strong className="text-emerald-600">{selectedRole.permissionIds.length}</strong> / {permissions.length} quyền
                       </span>
                     </div>
                   </div>
@@ -583,7 +587,7 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                 )}
 
                 {/* List of Permissions Grouped By Module */}
-                <div className="space-y-4 max-h-[500px] overflow-y-auto pr-1">
+                <div className="max-h-[500px] space-y-3 overflow-y-auto pr-1">
                   {modules.map((mod) => {
                     const modPerms = permissions.filter((p) => p.module === mod.id);
                     const currentPermIds = isEditingRolePermissions
@@ -600,21 +604,18 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                     return (
                       <div
                         key={mod.id}
-                        className="border border-slate-800 rounded-xl overflow-hidden bg-slate-950/40"
+                        className="overflow-hidden rounded-2xl border border-slate-200 bg-white"
                       >
-                        <div className="px-4 py-2.5 bg-wana-green-800 border-b border-wana-green-900 flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-bold text-[#ffffff] uppercase tracking-wider">
+                        <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-3 py-2.5">
+                          <div className="flex min-w-0 items-center gap-2">
+                            <span className="text-[11px] font-bold uppercase tracking-wide text-slate-800">
                               {mod.name}
                             </span>
-                            <span className="text-[11px] text-white/70">· {mod.description}</span>
+                            <span className="hidden text-[10px] text-slate-500 sm:inline">· {mod.description}</span>
                           </div>
-                          <span className="text-[11px] font-mono text-white font-semibold">
-                            {assignedInMod.length} / {modPerms.length} quyền
-                          </span>
                         </div>
 
-                        <div className="p-3 grid grid-cols-1 md:grid-cols-2 gap-2">
+                        <div className="grid grid-cols-1 gap-2 p-3 md:grid-cols-2">
                           {modPerms.map((perm) => {
                             const isAssigned = currentPermIds.includes(perm.id);
 
@@ -630,34 +631,24 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                                     togglePermissionInEdit(perm.id);
                                   }
                                 }}
-                                className={`p-3 rounded-xl border text-xs transition-all flex items-start gap-3 ${
+                                className={`flex items-start gap-3 rounded-xl border p-3 text-xs transition-all ${
                                   isEditingRolePermissions ? 'cursor-pointer hover:border-slate-600' : ''
                                 } ${
                                   isAssigned
-                                    ? 'bg-emerald-950/25 border-emerald-600/50 text-slate-100 shadow-sm'
-                                    : 'bg-slate-900/30 border-slate-800/80 text-slate-400 opacity-60'
+                                    ? 'border-slate-200 bg-white text-slate-800'
+                                    : 'border-slate-200 bg-white text-slate-500'
                                 }`}
                               >
-                                <div className="mt-0.5 shrink-0">
-                                  {isEditingRolePermissions ? (
-                                    isAssigned ? (
-                                      <CheckSquare className="w-4 h-4 text-emerald-400" />
-                                    ) : (
-                                      <Square className="w-4 h-4 text-slate-400" />
-                                    )
-                                  ) : isAssigned ? (
-                                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                                  ) : (
-                                    <div className="w-4 h-4 rounded-full border border-slate-700 flex items-center justify-center text-[10px] text-slate-400">
-                                      ✕
-                                    </div>
-                                  )}
+                                <div className="order-2 mt-0.5 shrink-0">
+                                  <div className={`flex h-5 w-9 items-center rounded-full p-0.5 shadow-inner ${isAssigned ? 'justify-end bg-emerald-700' : 'bg-slate-300'}`}>
+                                    <span className="h-4 w-4 rounded-full bg-white shadow-sm" />
+                                  </div>
                                 </div>
                                 <div className="min-w-0 flex-1">
                                   <div className="flex items-center justify-between gap-1">
                                     <span
                                       className={`font-semibold truncate ${
-                                        isAssigned ? 'text-white' : 'text-slate-300'
+                                        isAssigned ? 'text-slate-800' : 'text-slate-700'
                                       }`}
                                     >
                                       {perm.name}
@@ -668,7 +659,7 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                                       </span>
                                     )}
                                   </div>
-                                  <p className="text-[11px] text-slate-400 mt-1 leading-snug">
+                                  <p className="mt-1 text-[10px] leading-snug text-slate-400">
                                     {perm.description}
                                   </p>
                                 </div>
@@ -682,10 +673,10 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                 </div>
 
                 {/* Attached Users Preview */}
-                <div className="pt-4 border-t border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex flex-col justify-between gap-3 border-t border-slate-200 pt-4 sm:flex-row sm:items-center">
                   <div>
-                    <span className="text-xs text-slate-400 block">
-                      Nhân sự đang sử dụng quyền này: <strong className="text-white">{usersWithSelectedRole.length} người</strong>
+                    <span className="block text-xs text-slate-500">
+                      Nhân sự đang sử dụng quyền này: <strong className="text-slate-800">{usersWithSelectedRole.length} người</strong>
                     </span>
                     <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                       {usersWithSelectedRole.length === 0 ? (
@@ -694,7 +685,7 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                         usersWithSelectedRole.slice(0, 5).map((u) => (
                           <span
                             key={u.id}
-                            className="text-[11px] px-2 py-0.5 bg-slate-800 border border-slate-700 text-slate-200 rounded-md"
+                            className="rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] text-slate-600"
                           >
                             {u.name}
                           </span>
@@ -813,13 +804,13 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
           </div>
 
           {/* Section: "NHỮNG QUYỀN TÔI ĐƯA RA SẴN ĐỂ GÁN" */}
-          <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 space-y-4">
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 space-y-4 shadow-2xs">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <h3 className="text-base font-bold text-white">
+                <h3 className="text-sm font-bold text-slate-900">
                   Danh sách quyền có sẵn trong hệ thống (Tích chọn để gán)
                 </h3>
-                <p className="text-xs text-slate-400">
+                <p className="text-[11px] text-slate-500">
                   Tích chọn các quyền chức năng bạn muốn phân bổ cho nhóm quyền này
                 </p>
               </div>
@@ -829,14 +820,14 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                 <button
                   type="button"
                   onClick={selectAllPermissionsInCreate}
-                  className="px-3 py-1.5 bg-[#15803d] hover:bg-[#166534] text-xs font-medium text-white rounded-lg transition-colors"
+                  className="rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-emerald-800"
                 >
                   Chọn tất cả ({permissions.length})
                 </button>
                 <button
                   type="button"
                   onClick={deselectAllPermissionsInCreate}
-                  className="px-3 py-1.5 bg-[#dc2626] hover:bg-[#b91c1c] text-xs font-medium text-white rounded-lg transition-colors"
+                  className="rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-rose-700"
                 >
                   Bỏ chọn tất cả
                 </button>
@@ -852,14 +843,14 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                   placeholder="Tìm quyền theo tên hoặc mã chức năng..."
                   value={permSearchQuery}
                   onChange={(e) => setPermSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 bg-slate-950/70 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-400 focus:outline-none focus:border-emerald-500"
+                  className="w-full rounded-xl border border-slate-300 bg-white py-2 pl-9 pr-3 text-xs text-slate-700 placeholder-slate-400 outline-none focus:border-emerald-500"
                 />
               </div>
 
               <select
                 value={permModuleFilter}
                 onChange={(e) => setPermModuleFilter(e.target.value)}
-                className="px-3 py-2 bg-slate-950/70 border border-slate-800 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-emerald-500"
+                className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-700 outline-none focus:border-emerald-500"
               >
                 <option value="all">Tất cả phân hệ ({modules.length})</option>
                 {modules.map((m) => (
@@ -871,7 +862,7 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
             </div>
 
             {/* Permissions list grouped by Module */}
-            <div className="space-y-4 pt-2">
+            <div className="space-y-3 pt-1">
               {modules
                 .filter((m) => permModuleFilter === 'all' || m.id === permModuleFilter)
                 .map((mod) => {
@@ -893,39 +884,15 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                   return (
                     <div
                       key={mod.id}
-                      className="border border-slate-800 rounded-xl overflow-hidden bg-slate-950/40"
+                      className="overflow-hidden rounded-2xl border border-slate-200 bg-white"
                     >
-                      {/* Module Header with Toggle All — nền xanh đậm brand */}
-                      <div className="px-4 py-3 bg-wana-green-800 border-b border-wana-green-900 flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <button
-                            type="button"
-                            onClick={() => toggleModuleInCreate(mod.id)}
-                            className="text-xs font-semibold text-white flex items-center gap-2 hover:text-wana-green-200 transition-colors"
-                          >
-                            {isModAllSelected ? (
-                              <CheckSquare className="w-5 h-5 text-white" />
-                            ) : selectedInMod.length > 0 ? (
-                              <div className="w-5 h-5 rounded bg-white/25 flex items-center justify-center text-[10px] text-white">
-                                -
-                              </div>
-                            ) : (
-                              <Square className="w-5 h-5 text-white/70" />
-                            )}
-                            <span className="uppercase tracking-wider">{mod.name}</span>
-                          </button>
-                          <span className="text-[11px] text-white/70 hidden sm:inline">
-                            · {mod.description}
-                          </span>
-                        </div>
-
-                        <span className="text-[11px] font-mono text-white font-semibold">
-                          Đã chọn {selectedInMod.length}/{modPerms.length}
-                        </span>
+                      <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-3 py-2.5">
+                        <div className="min-w-0"><span className="text-[11px] font-bold uppercase tracking-wide text-slate-800">{mod.name}</span><span className="ml-2 hidden text-[10px] text-slate-500 sm:inline">· {mod.description}</span></div>
+                        <button type="button" onClick={() => toggleModuleInCreate(mod.id)} className="shrink-0 text-[10px] font-medium text-slate-500 transition-colors hover:text-emerald-700">Bật / Tắt cả phân hệ</button>
                       </div>
 
                       {/* Permissions Grid */}
-                      <div className="p-3 grid grid-cols-1 md:grid-cols-2 gap-2">
+                      <div className="grid grid-cols-1 gap-2 p-3 md:grid-cols-2">
                         {modPerms.map((perm) => {
                           const isChecked = selectedPermissionIds.includes(perm.id);
 
@@ -942,10 +909,10 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                                   if (scrollContainer) scrollContainer.scrollTop = scrollTop;
                                 });
                               }}
-                              className={`perm-card p-3 rounded-xl border text-xs cursor-pointer select-none transition-all flex items-start gap-3 ${
+                              className={`perm-card flex cursor-pointer select-none items-start gap-3 rounded-xl border p-3 text-xs transition-all ${
                                 isChecked
-                                  ? 'bg-emerald-950/25 border-emerald-600/50 text-slate-100 shadow-sm'
-                                  : 'bg-slate-900/30 border-slate-800/80 text-slate-400'
+                                  ? 'border-slate-200 bg-white text-slate-800'
+                                  : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'
                               }`}
                             >
                               <input
@@ -955,13 +922,13 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                                 tabIndex={-1}
                                 className="pointer-events-none sr-only"
                               />
-                              <div className="mt-0.5 shrink-0">
+                              <div className="order-2 mt-0.5 shrink-0">
                                 {isChecked ? (
-                                  <div className="w-5 h-5 rounded bg-emerald-500 text-white flex items-center justify-center">
-                                    <Check className="w-4 h-4 stroke-[3]" />
+                                  <div className="flex h-5 w-9 items-center justify-end rounded-full bg-emerald-700 p-0.5 shadow-inner">
+                                    <span className="h-4 w-4 rounded-full bg-white shadow-sm" />
                                   </div>
                                 ) : (
-                                  <div className="w-5 h-5 rounded border-2 border-slate-600" />
+                                  <div className="flex h-5 w-9 items-center rounded-full bg-slate-300 p-0.5"><span className="h-4 w-4 rounded-full bg-white shadow-sm" /></div>
                                 )}
                               </div>
 
@@ -969,7 +936,7 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                                 <div className="flex items-center justify-between gap-1">
                                   <span
                                     className={`font-bold ${
-                                      isChecked ? 'text-white' : 'text-slate-300'
+                                      isChecked ? 'text-slate-800' : 'text-slate-700'
                                     }`}
                                   >
                                     {perm.name}
@@ -980,7 +947,7 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                                     </span>
                                   )}
                                 </div>
-                                <p className="text-[11px] text-slate-400 mt-1 leading-snug">
+                                <p className="mt-1 text-[10px] leading-snug text-slate-400">
                                   {perm.description}
                                 </p>
                               </div>
@@ -997,7 +964,7 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
           <div className="bg-slate-900/95 border border-slate-700/80 p-4 rounded-2xl shadow-sm flex items-center justify-between">
             <div className="flex items-center gap-3">
               <span className="text-xs text-slate-400">
-                Tên quyền: <strong className="text-white">{newRoleName || '(Chưa nhập)'}</strong>
+                Tên quyền: <strong className={`ml-1 font-bold ${selectedRoleColorClass}`}>{newRoleName || '(Chưa nhập)'}</strong>
               </span>
               <span>·</span>
               <span className="text-xs text-emerald-400 font-mono">
@@ -1053,7 +1020,7 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
               <button type="button" onClick={() => setSelectedTrashIds(isAllVisibleTrashSelected ? [] : filteredTrashItems.map((item) => item.id))} className="rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-100">
                 {isAllVisibleTrashSelected ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}
               </button>
-              <button type="button" onClick={() => { if (window.confirm(`Xóa vĩnh viễn toàn bộ ${trashItems.length} mục trong Thùng rác?`)) { trashItems.forEach((item) => onPermanentlyDeleteTrashItem(item.id)); setSelectedTrashIds([]); } }} className="rounded-xl border border-rose-300 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700 hover:bg-rose-100">
+              <button type="button" onClick={() => setTrashDeleteTarget('all')} className="rounded-xl border border-rose-300 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700 hover:bg-rose-100">
                 Xóa tất cả
               </button>
             </div>
@@ -1071,25 +1038,87 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
             <div className="divide-y divide-slate-200 overflow-hidden rounded-xl border border-slate-200 bg-white">
               {filteredTrashItems.map((item, index) => {
                 const isSelected = selectedTrashIds.includes(item.id);
+                const employee = item.entityType === 'employee' ? item.payload as Employee : null;
+                const mediaPost = item.entityType === 'media' ? item.payload as MediaPost : null;
+                const account = (item.entityType === 'account' || item.entityType === 'access_user') ? item.payload as UserAccount | User : null;
+                const role = item.entityType === 'role' ? item.payload as Role : null;
+                const roleHasCriticalPermission = !!role?.permissionIds.some((permissionId) => permissions.find((permission) => permission.id === permissionId)?.riskLevel === 'high');
+                const secondaryText = employee ? employee.department : mediaPost ? `${mediaPost.title} · ${mediaPost.authorDepartment}` : account ? `${'username' in account ? account.username : account.name} · ${account.email}` : roleHasCriticalPermission ? 'Quan trọng' : '';
                 return (
                 <div key={`${item.id}-${index}`} onClick={() => setSelectedTrashIds((ids) => isSelected ? ids.filter((id) => id !== item.id) : [...ids, item.id])} className={`flex cursor-pointer flex-col gap-3 p-4 transition-colors sm:flex-row sm:items-center sm:justify-between ${isSelected ? 'bg-rose-50 ring-1 ring-inset ring-rose-200' : 'hover:bg-slate-50'}`}>
                   <div className="flex min-w-0 items-center gap-3">
                     <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border ${isSelected ? 'border-rose-500 bg-rose-500 text-white' : 'border-slate-300 bg-white text-transparent'}`}><Check className="h-3.5 w-3.5" /></span>
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-rose-50 text-rose-600"><Trash2 className="h-5 w-5" /></span>
+                    {employee || mediaPost ? (
+                      <img src={employee ? employee.avatar : mediaPost!.coverImage} alt="" className="h-10 w-10 shrink-0 rounded-xl object-cover" />
+                    ) : (
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-rose-50 text-rose-600"><Trash2 className="h-5 w-5" /></span>
+                    )}
                     <div className="min-w-0">
                       <p className="truncate text-sm font-bold text-slate-800">{item.title}</p>
-                      <p className="mt-0.5 text-xs text-slate-500">{({ employee: 'Nhân sự', media: 'Truyền thông', account: 'Tài khoản', access_user: 'Tài khoản phân quyền', role: 'Nhóm quyền' } as const)[item.entityType]} · Đã xóa {item.deletedAt}</p>
+                      {secondaryText && <p className="mt-0.5 truncate text-xs text-slate-500">{secondaryText}</p>}
+                      <p className="mt-0.5 text-xs text-slate-500">{({ employee: 'Nhân sự', media: 'Truyền thông', account: 'Tài khoản', access_user: 'Tài khoản phân quyền', role: 'Nhóm quyền' } as const)[item.entityType]} · Đã xóa {item.deletedAt} · Người xóa: {item.deletedBy || 'chưa có dữ liệu'}</p>
                     </div>
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
+                    {employee && <button type="button" onClick={(event) => { event.stopPropagation(); setTrashEmployeeDetail(employee); }} className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50"><Eye className="h-3.5 w-3.5" />Xem chi tiết</button>}
+                    {mediaPost && <button type="button" onClick={(event) => { event.stopPropagation(); setTrashMediaDetail(mediaPost); }} className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50"><Eye className="h-3.5 w-3.5" />Xem chi tiết</button>}
                     <button type="button" onClick={(event) => { event.stopPropagation(); onRestoreTrashItem(item); setSelectedTrashIds((ids) => ids.filter((id) => id !== item.id)); }} className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-100"><RotateCcw className="h-3.5 w-3.5" />Khôi phục</button>
-                    <button type="button" onClick={(event) => { event.stopPropagation(); if (window.confirm(`Xóa vĩnh viễn “${item.title}”? Hành động này không thể hoàn tác.`)) { onPermanentlyDeleteTrashItem(item.id); setSelectedTrashIds((ids) => ids.filter((id) => id !== item.id)); } }} className="inline-flex items-center gap-1.5 rounded-xl border border-rose-300 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700 hover:bg-rose-100"><Trash2 className="h-3.5 w-3.5" />Xóa vĩnh viễn</button>
+                    <button type="button" onClick={(event) => { event.stopPropagation(); setTrashDeleteTarget(item); }} className="inline-flex items-center gap-1.5 rounded-xl border border-rose-300 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700 hover:bg-rose-100"><Trash2 className="h-3.5 w-3.5" />Xóa</button>
                   </div>
                 </div>
                 );
               })}
             </div>
           )}
+        </div>
+      )}
+
+      {trashEmployeeDetail && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30 p-4 backdrop-blur-sm" onClick={() => setTrashEmployeeDetail(null)}>
+          <section role="dialog" aria-modal="true" aria-label="Hồ sơ nhân viên đã xóa" className="w-full max-w-xl" onClick={(event) => event.stopPropagation()}>
+            <div className="mb-2 flex justify-end"><button type="button" onClick={() => setTrashEmployeeDetail(null)} className="rounded-full bg-white p-2 text-slate-600 shadow hover:bg-slate-100"><X className="h-5 w-5" /></button></div>
+            <EmployeeProfile employee={{
+              id: trashEmployeeDetail.id,
+              employeeCode: trashEmployeeDetail.code,
+              name: trashEmployeeDetail.fullName,
+              position: trashEmployeeDetail.position,
+              department: trashEmployeeDetail.department,
+              email: trashEmployeeDetail.email,
+              phone: trashEmployeeDetail.phone,
+              location: trashEmployeeDetail.location,
+              avatar: trashEmployeeDetail.avatar,
+              joinDate: trashEmployeeDetail.joinDate,
+              status: trashEmployeeDetail.status === 'inactive' ? 'inactive' : 'active',
+              description: trashEmployeeDetail.bio,
+            } satisfies EmployeeProfileData} />
+          </section>
+        </div>
+      )}
+
+      {trashMediaDetail && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30 p-4 backdrop-blur-sm" onClick={() => setTrashMediaDetail(null)}>
+          <section role="dialog" aria-modal="true" aria-label="Bài viết truyền thông đã xóa" className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-3xl bg-white shadow-2xl" onClick={(event) => event.stopPropagation()}>
+            <img src={trashMediaDetail.coverImage} alt={trashMediaDetail.title} className="h-64 w-full object-cover" />
+            <div className="space-y-4 p-6"><div className="flex items-start justify-between gap-3"><span className="rounded-full bg-rose-800 px-3 py-1 text-xs font-bold text-white">{trashMediaDetail.category}</span><button type="button" onClick={() => setTrashMediaDetail(null)} className="text-slate-500 hover:text-slate-800"><X className="h-5 w-5" /></button></div><h2 className="text-2xl font-black text-slate-900">{trashMediaDetail.title}</h2><p className="text-sm text-slate-500">{trashMediaDetail.summary}</p><p className="text-sm text-slate-400">{trashMediaDetail.publishDate} · {trashMediaDetail.authorDepartment}</p><div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-sm text-emerald-950 whitespace-pre-line">{trashMediaDetail.content}</div><p className="text-xs text-slate-400">Trạng thái: <strong>{trashMediaDetail.status === 'published' ? 'Đã xuất bản' : 'Bản nháp'}</strong></p></div>
+          </section>
+        </div>
+      )}
+
+      {trashDeleteTarget && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/15 p-4 backdrop-blur-[2px]">
+          <div role="dialog" aria-modal="true" aria-labelledby="permanent-delete-title" className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl">
+            <div className="flex items-start gap-4">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-rose-100 text-rose-600"><AlertCircle className="h-5 w-5" /></span>
+              <div>
+                <h2 id="permanent-delete-title" className="text-base font-bold text-slate-900">Xóa dữ liệu vĩnh viễn?</h2>
+                <p className="mt-1 text-sm leading-6 text-slate-500">{trashDeleteTarget === 'all' ? `Bạn sắp xóa vĩnh viễn toàn bộ ${trashItems.length} mục trong Thùng rác.` : `Bạn sắp xóa vĩnh viễn “${trashDeleteTarget.title}”.`} <strong className="font-semibold text-rose-600">Dữ liệu sẽ mất vĩnh viễn và không thể khôi phục.</strong></p>
+              </div>
+            </div>
+            <div className="mt-6 flex justify-end gap-3">
+              <button type="button" onClick={() => setTrashDeleteTarget(null)} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50">Hủy</button>
+              <button type="button" onClick={() => { if (trashDeleteTarget === 'all') { trashItems.forEach((item) => onPermanentlyDeleteTrashItem(item.id)); setSelectedTrashIds([]); } else { onPermanentlyDeleteTrashItem(trashDeleteTarget.id); setSelectedTrashIds((ids) => ids.filter((id) => id !== trashDeleteTarget.id)); } setTrashDeleteTarget(null); }} className="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-rose-700"><Trash2 className="h-4 w-4" />Xóa vĩnh viễn</button>
+            </div>
+          </div>
         </div>
       )}
     </div>

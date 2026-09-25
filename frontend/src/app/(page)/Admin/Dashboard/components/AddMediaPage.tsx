@@ -15,6 +15,7 @@ import {
   X
 } from 'lucide-react';
 import { MediaPost, MediaCategory } from '../types';
+import { AdminSelect } from './AdminSelect';
 
 interface AddMediaPageProps {
   onBack: () => void;
@@ -22,11 +23,10 @@ interface AddMediaPageProps {
 }
 
 const CATEGORIES: MediaCategory[] = [
-  'Nhân sự',
-  'Tin tức',
   'Sự kiện',
-  'Thông cáo báo chí',
-  'Sản phẩm mới'
+  'Tin tức',
+  'Nhân sự',
+  'Thông báo'
 ];
 
 const PRESET_COVERS = [
@@ -42,11 +42,11 @@ export const AddMediaPage: React.FC<AddMediaPageProps> = ({
 }) => {
   const [formData, setFormData] = useState({
     title: '',
-    category: 'Nhân sự' as MediaCategory,
+    category: 'Thông báo' as MediaCategory,
     summary: '',
     content: '',
     coverImage: PRESET_COVERS[0],
-    authorDepartment: 'Phòng Nhân Sự',
+    authorDepartment: 'Phòng HR&AD',
     publishDate: '01/09/2026',
     status: 'published' as 'published' | 'draft'
   });
@@ -70,11 +70,11 @@ export const AddMediaPage: React.FC<AddMediaPageProps> = ({
   const handleReset = () => {
     setFormData({
       title: '',
-      category: 'Nhân sự',
+      category: 'Thông báo',
       summary: '',
       content: '',
       coverImage: PRESET_COVERS[0],
-      authorDepartment: 'Phòng Nhân Sự',
+      authorDepartment: 'Phòng HR&AD',
       publishDate: '01/09/2026',
       status: 'published'
     });
@@ -179,17 +179,7 @@ export const AddMediaPage: React.FC<AddMediaPageProps> = ({
                 <label className="block text-xs font-bold text-slate-700 mb-1.5">
                   Chuyên mục / Phân loại <span className="text-rose-500">*</span>
                 </label>
-                <select
-                  value={formData.category}
-                  onChange={(e) => setFormData({ ...formData, category: e.target.value as MediaCategory })}
-                  className="w-full px-3.5 py-2.5 text-xs bg-slate-50/70 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all font-medium"
-                >
-                  {CATEGORIES.map((cat) => (
-                    <option key={cat} value={cat}>
-                      {cat}
-                    </option>
-                  ))}
-                </select>
+                <AdminSelect value={formData.category} onChange={(category) => setFormData({ ...formData, category: category as MediaCategory })} options={CATEGORIES.map((value) => ({ value, label: value }))} className="w-full" searchable={false} showSelectionCheck={false} />
               </div>
             </div>
 
@@ -211,13 +201,14 @@ export const AddMediaPage: React.FC<AddMediaPageProps> = ({
                 <label className="block text-xs font-bold text-slate-700 mb-1.5">
                   Đơn vị / Phòng ban đăng tin
                 </label>
-                <input
-                  type="text"
+                <select
                   value={formData.authorDepartment}
                   onChange={(e) => setFormData({ ...formData, authorDepartment: e.target.value })}
-                  placeholder="Phòng Marketing / Ban Truyền thông"
                   className="w-full px-3.5 py-2.5 text-xs bg-slate-50/70 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all font-medium"
-                />
+                >
+                  <option value="Phòng HR&AD">Phòng HR&AD</option>
+                  <option value="Phòng MKT">Phòng MKT</option>
+                </select>
               </div>
             </div>
 
@@ -259,14 +250,7 @@ export const AddMediaPage: React.FC<AddMediaPageProps> = ({
                 <label className="block text-xs font-bold text-slate-700 mb-1.5">
                   Trạng thái xuất bản
                 </label>
-                <select
-                  value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value as 'published' | 'draft' })}
-                  className="w-full px-3.5 py-2.5 text-xs bg-slate-50/70 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all"
-                >
-                  <option value="published">Đã xuất bản (Công khai)</option>
-                  <option value="draft">Bản nháp (Lưu nội bộ)</option>
-                </select>
+                <AdminSelect value={formData.status} onChange={(status) => setFormData({ ...formData, status: status as 'published' | 'draft' })} options={[{ value: 'published', label: 'Đã xuất bản (Công khai)' }, { value: 'draft', label: 'Bản nháp (Lưu nội bộ)' }]} className="w-full" searchable={false} showSelectionCheck={false} />
               </div>
             </div>
 
@@ -347,7 +331,7 @@ export const AddMediaPage: React.FC<AddMediaPageProps> = ({
               {/* Red Category Pill at Bottom-Left: Nhân sự / Tin tức / etc. */}
               <div className="absolute bottom-4 left-4">
                 <span className="px-3.5 py-1 rounded-full bg-[#991b1b] text-white text-xs font-bold shadow-sm">
-                  {formData.category || 'Nhân sự'}
+                  {formData.category || 'Thông báo'}
                 </span>
               </div>
 

@@ -90,7 +90,7 @@ export const AssignRoleModal: React.FC<AssignRoleModalProps> = ({
                     key={role.id}
                     type="button"
                     onClick={() => setSelectedRoleId(role.id)}
-                    className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                    className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col ${
                       isSelected
                         ? 'border-emerald-500 bg-emerald-950/20 shadow-md ring-1 ring-emerald-500/50'
                         : 'border-slate-800 bg-slate-900/40 hover:border-slate-700 hover:bg-slate-850'
