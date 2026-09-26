@@ -11,7 +11,7 @@ const navLinks = [
   { href: "/", label: "Trang chủ" },
   { href: "/employees", label: "Nhân viên" },
   { href: "/news", label: "Truyền thông" },
-  { href: "/welcome", label: "Chào mừng" },
+
   { href: "/about-wana", label: "Về Á Châu" },
 ];
 

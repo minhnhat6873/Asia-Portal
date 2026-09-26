@@ -3,9 +3,10 @@
 import Navbar from "@/app/components/layout/Navbar";
 import Footer from "@/app/components/layout/Footer";
 import ProductHeroSlider from "./ProductHeroSlider";
-import { ArrowRight, Play, Trophy, Globe, Users, Leaf } from "lucide-react";
+import { ArrowRight, Bot, Download, Play, Send, Sparkles, Toolbox, Trophy, Globe, Users, Leaf } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import { RESOURCE_ITEMS, type ResourceItem } from "../welcome/welcomeData";
 
 
 /* ── DATA ── */
@@ -51,14 +52,44 @@ const milestones = [
 
 
 
-const gallery = [
-  { src: "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400&h=280&fit=crop", label: "Sản xuất hiện đại" },
-  { src: "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=400&h=280&fit=crop", label: "Team building 2026" },
-  { src: "https://images.unsplash.com/photo-1550989460-0adf9ea622e2?w=400&h=280&fit=crop", label: "Sản phẩm Wana" },
-  { src: "https://images.unsplash.com/photo-1511632765486-a01980e01a18?w=400&h=280&fit=crop", label: "Hoạt động cộng đồng" },
-  { src: "https://images.unsplash.com/photo-1497366216548-37526070297c?w=400&h=280&fit=crop", label: "Văn phòng làm việc" },
-];
 
+function ResourceCard({ item }: { item: ResourceItem }) {
+  const Icon = item.icon;
+
+  return (
+    <Link
+      id={item.anchor}
+      href={item.href}
+      className="group flex flex-col justify-between rounded-2xl border border-slate-100 bg-white p-6 shadow-lg shadow-slate-100 transition-all hover:border-[#bbf7d0] hover:shadow-xl"
+    >
+      <div>
+        <div className={`mb-4 flex h-12 w-12 items-center justify-center rounded-xl transition-transform group-hover:scale-110 ${item.chipTone}`}>
+          <Icon size={22} />
+        </div>
+        <h3 className="mb-1 text-base font-bold text-slate-900 group-hover:text-[#15803d]">{item.title}</h3>
+        <p className="text-xs leading-relaxed text-slate-500">{item.desc}</p>
+      </div>
+      <div className={`mt-4 flex items-center gap-2 text-xs font-semibold ${item.linkTone}`}>
+        <span>{item.linkText}</span>
+        {item.showDownloadIcon ? <Download size={13} /> : <ArrowRight size={13} className="transition-transform group-hover:translate-x-1" />}
+      </div>
+    </Link>
+  );
+}
+
+function AssistantCard() {
+  return (
+    <Link href="/demo/ai-assistant" className="group relative flex flex-col justify-between overflow-hidden rounded-2xl bg-gradient-to-br from-[#166534] to-[#14522d] p-6 text-left text-white shadow-xl transition-all hover:shadow-2xl">
+      <div className="absolute -bottom-4 -right-4 opacity-10"><Bot size={96} /></div>
+      <div>
+        <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-white/10 text-amber-300 transition-transform group-hover:scale-110"><Sparkles size={22} /></div>
+        <h3 className="mb-1 text-base font-bold text-white">Trợ lý AI Onboarding</h3>
+        <p className="text-xs leading-relaxed text-slate-200">Hỏi đáp tức thì về quy trình, quy định công ty với Trợ lý AI thông minh.</p>
+      </div>
+      <div className="mt-4 flex items-center gap-2 text-xs font-bold text-amber-300"><span>Trò chuyện ngay</span><Send size={13} /></div>
+    </Link>
+  );
+}
 /* ── PAGE ── */
 export default function VeWanaPage() {
   const [activeMilestone, setActiveMilestone] = useState(1);
@@ -280,57 +311,21 @@ export default function VeWanaPage() {
         </div>
       </section>
 
-      {/* ══════════════════════════════════
-          6. GALLERY — White
-         ══════════════════════════════════ */}
-      <section className="bg-white py-8 sm:py-12 xl:py-16">
+      <section id="resources" className="scroll-mt-24 bg-slate-50 py-8 sm:py-12 xl:py-16">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
-          <div className="mb-5 flex items-end justify-between gap-4 sm:mb-8">
-            <div>
-              <p className="section-label mb-2">Hình ảnh hoạt động</p>
-              <h2 className="text-2xl font-black text-gray-900 sm:text-3xl">
-                Một Wana <span className="text-[#1a7a1a]">năng động</span>
-              </h2>
+          <div className="mb-8">
+            <div className="mb-1 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#15803d]">
+              <Toolbox size={14} /> Tài nguyên bổ sung
             </div>
-            <Link
-              href="#"
-              className="text-sm font-semibold text-[#1a7a1a] hover:underline flex items-center gap-1"
-            >
-              Xem tất cả <ArrowRight size={14} />
-            </Link>
+            <h2 className="text-2xl font-extrabold text-slate-900 sm:text-3xl">Công cụ &amp; Tài nguyên Cần thiết</h2>
+            <p className="mt-1 text-sm text-slate-500">Lối tắt truy cập nhanh giúp nhân viên làm quen hệ thống dễ dàng</p>
           </div>
-
-          {/* Gallery grid: 1 large + 4 small */}
-          <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4">
-            {/* Large first item */}
-            <div className="col-span-2 row-span-1 relative overflow-hidden rounded-2xl h-40 group sm:h-56">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={gallery[0].src}
-                alt={gallery[0].label}
-                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-              <p className="absolute bottom-3 left-4 text-white font-semibold text-sm">{gallery[0].label}</p>
-            </div>
-
-            {/* Remaining 4 items */}
-            {gallery.slice(1).map((g) => (
-              <div key={g.label} className="relative overflow-hidden rounded-2xl h-40 group sm:h-56">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={g.src}
-                  alt={g.label}
-                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                <p className="absolute bottom-3 left-3 text-white font-semibold text-xs">{g.label}</p>
-              </div>
-            ))}
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {RESOURCE_ITEMS.map((item) => <ResourceCard key={item.title} item={item} />)}
+            <AssistantCard />
           </div>
         </div>
       </section>
-
       <GrowingTogetherBanner />
       <Footer />
     </main>

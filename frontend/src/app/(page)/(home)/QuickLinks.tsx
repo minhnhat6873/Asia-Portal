@@ -1,10 +1,10 @@
 import Link from "next/link";
-import { ArrowRight, Building2, Megaphone, PartyPopper, Users } from "lucide-react";
+import { ArrowRight, Building2, Megaphone, Toolbox, Users } from "lucide-react";
 
 const links = [
   { href: "/employees", icon: Users, title: "Danh sách nhân viên", desc: "Tìm kiếm và kết nối với đồng nghiệp" },
   { href: "/news", icon: Megaphone, title: "Truyền thông nội bộ", desc: "Tin tức, sự kiện, hoạt động" },
-  { href: "/welcome", icon: PartyPopper, title: "Chào mừng nhân viên mới", desc: "Hành trang gia nhập Á Châu" },
+  { href: "/about-wana#resources", icon: Toolbox, title: "Công cụ & tài nguyên", desc: "Các tiện ích nội bộ dành cho nhân viên" },
   { href: "/about-wana", icon: Building2, title: "Về Á Châu", desc: "Văn hóa, giá trị, tầm nhìn" },
 ];
 

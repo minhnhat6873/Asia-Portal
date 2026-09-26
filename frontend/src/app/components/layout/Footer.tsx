@@ -5,7 +5,7 @@ const footerLinks = [
   { label: "Trang chủ", href: "/" },
   { label: "Nhân viên", href: "/employees" },
   { label: "Truyền thông", href: "/news" },
-  { label: "Chào mừng", href: "/welcome" },
+
   { label: "Về Á Châu", href: "/about-wana" },
 ];
 

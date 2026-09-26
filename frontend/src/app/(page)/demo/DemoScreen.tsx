@@ -161,12 +161,12 @@ function BackActions() {
   const router = useRouter();
 
   const goBack = () => {
-    // A direct visit has no history to return to, so fall back to /welcome.
+    // A direct visit has no history to return to, so fall back to /about-wana.
     if (window.history.length > 1) {
       router.back();
       return;
     }
-    router.push("/welcome");
+    router.push("/about-wana");
   };
 
   return (
@@ -181,11 +181,11 @@ function BackActions() {
       </button>
 
       <Link
-        href="/welcome"
+        href="/about-wana"
         className="inline-flex items-center justify-center gap-2 rounded-full border-2 border-[#15803d] px-6 py-3 text-sm font-bold text-[#15803d] transition-colors hover:bg-[#f0fdf4] active:scale-[0.98]"
       >
         <House size={16} />
-        Về trang chào mừng
+        Về trang Về Á Châu
       </Link>
     </div>
   );

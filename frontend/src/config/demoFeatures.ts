@@ -1,6 +1,6 @@
 /**
  * Registry of the six shortcuts shown in the "Công cụ & Tài nguyên" grid on
- * /welcome. None of them are wired to a real backend yet, so every shortcut
+ * /about-wana#resources. None of them are wired to a real backend yet, so every shortcut
  * points at the shared /demo placeholder page which reports that the feature
  * is still a trial build.
  */
