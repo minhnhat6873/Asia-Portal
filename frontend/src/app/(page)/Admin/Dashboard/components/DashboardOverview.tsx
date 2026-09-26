@@ -5,13 +5,16 @@ import {
   Plus,
   ArrowUpRight,
   Calendar,
-  ExternalLink
+  UserCheck,
+  ShieldCheck,
+  LockKeyhole
 } from 'lucide-react';
-import { Employee, MediaPost, ActiveTab } from '../types';
+import { Employee, MediaPost, ActiveTab, UserAccount } from '../types';
 
 interface DashboardOverviewProps {
   employees: Employee[];
   mediaPosts: MediaPost[];
+  users: UserAccount[];
   onNavigate: (tab: ActiveTab) => void;
   onOpenAddEmployee: () => void;
   onOpenAddMedia: () => void;
@@ -21,6 +24,7 @@ interface DashboardOverviewProps {
 export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
   employees,
   mediaPosts,
+  users,
   onNavigate,
   onOpenAddEmployee,
   onOpenAddMedia,
@@ -29,36 +33,30 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
   const activeEmployees = employees.filter((e) => e.status === 'active').length;
   const probationEmployees = employees.filter((e) => e.status === 'probation').length;
   const publishedPosts = mediaPosts.filter((m) => m.status === 'published').length;
+  const pendingAccounts = users.filter((user) => user.status === 'pending').length;
+  const approvedAccounts = users.filter((user) => user.status === 'approved').length;
+  const lockedAccounts = users.filter((user) => user.status === 'locked').length;
 
   return (
     <div className="space-y-6">
       {/* Welcome Banner */}
-      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-emerald-950 rounded-3xl p-6 text-white shadow-sm border border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div className="flex flex-col items-start justify-between gap-4 rounded-3xl border border-emerald-200 bg-gradient-to-r from-emerald-50 via-white to-sky-50 p-6 shadow-2xs md:flex-row md:items-center">
         <div>
           <div className="flex items-center gap-2 mb-1.5">
-            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+            <span className="rounded-full border border-emerald-200 bg-white px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700">
               Asia Food & Beverage JSC
             </span>
             <span className="text-slate-400 text-xs">• Bảng Điều Khiển Tổng Quan</span>
           </div>
-          <h2 className="text-xl md:text-2xl font-bold tracking-tight">
+          <h2 className="text-xl font-bold tracking-tight text-slate-900 md:text-2xl">
             Cổng Quản Trị Nhân Sự & Truyền Thông Asia F&B
           </h2>
-          <p className="text-sm text-slate-300 mt-1 max-w-2xl">
+          <p className="mt-1 max-w-2xl text-sm text-slate-600">
             Theo dõi tình hình nhân sự, cơ cấu phòng ban và hoạt động truyền thông, sự kiện Asia Food & Beverage.
           </p>
         </div>
 
         <div className="flex w-full flex-wrap items-center gap-2.5 md:w-auto md:flex-nowrap md:gap-3">
-          <a
-            href="https://asia-q5di.onrender.com/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-semibold backdrop-blur-xs transition-colors border border-white/15"
-          >
-            <ExternalLink className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Mở Trang Render</span>
-          </a>
           <button
             onClick={onOpenAddEmployee}
             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-colors shadow-sm"
@@ -77,7 +75,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
       </div>
 
       {/* 2 Metric Cards Grid — two cards, so the row splits 50/50 */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {/* Card 1: Nhân sự */}
         <div
           onClick={() => onNavigate('employees')}
@@ -134,6 +132,16 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
               Xem chi tiết <ArrowUpRight className="w-3 h-3" />
             </span>
           </div>
+        </div>
+        <div onClick={() => onNavigate('permissions')} className="cursor-pointer rounded-3xl border border-slate-200/90 bg-white p-6 shadow-2xs transition-all hover:border-amber-500/50 hover:shadow-sm">
+          <div className="flex items-center justify-between"><span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Tài khoản chờ duyệt</span><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50 text-amber-600"><UserCheck className="h-5 w-5" /></div></div>
+          <div className="mt-4 flex items-baseline gap-2"><span className="text-3xl font-extrabold tracking-tight text-slate-900">{pendingAccounts}</span><span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-700">cần xử lý</span></div>
+          <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3 text-xs text-slate-500"><span>Vào trang phân quyền</span><ArrowUpRight className="h-3.5 w-3.5 text-amber-700" /></div>
+        </div>
+        <div onClick={() => onNavigate('permissions')} className="cursor-pointer rounded-3xl border border-slate-200/90 bg-white p-6 shadow-2xs transition-all hover:border-violet-500/50 hover:shadow-sm">
+          <div className="flex items-center justify-between"><span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Tài khoản hoạt động</span><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-50 text-violet-600"><ShieldCheck className="h-5 w-5" /></div></div>
+          <div className="mt-4 flex items-baseline gap-2"><span className="text-3xl font-extrabold tracking-tight text-slate-900">{approvedAccounts}</span><span className="rounded-full bg-violet-50 px-2.5 py-0.5 text-xs font-medium text-violet-700">đã duyệt</span></div>
+          <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3 text-xs text-slate-500"><span>{lockedAccounts} tài khoản tạm khóa</span><LockKeyhole className="h-3.5 w-3.5 text-violet-700" /></div>
         </div>
       </div>
 

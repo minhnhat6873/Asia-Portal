@@ -9,7 +9,6 @@ import {
   User,
   Users,
   Newspaper,
-  ExternalLink,
   ShieldCheck,
   UserCheck,
   Settings,
@@ -109,7 +108,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   return (
     <aside className="h-full w-64 bg-[#060806] text-slate-300 flex flex-col shrink-0 border-r border-white/10 select-none">
       {/* Brand Header — Asia F&B logo on the black canvas, gold-ringed */}
-      <div className="border-b border-white/[0.08] px-5 py-5">
+      <div className="hidden border-b border-white/[0.08] px-5 py-5">
         <div className="flex items-center gap-3.5">
           <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full bg-[#060806]">
             <Image
@@ -131,19 +130,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
         </div>
 
-        {/* Live Site Link Pill */}
-        <a
-          href="https://asia-q5di.onrender.com/"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="group mt-4 flex items-center justify-between rounded-xl border border-white/[0.10] bg-white/[0.035] px-3 py-2.5 text-xs text-emerald-400 transition-all duration-200 hover:border-emerald-400/35 hover:bg-emerald-400/[0.08] hover:text-emerald-300"
-        >
-          <span className="flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-emerald-500"></span>
-            <span className="truncate font-medium">asia-q5di.onrender.com</span>
-          </span>
-          <ExternalLink className="h-3.5 w-3.5 shrink-0 opacity-60 transition-opacity group-hover:opacity-100" />
-        </a>
       </div>
 
       {/* Navigation */}
@@ -205,30 +191,33 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </p>
 
       {/* Footer account actions and profile */}
-      <div className="mt-2 shrink-0 border-t border-white/[0.10] bg-black/30 px-4 pb-4 pt-3">
-        <div className="space-y-1 px-3 py-1">
+      <div className="mt-2 shrink-0 border-t border-white/[0.10] px-4 pb-4 pt-3">
+        <div className="space-y-1">
           <button
             type="button"
             onClick={() => onTabChange('system-settings')}
-            className={`group flex min-h-10 w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-medium transition-all duration-200 ${
+            className={`group flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-left text-sm font-medium transition-all ${
               activeTab === 'system-settings'
-                ? 'bg-emerald-500/[0.12] text-white shadow-[0_0_14px_rgba(34,197,94,0.24)]'
-                : 'text-slate-100 hover:bg-emerald-500/[0.12] hover:text-white hover:shadow-[0_0_14px_rgba(34,197,94,0.24)]'
+                ? 'bg-gradient-to-r from-[#0d5c0d] to-[#1a7a1a] text-white font-semibold shadow-sm shadow-[#1a7a1a]/40'
+                : 'text-slate-300 hover:text-white hover:bg-white/[0.06]'
             }`}
           >
-            <Settings className="h-4 w-4 text-emerald-400 transition-colors group-hover:text-emerald-300" />
+            <Settings className={`h-4 w-4 ${activeTab === 'system-settings' ? 'text-white' : 'text-slate-400'}`} />
             Cài đặt hệ thống
           </button>
-          <Link
-            href="/admin/account"
-            className="group flex min-h-10 w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-slate-100 transition-all duration-200 hover:bg-emerald-500/[0.12] hover:text-white hover:shadow-[0_0_14px_rgba(34,197,94,0.24)]"
+          <button
+            type="button"
+            onClick={() => onTabChange('account')}
+            className={`group flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-left text-sm font-medium transition-all ${
+              activeTab === 'account' ? 'bg-gradient-to-r from-[#0d5c0d] to-[#1a7a1a] text-white font-semibold shadow-sm shadow-[#1a7a1a]/40' : 'text-slate-300 hover:text-white hover:bg-white/[0.06]'
+            }`}
           >
-            <User className="h-4 w-4 text-emerald-400 transition-colors group-hover:text-emerald-300" />
+            <User className={`h-4 w-4 ${activeTab === 'account' ? 'text-white' : 'text-slate-400'}`} />
             Thông tin tài khoản
-          </Link>
+          </button>
         </div>
 
-        <div ref={accountMenuRef} className="relative mt-3">
+        <div ref={accountMenuRef} className="relative mt-3 hidden">
           <button
             type="button"
             onClick={() => setIsAccountMenuOpen((open) => !open)}

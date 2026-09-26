@@ -68,11 +68,10 @@ interface AdminEmployee {
 }
 
 type AdminMediaCategory =
-  | "Tin tức"
   | "Sự kiện"
-  | "Thông cáo báo chí"
-  | "Sản phẩm mới"
-  | "Nhân sự";
+  | "Tin tức"
+  | "Nhân sự"
+  | "Thông báo";
 
 interface AdminMediaPost {
   id: string;
@@ -138,10 +137,9 @@ function mapNewsCategory(category: AdminMediaCategory): NewsItem["category"] {
       return "Sự kiện";
     case "Nhân sự":
       return "Nhân sự";
-    case "Thông cáo báo chí":
+    case "Thông báo":
       return "Thông báo";
     default:
-      // "Tin tức" and "Sản phẩm mới" both read as general news.
       return "Tin tức";
   }
 }

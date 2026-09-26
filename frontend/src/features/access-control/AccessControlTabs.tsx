@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { UserManagementView } from "./components/UserManagementView";
 import { SystemSettingsView } from "./components/SystemSettingsView";
 import {
@@ -10,9 +10,12 @@ import {
 } from "./data/initialData";
 import { ACCESS_MODULES, ACCESS_PERMISSIONS } from "./permissionCatalog";
 import { AuditLog, Role, User } from "./types";
+import { getStoredRoles, saveStoredRoles } from "./roleStorage";
+import { getStoredAccessUsers, saveStoredAccessUsers } from "./userStorage";
 import type { TrashItem } from "@/app/(page)/admin/Dashboard/types";
 
 type AccessControlTab = "permissions" | "system-settings";
+const NO_ACCESS_ROLE_ID = "role_no_access";
 
 interface AccessControlTabsProps {
   activeTab: AccessControlTab;
@@ -24,14 +27,28 @@ interface AccessControlTabsProps {
 }
 
 export function AccessControlTabs({ activeTab, onNavigate, trashItems, onAddTrashItem, onRemoveTrashItem, onRestoreExternalTrashItem }: AccessControlTabsProps) {
-  const [users, setUsers] = useState<User[]>(() =>
-    INITIAL_USERS.map((user) => ({ ...user, roleId: "role_admin", branch: "ASIA F&B" }))
-  );
-  const [roles, setRoles] = useState<Role[]>(() =>
+  const [users, setUsers] = useState<User[]>(() => getStoredAccessUsers(
+    INITIAL_USERS.map((user) => ({
+      ...user,
+      roleId: user.status === "pending" ? NO_ACCESS_ROLE_ID : "role_admin",
+      branch: "ASIA F&B",
+    }))
+  ));
+  const [roles, setRoles] = useState<Role[]>(() => getStoredRoles(
     INITIAL_ROLES
       .filter((role) => role.id === "role_admin")
       .map((role) => ({ ...role, permissionIds: ACCESS_PERMISSIONS.map((permission) => permission.id) }))
-  );
+      .concat({
+        id: NO_ACCESS_ROLE_ID,
+        name: "Chưa phân quyền",
+        code: "NO_ACCESS",
+        description: "Tài khoản đã được duyệt nhưng chưa được cấp bất kỳ quyền nào.",
+        color: "slate",
+        permissionIds: [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      })
+  ));
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>(() =>
     INITIAL_LOGS.filter(
       (log) =>
@@ -40,6 +57,12 @@ export function AccessControlTabs({ activeTab, onNavigate, trashItems, onAddTras
         )
     )
   );
+  useEffect(() => {
+    saveStoredRoles(roles);
+  }, [roles]);
+  useEffect(() => {
+    saveStoredAccessUsers(users);
+  }, [users]);
   const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null);
   const [settingsSubTab, setSettingsSubTab] = useState<"dashboard" | "manage_roles" | "create_role" | "audit_logs">("dashboard");
 
@@ -67,7 +90,13 @@ export function AccessControlTabs({ activeTab, onNavigate, trashItems, onAddTras
         permissions={ACCESS_PERMISSIONS}
         modules={ACCESS_MODULES}
         onUpdateUserRole={(userId, roleId) => {
-          setUsers((items) => items.map((user) => user.id === userId ? { ...user, roleId } : user));
+          setUsers((items) => {
+            const updatedUsers = items.map((user) =>
+              user.id === userId ? { ...user, roleId } : user
+            );
+            saveStoredAccessUsers(updatedUsers);
+            return updatedUsers;
+          });
           addLog("Phân quyền người dùng", "Đã cập nhật nhóm quyền cho người dùng.", userId, "user_assign");
         }}
         onToggleUserStatus={(userId) => setUsers((items) => items.map((user) => user.id === userId ? { ...user, status: user.status === "active" ? "suspended" : "active" } : user))}
@@ -75,7 +104,7 @@ export function AccessControlTabs({ activeTab, onNavigate, trashItems, onAddTras
           setUsers((items) =>
             items.map((user) =>
               user.id === userId
-                ? { ...user, status: "active" as const, roleId: roleId ?? user.roleId }
+                ? { ...user, status: "active" as const, roleId: roleId ?? NO_ACCESS_ROLE_ID }
                 : user
             )
           );
@@ -85,7 +114,7 @@ export function AccessControlTabs({ activeTab, onNavigate, trashItems, onAddTras
               "Duyệt tài khoản",
               roleId
                 ? `Đã duyệt và gán nhóm quyền cho ${approvedUser.name}.`
-                : `Đã duyệt tài khoản ${approvedUser.name}.`,
+                : `Đã duyệt tài khoản ${approvedUser.name} nhưng chưa cấp quyền.`,
               approvedUser.name,
               "user_update"
             );

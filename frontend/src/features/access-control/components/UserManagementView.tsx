@@ -12,15 +12,17 @@ import {
   MoreVertical,
   CheckCircle2,
   Lock,
-  Unlock,
   Building2,
   RefreshCw,
   Sparkles,
+  Trash2,
+  AlertTriangle,
 } from 'lucide-react';
 import { AssignRoleModal } from './AssignRoleModal';
 import { UserDetailModal } from './UserDetailModal';
 import { CreateUserModal } from './CreateUserModal';
 import { PendingAccountsModal } from './PendingAccountsModal';
+import { AdminSelect } from '@/app/(page)/admin/Dashboard/components/AdminSelect';
 
 interface UserManagementViewProps {
   users: User[];
@@ -63,7 +65,9 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
   const [isPendingAccountsOpen, setIsPendingAccountsOpen] = useState(false);
   const [userToAssign, setUserToAssign] = useState<User | null>(null);
   const [userToInspect, setUserToInspect] = useState<User | null>(null);
+  const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [isCreateUserOpen, setIsCreateUserOpen] = useState(false);
+  const hasPendingUsers = pendingUsers.length > 0;
 
   // Filtered users
   const filteredUsers = users.filter((user) => {
@@ -75,8 +79,12 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
     const matchesRole =
       selectedRoleFilter === 'all' || user.roleId === selectedRoleFilter;
 
+    // Pending and rejected registrations are deliberately isolated in their
+    // respective approval areas, not mixed into the main user-management table.
     const matchesStatus =
-      selectedStatusFilter === 'all' || user.status === selectedStatusFilter;
+      selectedStatusFilter === 'all'
+        ? user.status !== 'pending' && user.status !== 'rejected'
+        : user.status === selectedStatusFilter;
 
     return matchesSearch && matchesRole && matchesStatus;
   });
@@ -137,7 +145,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
           onClick={() => setIsPendingAccountsOpen(true)}
           title="Bấm để xem danh sách tài khoản chờ duyệt"
           className={`bg-slate-900/50 rounded-xl p-4 text-center transition-colors ${
-            pendingUsers.length > 0
+            hasPendingUsers
               ? 'pending-alert border-2 border-orange-500/50 cursor-pointer hover:bg-slate-900/80'
               : 'border border-slate-800/80 cursor-pointer hover:bg-slate-900/80'
           }`}
@@ -145,13 +153,13 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
           <span className="text-xs text-slate-400 font-medium">Tài khoản chưa duyệt</span>
           <div
             className={`text-2xl font-bold font-mono tabular-nums mt-1 ${
-              pendingUsers.length > 0 ? 'text-orange-400' : 'text-teal-400'
+              hasPendingUsers ? 'text-orange-400' : 'text-teal-400'
             }`}
           >
             {pendingUsers.length}
           </div>
           <p className="text-[11px] text-slate-400 mt-1">
-            {pendingUsers.length > 0
+            {hasPendingUsers
               ? 'Cần phê duyệt truy cập'
               : 'Không có tài khoản chờ duyệt'}
           </p>
@@ -173,31 +181,24 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
 
         <div className="flex flex-wrap items-center gap-2">
           {/* Role Filter */}
-          <select
+          <AdminSelect
             value={selectedRoleFilter}
-            onChange={(e) => setSelectedRoleFilter(e.target.value)}
-            className="px-3 py-2 bg-slate-950/70 border border-slate-700/80 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-emerald-500"
-          >
-            <option value="all">Tất cả nhóm quyền ({roles.length})</option>
-            {roles.map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.name}
-              </option>
-            ))}
-          </select>
+            onChange={setSelectedRoleFilter}
+            className="min-w-52"
+            searchable={false}
+            showSelectionCheck={false}
+            options={[{ value: 'all', label: `Tất cả nhóm quyền (${roles.length})` }, ...roles.map((role) => ({ value: role.id, label: role.name }))]}
+          />
 
           {/* Status Filter */}
-          <select
+          <AdminSelect
             value={selectedStatusFilter}
-            onChange={(e) => setSelectedStatusFilter(e.target.value)}
-            className="px-3 py-2 bg-slate-950/70 border border-slate-700/80 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-emerald-500"
-          >
-            <option value="all">Tất cả trạng thái</option>
-            <option value="active">Đang hoạt động</option>
-            <option value="suspended">Tạm khóa</option>
-            <option value="pending">Chờ duyệt</option>
-            <option value="rejected">Đã từ chối</option>
-          </select>
+            onChange={setSelectedStatusFilter}
+            className="min-w-44"
+            searchable={false}
+            showSelectionCheck={false}
+            options={[{ value: 'all', label: 'Tất cả trạng thái' }, { value: 'active', label: 'Đang hoạt động' }, { value: 'suspended', label: 'Tạm khóa' }]}
+          />
 
           {(searchQuery || selectedRoleFilter !== 'all' || selectedStatusFilter !== 'all') && (
             <button
@@ -220,22 +221,24 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
           <table className="w-full table-fixed text-left text-sm text-slate-700">
             <colgroup>
               <col className="w-[28%]" />
-              <col className="w-[27%]" />
-              <col className="w-[18%]" />
-              <col className="w-[27%]" />
+              <col className="w-[26%]" />
+              <col className="w-[16%]" />
+              <col className="w-[13%]" />
+              <col className="w-[17%]" />
             </colgroup>
             <thead className="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
               <tr>
                 <th className="py-3.5 px-4">Nhân sự / Tài khoản</th>
-                <th className="py-3.5 px-4">Nhóm quyền hiện tại</th>
+                <th className="py-3.5 px-4 text-center">Nhóm quyền hiện tại</th>
                 <th className="py-3.5 px-4">Trạng thái</th>
+                <th className="px-4 py-3.5 text-center">Xóa tài khoản</th>
                 <th className="px-4 py-3.5 text-center">Thao tác phân quyền</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="py-12 text-center text-slate-400 text-xs">
+                  <td colSpan={5} className="py-12 text-center text-slate-400 text-xs">
                     Không tìm thấy nhân sự phù hợp với bộ lọc hiện tại.
                   </td>
                 </tr>
@@ -266,7 +269,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                       </td>
 
                       {/* Role Badge */}
-                      <td className="py-3.5 px-4">
+                      <td className="py-3.5 px-4 text-center">
                         <button
                           onClick={() => role && onViewRoleDetail(role.id)}
                           className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border transition-transform hover:scale-102 cursor-pointer ${getRoleBadgeStyle(
@@ -309,6 +312,23 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                         </span>
                       </td>
 
+                      {/* Delete account */}
+                      <td className="px-4 py-3.5 text-center">
+                        {!isCurrentUser ? (
+                          <button
+                            type="button"
+                            onClick={() => setUserToDelete(user)}
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-xs font-semibold text-rose-700 transition-colors hover:bg-rose-100"
+                            title="Chuyển tài khoản vào thùng rác"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                            <span>Xóa</span>
+                          </button>
+                        ) : (
+                          <span className="inline-block h-7" />
+                        )}
+                      </td>
+
                       {/* Actions */}
                       <td className="px-4 py-3.5 text-center">
                         <div className="grid grid-cols-[1.75rem_auto_1.75rem] items-center justify-center gap-1.5">
@@ -338,7 +358,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                               className={`justify-self-center rounded-lg p-1.5 transition-colors ${
                                 user.status === 'active'
                                   ? 'text-slate-400 hover:text-rose-400 hover:bg-rose-950/30'
-                                  : 'text-emerald-400 hover:bg-emerald-950/30'
+                                  : 'text-rose-500 hover:bg-rose-50 hover:text-rose-600'
                               }`}
                               title={
                                 user.status === 'active'
@@ -349,7 +369,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                               {user.status === 'active' ? (
                                 <Lock className="w-4 h-4" />
                               ) : (
-                                <Unlock className="w-4 h-4" />
+                                <Lock className="w-4 h-4" />
                               )}
                             </button>
                           ) : (
@@ -367,6 +387,24 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
       </div>
 
       {/* Modals */}
+      {userToDelete && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm">
+          <div role="dialog" aria-modal="true" aria-labelledby="delete-account-title" className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl">
+            <div className="flex items-start gap-4">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-rose-100 text-rose-600"><AlertTriangle className="h-5 w-5" /></span>
+              <div>
+                <h2 id="delete-account-title" className="text-base font-bold text-slate-900">Xóa tài khoản phân quyền?</h2>
+                <p className="mt-1 text-sm leading-6 text-slate-500">Bạn có chắc muốn xóa tài khoản <strong className="text-slate-800">{userToDelete.name}</strong>? Tài khoản sẽ được chuyển vào Thùng rác và có thể khôi phục sau.</p>
+              </div>
+            </div>
+            <div className="mt-6 flex justify-end gap-3">
+              <button type="button" onClick={() => setUserToDelete(null)} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50">Hủy</button>
+              <button type="button" onClick={() => { onDeleteUser(userToDelete.id); setUserToDelete(null); }} className="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-rose-700"><Trash2 className="h-4 w-4" />Xóa tài khoản</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {isPendingAccountsOpen && (
         <PendingAccountsModal
           mode="pending"
