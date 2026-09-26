@@ -22,7 +22,7 @@ import { AssignRoleModal } from './AssignRoleModal';
 import { UserDetailModal } from './UserDetailModal';
 import { CreateUserModal } from './CreateUserModal';
 import { PendingAccountsModal } from './PendingAccountsModal';
-import { AdminSelect } from '@/app/(page)/admin/Dashboard/components/AdminSelect';
+import { AdminSelect } from '@/app/(page)/admin/dashboard/components/AdminSelect';
 
 interface UserManagementViewProps {
   users: User[];

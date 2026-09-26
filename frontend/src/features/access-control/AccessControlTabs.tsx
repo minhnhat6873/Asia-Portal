@@ -12,7 +12,7 @@ import { ACCESS_MODULES, ACCESS_PERMISSIONS } from "./permissionCatalog";
 import { AuditLog, Role, User } from "./types";
 import { getStoredRoles, saveStoredRoles } from "./roleStorage";
 import { getStoredAccessUsers, saveStoredAccessUsers } from "./userStorage";
-import type { TrashItem } from "@/app/(page)/admin/Dashboard/types";
+import type { TrashItem } from "@/app/(page)/admin/dashboard/types";
 
 type AccessControlTab = "permissions" | "system-settings";
 const NO_ACCESS_ROLE_ID = "role_no_access";

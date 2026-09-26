@@ -1,7 +1,7 @@
 /**
  * Shared content store for the Asia portal.
  *
- * The admin dashboard (`/admin/Dashboard`) is the single source of truth: it
+ * The admin dashboard (`/admin/dashboard`) is the single source of truth: it
  * writes employees and media posts into `localStorage` under the keys below.
  * The public pages (`/`, `/employees`, `/news`) used to read from the static
  * `@/config/employees` and `@/config/news` files, so anything an admin created
@@ -35,7 +35,7 @@ import type { Employee as PublicEmployee } from "@/config/employees";
 import type { NewsItem } from "@/config/news";
 
 /* -------------------------------------------------------------------------- *
- * Storage keys — must match `admin/Dashboard/utils/storage.ts`.
+ * Storage keys — must match `admin/dashboard/utils/storage.ts`.
  * -------------------------------------------------------------------------- */
 
 export const EMPLOYEES_STORAGE_KEY = "asia_fnb_employees_v2";

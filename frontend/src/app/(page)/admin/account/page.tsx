@@ -16,8 +16,8 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { AdminUser, getAdminSession, clearAdminSession } from "@/lib/adminSession";
-import { getCurrentUser, setCurrentUser } from "@/app/(page)/admin/Dashboard/utils/storage";
-import { UserAccount } from "@/app/(page)/admin/Dashboard/types";
+import { getCurrentUser, setCurrentUser } from "@/app/(page)/admin/dashboard/utils/storage";
+import { UserAccount } from "@/app/(page)/admin/dashboard/types";
 
 /* ========================================================================== *
  * Shared brand styles — mirrors the /admin/login canvas so the account screen
