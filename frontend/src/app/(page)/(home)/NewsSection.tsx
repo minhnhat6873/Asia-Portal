@@ -53,7 +53,7 @@ function FeaturedEvent({ item, onSelect }: { item: NewsItem; onSelect: () => voi
         />
       </div>
       <div className="md:pr-6">
-        <span className={`mb-3 inline-block text-xs font-semibold ${categoryBadgeClass[item.category]}`}>
+        <span className={`mb-3 inline-block rounded-full px-2.5 py-1 text-xs font-semibold leading-none ${categoryBadgeClass[item.category]}`}>
           {item.category}
         </span>
         <h3 className="mb-3 text-3xl font-black leading-tight text-[#16241a] md:text-4xl">{item.title}</h3>

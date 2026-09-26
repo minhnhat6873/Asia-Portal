@@ -65,6 +65,17 @@ export const INITIAL_EMPLOYEES: Employee[] = [
 
 export const INITIAL_MEDIA_POSTS: MediaPost[] = [
   {
+    id: 'media-team-building-2026',
+    title: 'Team Building 2026 – Cùng nhau mạnh hơn',
+    category: 'Sự kiện',
+    summary: 'Chương trình Team Building thường niên 2026 của Á Châu đã diễn ra thành công rực rỡ tại Vũng Tàu với hơn 200 nhân viên tham gia.',
+    content: 'Chương trình Team Building thường niên 2026 của Á Châu đã diễn ra thành công rực rỡ tại khu resort Vũng Tàu từ ngày 05 đến 07/09/2026. Hơn 200 nhân viên đã tham gia các hoạt động gắn kết đội nhóm, thi đấu thể thao và chia sẻ những khoảnh khắc đáng nhớ cùng nhau. Ban Giám Đốc đã có những phát biểu truyền cảm hứng và trao thưởng cho các cá nhân, tập thể xuất sắc trong năm qua.',
+    coverImage: '/assets/images/home-2.png',
+    authorDepartment: 'Phòng Nhân Sự',
+    publishDate: '10/09/2026',
+    status: 'published'
+  },
+  {
     id: 'media-1',
     title: 'Á Châu mở rộng dây chuyền sản xuất mới',
     category: 'Tin tức',

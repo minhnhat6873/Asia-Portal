@@ -40,6 +40,7 @@ import type { NewsItem } from "@/config/news";
 
 export const EMPLOYEES_STORAGE_KEY = "asia_fnb_employees_v2";
 export const MEDIA_STORAGE_KEY = "asia_fnb_media_v2";
+const TEAM_BUILDING_RESTORE_KEY = "asia_fnb_team_building_2026_restored";
 
 /** Dispatched after any write so both the admin tab and the public tab react. */
 export const PORTAL_CONTENT_EVENT = "asia-portal-content";
@@ -188,6 +189,31 @@ export function readPublicEmployees(fallback: PublicEmployee[]): PublicEmployee[
 export function readPublicNews(fallback: NewsItem[]): NewsItem[] {
   const admin = readJsonArray<AdminMediaPost>(MEDIA_STORAGE_KEY);
   if (!admin) return fallback;
+
+  // The original admin seed omitted this featured event. Restore it once here
+  // too, since the public page can be opened before the admin dashboard.
+  if (!window.localStorage.getItem(TEAM_BUILDING_RESTORE_KEY)) {
+    const feature = fallback.find((item) => item.title === "Team Building 2026 – Cùng nhau mạnh hơn");
+    const isPresent = admin.some(
+      (post) => post.id === "media-team-building-2026" || post.title === feature?.title
+    );
+    if (feature && !isPresent) {
+      admin.unshift({
+        id: "media-team-building-2026",
+        title: feature.title,
+        category: "Sự kiện",
+        summary: feature.excerpt,
+        content: feature.content,
+        coverImage: feature.image,
+        authorDepartment: feature.author,
+        publishDate: feature.date,
+        status: "published",
+      });
+      window.localStorage.setItem(MEDIA_STORAGE_KEY, JSON.stringify(admin));
+    }
+    window.localStorage.setItem(TEAM_BUILDING_RESTORE_KEY, "true");
+  }
+
   // Drafts are admin-only; the public portal shows published posts only.
   return admin
     .filter((post) => post.status !== "draft")

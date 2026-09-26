@@ -7,6 +7,28 @@ const MEDIA_STORAGE_KEY = 'asia_fnb_media_v2';
 const USERS_STORAGE_KEY = 'asia_fnb_users_v2';
 const CURRENT_USER_KEY = 'asia_fnb_current_user_v2';
 const TRASH_STORAGE_KEY = 'asia_fnb_trash_v1';
+const TEAM_BUILDING_RESTORE_KEY = 'asia_fnb_team_building_2026_restored';
+
+/**
+ * Restore the requested Team Building feature once for browsers that already
+ * had the former seed data in localStorage. The flag means a later intentional
+ * deletion from the admin page is respected.
+ */
+function restoreTeamBuildingPost(posts: MediaPost[]): MediaPost[] {
+  if (localStorage.getItem(TEAM_BUILDING_RESTORE_KEY)) return posts;
+
+  const teamBuildingPost = INITIAL_MEDIA_POSTS.find(
+    (post) => post.id === 'media-team-building-2026'
+  );
+  const alreadyPresent = posts.some(
+    (post) => post.id === teamBuildingPost?.id || post.title === teamBuildingPost?.title
+  );
+  const nextPosts = teamBuildingPost && !alreadyPresent ? [teamBuildingPost, ...posts] : posts;
+
+  localStorage.setItem(TEAM_BUILDING_RESTORE_KEY, 'true');
+  if (nextPosts !== posts) localStorage.setItem(MEDIA_STORAGE_KEY, JSON.stringify(nextPosts));
+  return nextPosts;
+}
 
 export function getStoredTrashItems(): TrashItem[] {
   try {
@@ -78,7 +100,7 @@ export function getStoredMediaPosts(): MediaPost[] {
       localStorage.setItem(MEDIA_STORAGE_KEY, JSON.stringify(INITIAL_MEDIA_POSTS));
       return INITIAL_MEDIA_POSTS;
     }
-    return JSON.parse(item);
+    return restoreTeamBuildingPost(JSON.parse(item) as MediaPost[]);
   } catch (error) {
     console.error('Error reading media posts from localStorage', error);
     return INITIAL_MEDIA_POSTS;
