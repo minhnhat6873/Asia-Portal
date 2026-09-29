@@ -5,7 +5,7 @@ import Image from "next/image";
 import { Building2, ChevronRight, LayoutGrid, List, MapPin } from "lucide-react";
 import type { Employee } from "@/types/employee";
 import EmployeeList from "./EmployeeList";
-import { getEmployeeAvatar } from "./employeeUtils";
+import { getEmployeeAvatar } from "../utils/employeeUtils";
 
 interface EmployeeDirectoryProps {
   employees: Employee[];

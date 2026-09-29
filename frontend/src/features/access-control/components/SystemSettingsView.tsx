@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Role, SystemPermission, ModuleCategory, User, AuditLog } from '../types';
-import type { Employee, MediaPost, TrashItem, UserAccount } from '@/app/(page)/admin/dashboard/types';
-import EmployeeProfile from '@/app/(page)/employees/EmployeeProfile';
+import type { Employee, MediaPost, TrashItem, UserAccount } from '@/features/admin/dashboard/types';
+import EmployeeProfile from '@/features/employees/components/EmployeeProfile';
 import type { Employee as EmployeeProfileData } from '@/types/employee';
 import {
   ShieldCheck,

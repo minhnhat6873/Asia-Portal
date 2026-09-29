@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Employee,
   MediaPost,
@@ -31,26 +32,51 @@ import { AddEmployeePage } from './components/AddEmployeePage';
 import { AddMediaPage } from './components/AddMediaPage';
 import { DEFAULT_ROLE_PERMISSIONS, PermissionsManagement } from './components/PermissionsManagement';
 import { AccessControlTabs } from '@/features/access-control/AccessControlTabs';
-import AccountPage from '@/app/(page)/admin/account/page';
+import AccountPage from '@/features/admin/account/AccountPage';
 import { Toast, ToastMessage } from './components/Toast';
-import AccountMenu from '@/app/components/layout/AccountMenu';
+import Image from 'next/image';
+import Link from 'next/link';
+import { getAdminSession, type AdminUser } from '@/lib/adminSession';
 import { subscribePortalContent } from '@/lib/portalContent';
-import { Menu } from 'lucide-react';
+import { Menu, ShieldCheck } from 'lucide-react';
 
-const ACTIVE_TAB_STORAGE_KEY = 'asia.admin.active-tab';
-const ADMIN_TABS: ActiveTab[] = ['overview', 'employees', 'add-employee', 'media', 'add-media', 'permissions', 'system-settings', 'account'];
+export const ADMIN_TAB_ROUTES: Record<ActiveTab, string> = {
+  overview: '/admin/dashboard',
+  employees: '/admin/employees',
+  'add-employee': '/admin/employees/new',
+  media: '/admin/media',
+  'add-media': '/admin/media/new',
+  permissions: '/admin/access-control',
+  'system-settings': '/admin/settings',
+  account: '/admin/account',
+};
 
-export default function App() {
-  const [activeTab, setActiveTab] = useState<ActiveTab>('overview');
-  const [isTabRestored, setIsTabRestored] = useState(false);
+interface AdminDashboardProps {
+  initialTab: ActiveTab;
+}
+
+export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
+  const router = useRouter();
+  const [activeTab, setActiveTab] = useState<ActiveTab>(initialTab);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [mediaPosts, setMediaPosts] = useState<MediaPost[]>([]);
   const [users, setUsers] = useState<UserAccount[]>([]);
   const [trashItems, setTrashItems] = useState<TrashItem[]>([]);
   const [currentUser, setCurrentUserState] = useState<UserAccount | null>(null);
+  const [sessionAccount, setSessionAccount] = useState<AdminUser | null>(null);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
+  useEffect(() => {
+    const syncSession = () => setSessionAccount(getAdminSession());
+    syncSession();
+    window.addEventListener("asia-admin-session", syncSession);
+    window.addEventListener("storage", syncSession);
+    return () => {
+      window.removeEventListener("asia-admin-session", syncSession);
+      window.removeEventListener("storage", syncSession);
+    };
+  }, []);
   // Modal & Navigation triggers
   const [selectedDossierEmployee, setSelectedDossierEmployee] = useState<Employee | null>(null);
   const [previewMediaPost, setPreviewMediaPost] = useState<MediaPost | null>(null);
@@ -90,16 +116,6 @@ export default function App() {
     return subscribePortalContent(load);
   }, []);
 
-  // Restore the tab before revealing the UI so the overview never flashes on refresh.
-  useEffect(() => {
-    const restoreTab = window.setTimeout(() => {
-      const storedTab = window.sessionStorage.getItem(ACTIVE_TAB_STORAGE_KEY) as ActiveTab | null;
-      if (storedTab && ADMIN_TABS.includes(storedTab)) setActiveTab(storedTab);
-      setIsTabRestored(true);
-    }, 0);
-    return () => window.clearTimeout(restoreTab);
-  }, []);
-
   // On phones, start with the content visible and open navigation as an overlay.
   useEffect(() => {
     const closeOnMobile = window.setTimeout(() => {
@@ -108,11 +124,11 @@ export default function App() {
     return () => window.clearTimeout(closeOnMobile);
   }, []);
 
-  // Keep the current admin page after a browser refresh or the Refresh button.
-  useEffect(() => {
-    if (isTabRestored) window.sessionStorage.setItem(ACTIVE_TAB_STORAGE_KEY, activeTab);
-  }, [activeTab, isTabRestored]);
-
+  const navigateToTab = (tab: ActiveTab) => {
+    setActiveTab(tab);
+    router.push(ADMIN_TAB_ROUTES[tab]);
+    if (window.matchMedia('(max-width: 767px)').matches) setIsSidebarOpen(false);
+  };
   // Helper toast notifier
   const addToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
     const id = Date.now().toString();
@@ -373,11 +389,34 @@ export default function App() {
   const pendingUsersCount = users.filter((u) => u.status === 'pending').length;
 
   return (
-    <div className={`relative flex h-screen bg-[#f8fafc] text-slate-800 overflow-hidden font-sans ${isTabRestored ? '' : 'invisible'}`}>
+    <div className={`relative flex h-screen flex-col overflow-hidden bg-[#f8fafc] font-sans text-slate-800`}>
       {/* Toast notifications */}
       <Toast toasts={toasts} onDismiss={removeToast} />
 
-      {/* Persistent Sidebar (Stays on screen as requested) */}
+      <header className="flex h-[76px] shrink-0 items-center justify-between bg-white px-4 shadow-sm sm:px-6 lg:px-8">
+          <Link href="/admin/dashboard" className="flex min-w-0 items-center gap-3 rounded-xl outline-none transition-opacity hover:opacity-80 focus-visible:ring-2 focus-visible:ring-emerald-500">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-emerald-100 bg-emerald-50 shadow-sm">
+            <Image src="/assets/images/asia-logo.png" alt="Asia Food & Beverage" width={44} height={44} className="h-9 w-9 object-contain" />
+          </span>
+          <span className="min-w-0">
+            <span className="block truncate text-[15px] font-extrabold text-slate-900 sm:text-[15px]">Asia Food &amp; Beverage</span>
+            <span className="block truncate text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-700">Cổng quản trị nội bộ</span>
+          </span>
+        </Link>
+        <Link href="/admin/account" className="group flex items-center gap-3 rounded-2xl px-2 py-1.5 outline-none transition-colors hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-emerald-500 sm:px-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-emerald-600 to-[#0d5c0d] text-sm font-black text-white shadow-md shadow-emerald-900/20 ring-2 ring-emerald-100">
+            {sessionAccount?.initials ?? "AF"}
+          </span>
+          <span className="hidden min-w-0 text-left sm:block">
+            <span className="block max-w-44 truncate text-[13px] font-bold text-slate-900">{sessionAccount?.fullName ?? "Chưa đăng nhập"}</span>
+            <span className="mt-0.5 flex items-center gap-1 truncate text-[11px] font-medium text-emerald-700"><ShieldCheck className="h-3.5 w-3.5 shrink-0" />{sessionAccount?.role ?? "Tài khoản nội bộ"}</span>
+          </span>
+        </Link>
+      </header>
+
+      <div aria-hidden="true" className="h-px w-full shrink-0 bg-black/25" />
+
+      <div className="relative flex min-h-0 flex-1 overflow-hidden">      {/* Persistent Sidebar (Stays on screen as requested) */}
       <div
         className={`h-full shrink-0 transition-[width] duration-300 ease-in-out ${
           isSidebarOpen ? 'overflow-visible' : 'overflow-hidden'
@@ -388,7 +427,7 @@ export default function App() {
         <Sidebar
           activeTab={activeTab}
           onTabChange={(tab) => {
-            setActiveTab(tab);
+            navigateToTab(tab);
             if (window.matchMedia('(max-width: 767px)').matches) setIsSidebarOpen(false);
           }}
           employeeCount={employees.length}
@@ -439,7 +478,7 @@ export default function App() {
 
           </div>
 
-          <AccountMenu />
+          <span className="hidden" aria-hidden="true" />
         </header>
 
         <main className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6 lg:p-8">
@@ -450,12 +489,12 @@ export default function App() {
                 employees={employees}
                 mediaPosts={mediaPosts}
                 users={users}
-                onNavigate={(tab) => setActiveTab(tab)}
-                onOpenAddEmployee={() => setActiveTab('add-employee')}
-                onOpenAddMedia={() => setActiveTab('add-media')}
+                onNavigate={navigateToTab}
+                onOpenAddEmployee={() => navigateToTab('add-employee')}
+                onOpenAddMedia={() => navigateToTab('add-media')}
                 onPreviewMedia={(post) => {
                   setPreviewMediaPost(post);
-                  setActiveTab('media');
+                  navigateToTab('media');
                 }}
               />
             )}
@@ -472,17 +511,17 @@ export default function App() {
                 selectedEmployeeForDossier={selectedDossierEmployee}
                 onCloseDossier={() => setSelectedDossierEmployee(null)}
                 onOpenDossier={(emp) => setSelectedDossierEmployee(emp)}
-                onNavigateToAdd={() => setActiveTab('add-employee')}
+                onNavigateToAdd={() => navigateToTab('add-employee')}
               />
             )}
 
             {/* 3. Trang Thêm Nhân Viên Mới (Có bản Xem Trước trực quan) */}
             {activeTab === 'add-employee' && (
               <AddEmployeePage
-                onBack={() => setActiveTab('employees')}
+                onBack={() => navigateToTab('employees')}
                 onSave={(newEmp) => {
                   handleAddEmployee(newEmp);
-                  setActiveTab('employees');
+                  navigateToTab('employees');
                 }}
                 existingCount={employees.length}
               />
@@ -497,17 +536,17 @@ export default function App() {
                 onDeleteMedia={handleDeleteMedia}
                 previewPost={previewMediaPost}
                 onSelectPreview={(post) => setPreviewMediaPost(post)}
-                onNavigateToAdd={() => setActiveTab('add-media')}
+                onNavigateToAdd={() => navigateToTab('add-media')}
               />
             )}
 
             {/* 5. Trang Đăng Bài Viết Truyền Thông Mới (Có bản Xem Trước dạng thẻ / toàn bài) */}
             {activeTab === 'add-media' && (
               <AddMediaPage
-                onBack={() => setActiveTab('media')}
+                onBack={() => navigateToTab('media')}
                 onSave={(newPost) => {
                   handleAddMedia(newPost);
-                  setActiveTab('media');
+                  navigateToTab('media');
                 }}
               />
             )}
@@ -516,7 +555,7 @@ export default function App() {
             {(activeTab === 'permissions' || activeTab === 'system-settings') && (
               <AccessControlTabs
                 activeTab={activeTab}
-                onNavigate={setActiveTab}
+                onNavigate={navigateToTab}
                 trashItems={trashItems}
                 onAddTrashItem={addTrashItem}
                 onRemoveTrashItem={removeTrashItem}
@@ -526,6 +565,10 @@ export default function App() {
           </div>
         </main>
       </div>
+      </div>
     </div>
   );
 }
+
+
+

@@ -1,7 +1,7 @@
 import Image from "next/image";
 import { BriefcaseBusiness, Building2, CalendarDays, Mail, MapPin, Phone, UserRound } from "lucide-react";
 import type { Employee } from "@/types/employee";
-import { formatJoinDate, getEmployeeAvatar } from "./employeeUtils";
+import { formatJoinDate, getEmployeeAvatar } from "../utils/employeeUtils";
 
 export default function EmployeeProfile({ employee }: { employee: Employee }) {
   const details = [

@@ -11,8 +11,8 @@ import {
   MousePointerClick,
   Rocket,
 } from "lucide-react";
-import Navbar from "@/app/components/layout/Navbar";
-import Footer from "@/app/components/layout/Footer";
+import Navbar from "@/components/layout/Navbar";
+import Footer from "@/components/layout/Footer";
 import { DEMO_FEATURES, type DemoFeature } from "@/config/demoFeatures";
 
 /* ------------------------------------------------------------------------- *

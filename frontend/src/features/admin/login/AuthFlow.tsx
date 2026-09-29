@@ -18,7 +18,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AlertCircle, ArrowLeft, ArrowRight, Check, CheckCircle2, Eye, EyeOff, Info, KeyRound, Lock, LockKeyhole, Mail, Phone, RotateCcw, ShieldAlert, ShieldCheck, Sparkles, User, X } from "lucide-react";
 import { findRegisteredAccount, saveRegisteredAccount, setAdminSession } from "@/lib/adminSession";
-import { registerPendingUser } from "@/app/(page)/admin/dashboard/utils/storage";
+import { registerPendingUser } from "@/features/admin/dashboard/utils/storage";
 
 /* ========================================================================== *
  * Types
@@ -304,7 +304,7 @@ function LoginScreen({
         role: "Toàn quyền Admin",
       });
       showToast("Đăng nhập thành công!", "Chào mừng bạn quay lại cổng thông tin nội bộ Asia F&B.", "success");
-      router.push("/admin");
+      router.push("/admin/dashboard");
       router.refresh();
     }, 1200);
   };

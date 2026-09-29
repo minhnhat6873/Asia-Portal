@@ -1,6 +1,6 @@
 import Image from "next/image";
 import type { Employee } from "@/types/employee";
-import { getEmployeeAvatar, getEmployeeCode } from "./employeeUtils";
+import { getEmployeeAvatar, getEmployeeCode } from "../utils/employeeUtils";
 
 interface EmployeeListProps {
   employees: Employee[];

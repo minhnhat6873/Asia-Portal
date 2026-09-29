@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { User, Role, SystemPermission, ModuleCategory } from '../types';
 import {
   Search,
@@ -22,7 +22,7 @@ import { AssignRoleModal } from './AssignRoleModal';
 import { UserDetailModal } from './UserDetailModal';
 import { CreateUserModal } from './CreateUserModal';
 import { PendingAccountsModal } from './PendingAccountsModal';
-import { AdminSelect } from '@/app/(page)/admin/dashboard/components/AdminSelect';
+import { AdminSelect } from '@/features/admin/dashboard/components/AdminSelect';
 
 interface UserManagementViewProps {
   users: User[];
