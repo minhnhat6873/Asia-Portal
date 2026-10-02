@@ -6,6 +6,7 @@ export type AccountStatus = (typeof ACCOUNT_STATUSES)[number];
 export interface Account {
   name: string;
   email: string;
+  phone?: string;
   password: string;
   role: AccountRole;
   status: AccountStatus;
@@ -25,15 +26,18 @@ export interface AuthenticatedAccount {
 export interface LoginInput {
   email: string;
   password: string;
+  rememberMe?: boolean;
 }
 
 export interface RegisterAccountInput {
   name: string;
   email: string;
+  phone: string;
   password: string;
 }
 
-export interface CreateAdminAccountInput extends RegisterAccountInput {
+export interface CreateAdminAccountInput extends Omit<RegisterAccountInput, "phone"> {
+  phone?: string;
   role: Exclude<AccountRole, "admin">;
   permissionGroupIds?: string[];
 }
@@ -53,6 +57,7 @@ export interface AccountResponse {
   id: string;
   name: string;
   email: string;
+  phone?: string;
   role: AccountRole;
   status: AccountStatus;
   permissionGroupIds: string[];

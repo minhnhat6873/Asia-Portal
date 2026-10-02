@@ -2,7 +2,6 @@ import React from 'react';
 import { 
   Users, 
   Newspaper, 
-  Plus,
   ArrowUpRight,
   Calendar,
   UserCheck,
@@ -16,8 +15,6 @@ interface DashboardOverviewProps {
   mediaPosts: MediaPost[];
   users: UserAccount[];
   onNavigate: (tab: ActiveTab) => void;
-  onOpenAddEmployee: () => void;
-  onOpenAddMedia: () => void;
   onPreviewMedia: (post: MediaPost) => void;
 }
 
@@ -26,8 +23,6 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
   mediaPosts,
   users,
   onNavigate,
-  onOpenAddEmployee,
-  onOpenAddMedia,
   onPreviewMedia,
 }) => {
   const activeEmployees = employees.filter((e) => e.status === 'active').length;
@@ -39,40 +34,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Welcome Banner */}
-      <div className="flex flex-col items-start justify-between gap-4 rounded-3xl border border-emerald-200 bg-gradient-to-r from-emerald-50 via-white to-sky-50 p-6 shadow-2xs md:flex-row md:items-center">
-        <div>
-          <div className="flex items-center gap-2 mb-1.5">
-            <span className="rounded-full border border-emerald-200 bg-white px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700">
-              Asia Food & Beverage JSC
-            </span>
-            <span className="text-slate-400 text-xs">• Bảng Điều Khiển Tổng Quan</span>
-          </div>
-          <h2 className="text-xl font-bold tracking-tight text-slate-900 md:text-2xl">
-            Cổng Quản Trị Nhân Sự & Truyền Thông Asia F&B
-          </h2>
-          <p className="mt-1 max-w-2xl text-sm text-slate-600">
-            Theo dõi tình hình nhân sự, cơ cấu phòng ban và hoạt động truyền thông, sự kiện Asia Food & Beverage.
-          </p>
-        </div>
 
-        <div className="flex w-full flex-wrap items-center gap-2.5 md:w-auto md:flex-nowrap md:gap-3">
-          <button
-            onClick={onOpenAddEmployee}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-colors shadow-sm"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Nhân sự</span>
-          </button>
-          <button
-            onClick={onOpenAddMedia}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold transition-colors shadow-sm"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Truyền thông</span>
-          </button>
-        </div>
-      </div>
 
       {/* 2 Metric Cards Grid — two cards, so the row splits 50/50 */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">

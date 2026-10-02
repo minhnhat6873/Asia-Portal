@@ -18,10 +18,12 @@ const accountSchema = new Schema<Account>(
       trim: true,
       index: true,
     },
-    password: {
+    phone: {
+      type: String,
+      trim: true,
+    },    password: {
       type: String,
       required: true,
-      minlength: 8,
       select: false,
     },
     role: {
@@ -50,7 +52,7 @@ const accountSchema = new Schema<Account>(
 );
 
 accountSchema.pre("save", async function hashPassword() {
-  if (!this.isModified("password")) return;
+  if (!this.isModified("password") || this.$locals.passwordAlreadyHashed) return;
   this.password = await bcrypt.hash(this.password, 12);
 });
 

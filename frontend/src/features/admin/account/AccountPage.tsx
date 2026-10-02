@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -18,6 +18,7 @@ import {
 import { AdminUser, getAdminSession, clearAdminSession } from "@/lib/adminSession";
 import { getCurrentUser, setCurrentUser } from "@/features/admin/dashboard/utils/storage";
 import { UserAccount } from "@/features/admin/dashboard/types";
+import { logoutAdmin } from "@/features/admin/login/auth.service";
 
 /* ========================================================================== *
  * Shared brand styles — mirrors the /admin/login canvas so the account screen
@@ -90,10 +91,15 @@ function AmbientBackground() {
 
 export default function AccountPage({ embedded = false }: { embedded?: boolean }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [adminUser, setAdminUser] = useState<AdminUser | null>(null);
   const [currentUser, setCurrentUserState] = useState<UserAccount | null>(null);
   const [activeTab, setActiveTab] = useState<"info" | "password">("info");
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setActiveTab(searchParams.get("tab") === "password" ? "password" : "info");
+  }, [searchParams]);
 
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: "",

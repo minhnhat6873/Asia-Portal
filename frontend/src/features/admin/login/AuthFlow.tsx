@@ -14,30 +14,27 @@
 "use client";
 
 import Image from "next/image";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertCircle, ArrowLeft, ArrowRight, Check, CheckCircle2, Eye, EyeOff, Info, KeyRound, Lock, LockKeyhole, Mail, Phone, RotateCcw, ShieldAlert, ShieldCheck, Sparkles, User, X } from "lucide-react";
-import { findRegisteredAccount, saveRegisteredAccount, setAdminSession } from "@/lib/adminSession";
-import { registerPendingUser } from "@/features/admin/dashboard/utils/storage";
+import { ArrowLeft, ArrowRight, Check, CheckCircle2, Eye, EyeOff, KeyRound, Lock, LockKeyhole, Mail, Phone, RotateCcw, ShieldAlert, ShieldCheck, Sparkles, User } from "lucide-react";
+import { setAdminSession } from "@/lib/adminSession";
+import { getAdminRoleLabel, loginAdmin } from "@/features/admin/login/auth.service";
+import { getPasswordValidationError, normalizeVietnamPhone, validateRegisterForm } from "@/features/admin/register/register.validation";
+import { resendRegistrationOtp, startRegistration, verifyRegistrationOtp } from "@/features/admin/register/register.service";
+import { requestPasswordResetOtp, resendPasswordResetOtp, resetPasswordWithOtp, verifyPasswordResetOtp } from "@/features/admin/login/password-reset.service";
+import { ApiError } from "@/services/api";
+import { toast } from "sonner";
 
 /* ========================================================================== *
  * Types
  * ========================================================================== */
 
 type AuthView = "login" | "register" | "forgot-password" | "otp";
+type OtpPurpose = "registration" | "password-reset";
 type ToastType = "success" | "error" | "info";
-
-interface ToastMessage {
-  id: string;
-  type: ToastType;
-  title: string;
-  message?: string;
-}
 
 type ShowToast = (title: string, message?: string, type?: ToastType) => void;
 
-/** Demo verification code accepted by the simulated backend. */
-const DEMO_CODE = "123456";
 
 /* ========================================================================== *
  * Shared styles — black canvas, gold accent, Asia F&B badge
@@ -215,51 +212,6 @@ function AmbientBackground() {
   );
 }
 
-const TOAST_TONES: Record<ToastType, string> = {
-  success: "bg-[#0d100e]/95 border-emerald-500/40 text-emerald-200",
-  error: "bg-[#0d100e]/95 border-rose-500/40 text-rose-200",
-  info: "bg-[#0d100e]/95 border-[#f5c800]/45 text-[#f5c800]",
-};
-
-function ToastContainer({
-  toasts,
-  onDismiss,
-}: {
-  toasts: ToastMessage[];
-  onDismiss: (id: string) => void;
-}) {
-  return (
-    <div className="pointer-events-none fixed right-4 top-4 z-50 flex w-[calc(100vw-2rem)] max-w-sm flex-col gap-2.5">
-      {toasts.map((t) => (
-        <div
-          key={t.id}
-          className={`pointer-events-auto flex items-start gap-3 rounded-xl border p-3.5 shadow-lg backdrop-blur-md animate-toast-in ${TOAST_TONES[t.type]}`}
-        >
-          <div className="mt-0.5 shrink-0">
-            {t.type === "success" && <CheckCircle2 className="h-5 w-5 text-[#1a7a1a]" />}
-            {t.type === "error" && <AlertCircle className="h-5 w-5 text-rose-600" />}
-            {t.type === "info" && <Info className="h-5 w-5 text-[#b8860b]" />}
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold leading-tight">{t.title}</p>
-            {t.message && (
-              <p className="mt-1 break-words text-xs leading-relaxed opacity-90">{t.message}</p>
-            )}
-          </div>
-          <button
-            type="button"
-            onClick={() => onDismiss(t.id)}
-            aria-label="Đóng thông báo"
-            className="p-1 text-zinc-500 transition-colors hover:text-zinc-300"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 /* ========================================================================== *
  * Screen 1 — Đăng nhập
  * ========================================================================== */
@@ -279,12 +231,11 @@ function LoginScreen({
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<{ identifier?: string; password?: string }>({});
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const errs: { identifier?: string; password?: string } = {};
-    if (!identifier.trim()) errs.identifier = "Vui lòng nhập Email hoặc Số điện thoại";
+    if (!identifier.trim()) errs.identifier = "Vui lòng nhập email";
     if (!password) errs.password = "Vui lòng nhập mật khẩu";
-    else if (password.length < 6) errs.password = "Mật khẩu phải từ 6 ký tự trở lên";
 
     setErrors(errs);
     if (Object.keys(errs).length) {
@@ -293,29 +244,29 @@ function LoginScreen({
     }
 
     setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-      // Persist the session, then land the admin straight on the management
-      // dashboard rather than the public home page.
-      const account = findRegisteredAccount(identifier.trim());
+    try {
+      const admin = await loginAdmin({
+        email: identifier.trim(),
+        password,
+        rememberMe,
+      });
       setAdminSession({
-        email: account?.email ?? identifier.trim(),
-        fullName: account?.fullName ?? "admin",
-        role: "Toàn quyền Admin",
+        id: admin.id,
+        email: admin.email,
+        fullName: admin.name,
+        role: getAdminRoleLabel(admin.role),
       });
       showToast("Đăng nhập thành công!", "Chào mừng bạn quay lại cổng thông tin nội bộ Asia F&B.", "success");
-      router.push("/admin/dashboard");
+      router.replace("/admin/dashboard");
       router.refresh();
-    }, 1200);
+    } catch (error) {
+      const message = error instanceof ApiError ? error.message : "Không thể kết nối tới máy chủ";
+      setErrors({ password: message });
+      showToast("Đăng nhập không thành công", message, "error");
+    } finally {
+      setIsLoading(false);
+    }
   };
-
-  const fillDemo = () => {
-    setIdentifier("nhanvien@asiafnb.vn");
-    setPassword("Asia@2026");
-    setErrors({});
-    showToast("Đã điền mẫu", "Đã cập nhật tài khoản mẫu để bạn trải nghiệm nhanh.", "info");
-  };
-
   return (
     <div className="mx-auto w-full max-w-lg animate-auth-in">
       <div className={CARD}>
@@ -333,7 +284,7 @@ function LoginScreen({
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label htmlFor="login-identifier" className={LABEL}>Email hoặc Số điện thoại</label>
+            <label htmlFor="login-identifier" className={LABEL}>Email</label>
             <FloatingField
               id="login-identifier"
               value={identifier}
@@ -341,8 +292,8 @@ function LoginScreen({
                 setIdentifier(value);
                 if (errors.identifier) setErrors({ ...errors, identifier: undefined });
               }}
-              label="Email hoặc Số điện thoại"
-              placeholder="name@asiafnb.vn hoặc 0912..."
+              label="Email"
+              placeholder="name@asiafnb.vn"
               icon={<Mail className="h-4 w-4" />}
               invalid={Boolean(errors.identifier)}
               autoComplete="username"
@@ -406,13 +357,7 @@ function LoginScreen({
               <span className="text-xs font-medium text-zinc-300">Ghi nhớ đăng nhập</span>
             </label>
 
-            <button
-              type="button"
-              onClick={fillDemo}
-              className="text-xs text-zinc-500 underline-offset-2 transition-colors hover:text-[#1a7a1a]"
-            >
-              Điền dữ liệu mẫu
-            </button>
+
           </div>
 
           <button type="submit" disabled={isLoading} className={`${PRIMARY_BTN} mt-2`}>
@@ -427,7 +372,7 @@ function LoginScreen({
           </button>
         </form>
 
-        <div className={FOOTER_TEXT}>
+        <div className="mt-6 text-center text-base text-zinc-400">
           Chưa có tài khoản?{" "}
           <button
             type="button"
@@ -468,93 +413,81 @@ function RegisterScreen({
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const set = (key: keyof typeof form) => (value: string) => {
-    setForm((f) => ({ ...f, [key]: value }));
-    if (errors[key]) setErrors((e) => ({ ...e, [key]: "" }));
+    const nextForm = { ...form, [key]: value };
+    setForm(nextForm);
+
+    if (key === "password") {
+      const passwordError = getPasswordValidationError(value);
+      setErrors((current) => ({
+        ...current,
+        password: passwordError ?? "",
+        ...(nextForm.confirmPassword
+          ? {
+              confirmPassword:
+                nextForm.confirmPassword === value ? "" : "Xác nhận mật khẩu không khớp.",
+            }
+          : {}),
+      }));
+      return;
+    }
+
+    if (errors[key]) setErrors((current) => ({ ...current, [key]: "" }));
   };
 
-  /** Live password-strength score (8+ chars, uppercase, digit, symbol). */
-  const strength = useMemo(() => {
-    const { password } = form;
-    if (!password) return { score: 0, label: "Chưa nhập", color: "bg-white/15" };
-
-    let score = 0;
-    if (password.length >= 8) score += 1;
-    if (/[A-Z]/.test(password)) score += 1;
-    if (/[0-9]/.test(password)) score += 1;
-    if (/[^A-Za-z0-9]/.test(password)) score += 1;
-
-    switch (score) {
-      case 1:
-        return { score: 25, label: "Yếu", color: "bg-rose-500" };
-      case 2:
-        return { score: 50, label: "Trung bình", color: "bg-amber-500" };
-      case 3:
-        return { score: 75, label: "Mạnh", color: "bg-[#2d9e2d]" };
-      default:
-        return { score: 100, label: "Rất mạnh", color: "bg-[#1a7a1a]" };
-    }
-  }, [form]);
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const { fullName, email, phone, password, confirmPassword } = form;
-    const errs: Record<string, string> = {};
-
-    if (!fullName.trim()) errs.fullName = "Vui lòng nhập họ và tên";
-    if (!email.trim()) errs.email = "Vui lòng nhập địa chỉ email";
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errs.email = "Email không đúng định dạng";
-    if (!phone.trim()) errs.phone = "Vui lòng nhập số điện thoại";
-    else if (!/^[0-9+ ]{9,15}$/.test(phone)) errs.phone = "Số điện thoại không hợp lệ (từ 9 - 11 số)";
-    if (!password) errs.password = "Vui lòng nhập mật khẩu";
-    else if (password.length < 8) errs.password = "Mật khẩu phải chứa ít nhất 8 ký tự";
-    if (password !== confirmPassword) errs.confirmPassword = "Mật khẩu xác nhận không trùng khớp";
-    if (!agreeTerms) errs.agreeTerms = "Bạn cần đồng ý với Điều khoản dịch vụ & Chính sách bảo mật";
-
+    // Email format validation is intentionally deferred; backend still requires a non-empty email.
+    const errs = validateRegisterForm({
+      fullName,
+      email,
+      phone,
+      password,
+      confirmPassword,
+      agreeTerms,
+    });
     setErrors(errs);
     if (Object.keys(errs).length) {
       showToast("Thông tin chưa hoàn tất", "Vui lòng kiểm tra các trường bị báo lỗi.", "error");
       return;
     }
 
+    const normalizedPhone = normalizeVietnamPhone(phone);
     setIsLoading(true);
-    setTimeout(() => {
+
+    try {
+      await startRegistration({
+        fullName: fullName.trim(),
+        email: email.trim(),
+        phone: normalizedPhone,
+        password,
+        confirmPassword,
+        agreeTerms,
+      });
+
+      showToast(
+        "Đăng ký thành công!",
+        "Mã OTP đã được gửi đến email của bạn. Hãy nhập mã để hoàn tất đăng ký.",
+        "success",
+      );
+      onRegisterSuccess(email.trim(), normalizedPhone);
+    } catch (error) {
+      const message = error instanceof ApiError
+        ? error.errors[0] ?? error.message
+        : "Không thể kết nối tới máy chủ. Vui lòng thử lại sau.";
+      const fieldErrors: Record<string, string> = {};
+      const normalizedMessage = message.toLocaleLowerCase("vi");
+
+      if (normalizedMessage.includes("email")) fieldErrors.email = message;
+      else if (normalizedMessage.includes("số điện thoại")) fieldErrors.phone = message;
+      else if (normalizedMessage.includes("mật khẩu")) fieldErrors.password = message;
+
+      if (Object.keys(fieldErrors).length) setErrors(fieldErrors);
+      showToast("Đăng ký chưa thành công", message, "error");
+    } finally {
       setIsLoading(false);
-      saveRegisteredAccount({ email: email.trim(), fullName: fullName.trim(), phone: phone.trim() });
-      registerPendingUser({ fullName, email, phone });
-      showToast("Tạo tài khoản thành công!", "Chúng tôi đã gửi mã OTP xác thực kích hoạt tài khoản.", "success");
-      onRegisterSuccess(email, phone);
-    }, 1200);
+    }
   };
-
-  const fillSample = () => {
-    setForm({
-      fullName: "Trần Bảo Long",
-      email: "long.tran@asiafnb.vn",
-      phone: "0988123456",
-      password: "AsiaPro#2026",
-      confirmPassword: "AsiaPro#2026",
-    });
-    setAgreeTerms(true);
-    setErrors({});
-    showToast("Đã điền thông tin", "Dữ liệu mẫu hợp lệ đã được điền sẵn.", "info");
-  };
-
-  /** One password-rule chip. */
-  const rule = (passed: boolean, label: string) => (
-    <span
-      className={`inline-flex items-center gap-1 ${
-        passed ? "font-medium text-[#1a7a1a]" : "text-zinc-400"
-      }`}
-    >
-      {passed ? (
-        <CheckCircle2 className="h-3 w-3" />
-      ) : (
-        <span className="inline-block h-1.5 w-1.5 rounded-full bg-zinc-400" />
-      )}
-      {label}
-    </span>
-  );
-
   return (
     <div className="mx-auto w-full max-w-lg animate-auth-in">
       <div className={CARD}>
@@ -609,12 +542,13 @@ function RegisterScreen({
                 id="reg-phone"
                 type="tel"
                 value={form.phone}
-                onChange={set("phone")}
+                onChange={(value) => set("phone")(value.replace(/\D/g, "").slice(0, 10))}
                 label="Số điện thoại"
-                placeholder="0912 345 678"
+                placeholder="0912345678"
                 icon={<Phone className="h-4 w-4" />}
                 invalid={Boolean(errors.phone)}
                 autoComplete="tel"
+                inputMode="numeric"
               />
               {errors.phone && <p className={ERROR_TEXT}>{errors.phone}</p>}
             </div>
@@ -628,7 +562,7 @@ function RegisterScreen({
               value={form.password}
               onChange={set("password")}
               label="Mật khẩu"
-              placeholder="Tối thiểu 8 ký tự, chữ hoa, số & ký tự đặc biệt"
+              placeholder="4–50 ký tự, chữ hoa, chữ thường, số & ký tự đặc biệt"
               icon={<Lock className="h-4 w-4" />}
               invalid={Boolean(errors.password)}
               autoComplete="new-password"
@@ -643,27 +577,6 @@ function RegisterScreen({
                 </button>
               }
             />
-
-            {form.password && (
-              <div className="mt-2 space-y-1.5">
-                <div className="flex items-center justify-between text-[11px]">
-                  <span className="text-zinc-400">Độ mạnh mật khẩu:</span>
-                  <span className="font-semibold text-zinc-200">{strength.label}</span>
-                </div>
-                <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
-                  <div
-                    className={`h-full rounded-full transition-all duration-300 ${strength.color}`}
-                    style={{ width: `${strength.score}%` }}
-                  />
-                </div>
-                <div className="flex flex-wrap gap-2 pt-1 text-[11px]">
-                  {rule(form.password.length >= 8, "8+ ký tự")}
-                  {rule(/[A-Z]/.test(form.password), "Chữ hoa")}
-                  {rule(/[0-9]/.test(form.password), "Số")}
-                  {rule(/[^A-Za-z0-9]/.test(form.password), "Ký tự đặc biệt")}
-                </div>
-              </div>
-            )}
             {errors.password && <p className={ERROR_TEXT}>{errors.password}</p>}
           </div>
 
@@ -701,7 +614,7 @@ function RegisterScreen({
               >
                 {agreeTerms && <Check className="h-3 w-3 stroke-[3]" />}
               </span>
-              <span className="text-xs leading-relaxed text-zinc-300">
+              <span className="text-sm leading-relaxed text-zinc-300">
                 Tôi đồng ý với{" "}
                 <button
                   type="button"
@@ -723,15 +636,7 @@ function RegisterScreen({
             {errors.agreeTerms && <p className={ERROR_TEXT}>{errors.agreeTerms}</p>}
           </div>
 
-          <div className="flex justify-end">
-            <button
-              type="button"
-              onClick={fillSample}
-              className="text-xs text-zinc-500 underline-offset-2 transition-colors hover:text-[#1a7a1a]"
-            >
-              Điền nhanh mẫu đăng ký
-            </button>
-          </div>
+
 
           <button type="submit" disabled={isLoading} className={PRIMARY_BTN}>
             {isLoading ? (
@@ -745,7 +650,7 @@ function RegisterScreen({
           </button>
         </form>
 
-        <div className={FOOTER_TEXT}>
+        <div className="mt-6 text-center text-base text-zinc-400">
           Đã có tài khoản?{" "}
           <button
             type="button"
@@ -777,32 +682,32 @@ function ForgotPasswordScreen({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      const msg = email.trim()
-        ? "Địa chỉ email không đúng định dạng"
-        : "Vui lòng nhập địa chỉ email";
-      setError(msg);
-      showToast("Thông tin chưa đúng", msg, "error");
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail) {
+      setError("Vui lòng nhập email đã đăng ký.");
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+      setError("Email không hợp lệ.");
       return;
     }
 
     setError("");
     setIsLoading(true);
-    setTimeout(() => {
+    try {
+      const result = await requestPasswordResetOtp(normalizedEmail);
+      showToast("Mã xác thực đã được gửi", "Vui lòng kiểm tra email để tiếp tục khôi phục mật khẩu.", "success");
+      onRequestOtp(result.email);
+    } catch (requestError) {
+      const message = requestError instanceof ApiError ? requestError.message : "Không thể gửi mã OTP. Vui lòng thử lại.";
+      setError(message);
+      showToast("Không thể gửi mã", message, "error");
+    } finally {
       setIsLoading(false);
-      showToast(
-        "Đã gửi mã xác thực!",
-        "Mã OTP gồm 6 chữ số đã được gửi tới email của bạn.",
-        "success"
-      );
-      onRequestOtp(email);
-    }, 1100);
-  };
-
-  return (
+    }
+  };  return (
     <div className="mx-auto w-full max-w-md animate-auth-in">
       <div className={CARD}>
         <div className={cardAccent("via-[#f5c800]/80")} />
@@ -842,7 +747,7 @@ function ForgotPasswordScreen({
           <div className="flex items-start gap-2.5 rounded-xl border border-white/10 bg-white/[0.04] p-3 text-xs leading-relaxed text-zinc-400">
             <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-[#f5c800]" />
             <span>
-              Mã xác thực có hiệu lực trong 5 phút. Vui lòng không chia sẻ mã này với bất kỳ ai để bảo vệ
+              Mã xác thực có hiệu lực trong 3 phút. Vui lòng không chia sẻ mã này với bất kỳ ai để bảo vệ
               tài khoản.
             </span>
           </div>
@@ -881,11 +786,13 @@ function ForgotPasswordScreen({
 function OtpScreen({
   onNavigate,
   target,
+  purpose,
   showToast,
   onAuthenticated,
 }: {
   onNavigate: (v: AuthView) => void;
   target: string;
+  purpose: OtpPurpose;
   showToast: ShowToast;
   onAuthenticated: (email: string) => void;
 }) {
@@ -893,19 +800,32 @@ function OtpScreen({
   const [isVerifying, setIsVerifying] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [countdown, setCountdown] = useState(59);
+  const [otpExpiryCountdown, setOtpExpiryCountdown] = useState(180);
   const [hasError, setHasError] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [verifiedOtpCode, setVerifiedOtpCode] = useState("");
+  const [passwordResetError, setPasswordResetError] = useState("");
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   /** Derived rather than stored, so no state is set inside the effect. */
   const canResend = countdown <= 0;
+  const isOtpExpired = otpExpiryCountdown <= 0;
+  const otpMinutes = Math.floor(otpExpiryCountdown / 60).toString().padStart(2, "0");
+  const otpSeconds = (otpExpiryCountdown % 60).toString().padStart(2, "0");
 
   useEffect(() => {
     if (countdown <= 0) return;
     const timer = setTimeout(() => setCountdown((c) => c - 1), 1000);
     return () => clearTimeout(timer);
   }, [countdown]);
+
+  useEffect(() => {
+    if (otpExpiryCountdown <= 0) return;
+    const timer = setTimeout(() => setOtpExpiryCountdown((seconds) => seconds - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [otpExpiryCountdown]);
 
   const handleDigit = (index: number, raw: string) => {
     const digits = raw.replace(/[^0-9]/g, "");
@@ -941,9 +861,15 @@ function OtpScreen({
     inputRefs.current[Math.min(pasted.length, 5)]?.focus();
   };
 
-  const handleVerify = (e: React.FormEvent) => {
+  const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
     const code = otp.join("");
+
+    if (isOtpExpired) {
+      setHasError(true);
+      showToast("Mã OTP đã hết hạn", "Vui lòng yêu cầu gửi lại mã OTP mới.", "error");
+      return;
+    }
 
     if (code.length < 6) {
       setHasError(true);
@@ -952,16 +878,74 @@ function OtpScreen({
     }
 
     setIsVerifying(true);
-    setTimeout(() => {
-      setIsVerifying(false);
-      if (code !== DEMO_CODE && code !== "000") {
-        setHasError(true);
-        showToast("Mã OTP không đúng", `Mã xác thực không hợp lệ. Vui lòng thử lại với ${DEMO_CODE}.`, "error");
+    try {
+      if (purpose === "registration") {
+        await verifyRegistrationOtp(target, code);
+        setIsSuccess(true);
+        showToast("Xác thực thành công!", "Email đã được xác thực và tài khoản đang chờ admin phê duyệt.", "success");
         return;
       }
-      showToast("Xác thực thành công!", "Tài khoản của bạn đã được xác minh thành công.", "success");
+
+      await verifyPasswordResetOtp(target, code);
+      setVerifiedOtpCode(code);
+      setIsSuccess(true);
+      showToast("Xác thực thành công!", "Mã OTP hợp lệ. Bạn có thể đặt mật khẩu mới.", "success");
+    } catch (error) {
+      const message = error instanceof ApiError ? error.message : "Không thể xác thực mã OTP. Vui lòng thử lại.";
+      setHasError(true);
+      showToast("Xác thực chưa thành công", message, "error");
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+  const handleResend = async () => {
+    try {
+      const result = purpose === "registration"
+        ? await resendRegistrationOtp(target)
+        : await resendPasswordResetOtp(target);
+      setCountdown(59);
+      setOtpExpiryCountdown(result.expiresInSeconds);
+      setOtp(Array(6).fill(""));
+      setHasError(false);
+      setIsSuccess(false);
+      setVerifiedOtpCode("");
+      showToast("Mã OTP mới đã được gửi", "Vui lòng kiểm tra hộp thư email của bạn.", "success");
+      inputRefs.current[0]?.focus();
+    } catch (error) {
+      const message = error instanceof ApiError ? error.message : "Không thể gửi lại mã OTP. Vui lòng thử lại.";
+      showToast("Không thể gửi lại mã", message, "error");
+    }
+  };
+
+  const handleComplete = async () => {
+    if (purpose === "registration") {
       onAuthenticated(target);
-    }, 1100);
+      return;
+    }
+
+    const validationError = getPasswordValidationError(newPassword);
+    if (validationError) {
+      setPasswordResetError(validationError);
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      setPasswordResetError("Xác nhận mật khẩu không khớp.");
+      return;
+    }
+
+    setPasswordResetError("");
+    setIsResettingPassword(true);
+    try {
+      await resetPasswordWithOtp(target, verifiedOtpCode, newPassword, confirmNewPassword);
+      showToast("Đặt lại mật khẩu thành công!", "Bạn có thể đăng nhập ngay với mật khẩu mới.", "success");
+      onAuthenticated(target);
+    } catch (error) {
+      const message = error instanceof ApiError ? error.message : "Không thể đặt lại mật khẩu. Vui lòng thử lại.";
+      setPasswordResetError(message);
+      showToast("Không thể đặt lại mật khẩu", message, "error");
+    } finally {
+      setIsResettingPassword(false);
+    }
   };
 
   return (
@@ -976,61 +960,64 @@ function OtpScreen({
             </div>
             <h2 className="text-2xl font-bold text-white">Xác thực thành công!</h2>
             <p className="mt-2 text-sm leading-relaxed text-zinc-400">
-              Mã OTP hợp lệ. Danh tính của bạn qua Email đã được chứng thực 100%.
+{purpose === "registration"
+                ? "Email của bạn đã được xác thực. Tài khoản đang chờ admin phê duyệt."
+                : "Mã OTP hợp lệ. Danh tính của bạn qua Email đã được chứng thực 100%."}
             </p>
 
-            <div className="my-6 space-y-3 rounded-xl border border-white/10 bg-white/[0.04] p-4 text-left">
-              <div className="flex items-center gap-2 text-xs font-semibold text-zinc-300">
-                <LockKeyhole className="h-4 w-4 text-[#f5c800]" />
-                <span>Đặt mật khẩu mới (Nếu đang khôi phục tài khoản)</span>
+            {purpose === "password-reset" && (
+              <div className="my-6 space-y-3 rounded-xl border border-white/10 bg-white/[0.04] p-4 text-left">
+                <div className="flex items-center gap-2 text-xs font-semibold text-zinc-300">
+                  <LockKeyhole className="h-4 w-4 text-[#f5c800]" />
+                  <span>Đặt mật khẩu mới (Nếu đang khôi phục tài khoản)</span>
+                </div>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Nhập mật khẩu mới..."
+                  className={`${INPUT} pl-3.5`}
+                />
+                <input
+                  type="password"
+                  value={confirmNewPassword}
+                  onChange={(e) => setConfirmNewPassword(e.target.value)}
+                  placeholder="Xác nhận lại mật khẩu mới..."
+                  className={`${INPUT} pl-3.5`}
+                />
+                {passwordResetError && <p className="text-xs font-medium text-rose-400">{passwordResetError}</p>}
               </div>
-              <input
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="Nhập mật khẩu mới..."
-                className={`${INPUT} pl-3.5`}
-              />
-              <input
-                type="password"
-                value={confirmNewPassword}
-                onChange={(e) => setConfirmNewPassword(e.target.value)}
-                placeholder="Xác nhận lại mật khẩu mới..."
-                className={`${INPUT} pl-3.5`}
-              />
-            </div>
-
+            )}
             <div className="space-y-2.5">
               <button
                 type="button"
-                onClick={() => {
-                  showToast("Đã cập nhật!", "Bạn có thể đăng nhập ngay với thông tin mới.", "success");
-                  onAuthenticated(target);
-                }}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#d4aa00] via-[#f5c800] to-[#e0b400] px-4 py-2.5 text-sm font-bold text-[#1a1a1a] shadow-lg shadow-[#f5c800]/20 transition-all duration-200 hover:brightness-110"
+                onClick={() => { void handleComplete(); }}
+                disabled={isResettingPassword}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#d4aa00] via-[#f5c800] to-[#e0b400] px-4 py-2.5 text-sm font-bold text-[#1a1a1a] shadow-lg shadow-[#f5c800]/20 transition-all duration-200 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                <span>Hoàn tất &amp; Đăng nhập</span>
-                <ArrowRight className="h-4 w-4" />
+                {isResettingPassword ? <ButtonSpinner /> : <><span>{purpose === "registration" ? "Về trang Đăng nhập" : "Hoàn tất & Đăng nhập"}</span><ArrowRight className="h-4 w-4" /></>}
               </button>
 
-              <button
-                type="button"
-                onClick={() => {
-                  setIsSuccess(false);
-                  setOtp(Array(6).fill(""));
-                }}
-                className="w-full py-2 text-xs text-zinc-400 transition-colors hover:text-zinc-200"
-              >
-                Thử lại quy trình xác thực OTP
-              </button>
+              {purpose === "password-reset" && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsSuccess(false);
+                    setOtp(Array(6).fill(""));
+                    setVerifiedOtpCode("");
+                    setPasswordResetError("");
+                  }}
+                  className="w-full py-2 text-xs text-zinc-400 transition-colors hover:text-zinc-200"
+                >
+                  Thử lại quy trình xác thực OTP
+                </button>
+              )}
             </div>
           </div>
         ) : (
           <div>
             <div className="mb-6 text-center">
-              <div className={iconBadge("green")}>
-                <ShieldCheck className="h-6 w-6" />
-              </div>
+              <div className={iconBadge("green")}><ShieldCheck className="h-6 w-6" /></div>
               <h1 className={TITLE}>Xác thực mã OTP</h1>
               <p className={`${SUBTITLE} leading-relaxed`}>Nhập mã số gồm 6 chữ số vừa được gửi đến</p>
               <div className="mt-1 inline-flex items-center gap-1.5 rounded-full border border-[#f5c800]/25 bg-white/[0.06] px-3 py-1 text-xs font-semibold text-[#f5c800]">
@@ -1041,17 +1028,11 @@ function OtpScreen({
 
             <form onSubmit={handleVerify} className="space-y-6">
               <div>
-                <div
-                  className={`flex items-center justify-between gap-1.5 sm:gap-2.5 ${
-                    hasError ? "animate-shake" : ""
-                  }`}
-                >
+                <div className={`flex items-center justify-between gap-1.5 sm:gap-2.5 ${hasError ? "animate-shake" : ""}`}>
                   {otp.map((digit, idx) => (
                     <input
                       key={idx}
-                      ref={(el) => {
-                        inputRefs.current[idx] = el;
-                      }}
+                      ref={(el) => { inputRefs.current[idx] = el; }}
                       type="text"
                       inputMode="numeric"
                       maxLength={1}
@@ -1060,88 +1041,36 @@ function OtpScreen({
                       onChange={(e) => handleDigit(idx, e.target.value)}
                       onKeyDown={(e) => handleKeyDown(idx, e)}
                       onPaste={handlePaste}
-                      className={`h-13 w-11 rounded-xl border bg-white/[0.04] text-center text-xl font-bold text-white outline-none transition-all duration-200 sm:h-15 sm:w-13 sm:text-2xl ${
-                        hasError
-                          ? "border-rose-500 text-rose-300 focus:ring-4 focus:ring-rose-500/15"
-                          : digit
-                          ? "border-[#f5c800] bg-[#f5c800]/10 ring-2 ring-[#f5c800]/25"
-                          : "border-white/15 focus:border-[#f5c800] focus:ring-4 focus:ring-[#f5c800]/15"
-                      }`}
+                      className={`h-13 w-11 rounded-xl border bg-white/[0.04] text-center text-xl font-bold text-white outline-none transition-all duration-200 sm:h-15 sm:w-13 sm:text-2xl ${hasError ? "border-rose-500 text-rose-300 focus:ring-4 focus:ring-rose-500/15" : digit ? "border-[#f5c800] bg-[#f5c800]/10 ring-2 ring-[#f5c800]/25" : "border-white/15 focus:border-[#f5c800] focus:ring-4 focus:ring-[#f5c800]/15"}`}
                     />
                   ))}
                 </div>
-
-                {hasError && (
-                  <p className="mt-2 text-center text-xs font-medium text-rose-500">
-                    Mã xác thực không hợp lệ. Vui lòng thử lại.
-                  </p>
-                )}
+                {hasError && <p className="mt-2 text-center text-xs font-medium text-rose-500">Mã xác thực không hợp lệ. Vui lòng thử lại.</p>}
               </div>
 
               <div className="flex items-center justify-between pt-1 text-xs">
                 <div className="text-zinc-500">
                   {canResend ? (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setCountdown(59);
-                        setOtp(Array(6).fill(""));
-                        setHasError(false);
-                        showToast(
-                          "Mã mới đã được gửi!",
-                          `Đã phát lại mã OTP gồm 6 chữ số tới ${target}. Thử nghiệm: ${DEMO_CODE}`,
-                          "success"
-                        );
-                        inputRefs.current[0]?.focus();
-                      }}
-                      className="flex items-center gap-1 font-semibold text-[#1a7a1a] underline-offset-2 transition-colors hover:text-[#0d5c0d]"
-                    >
+                    <button type="button" onClick={() => { void handleResend(); }} className="flex items-center gap-1 font-semibold text-[#1a7a1a] underline-offset-2 transition-colors hover:text-[#0d5c0d]">
                       <RotateCcw className="h-3.5 w-3.5" />
                       <span>Gửi lại mã mới</span>
                     </button>
                   ) : (
-                    <span className="flex items-center gap-1.5">
-                      <span className="h-2 w-2 animate-pulse rounded-full bg-[#1a7a1a]" />
-                      Gửi lại sau <strong className="text-zinc-800">{countdown}s</strong>
-                    </span>
+                    <span className="flex items-center gap-1.5"><span className="h-2 w-2 animate-pulse rounded-full bg-[#1a7a1a]" />Gửi lại sau <strong className="text-zinc-300">{countdown}s</strong></span>
                   )}
                 </div>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setOtp(DEMO_CODE.split(""));
-                    setHasError(false);
-                    showToast("Đã nhập mã mẫu", `Đã tự động điền mã ${DEMO_CODE}.`, "info");
-                  }}
-                  className="text-zinc-500 underline-offset-2 transition-colors hover:text-[#1a7a1a]"
-                >
-                  Mã thử: {DEMO_CODE}
-                </button>
+                <span className={`shrink-0 font-medium ${isOtpExpired ? "text-rose-400" : "text-zinc-400"}`}>
+                  {isOtpExpired ? "Mã OTP đã hết hạn" : `Hết hạn sau ${otpMinutes}:${otpSeconds}`}
+                </span>
               </div>
 
-              <button
-                type="submit"
-                disabled={isVerifying || otp.join("").length < 6}
-                className={PRIMARY_BTN}
-              >
-                {isVerifying ? (
-                  <ButtonSpinner />
-                ) : (
-                  <>
-                    <span>Xác nhận mã OTP</span>
-                    <ArrowRight className="h-4 w-4" />
-                  </>
-                )}
+              <button type="submit" disabled={isVerifying || isOtpExpired || otp.join("").length < 6} className={PRIMARY_BTN}>
+                {isVerifying ? <ButtonSpinner /> : <><span>Xác nhận mã OTP</span><ArrowRight className="h-4 w-4" /></>}
               </button>
             </form>
 
             <div className={FOOTER_TEXT}>
-              <button
-                type="button"
-                onClick={() => onNavigate("login")}
-                className="inline-flex items-center gap-1.5 text-xs font-semibold text-zinc-400 transition-colors hover:text-white"
-              >
+              <button type="button" onClick={() => onNavigate("login")} className="inline-flex items-center gap-1.5 text-xs font-semibold text-zinc-400 transition-colors hover:text-white">
                 <ArrowLeft className="h-3.5 w-3.5" />
                 <span>Quay lại Đăng nhập</span>
               </button>
@@ -1157,29 +1086,39 @@ function OtpScreen({
  * Flow shell
  * ========================================================================== */
 
-export default function AuthFlow() {
-  const [view, setView] = useState<AuthView>("login");
-  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+interface AuthFlowProps {
+  initialView?: "login" | "register";
+}
+
+export default function AuthFlow({ initialView = "login" }: AuthFlowProps) {
+  const [view, setView] = useState<AuthView>(initialView);
   const [otpTarget, setOtpTarget] = useState("nhanvien@asiafnb.vn");
+  const [otpPurpose, setOtpPurpose] = useState<OtpPurpose>("registration");
 
   const showToast = useCallback((title: string, message?: string, type: ToastType = "info") => {
-    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-    setToasts((prev) => [...prev, { id, title, message, type }]);
-    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 4500);
+    const notify = type === "success" ? toast.success : type === "error" ? toast.error : toast.info;
+    notify(title, { description: message });
   }, []);
-
-  const dismissToast = useCallback(
-    (id: string) => setToasts((prev) => prev.filter((t) => t.id !== id)),
-    []
-  );
-
   /** Register / forgot-password both hand the email over to the OTP screen. */
-  const goToOtp = (email: string) => {
+  const goToOtp = (email: string, purpose: OtpPurpose = "password-reset") => {
     setOtpTarget(email);
+    setOtpPurpose(purpose);
     setView("otp");
   };
 
   const router = useRouter();
+
+  const navigateAuthView = (nextView: AuthView) => {
+    if (nextView === "register") {
+      router.push("/admin/register");
+      return;
+    }
+    if (nextView === "login") {
+      router.push("/admin/login");
+      return;
+    }
+    setView(nextView);
+  };
 
   /** A successful OTP confirmation returns the user to the login screen. */
   const completeOtp = useCallback(() => {
@@ -1190,28 +1129,28 @@ export default function AuthFlow() {
   return (
     <main className="relative flex min-h-screen flex-col justify-between selection:bg-[#f5c800] selection:text-black">
       <AmbientBackground />
-      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
 
       <div className="flex flex-1 items-center justify-center px-4 py-10 sm:py-14">
         <div className="mx-auto w-full max-w-5xl">
-          {view === "login" && <LoginScreen onNavigate={setView} showToast={showToast} />}
+          {view === "login" && <LoginScreen onNavigate={navigateAuthView} showToast={showToast} />}
 
           {view === "register" && (
             <RegisterScreen
-              onNavigate={setView}
-              onRegisterSuccess={goToOtp}
+              onNavigate={navigateAuthView}
+              onRegisterSuccess={(email) => goToOtp(email, "registration")}
               showToast={showToast}
             />
           )}
 
           {view === "forgot-password" && (
-            <ForgotPasswordScreen onNavigate={setView} onRequestOtp={goToOtp} showToast={showToast} />
+            <ForgotPasswordScreen onNavigate={navigateAuthView} onRequestOtp={(email) => goToOtp(email, "password-reset")} showToast={showToast} />
           )}
 
           {view === "otp" && (
             <OtpScreen
-              onNavigate={setView}
+              onNavigate={navigateAuthView}
               target={otpTarget}
+              purpose={otpPurpose}
               showToast={showToast}
               onAuthenticated={completeOtp}
             />

@@ -5,11 +5,27 @@ import {
   getCurrentAccount,
   login,
   logout,
+  refreshLogin,
+  register,
+  requestPasswordResetOtp,
+  resendPasswordResetOtp,
+  resendRegistrationOtp,
+  resetPasswordWithOtp,
+  verifyPasswordResetOtp,
+  verifyRegistrationOtp,
 } from "../../controllers/admin/auth.controller";
 import { requireAdminAuth } from "../../middlewares/auth.middleware";
 import { validateBody } from "../../middlewares/validate.middleware";
 import { securityConfig } from "../../config/security.config";
-import { loginSchema } from "../../validates/admin/auth.validate";
+import {
+  loginSchema,
+  registerAccountSchema,
+  requestPasswordResetOtpSchema,
+  resendRegistrationOtpSchema,
+  resetPasswordWithOtpSchema,
+  verifyPasswordResetOtpSchema,
+  verifyRegistrationOtpSchema,
+} from "../../validates/admin/auth.validate";
 
 const router = Router();
 
@@ -25,7 +41,28 @@ const loginLimiter = rateLimit({
   },
 });
 
+const registerLimiter = rateLimit({
+  windowMs: securityConfig.rateLimitWindowMs,
+  limit: securityConfig.authRateLimitMax,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: "Yêu cầu xác thực quá nhiều lần, vui lòng thử lại sau 15 phút",
+  },
+});
+
 router.post("/login", loginLimiter, validateBody(loginSchema), login);
+router.post("/register", registerLimiter, validateBody(registerAccountSchema), register);
+router.post("/register/verify-otp", registerLimiter, validateBody(verifyRegistrationOtpSchema), verifyRegistrationOtp);
+router.post("/register/resend-otp", registerLimiter, validateBody(resendRegistrationOtpSchema), resendRegistrationOtp);
+
+router.post("/forgot-password", registerLimiter, validateBody(requestPasswordResetOtpSchema), requestPasswordResetOtp);
+router.post("/forgot-password/verify-otp", registerLimiter, validateBody(verifyPasswordResetOtpSchema), verifyPasswordResetOtp);
+router.post("/forgot-password/reset", registerLimiter, validateBody(resetPasswordWithOtpSchema), resetPasswordWithOtp);
+router.post("/forgot-password/resend-otp", registerLimiter, validateBody(requestPasswordResetOtpSchema), resendPasswordResetOtp);
+
+router.post("/refresh", refreshLogin);
 router.post("/logout", logout);
 router.get("/me", requireAdminAuth, getCurrentAccount);
 

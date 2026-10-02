@@ -16,6 +16,24 @@ import type { TrashItem } from "@/features/admin/dashboard/types";
 
 type AccessControlTab = "permissions" | "system-settings";
 const NO_ACCESS_ROLE_ID = "role_no_access";
+const DEFAULT_ACCESS_USERS: User[] = INITIAL_USERS.map((user) => ({
+  ...user,
+  roleId: user.status === "pending" ? NO_ACCESS_ROLE_ID : "role_admin",
+  branch: "ASIA F&B",
+}));
+const DEFAULT_ACCESS_ROLES: Role[] = INITIAL_ROLES
+  .filter((role) => role.id === "role_admin")
+  .map((role) => ({ ...role, permissionIds: ACCESS_PERMISSIONS.map((permission) => permission.id) }))
+  .concat({
+    id: NO_ACCESS_ROLE_ID,
+    name: "Chưa phân quyền",
+    code: "NO_ACCESS",
+    description: "Tài khoản đã được duyệt nhưng chưa được cấp bất kỳ quyền nào.",
+    color: "slate",
+    permissionIds: [],
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z",
+  });
 
 interface AccessControlTabsProps {
   activeTab: AccessControlTab;
@@ -27,28 +45,9 @@ interface AccessControlTabsProps {
 }
 
 export function AccessControlTabs({ activeTab, onNavigate, trashItems, onAddTrashItem, onRemoveTrashItem, onRestoreExternalTrashItem }: AccessControlTabsProps) {
-  const [users, setUsers] = useState<User[]>(() => getStoredAccessUsers(
-    INITIAL_USERS.map((user) => ({
-      ...user,
-      roleId: user.status === "pending" ? NO_ACCESS_ROLE_ID : "role_admin",
-      branch: "ASIA F&B",
-    }))
-  ));
-  const [roles, setRoles] = useState<Role[]>(() => getStoredRoles(
-    INITIAL_ROLES
-      .filter((role) => role.id === "role_admin")
-      .map((role) => ({ ...role, permissionIds: ACCESS_PERMISSIONS.map((permission) => permission.id) }))
-      .concat({
-        id: NO_ACCESS_ROLE_ID,
-        name: "Chưa phân quyền",
-        code: "NO_ACCESS",
-        description: "Tài khoản đã được duyệt nhưng chưa được cấp bất kỳ quyền nào.",
-        color: "slate",
-        permissionIds: [],
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      })
-  ));
+  const [users, setUsers] = useState<User[]>(DEFAULT_ACCESS_USERS);
+  const [roles, setRoles] = useState<Role[]>(DEFAULT_ACCESS_ROLES);
+  const [isStoreLoaded, setIsStoreLoaded] = useState(false);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>(() =>
     INITIAL_LOGS.filter(
       (log) =>
@@ -57,12 +56,22 @@ export function AccessControlTabs({ activeTab, onNavigate, trashItems, onAddTras
         )
     )
   );
+  // Keep server and first client render identical; browser storage loads after hydration.
   useEffect(() => {
-    saveStoredRoles(roles);
-  }, [roles]);
+    const frameId = window.requestAnimationFrame(() => {
+      setUsers(getStoredAccessUsers(DEFAULT_ACCESS_USERS));
+      setRoles(getStoredRoles(DEFAULT_ACCESS_ROLES));
+      setIsStoreLoaded(true);
+    });
+    return () => window.cancelAnimationFrame(frameId);
+  }, []);
+
   useEffect(() => {
-    saveStoredAccessUsers(users);
-  }, [users]);
+    if (isStoreLoaded) saveStoredRoles(roles);
+  }, [isStoreLoaded, roles]);
+  useEffect(() => {
+    if (isStoreLoaded) saveStoredAccessUsers(users);
+  }, [isStoreLoaded, users]);
   const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null);
   const [settingsSubTab, setSettingsSubTab] = useState<"dashboard" | "manage_roles" | "create_role" | "audit_logs">("dashboard");
 

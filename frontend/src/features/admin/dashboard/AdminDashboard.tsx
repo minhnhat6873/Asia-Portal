@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Employee,
@@ -36,9 +36,10 @@ import AccountPage from '@/features/admin/account/AccountPage';
 import { Toast, ToastMessage } from './components/Toast';
 import Image from 'next/image';
 import Link from 'next/link';
-import { getAdminSession, type AdminUser } from '@/lib/adminSession';
+import { clearAdminSession, getAdminSession, type AdminUser } from '@/lib/adminSession';
+import { logoutAdmin } from '@/features/admin/login/auth.service';
 import { subscribePortalContent } from '@/lib/portalContent';
-import { Menu, ShieldCheck } from 'lucide-react';
+import { ChevronDown, KeyRound, LogOut, Menu, ShieldCheck, UserRound } from 'lucide-react';
 
 export const ADMIN_TAB_ROUTES: Record<ActiveTab, string> = {
   overview: '/admin/dashboard',
@@ -66,6 +67,8 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
   const [sessionAccount, setSessionAccount] = useState<AdminUser | null>(null);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
+  const accountMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const syncSession = () => setSessionAccount(getAdminSession());
@@ -77,6 +80,23 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
       window.removeEventListener("storage", syncSession);
     };
   }, []);
+  useEffect(() => {
+    if (!isAccountMenuOpen) return;
+
+    const closeMenu = (event: MouseEvent) => {
+      if (!accountMenuRef.current?.contains(event.target as Node)) setIsAccountMenuOpen(false);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setIsAccountMenuOpen(false);
+    };
+
+    document.addEventListener("mousedown", closeMenu);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("mousedown", closeMenu);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [isAccountMenuOpen]);
   // Modal & Navigation triggers
   const [selectedDossierEmployee, setSelectedDossierEmployee] = useState<Employee | null>(null);
   const [previewMediaPost, setPreviewMediaPost] = useState<MediaPost | null>(null);
@@ -393,28 +413,66 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
       {/* Toast notifications */}
       <Toast toasts={toasts} onDismiss={removeToast} />
 
-      <header className="flex h-[76px] shrink-0 items-center justify-between bg-white px-4 shadow-sm sm:px-6 lg:px-8">
+      <header className="flex h-[76px] shrink-0 items-center justify-between bg-white px-4 sm:px-6 lg:px-8">
           <Link href="/admin/dashboard" className="flex min-w-0 items-center gap-3 rounded-xl outline-none transition-opacity hover:opacity-80 focus-visible:ring-2 focus-visible:ring-emerald-500">
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-emerald-100 bg-emerald-50 shadow-sm">
-            <Image src="/assets/images/asia-logo.png" alt="Asia Food & Beverage" width={44} height={44} className="h-9 w-9 object-contain" />
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center">
+            <Image src="/assets/images/asia-logo.png" alt="Asia Food & Beverage" width={48} height={48} className="h-12 w-12 object-contain" />
           </span>
           <span className="min-w-0">
-            <span className="block truncate text-[15px] font-extrabold text-slate-900 sm:text-[15px]">Asia Food &amp; Beverage</span>
-            <span className="block truncate text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-700">Cổng quản trị nội bộ</span>
+            <span className="block whitespace-nowrap text-[18px] font-black leading-tight tracking-[-0.035em] text-[#082c5c]">Asia Food &amp; Beverage</span>
+            <span className="mt-1 block whitespace-nowrap text-[14px] font-semibold leading-[1.3] tracking-[-0.015em] text-[#00865a]">Cổng quản trị nội bộ</span>
           </span>
         </Link>
-        <Link href="/admin/account" className="group flex items-center gap-3 rounded-2xl px-2 py-1.5 outline-none transition-colors hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-emerald-500 sm:px-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-emerald-600 to-[#0d5c0d] text-sm font-black text-white shadow-md shadow-emerald-900/20 ring-2 ring-emerald-100">
-            {sessionAccount?.initials ?? "AF"}
-          </span>
-          <span className="hidden min-w-0 text-left sm:block">
-            <span className="block max-w-44 truncate text-[13px] font-bold text-slate-900">{sessionAccount?.fullName ?? "Chưa đăng nhập"}</span>
-            <span className="mt-0.5 flex items-center gap-1 truncate text-[11px] font-medium text-emerald-700"><ShieldCheck className="h-3.5 w-3.5 shrink-0" />{sessionAccount?.role ?? "Tài khoản nội bộ"}</span>
-          </span>
-        </Link>
+        <div ref={accountMenuRef} className="relative shrink-0">
+          <button
+            type="button"
+            onClick={() => setIsAccountMenuOpen((open) => !open)}
+            aria-haspopup="menu"
+            aria-expanded={isAccountMenuOpen}
+            className="group flex items-center gap-3 rounded-2xl px-2 py-1.5 outline-none transition-colors hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-emerald-500 sm:px-3"
+          >
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-emerald-600 to-[#0d5c0d] text-sm font-black text-white shadow-md shadow-emerald-900/20 ring-2 ring-emerald-100">
+              {sessionAccount?.initials ?? "AF"}
+            </span>
+            <span className="hidden min-w-0 text-left sm:block">
+              <span className="block max-w-44 truncate text-[13px] font-medium text-slate-800">{sessionAccount?.fullName ?? "Chưa đăng nhập"}</span>
+              <span className="mt-0.5 flex items-center gap-1 truncate text-[11px] font-normal text-slate-600"><ShieldCheck className="h-3.5 w-3.5 shrink-0 text-emerald-600" />{sessionAccount?.role ?? "Tài khoản nội bộ"}</span>
+            </span>
+            <ChevronDown className={`hidden h-4 w-4 text-slate-400 transition-transform sm:block ${isAccountMenuOpen ? "rotate-180" : ""}`} />
+          </button>
+
+          {isAccountMenuOpen && (
+            <div role="menu" className="absolute right-0 top-full z-50 mt-2 w-72 overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-xl shadow-slate-900/15">
+              <div className="flex items-center gap-3 rounded-xl bg-slate-50 px-3 py-3">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-emerald-600 to-[#0d5c0d] text-sm font-black text-white">
+                  {sessionAccount?.initials ?? "AF"}
+                </span>
+                <span className="min-w-0">
+                  <span className="block truncate text-sm font-semibold text-slate-900">{sessionAccount?.fullName ?? "Tài khoản nội bộ"}</span>
+                  <span className="mt-0.5 flex items-center gap-1 text-xs text-emerald-700"><ShieldCheck className="h-3.5 w-3.5" />{sessionAccount?.role ?? ""}</span>
+                  <span className="mt-0.5 block truncate text-xs text-slate-500">{sessionAccount?.email ?? ""}</span>
+                </span>
+              </div>
+
+              <div className="mt-2 space-y-1">
+                <button type="button" role="menuitem" onClick={() => { setIsAccountMenuOpen(false); router.push("/admin/account"); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-slate-700 transition-colors hover:bg-emerald-50 hover:text-emerald-800">
+                  <UserRound className="h-4 w-4 text-slate-500" />Hồ sơ cá nhân
+                </button>
+                <button type="button" role="menuitem" onClick={() => { setIsAccountMenuOpen(false); router.push("/admin/account?tab=password"); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-slate-700 transition-colors hover:bg-emerald-50 hover:text-emerald-800">
+                  <KeyRound className="h-4 w-4 text-slate-500" />Đổi mật khẩu
+                </button>
+              </div>
+
+              <div className="my-2 border-t border-slate-100" />
+              <button type="button" role="menuitem" onClick={() => { setIsAccountMenuOpen(false); void logoutAdmin().finally(() => { clearAdminSession(); router.replace("/admin/login"); }); }} className="flex w-full items-center gap-3 rounded-xl bg-rose-50 px-3 py-2.5 text-left text-sm font-semibold text-rose-600 transition-colors hover:bg-rose-100">
+                <LogOut className="h-4 w-4" />Đăng xuất
+              </button>
+            </div>
+          )}
+        </div>
       </header>
 
-      <div aria-hidden="true" className="h-px w-full shrink-0 bg-black/25" />
+      <div aria-hidden="true" className="h-px w-full shrink-0 bg-slate-200" />
 
       <div className="relative flex min-h-0 flex-1 overflow-hidden">      {/* Persistent Sidebar (Stays on screen as requested) */}
       <div
@@ -448,7 +506,7 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
         {/* Topbar — back to the public portal + account dropdown */}
-        <header className="flex h-16 shrink-0 items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 md:px-6">
+        <header className="flex h-16 shrink-0 items-center justify-between gap-3 bg-transparent px-4 md:px-6">
           <div className="flex items-center gap-3">
             <button
               type="button"
@@ -465,7 +523,7 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
             </button>
 
             {/* Section title for the active tab */}
-            <span className="hidden items-center gap-2 px-1 text-xs font-bold uppercase tracking-[0.08em] text-slate-700 lg:inline-flex">
+            <span className="hidden items-center gap-2 px-1 text-lg font-bold uppercase tracking-[0.04em] text-slate-800 lg:inline-flex">
               <span className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.65)]" />
               {activeTab === 'overview' && 'Bảng Điều Khiển'}
               {activeTab === 'employees' && 'Quản Lý Nhân Sự'}
@@ -481,7 +539,7 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
           <span className="hidden" aria-hidden="true" />
         </header>
 
-        <main className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6 lg:p-8">
+        <main className="flex-1 overflow-y-auto bg-[#f4f6f8] p-3 sm:p-4 md:p-6 lg:p-8">
           <div className="max-w-7xl mx-auto">
             {/* 1. Tổng quan Dashboard */}
             {activeTab === 'overview' && (
@@ -490,8 +548,6 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
                 mediaPosts={mediaPosts}
                 users={users}
                 onNavigate={navigateToTab}
-                onOpenAddEmployee={() => navigateToTab('add-employee')}
-                onOpenAddMedia={() => navigateToTab('add-media')}
                 onPreviewMedia={(post) => {
                   setPreviewMediaPost(post);
                   navigateToTab('media');

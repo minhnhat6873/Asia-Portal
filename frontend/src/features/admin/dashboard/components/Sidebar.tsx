@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { ActiveTab } from '../types';
 import { AdminUser, clearAdminSession, getAdminSession } from '@/lib/adminSession';
+import { logoutAdmin } from '@/features/admin/login/auth.service';
 
 interface SidebarProps {
   activeTab: ActiveTab;
@@ -70,8 +71,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
   }, [isAccountMenuOpen]);
 
   const handleLogout = () => {
-    clearAdminSession();
-    router.push('/admin/login');
+    void logoutAdmin().finally(() => {
+      clearAdminSession();
+      router.push('/admin/login');
+    });
   };
 
   const navItems = [
@@ -106,7 +109,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   ];
 
   return (
-    <aside className="h-full w-64 bg-[#060806] text-slate-300 flex flex-col shrink-0 border-r border-white/10 select-none">
+    <aside className="h-full w-64 bg-white text-slate-700 flex flex-col shrink-0 border-r border-slate-200 select-none">
       {/* Brand Header — Asia F&B logo on the black canvas, gold-ringed */}
       <div className="hidden border-b border-white/[0.08] px-5 py-5">
         <div className="flex items-center gap-3.5">
@@ -134,11 +137,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Navigation */}
       <nav className="flex-1 p-3 space-y-1.5 overflow-y-auto">
-        <div className="border-b border-white/[0.10] px-4 pb-3 pt-1 text-[10px] font-bold uppercase tracking-wide text-sky-400">
-          Danh mục quản lý
-        </div>
-
-        {navItems.map((item) => {
+{navItems.map((item) => {
           const Icon = item.icon;
           const isActive =
             activeTab === item.id ||
@@ -151,15 +150,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
               className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all ${
                 isActive
                   ? 'bg-gradient-to-r from-[#0d5c0d] to-[#1a7a1a] text-white font-semibold shadow-sm shadow-[#1a7a1a]/40'
-                  : 'text-slate-300 hover:text-white hover:bg-white/[0.06]'
+                  : 'text-slate-700 hover:text-emerald-700 hover:bg-emerald-50'
               }`}
               >
               <div className="flex items-center gap-3">
                 <span className="relative flex h-4 w-4 shrink-0 items-center justify-center">
-                  <Icon className={`h-4 w-4 ${isActive ? 'text-white' : item.isPendingBadge ? 'text-[#f5c800]' : 'text-slate-400'}`} />
+                  <Icon className={`h-4 w-4 ${isActive ? 'text-white' : item.isPendingBadge ? 'text-[#f5c800]' : 'text-slate-500'}`} />
                   {item.isPendingBadge && (
                     <span
-                      className="absolute -right-1.5 -top-1.5 h-2.5 w-2.5 rounded-full border-2 border-[#060806] bg-rose-500"
+                      className="absolute -right-1.5 -top-1.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-rose-500"
                       title={`${item.badge} tài khoản chờ duyệt`}
                     />
                   )}
@@ -174,7 +173,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       ? 'bg-[#f5c800] text-[#1a1a1a] animate-pulse'
                       : isActive
                       ? 'bg-white/20 text-white'
-                      : 'bg-white/[0.08] text-slate-400'
+                      : 'bg-slate-100 text-slate-600'
                   }`}
                   title={item.isPendingBadge ? `${item.badge} tài khoản chờ duyệt` : undefined}
                 >
@@ -186,12 +185,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
         })}
       </nav>
 
-      <p className="shrink-0 px-7 pb-1 pt-3 text-[10px] font-bold uppercase tracking-wide text-sky-400">
+      <p className="shrink-0 px-7 pb-1 pt-3 text-[10px] font-bold uppercase tracking-wide text-slate-700">
         Support
       </p>
 
       {/* Footer account actions and profile */}
-      <div className="mt-2 shrink-0 border-t border-white/[0.10] px-4 pb-4 pt-3">
+      <div className="mt-2 shrink-0 border-t border-slate-200 px-4 pb-4 pt-3">
         <div className="space-y-1">
           <button
             type="button"
@@ -199,20 +198,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
             className={`group flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-left text-sm font-medium transition-all ${
               activeTab === 'system-settings'
                 ? 'bg-gradient-to-r from-[#0d5c0d] to-[#1a7a1a] text-white font-semibold shadow-sm shadow-[#1a7a1a]/40'
-                : 'text-slate-300 hover:text-white hover:bg-white/[0.06]'
+                : 'text-slate-700 hover:text-emerald-700 hover:bg-emerald-50'
             }`}
           >
-            <Settings className={`h-4 w-4 ${activeTab === 'system-settings' ? 'text-white' : 'text-slate-400'}`} />
+            <Settings className={`h-4 w-4 ${activeTab === 'system-settings' ? 'text-white' : 'text-slate-500'}`} />
             Cài đặt hệ thống
           </button>
           <button
             type="button"
             onClick={() => onTabChange('account')}
             className={`group flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-left text-sm font-medium transition-all ${
-              activeTab === 'account' ? 'bg-gradient-to-r from-[#0d5c0d] to-[#1a7a1a] text-white font-semibold shadow-sm shadow-[#1a7a1a]/40' : 'text-slate-300 hover:text-white hover:bg-white/[0.06]'
+              activeTab === 'account' ? 'bg-gradient-to-r from-[#0d5c0d] to-[#1a7a1a] text-white font-semibold shadow-sm shadow-[#1a7a1a]/40' : 'text-slate-700 hover:text-emerald-700 hover:bg-emerald-50'
             }`}
           >
-            <User className={`h-4 w-4 ${activeTab === 'account' ? 'text-white' : 'text-slate-400'}`} />
+            <User className={`h-4 w-4 ${activeTab === 'account' ? 'text-white' : 'text-slate-500'}`} />
             Thông tin tài khoản
           </button>
         </div>

@@ -24,6 +24,7 @@ export const userAccountService = {
       id: String(created._id),
       name: created.name,
       email: created.email,
+      phone: created.phone,
       role: created.role,
       status: created.status,
       permissionGroupIds: [],

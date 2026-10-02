@@ -17,6 +17,7 @@ interface AdminTokenPayload extends JwtPayload {
   name?: string;
   email?: string;
   role?: AccountRole;
+  tokenType?: "access" | "refresh";
 }
 
 export async function requireAdminAuth(
@@ -37,7 +38,7 @@ export async function requireAdminAuth(
     }
 
     const payload = jwt.verify(token, secret) as AdminTokenPayload;
-    if (!payload.sub || !mongoose.isValidObjectId(payload.sub)) {
+    if (payload.tokenType === "refresh" || !payload.sub || !mongoose.isValidObjectId(payload.sub)) {
       response.status(401).json({
         success: false,
         message: "Phiên đăng nhập không hợp lệ",

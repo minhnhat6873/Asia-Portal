@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { logoutAdmin } from "@/features/admin/login/auth.service";
 import {
   AdminUser,
   clearAdminSession,
@@ -55,7 +56,7 @@ export default function AccountMenu() {
       </span>
       </button>
       {isOpen && <div role="menu" className="absolute right-0 top-full z-50 mt-2 w-44 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl">
-        <button type="button" role="menuitem" onClick={() => { clearAdminSession(); router.push('/admin/login'); }} className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-sm font-medium text-rose-600 hover:bg-rose-50"><LogOut className="h-4 w-4" />Đăng xuất</button>
+        <button type="button" role="menuitem" onClick={() => { void logoutAdmin().finally(() => { clearAdminSession(); router.push('/admin/login'); }); }} className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-sm font-medium text-rose-600 hover:bg-rose-50"><LogOut className="h-4 w-4" />Đăng xuất</button>
       </div>}
     </div>
   );
