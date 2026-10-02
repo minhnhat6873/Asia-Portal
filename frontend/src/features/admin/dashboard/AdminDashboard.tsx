@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   Employee,
   MediaPost,
@@ -40,6 +40,7 @@ import { clearAdminSession, getAdminSession, type AdminUser } from '@/lib/adminS
 import { logoutAdmin } from '@/features/admin/login/auth.service';
 import { subscribePortalContent } from '@/lib/portalContent';
 import { ChevronDown, KeyRound, LogOut, Menu, ShieldCheck, UserRound } from 'lucide-react';
+import { getDashboardSummary, type DashboardSummary } from './dashboard.service';
 
 export const ADMIN_TAB_ROUTES: Record<ActiveTab, string> = {
   overview: '/admin/dashboard',
@@ -53,21 +54,37 @@ export const ADMIN_TAB_ROUTES: Record<ActiveTab, string> = {
 };
 
 interface AdminDashboardProps {
-  initialTab: ActiveTab;
+  initialTab?: ActiveTab;
+}
+
+function getTabFromPath(pathname: string): ActiveTab {
+  if (pathname === "/admin/employees/new") return "add-employee";
+  if (pathname.startsWith("/admin/employees")) return "employees";
+  if (pathname === "/admin/media/new") return "add-media";
+  if (pathname.startsWith("/admin/media")) return "media";
+  if (pathname.startsWith("/admin/access-control")) return "permissions";
+  if (pathname.startsWith("/admin/settings")) return "system-settings";
+  if (pathname.startsWith("/admin/account")) return "account";
+  return "overview";
 }
 
 export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<ActiveTab>(initialTab);
+  const pathname = usePathname();
+  const [activeTab, setActiveTab] = useState<ActiveTab>(() => initialTab ?? getTabFromPath(pathname));
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [mediaPosts, setMediaPosts] = useState<MediaPost[]>([]);
   const [users, setUsers] = useState<UserAccount[]>([]);
   const [trashItems, setTrashItems] = useState<TrashItem[]>([]);
   const [currentUser, setCurrentUserState] = useState<UserAccount | null>(null);
   const [sessionAccount, setSessionAccount] = useState<AdminUser | null>(null);
+  const [dashboardSummary, setDashboardSummary] = useState<DashboardSummary | null>(null);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
+  useEffect(() => {
+    setActiveTab(getTabFromPath(pathname));
+  }, [pathname]);
   const accountMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -79,6 +96,18 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
       window.removeEventListener("asia-admin-session", syncSession);
       window.removeEventListener("storage", syncSession);
     };
+  useEffect(() => {
+    const controller = new AbortController();
+
+    void getDashboardSummary(controller.signal)
+      .then(setDashboardSummary)
+      .catch(() => {
+        if (!controller.signal.aborted) setDashboardSummary(null);
+      });
+
+    return () => controller.abort();
+  }, []);
+
   }, []);
   useEffect(() => {
     if (!isAccountMenuOpen) return;
@@ -532,6 +561,7 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
               {activeTab === 'add-media' && 'Đăng Tin Truyền Thông'}
               {activeTab === 'permissions' && 'Phân Quyền & Quản Lý Tài Khoản'}
               {activeTab === 'system-settings' && 'Cài Đặt Hệ Thống'}
+              {activeTab === 'account' && 'Thông Tin Tài Khoản'}
             </span>
 
           </div>
@@ -548,6 +578,7 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
                 mediaPosts={mediaPosts}
                 users={users}
                 onNavigate={navigateToTab}
+                summary={dashboardSummary}
                 onPreviewMedia={(post) => {
                   setPreviewMediaPost(post);
                   navigateToTab('media');
@@ -555,7 +586,7 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
               />
             )}
 
-            {activeTab === 'account' && <AccountPage embedded />}
+            {activeTab === 'account' && <AccountPage embedded initialAdminUser={sessionAccount} />}
 
             {/* 2. Danh sách Quản lý Nhân sự */}
             {activeTab === 'employees' && (

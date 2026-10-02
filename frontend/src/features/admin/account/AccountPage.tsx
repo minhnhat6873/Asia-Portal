@@ -89,13 +89,16 @@ function AmbientBackground() {
   );
 }
 
-export default function AccountPage({ embedded = false }: { embedded?: boolean }) {
+export default function AccountPage({
+  embedded = false,
+  initialAdminUser = null,
+}: { embedded?: boolean; initialAdminUser?: AdminUser | null }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [adminUser, setAdminUser] = useState<AdminUser | null>(null);
+  const [adminUser, setAdminUser] = useState<AdminUser | null>(initialAdminUser);
   const [currentUser, setCurrentUserState] = useState<UserAccount | null>(null);
   const [activeTab, setActiveTab] = useState<"info" | "password">("info");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!initialAdminUser);
 
   useEffect(() => {
     setActiveTab(searchParams.get("tab") === "password" ? "password" : "info");
@@ -299,7 +302,7 @@ export default function AccountPage({ embedded = false }: { embedded?: boolean }
 
             <div className="p-4 sm:p-5">
             {activeTab === "info" && (
-              <div className="space-y-4 animate-auth-in">
+              <div className="space-y-4">
                 <div className="flex flex-col items-start gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:flex-row sm:items-center">
                   <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-[#0d5c0d] to-[#2d9e2d] text-xl font-bold text-white shadow-lg shadow-[#1a7a1a]/40 ring-2 ring-[#f5c800]/40">
                     {adminUser.initials}
@@ -383,7 +386,7 @@ export default function AccountPage({ embedded = false }: { embedded?: boolean }
             )}
 
             {activeTab === "password" && (
-              <div className="mx-auto max-w-md space-y-6 animate-auth-in">
+              <div className="mx-auto max-w-md space-y-6">
                 <div className="rounded-xl border border-[#f5c800]/25 bg-[#f5c800]/10 p-4">
                   <div className="flex items-start gap-3">
                     <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-[#f5c800]" />

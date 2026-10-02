@@ -293,7 +293,7 @@ function LoginScreen({
                 if (errors.identifier) setErrors({ ...errors, identifier: undefined });
               }}
               label="Email"
-              placeholder="name@asiafnb.vn"
+              placeholder="name@asiafnb.com"
               icon={<Mail className="h-4 w-4" />}
               invalid={Boolean(errors.identifier)}
               autoComplete="username"
@@ -306,7 +306,7 @@ function LoginScreen({
               <label htmlFor="login-password" className="text-xs font-semibold text-zinc-300">Mật khẩu</label>
               <button
                 type="button"
-                onClick={() => onNavigate("forgot-password")}
+                onClick={() => router.push("/admin/forgot-password")}
                 className={`text-xs font-medium ${LINK}`}
               >
                 Quên mật khẩu?
@@ -528,7 +528,7 @@ function RegisterScreen({
                 value={form.email}
                 onChange={set("email")}
                 label="Email"
-                placeholder="name@asiafnb.vn"
+                placeholder="name@asiafnb.com"
                 icon={<Mail className="h-4 w-4" />}
                 invalid={Boolean(errors.email)}
                 autoComplete="email"
@@ -717,10 +717,7 @@ function ForgotPasswordScreen({
             <KeyRound className="h-6 w-6" />
           </div>
           <h1 className={TITLE}>Quên mật khẩu?</h1>
-          <p className={`${SUBTITLE} leading-relaxed`}>
-            Đừng lo lắng! Hãy nhập địa chỉ email đã đăng ký để nhận mã OTP lấy lại quyền truy cập
-            tài khoản.
-          </p>
+          
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -735,7 +732,7 @@ function ForgotPasswordScreen({
                 if (error) setError("");
               }}
               label="Địa chỉ Email đã đăng ký"
-              placeholder="name@asiafnb.vn"
+              placeholder="name@asiafnb.com"
               icon={<Mail className="h-4 w-4" />}
               invalid={Boolean(error)}
               autoComplete="email"
@@ -768,7 +765,7 @@ function ForgotPasswordScreen({
           <button
             type="button"
             onClick={() => onNavigate("login")}
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-zinc-400 transition-colors hover:text-white"
+            className="inline-flex items-center gap-1.5 text-sm font-semibold text-zinc-400 transition-colors hover:text-white"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
             <span>Quay lại trang Đăng nhập</span>
@@ -959,18 +956,10 @@ function OtpScreen({
               <CheckCircle2 className="h-9 w-9" />
             </div>
             <h2 className="text-2xl font-bold text-white">Xác thực thành công!</h2>
-            <p className="mt-2 text-sm leading-relaxed text-zinc-400">
-{purpose === "registration"
-                ? "Email của bạn đã được xác thực. Tài khoản đang chờ admin phê duyệt."
-                : "Mã OTP hợp lệ. Danh tính của bạn qua Email đã được chứng thực 100%."}
-            </p>
+            {purpose === "registration" && (<p className="mt-2 text-sm leading-relaxed text-zinc-400">"Email của bạn đã được xác thực. Tài khoản đang chờ admin phê duyệt."</p>)}
 
             {purpose === "password-reset" && (
               <div className="my-6 space-y-3 rounded-xl border border-white/10 bg-white/[0.04] p-4 text-left">
-                <div className="flex items-center gap-2 text-xs font-semibold text-zinc-300">
-                  <LockKeyhole className="h-4 w-4 text-[#f5c800]" />
-                  <span>Đặt mật khẩu mới (Nếu đang khôi phục tài khoản)</span>
-                </div>
                 <input
                   type="password"
                   value={newPassword}
@@ -997,21 +986,6 @@ function OtpScreen({
               >
                 {isResettingPassword ? <ButtonSpinner /> : <><span>{purpose === "registration" ? "Về trang Đăng nhập" : "Hoàn tất & Đăng nhập"}</span><ArrowRight className="h-4 w-4" /></>}
               </button>
-
-              {purpose === "password-reset" && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsSuccess(false);
-                    setOtp(Array(6).fill(""));
-                    setVerifiedOtpCode("");
-                    setPasswordResetError("");
-                  }}
-                  className="w-full py-2 text-xs text-zinc-400 transition-colors hover:text-zinc-200"
-                >
-                  Thử lại quy trình xác thực OTP
-                </button>
-              )}
             </div>
           </div>
         ) : (
@@ -1070,7 +1044,7 @@ function OtpScreen({
             </form>
 
             <div className={FOOTER_TEXT}>
-              <button type="button" onClick={() => onNavigate("login")} className="inline-flex items-center gap-1.5 text-xs font-semibold text-zinc-400 transition-colors hover:text-white">
+              <button type="button" onClick={() => onNavigate("login")} className="inline-flex items-center gap-1.5 text-sm font-semibold text-zinc-400 transition-colors hover:text-white">
                 <ArrowLeft className="h-3.5 w-3.5" />
                 <span>Quay lại Đăng nhập</span>
               </button>
@@ -1087,12 +1061,12 @@ function OtpScreen({
  * ========================================================================== */
 
 interface AuthFlowProps {
-  initialView?: "login" | "register";
+  initialView?: "login" | "register" | "forgot-password";
 }
 
 export default function AuthFlow({ initialView = "login" }: AuthFlowProps) {
   const [view, setView] = useState<AuthView>(initialView);
-  const [otpTarget, setOtpTarget] = useState("nhanvien@asiafnb.vn");
+  const [otpTarget, setOtpTarget] = useState("nhanvien@asiafnb.com");
   const [otpPurpose, setOtpPurpose] = useState<OtpPurpose>("registration");
 
   const showToast = useCallback((title: string, message?: string, type: ToastType = "info") => {
@@ -1111,6 +1085,10 @@ export default function AuthFlow({ initialView = "login" }: AuthFlowProps) {
   const navigateAuthView = (nextView: AuthView) => {
     if (nextView === "register") {
       router.push("/admin/register");
+      return;
+    }
+    if (nextView === "forgot-password") {
+      router.push("/admin/forgot-password");
       return;
     }
     if (nextView === "login") {

@@ -5,6 +5,7 @@ import {
   requireAdminRole,
 } from "../middlewares/auth.middleware";
 import adminAuthRouter from "./admin/auth.route";
+import adminDashboardRouter from "./admin/dashboard.route";
 import adminAccountRouter from "./admin/account.route";
 import adminEmployeeRouter from "./admin/employee.route";
 import adminPermissionGroupRouter from "./admin/permission-group.route";
@@ -18,6 +19,7 @@ router.use("/user/employees", userEmployeeRouter);
 router.use("/admin/auth", adminAuthRouter);
 // Tất cả API /admin còn lại đều phải đi qua một cổng xác thực chung.
 router.use("/admin", requireAdminAuth);
+router.use("/admin/dashboard", adminDashboardRouter);
 router.use("/admin/employees", adminEmployeeRouter);
 router.use(
   "/admin/accounts",

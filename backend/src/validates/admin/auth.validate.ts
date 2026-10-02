@@ -70,7 +70,7 @@ const passwordSchema = Joi.string()
     "password.missingRequirements": "Mật khẩu còn thiếu: {{#missing}}.",
     "any.required": "Mật khẩu là bắt buộc.",
   });
-const registrationEmailSchema = Joi.string().trim().lowercase().pattern(/^[a-z0-9._%+-]+@asiafnb\\.com$/).max(150).required().messages({
+const registrationEmailSchema = Joi.string().trim().lowercase().pattern(/^[a-z0-9._%+-]+@asiafnb\.com$/).max(150).required().messages({
   "string.empty": "Email là bắt buộc.",
   "string.min": "Email là bắt buộc.",
   "string.max": "Email không được vượt quá 150 ký tự.",
