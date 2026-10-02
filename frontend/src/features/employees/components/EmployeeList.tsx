@@ -1,6 +1,5 @@
-import Image from "next/image";
 import type { Employee } from "@/types/employee";
-import { getEmployeeAvatar, getEmployeeCode } from "../utils/employeeUtils";
+import { getEmployeeCode } from "../utils/employeeUtils";
 
 interface EmployeeListProps {
   employees: Employee[];
@@ -34,14 +33,9 @@ export default function EmployeeList({ employees, selectedId, onSelect }: Employ
               >
                 <td className="px-5 py-3 text-sm font-semibold text-slate-500">{index + 1}</td>
                 <td className="px-3 py-3">
-                  <div className="flex items-center gap-3">
-                    <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-slate-100">
-                      <Image src={getEmployeeAvatar(employee)} alt={`Chân dung ${employee.name}`} fill sizes="56px" className="object-cover object-top" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="flex items-center gap-2 truncate text-sm font-bold text-slate-800"><span className="truncate">{employee.name}</span><span className="h-2.5 w-2.5 shrink-0 rounded-full bg-[#16b85c]" /></p>
-                      <p className="mt-1 text-xs text-slate-400">{getEmployeeCode(employee)}</p>
-                    </div>
+                  <div className="min-w-0">
+                    <p className="flex items-center gap-2 truncate text-sm font-bold text-slate-800"><span className="truncate">{employee.name}</span><span className="h-2.5 w-2.5 shrink-0 rounded-full bg-[#16b85c]" /></p>
+                    <p className="mt-1 text-xs text-slate-400">{getEmployeeCode(employee)}</p>
                   </div>
                 </td>
                 <td className="px-3 py-3 text-sm font-medium text-slate-600">{employee.position}</td>

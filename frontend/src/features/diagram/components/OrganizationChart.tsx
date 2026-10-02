@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import {
   BriefcaseBusiness,
   ChevronDown,
@@ -9,16 +10,14 @@ import {
   CircleUserRound,
   Coins,
   Factory,
-  Landmark,
   Megaphone,
-  MonitorCog,
-  ShoppingCart,
   ShieldCheck,
-  Target,
   UsersRound,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useState } from "react";
+import { DIAGRAM_DEPARTMENTS } from "@/config/diagramDepartments";
+import type { DiagramDepartment } from "@/config/diagramDepartments";
 
 type Executive = {
   role: string;
@@ -27,21 +26,12 @@ type Executive = {
 };
 
 type Division = {
+  id: string;
   name: string;
-  staff: number;
+  description: string;
+  departments: string;
   icon: LucideIcon;
   tone: string;
-  demoExpandable?: boolean;
-};
-
-type DetailGroup = {
-  name: string;
-  staff: number;
-  icon: LucideIcon;
-  tone: string;
-  surface: string;
-  slug?: string;
-  roles: Array<{ name: string; staff: number }>;
 };
 
 const executiveDirector: Executive = {
@@ -69,65 +59,12 @@ const deputyDirectors: Executive[] = [
 ];
 
 const divisions: Division[] = [
-  { name: "Hành chính - Nhân sự", staff: 18, icon: UsersRound, tone: "bg-rose-50 text-rose-500" },
-  { name: "Tài chính - Kế toán", staff: 24, icon: Coins, tone: "bg-emerald-50 text-emerald-600" },
-  { name: "Truyền thông - Kinh doanh", staff: 48, icon: Megaphone, tone: "bg-violet-50 text-violet-600", demoExpandable: true },
-  { name: "Sản phẩm - R&D", staff: 28, icon: Factory, tone: "bg-orange-50 text-orange-500" },
-  { name: "Pháp chế - Quản trị", staff: 8, icon: ShieldCheck, tone: "bg-sky-50 text-sky-500" },
-  { name: "Công nghệ thông tin", staff: 14, icon: MonitorCog, tone: "bg-green-50 text-green-600" },
-  { name: "Vận hành - Chuỗi cung ứng", staff: 20, icon: BriefcaseBusiness, tone: "bg-blue-50 text-blue-600" },
-];
-
-const detailGroups: DetailGroup[] = [
-  {
-    name: "Phòng Truyền thông",
-    staff: 12,
-    slug: "truyen-thong",
-    icon: Megaphone,
-    tone: "bg-violet-50 text-violet-600",
-    surface: "bg-violet-50/70",
-    roles: [
-      { name: "Brand", staff: 5 },
-      { name: "Content / Social Media", staff: 4 },
-      { name: "Event", staff: 3 },
-    ],
-  },
-  {
-    name: "Phòng Marketing",
-    staff: 14,
-    icon: Target,
-    tone: "bg-sky-50 text-sky-600",
-    surface: "bg-sky-50/70",
-    roles: [
-      { name: "Digital Marketing", staff: 6 },
-      { name: "Thiết kế", staff: 5 },
-      { name: "Nghiên cứu thị trường", staff: 3 },
-    ],
-  },
-  {
-    name: "Phòng Kinh doanh",
-    staff: 18,
-    icon: Landmark,
-    tone: "bg-emerald-50 text-emerald-600",
-    surface: "bg-emerald-50/70",
-    roles: [
-      { name: "Sales Domestic", staff: 10 },
-      { name: "Sales Export", staff: 6 },
-      { name: "Sales Admin", staff: 2 },
-    ],
-  },
-  {
-    name: "Phòng Mua hàng",
-    staff: 4,
-    icon: ShoppingCart,
-    tone: "bg-amber-50 text-amber-600",
-    surface: "bg-amber-50/70",
-    roles: [
-      { name: "Purchasing", staff: 2 },
-      { name: "Vendor Management", staff: 1 },
-      { name: "Hợp đồng & bảo giá", staff: 1 },
-    ],
-  },
+  { id: "human-resources", name: "Hành chính & Nhân sự", description: "Điều phối hành chính và phát triển đội ngũ.", departments: "HR + Admin", icon: UsersRound, tone: "bg-rose-50 text-rose-500" },
+  { id: "finance", name: "Tài chính & Kế toán", description: "Quản lý tài chính và công tác kế toán.", departments: "F&A", icon: Coins, tone: "bg-emerald-50 text-emerald-600" },
+  { id: "product", name: "Sản phẩm & Phát triển", description: "Phát triển sản phẩm và cải tiến.", departments: "Design + R&D", icon: Factory, tone: "bg-orange-50 text-orange-500" },
+  { id: "operations", name: "Vận hành & Chuỗi cung ứng", description: "Điều phối vận hành và chuỗi cung ứng.", departments: "Logistics + Purchasing", icon: BriefcaseBusiness, tone: "bg-blue-50 text-blue-600" },
+  { id: "commercial", name: "Kinh doanh & Thương mại", description: "Phát triển thị trường và hoạt động kinh doanh.", departments: "Marketing + Export Sales", icon: Megaphone, tone: "bg-violet-50 text-violet-600" },
+  { id: "legal", name: "Pháp chế", description: "Đảm bảo tuân thủ và công tác pháp chế.", departments: "Legal", icon: ShieldCheck, tone: "bg-sky-50 text-sky-500" },
 ];
 
 function ExecutiveCard({ executive, primary = false }: { executive: Executive; primary?: boolean }) {
@@ -164,9 +101,6 @@ function DivisionCard({ division, isExpanded, onToggle }: { division: Division; 
         <Icon size={26} strokeWidth={1.9} />
       </div>
       <h3 className="mt-2 text-[14px] font-extrabold leading-[1.25] text-slate-800">Khối<br />{division.name}</h3>
-      <p className="mt-1 inline-flex items-center gap-1 text-[12px] font-medium text-emerald-700">
-        <CircleUserRound size={14} /> {division.staff} nhân sự
-      </p>
       <span className={`mt-auto inline-flex h-7 w-12 items-center justify-center rounded-full border ${isExpanded ? "border-emerald-100 bg-emerald-50 text-emerald-600" : "border-slate-100 bg-white/80 text-slate-400"}`}>
         <ArrowIcon size={16} strokeWidth={2.2} />
       </span>
@@ -174,48 +108,104 @@ function DivisionCard({ division, isExpanded, onToggle }: { division: Division; 
   );
 }
 
-function DetailCard({ group, onDepartmentSelect }: { group: DetailGroup; onDepartmentSelect?: (slug: string) => void }) {
+function DetailCard({ group }: { group: DiagramDepartment }) {
   const Icon = group.icon;
-  const wrapperClass = `block rounded-2xl ${group.surface} p-4 transition-transform`;
+  const wrapperClass = `block rounded-2xl ${group.surface} px-3 py-[27px] transition-transform`;
   const content = (
     <>
-      <header className="flex items-center gap-3 border-b border-white/80 pb-3">
-        <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${group.tone}`}>
-          <Icon size={21} strokeWidth={1.9} />
+      <header className="flex items-center gap-2.5 border-b border-white/80 pb-2.5">
+        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${group.tone}`}>
+          <Icon size={19} strokeWidth={1.9} />
         </div>
         <div className="min-w-0 flex-1">
-          <h3 className="truncate text-[18px] font-extrabold leading-tight text-slate-900">{group.name}</h3>
-          <p className="mt-1 text-[14px] font-medium text-slate-600">{group.staff} nhân sự</p>
+          <h3 className="truncate text-sm font-extrabold leading-tight text-slate-900">{group.name}</h3>
+          <p className="mt-0.5 text-xs font-medium text-slate-600">{group.staff} nhân sự</p>
         </div>
-        <ChevronRight size={18} className="text-slate-500" />
+        <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/80 text-slate-500 shadow-sm">
+          <ChevronRight size={15} />
+        </span>
       </header>
-      <ul className="mt-3 space-y-2">
+      <ul className="mt-2.5 space-y-1.5">
         {group.roles.map((role) => (
-          <li key={role.name} className="flex items-center justify-between gap-3 rounded-xl bg-white/75 px-3 py-2.5 text-[14px] font-medium text-slate-700">
+          <li key={role.name} className="flex min-h-9 items-center justify-between gap-2.5 rounded-xl bg-white/80 px-2.5 py-1.5 text-xs font-medium text-slate-700">
             <span className="inline-flex min-w-0 items-center gap-2">
-              <CircleUserRound size={16} className="shrink-0 text-slate-500" />
+              <CircleUserRound size={14} className="shrink-0 text-slate-500" />
               <span className="truncate">{role.name}</span>
             </span>
-            <span className="text-[15px] font-bold text-slate-700">{role.staff}</span>
+            <span className="text-xs font-bold text-slate-700">{role.staff}</span>
           </li>
         ))}
       </ul>
     </>
   );
 
-  return group.slug ? (
-    <button type="button" onClick={() => onDepartmentSelect?.(group.slug!)} className={`${wrapperClass} w-full cursor-pointer text-left hover:-translate-y-0.5 hover:shadow-md`}>
+  return (
+    <Link href={`/diagram/${group.slug}`} className={`${wrapperClass} w-full sm:w-[260px] cursor-pointer text-left hover:-translate-y-0.5 hover:shadow-md`}>
       {content}
-    </button>
-  ) : <article className={wrapperClass}>{content}</article>;
+    </Link>
+  );
 }
 
-export default function OrganizationChart({ onDepartmentSelect }: { onDepartmentSelect?: (slug: string) => void }) {
-  const [expandedDivision, setExpandedDivision] = useState<string | null>(null);
-  const expandedDivisionIndex = divisions.findIndex((division) => division.name === expandedDivision);
+function EmptyDetailPanel({ division }: { division: Division }) {
+  const Icon = division.icon;
   return (
-    <div className="overflow-x-auto pb-4">
-      <div className="min-w-[1120px] px-6 pb-6 pt-3">
+    <article className="w-full rounded-2xl bg-slate-50/80 px-3 py-[27px] sm:w-[260px]">
+      <header className="flex items-center gap-2 border-b border-white/80 pb-2">
+        <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${division.tone}`}>
+          <Icon size={16} strokeWidth={1.9} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <h3 className="truncate text-[12px] font-extrabold leading-tight text-slate-900">{division.departments}</h3>
+          <p className="mt-0.5 text-[10px] font-medium text-slate-500">Chưa có số liệu chi tiết</p>
+        </div>
+        <ChevronRight size={14} className="text-slate-400" />
+      </header>
+      <p className="mt-2 rounded-lg bg-white/75 px-2 py-2 text-[10px] leading-4 text-slate-500">
+        Chưa có dữ liệu bộ phận con trong sơ đồ hiện tại.
+      </p>
+    </article>
+  );
+}
+
+function DivisionPanelHeader({ division }: { division: Division }) {
+  const Icon = division.icon;
+
+  return (
+    <header className="flex items-center justify-center rounded-2xl border border-violet-100 bg-violet-50/75 px-4 py-4 sm:px-5">
+      <div className="flex min-w-0 items-center gap-3">
+        <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${division.tone}`}>
+          <Icon size={24} strokeWidth={2} />
+        </div>
+        <div className="min-w-0">
+          <h2 className="truncate text-lg font-extrabold text-slate-900">Khối {division.name}</h2>
+          <p className="mt-1 truncate text-sm text-slate-600">{division.description}</p>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+export default function OrganizationChart() {
+  const [expandedDivision, setExpandedDivision] = useState<string | null>(null);
+  const activeDivision = divisions.find((division) => division.id === expandedDivision);
+  const activeDivisionIndex = divisions.findIndex((division) => division.id === expandedDivision);
+  const selectedDivisionPosition = activeDivisionIndex >= 0
+    ? ((activeDivisionIndex + 0.5) / divisions.length) * 100
+    : 50;
+  const connectorStart = Math.min(selectedDivisionPosition, 50);
+  const connectorWidth = Math.abs(selectedDivisionPosition - 50);
+  const activeDetailGroups = DIAGRAM_DEPARTMENTS.filter((group) => group.divisionId === expandedDivision);
+  const panelGridClass = activeDetailGroups.length <= 1
+    ? "grid-cols-1"
+    : activeDetailGroups.length === 2
+      ? "grid-cols-1 sm:grid-cols-2"
+      : activeDetailGroups.length === 3
+        ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
+        : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4";
+  return (
+    <div className="pb-6">
+      <div className="overflow-x-auto">
+        <div className="min-w-[1120px] px-6 pt-3">
         <div className="mx-auto w-fit">
           <ExecutiveCard executive={executiveDirector} primary />
         </div>
@@ -240,27 +230,48 @@ export default function OrganizationChart({ onDepartmentSelect }: { onDepartment
         </div>
 
         <div className="relative pt-8">
-          <div className="absolute top-0 h-[2px] bg-[#24934d]" style={{ left: "calc((100% - 4.5rem) / 14)", right: "calc((100% - 4.5rem) / 14)" }} />
-          <div className="grid grid-cols-7 gap-3">
+          <div className="absolute top-0 h-[2px] bg-[#24934d]" style={{ left: "calc((100% - 4.5rem) / 12)", right: "calc((100% - 4.5rem) / 12)" }} />
+          <div className="grid grid-cols-6 gap-3">
             {divisions.map((division) => (
               <div key={division.name} className="relative">
                 <div className="absolute -top-8 left-1/2 h-8 w-[2px] -translate-x-1/2 bg-[#24934d]">
                 </div>
-                <DivisionCard division={division} isExpanded={expandedDivision === division.name} onToggle={() => setExpandedDivision((current) => current === division.name ? null : division.name)} />
+                <DivisionCard division={division} isExpanded={expandedDivision === division.id} onToggle={() => setExpandedDivision((current) => current === division.id ? null : division.id)} />
               </div>
             ))}
           </div>
+          {expandedDivision && activeDivisionIndex >= 0 ? (
+            <div className="relative h-10">
+              <div
+                className="absolute top-0 h-5 w-[2px] -translate-x-1/2 bg-violet-300"
+                style={{ left: `${selectedDivisionPosition}%` }}
+              />
+              {connectorWidth > 0 ? (
+                <div
+                  className="absolute top-5 h-[2px] bg-violet-300"
+                  style={{ left: `${connectorStart}%`, width: `${connectorWidth}%` }}
+                />
+              ) : null}
+              <div className="absolute left-1/2 top-5 h-5 w-[2px] -translate-x-1/2 bg-violet-300" />
+            </div>
+          ) : null}
         </div>
-        {expandedDivision ? (
-          <>
-            <div className="grid grid-cols-7 gap-3">
-              <div style={{ gridColumnStart: expandedDivisionIndex + 1 }} className="justify-self-center h-7 w-[2px] bg-violet-300" />
-            </div>
-            <div className="grid grid-cols-4 gap-3 rounded-2xl border border-violet-200 bg-white/90 p-3 shadow-[0_12px_34px_rgba(15,23,42,0.07)]">
-              {detailGroups.map((group) => <DetailCard key={group.name} group={group} onDepartmentSelect={onDepartmentSelect} />)}
-            </div>
-          </>
-        ) : null}      </div>
+        </div>
+      </div>
+      {expandedDivision && activeDivision ? (
+        <>
+          <section className="mx-auto w-full rounded-3xl border border-violet-200 bg-white/90 p-3 shadow-[0_12px_34px_rgba(15,23,42,0.07)] sm:w-fit sm:max-w-full sm:p-4">
+            <DivisionPanelHeader division={activeDivision} />
+            {activeDetailGroups.length ? (
+              <div className={`mt-4 grid justify-items-center gap-4 ${panelGridClass}`}>
+                {activeDetailGroups.map((group) => <DetailCard key={group.name} group={group} />)}
+              </div>
+            ) : (
+              <div className="mt-4 flex justify-center"><EmptyDetailPanel division={activeDivision} /></div>
+            )}
+          </section>
+        </>
+      ) : null}
     </div>
   );
 }

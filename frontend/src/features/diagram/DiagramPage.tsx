@@ -5,12 +5,8 @@ import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import DiagramBreadcrumb from "./components/DiagramBreadcrumb";
 import OrganizationChart from "./components/OrganizationChart";
-import DepartmentOrganizationChart from "./components/DepartmentOrganizationChart";
-import { useState } from "react";
 
 export default function DiagramPage() {
-  const [selectedDepartment, setSelectedDepartment] = useState<string | null>(null);
-
   return (
     <main className="min-h-screen bg-white text-slate-800">
       <Navbar />
@@ -40,13 +36,9 @@ export default function DiagramPage() {
       </section>
       <section className="mx-auto w-full max-w-7xl px-5 py-7 sm:px-8 lg:px-10 lg:py-9">
         <div className="mb-7">
-          <DiagramBreadcrumb current={selectedDepartment ? "Phòng Truyền thông" : "Sơ đồ tổ chức"} />
+          <DiagramBreadcrumb current="Sơ đồ tổ chức" />
         </div>
-        {selectedDepartment === "truyen-thong" ? (
-          <DepartmentOrganizationChart onBack={() => setSelectedDepartment(null)} />
-        ) : (
-          <OrganizationChart onDepartmentSelect={setSelectedDepartment} />
-        )}
+        <OrganizationChart />
       </section>
       <Footer />
     </main>

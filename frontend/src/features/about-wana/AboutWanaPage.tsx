@@ -3,7 +3,7 @@
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import ProductHeroSlider from "./components/ProductHeroSlider";
-import { ArrowRight, Bot, Download, Play, Send, Sparkles, Toolbox, Trophy, Globe, Users, Leaf } from "lucide-react";
+import { ArrowRight, CalendarDays, Download, Play, Toolbox, Trophy, Globe, Users, Leaf } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { RESOURCE_ITEMS, type ResourceItem } from "@/features/resources/resourceData";
@@ -77,16 +77,15 @@ function ResourceCard({ item }: { item: ResourceItem }) {
   );
 }
 
-function AssistantCard() {
+function MeetingCard() {
   return (
-    <Link href="/demo/ai-assistant" className="group relative flex flex-col justify-between overflow-hidden rounded-2xl bg-gradient-to-br from-[#166534] to-[#14522d] p-6 text-left text-white shadow-xl transition-all hover:shadow-2xl">
-      <div className="absolute -bottom-4 -right-4 opacity-10"><Bot size={96} /></div>
+    <Link href="/meeting" className="group flex flex-col justify-between rounded-2xl border border-[#bbf7d0] bg-white p-6 text-left shadow-lg shadow-slate-100 transition-all hover:shadow-xl">
       <div>
-        <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-white/10 text-amber-300 transition-transform group-hover:scale-110"><Sparkles size={22} /></div>
-        <h3 className="mb-1 text-base font-bold text-white">Trợ lý AI Onboarding</h3>
-        <p className="text-xs leading-relaxed text-slate-200">Hỏi đáp tức thì về quy trình, quy định công ty với Trợ lý AI thông minh.</p>
+        <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-50 text-[#15803d] transition-transform group-hover:scale-110"><CalendarDays size={22} /></div>
+        <h3 className="mb-1 text-base font-bold text-[#15803d]">Tạo phòng họp</h3>
+        <p className="text-xs leading-relaxed text-slate-500">Đặt phòng họp và theo dõi lịch đã đặt của các phòng.</p>
       </div>
-      <div className="mt-4 flex items-center gap-2 text-xs font-bold text-amber-300"><span>Trò chuyện ngay</span><Send size={13} /></div>
+      <div className="mt-4 flex items-center gap-2 text-xs font-bold text-[#15803d]"><span>Đặt phòng ngay</span><ArrowRight size={13} className="transition-transform group-hover:translate-x-1" /></div>
     </Link>
   );
 }
@@ -322,7 +321,7 @@ export default function VeWanaPage() {
           </div>
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {RESOURCE_ITEMS.map((item) => <ResourceCard key={item.title} item={item} />)}
-            <AssistantCard />
+            <MeetingCard />
           </div>
         </div>
       </section>
