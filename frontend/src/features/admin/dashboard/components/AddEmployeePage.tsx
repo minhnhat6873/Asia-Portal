@@ -317,24 +317,6 @@ export const AddEmployeePage: React.FC<AddEmployeePageProps> = ({
                   className="w-full px-3.5 py-2.5 text-xs bg-slate-50/70 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
                 />
                 
-                {/* Quick avatar selection */}
-                <div className="mt-2 flex items-center gap-1.5">
-                  <span className="text-[11px] text-slate-400">Chọn nhanh:</span>
-                  <div className="flex items-center gap-1">
-                    {PRESET_AVATARS.map((url, i) => (
-                      <button
-                        key={i}
-                        type="button"
-                        onClick={() => setFormData({ ...formData, avatar: url })}
-                        className={`w-6 h-6 rounded-full overflow-hidden border transition-all ${
-                          formData.avatar === url ? 'ring-2 ring-emerald-500 border-white scale-110' : 'border-slate-300 opacity-60 hover:opacity-100'
-                        }`}
-                      >
-                        <img src={url} alt={`Preset ${i}`} className="w-full h-full object-cover" />
-                      </button>
-                    ))}
-                  </div>
-                </div>
               </div>
 
               <div>
@@ -369,7 +351,7 @@ export const AddEmployeePage: React.FC<AddEmployeePageProps> = ({
         </div>
 
         {/* Right: Live Preview Panel (5 cols) */}
-        <div className="lg:col-span-5 space-y-4 lg:sticky lg:top-4">
+        <div className="lg:col-span-5 space-y-4">
           <div className="flex items-center justify-between px-1">
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>

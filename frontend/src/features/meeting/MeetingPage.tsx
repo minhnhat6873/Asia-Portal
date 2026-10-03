@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowUpRight, CalendarDays, ChevronDown, ChevronRight, Clock3, Grid2X2, List, MapPin, Plus, Search, Sparkles, Trash2, UsersRound, X } from "lucide-react";
+import { ArrowUpRight, CalendarDays, CheckCircle2, ChevronDown, ChevronRight, Clock3, Grid2X2, List, Mail, MapPin, Plus, Search, Sparkles, Trash2, UsersRound, X } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Navbar from "@/components/layout/Navbar";
@@ -20,6 +20,7 @@ type Booking = {
   attendees: number;
   organizer: string;
   department: string;
+  otpVerified: true;
 };
 
 const STORAGE_KEY = "asia-portal-meeting-bookings";
@@ -54,7 +55,7 @@ function isBooking(value: unknown): value is Booking {
     rooms.some((room) => room.id === item.roomId) && typeof item.date === "string" &&
     typeof item.start === "string" && typeof item.end === "string" &&
     typeof item.attendees === "number" && typeof item.organizer === "string" &&
-    typeof item.department === "string";
+    typeof item.department === "string" && item.otpVerified === true;
 }
 
 export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: boolean }) {
@@ -66,7 +67,9 @@ export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: b
   const [search, setSearch] = useState("");
   const [layout, setLayout] = useState<"list" | "grid">("list");
   const [formOpen, setFormOpen] = useState(false);
+  const [formStep, setFormStep] = useState<"details" | "otp">("details");
   const [formError, setFormError] = useState("");
+  const [otp, setOtp] = useState<string[]>(Array(6).fill(""));
   const [title, setTitle] = useState("");
   const [roomId, setRoomId] = useState<RoomId>("room-01");
   const [date, setDate] = useState(todayLocal);
@@ -79,6 +82,7 @@ export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: b
   const [employeeDepartments, setEmployeeDepartments] = useState<string[]>([]);
   const [isDepartmentsLoading, setIsDepartmentsLoading] = useState(true);
   const scheduleRef = useRef<HTMLDivElement>(null);
+  const otpInputRefs = useRef<Array<HTMLInputElement | null>>([]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -130,6 +134,17 @@ export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: b
     router.push("/meeting/schedule");
   };
 
+  useEffect(() => {
+    if (formStep === "otp") window.setTimeout(() => otpInputRefs.current[0]?.focus(), 0);
+  }, [formStep]);
+
+  const closeBookingForm = () => {
+    setFormOpen(false);
+    setFormStep("details");
+    setFormError("");
+    setOtp(Array(6).fill(""));
+  };
+
   const createBooking = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!title.trim() || !organizer.trim() || !department.trim() || !email.trim()) {
@@ -157,12 +172,22 @@ export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: b
       return;
     }
 
+    setFormError("");
+    setOtp(Array(6).fill(""));
+    setFormStep("otp");
+  };
+
+  const confirmOtp = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (otp.join("").length !== 6) {
+      setFormError("Vui lòng nhập đầy đủ mã OTP gồm 6 chữ số.");
+      return;
+    }
     saveBookings([...bookings, {
       id: crypto.randomUUID(), title: title.trim(), roomId, date, start, end,
-      attendees, organizer: organizer.trim(), department: department.trim(),
+      attendees, organizer: organizer.trim(), department: department.trim(), otpVerified: true,
     }]);
-    setFormOpen(false);
-    setFormError("");
+    closeBookingForm();
     setTitle("");
     setEmail("");
     setAttendees(1);
@@ -175,8 +200,30 @@ export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: b
 
   const openRoomBooking = (nextRoomId: RoomId) => {
     setRoomId(nextRoomId);
+    setFormStep("details");
     setFormError("");
+    setOtp(Array(6).fill(""));
     setFormOpen(true);
+  };
+
+  const updateOtp = (index: number, value: string) => {
+    const digits = value.replace(/\D/g, "");
+    if (!digits) {
+      setOtp((current) => current.map((digit, position) => position === index ? "" : digit));
+      return;
+    }
+    setOtp((current) => {
+      const next = [...current];
+      digits.slice(0, 6 - index).split("").forEach((digit, offset) => { next[index + offset] = digit; });
+      return next;
+    });
+    otpInputRefs.current[Math.min(index + digits.length, 5)]?.focus();
+  };
+
+  const resendOtp = () => {
+    setOtp(Array(6).fill(""));
+    setFormError("");
+    otpInputRefs.current[0]?.focus();
   };
 
   return (
@@ -228,7 +275,7 @@ export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: b
                 <button type="button" aria-label="Xem dạng danh sách" aria-pressed={layout === "list"} onClick={() => setLayout("list")} className={`rounded-md px-2 ${layout === "list" ? "bg-white text-[#1a7a1a] shadow-sm" : "text-slate-400"}`}><List size={15} /></button>
                 <button type="button" aria-label="Xem dạng lưới" aria-pressed={layout === "grid"} onClick={() => setLayout("grid")} className={`rounded-md px-2 ${layout === "grid" ? "bg-white text-[#1a7a1a] shadow-sm" : "text-slate-400"}`}><Grid2X2 size={15} /></button>
               </div>
-              <button type="button" onClick={() => { setFormError(""); setFormOpen(true); }} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-[#159447] px-3 text-xs font-bold text-white transition-colors hover:bg-[#0d5c0d]"><Plus size={15} /> Đặt Phòng Mới</button>
+              <button type="button" onClick={() => { setFormStep("details"); setFormError(""); setOtp(Array(6).fill("")); setFormOpen(true); }} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-[#159447] px-3 text-xs font-bold text-white transition-colors hover:bg-[#0d5c0d]"><Plus size={15} /> Đặt Phòng Mới</button>
             </div>
           </div>
 
@@ -262,13 +309,13 @@ export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: b
       </section>
       <Footer />
 
-      {formOpen ? <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/55 p-3 backdrop-blur-[2px] sm:p-5" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setFormOpen(false); }}>
+      {formOpen ? <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/55 p-3 backdrop-blur-[2px] sm:p-5" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) closeBookingForm(); }}>
         <section role="dialog" aria-modal="true" aria-labelledby="meeting-form-title" className="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl bg-white shadow-[0_24px_70px_rgba(15,23,42,0.3)]">
           <div className="flex shrink-0 items-start justify-between gap-4 border-b border-emerald-100 bg-gradient-to-r from-emerald-50 to-white px-5 py-5 sm:px-7">
-            <div><div className="flex flex-wrap items-center gap-2.5"><h2 id="meeting-form-title" className="text-xl font-extrabold text-[#0d5c0d] sm:text-2xl">Đặt phòng họp mới</h2><span className="rounded-full bg-[#f5c800] px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wide text-[#0d5c0d]">{selectedRoom.name}</span></div><p className="mt-1.5 text-sm text-slate-500">Điền thông tin và chọn khung giờ còn trống.</p></div>
-            <button type="button" onClick={() => setFormOpen(false)} aria-label="Đóng" className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-500 transition-colors hover:bg-white hover:text-slate-800"><X size={21} /></button>
+            <div><div className="flex flex-wrap items-center gap-2.5"><h2 id="meeting-form-title" className="text-xl font-extrabold text-[#0d5c0d] sm:text-2xl">{formStep === "details" ? "Đặt phòng họp mới" : "Xác nhận mã OTP"}</h2>{formStep === "details" ? <span className="rounded-full bg-[#f5c800] px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wide text-[#0d5c0d]">{selectedRoom.name}</span> : null}</div><p className="mt-1.5 text-sm text-slate-500">{formStep === "details" ? "Điền thông tin và chọn khung giờ còn trống." : "Nhập mã gồm 6 chữ số đã được gửi đến email của bạn."}</p></div>
+            <button type="button" onClick={closeBookingForm} aria-label="Đóng" className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-500 transition-colors hover:bg-white hover:text-slate-800"><X size={21} /></button>
           </div>
-          <form onSubmit={createBooking} className="flex min-h-0 flex-1 flex-col">
+          {formStep === "details" ? <form onSubmit={createBooking} className="flex min-h-0 flex-1 flex-col">
           <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-5 sm:px-7 sm:py-6">
             <Field label="Tiêu đề cuộc họp *"><input required value={title} onChange={(event) => setTitle(event.target.value)} placeholder="VD: Họp giao ban tuần, Báo cáo tiến độ dự án..." className="form-input" /></Field>
             <div className="grid gap-3 sm:grid-cols-2">
@@ -295,6 +342,25 @@ export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: b
           </div>
             <div className="flex shrink-0 justify-end border-t border-slate-100 bg-white px-5 py-4 sm:px-7"><button type="submit" className="rounded-xl bg-[#159447] px-5 py-2.5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-[#0d5c0d]">Xác nhận đặt phòng</button></div>
           </form>
+          : <form onSubmit={confirmOtp} className="flex min-h-0 flex-1 flex-col">
+            <div className="min-h-0 flex-1 space-y-6 overflow-y-auto bg-gradient-to-br from-emerald-50 via-white to-amber-50/70 px-5 py-6 [scrollbar-width:none] sm:px-7 sm:py-7 [&::-webkit-scrollbar]:hidden">
+              <div className="mx-auto flex w-full max-w-lg flex-col items-center px-4 py-5 text-center sm:px-6 sm:py-6">
+                <span className="flex h-16 w-16 items-center justify-center rounded-full bg-[#159447] text-white shadow-[0_10px_22px_rgba(21,148,71,0.3)]"><Mail size={32} strokeWidth={2.2} /></span>
+                <p className="mt-4 text-sm leading-6 text-slate-600">Mã xác nhận đã được gửi đến</p>
+                <p className="mt-1 break-all text-lg font-extrabold tracking-tight text-slate-900 sm:text-xl">{email}</p>
+                <div className="mt-6 grid w-full gap-4 text-left sm:grid-cols-2 sm:gap-0">
+                  <div className="flex items-start gap-3 sm:pr-6"><span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-sm"><MapPin size={21} /></span><div><p className="text-[11px] font-bold uppercase tracking-[0.12em] text-emerald-700">Phòng họp</p><p className="mt-1 text-lg font-extrabold text-[#08723d]">{selectedRoom.name}</p></div></div>
+                  <div className="flex items-start gap-3 sm:pl-6"><span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-amber-400 text-amber-950 shadow-sm"><CalendarDays size={21} /></span><div><p className="text-[11px] font-bold uppercase tracking-[0.12em] text-amber-700">Ngày &amp; giờ đặt phòng</p><p className="mt-1 text-lg font-extrabold leading-snug text-slate-800">{formatDate(date)} {start} – {end}</p></div></div>
+                </div>
+              </div>
+              <div className="mx-auto flex max-w-lg justify-center gap-2 sm:gap-3" aria-label="Mã OTP gồm 6 chữ số">
+                {otp.map((digit, index) => <input key={index} ref={(element) => { otpInputRefs.current[index] = element; }} value={digit} onChange={(event) => updateOtp(index, event.target.value)} onKeyDown={(event) => { if (event.key === "Backspace" && !otp[index] && index > 0) otpInputRefs.current[index - 1]?.focus(); }} onPaste={(event) => { event.preventDefault(); updateOtp(index, event.clipboardData.getData("text")); }} inputMode="numeric" autoComplete={index === 0 ? "one-time-code" : "off"} maxLength={6} aria-label={`Chữ số OTP ${index + 1}`} className="h-12 w-10 rounded-xl border border-slate-200 bg-white text-center text-lg font-bold text-slate-800 shadow-sm outline-none transition focus:-translate-y-0.5 focus:border-[#159447] focus:ring-4 focus:ring-emerald-100 sm:h-14 sm:w-12 sm:text-xl" />)}
+              </div>
+              {formError ? <p role="alert" className="mx-auto max-w-md rounded-xl border border-rose-100 bg-rose-50 px-3 py-2.5 text-center text-sm text-rose-700">{formError}</p> : null}
+              <p className="text-center text-lg text-slate-600">Không nhận được mã? <button type="button" onClick={resendOtp} className="font-extrabold text-[#159447] underline decoration-emerald-300 decoration-2 underline-offset-4 hover:text-[#0d5c0d]">Gửi lại mã</button></p>
+            </div>
+            <div className="flex shrink-0 items-center justify-between gap-4 border-t border-slate-100 bg-white px-6 py-5 sm:px-9"><button type="button" onClick={() => { setFormStep("details"); setFormError(""); }} className="rounded-xl bg-slate-50 px-6 py-3.5 text-base font-bold text-slate-600 transition-colors hover:bg-emerald-50 hover:text-[#08723d]">Quay lại</button><button type="submit" disabled={otp.join("").length !== 6} className="inline-flex items-center gap-2 rounded-xl bg-[#159447] px-7 py-3.5 text-base font-bold text-white shadow-[0_8px_18px_rgba(21,148,71,0.24)] transition-colors hover:bg-[#0d5c0d] disabled:cursor-not-allowed disabled:bg-emerald-200"><CheckCircle2 size={20} />Xác nhận mã OTP</button></div>
+          </form>}
         </section>
       </div> : null}
     </main>

@@ -154,9 +154,6 @@ export const AddMediaPage: React.FC<AddMediaPageProps> = ({
                 Nhập các thông số bài viết; bạn có thể xem trước dạng thẻ feed hoặc toàn bài ở cột bên phải.
               </p>
             </div>
-            <span className="text-[11px] font-semibold text-sky-700 bg-sky-50 px-2.5 py-1 rounded-full border border-sky-200">
-              Biểu mẫu 2 cột cân đối
-            </span>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -226,24 +223,6 @@ export const AddMediaPage: React.FC<AddMediaPageProps> = ({
                   className="w-full px-3.5 py-2.5 text-xs bg-slate-50/70 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all"
                 />
 
-                {/* Quick preset covers */}
-                <div className="mt-2 flex items-center gap-1.5">
-                  <span className="text-[11px] text-slate-400">Ảnh mẫu:</span>
-                  <div className="flex items-center gap-1.5">
-                    {PRESET_COVERS.map((url, i) => (
-                      <button
-                        key={i}
-                        type="button"
-                        onClick={() => setFormData({ ...formData, coverImage: url })}
-                        className={`w-9 h-6 rounded-md overflow-hidden border transition-all ${
-                          formData.coverImage === url ? 'ring-2 ring-sky-500 border-white scale-105' : 'border-slate-300 opacity-60 hover:opacity-100'
-                        }`}
-                      >
-                        <img src={url} alt={`Preset ${i}`} className="w-full h-full object-cover" />
-                      </button>
-                    ))}
-                  </div>
-                </div>
               </div>
 
               <div>
@@ -378,19 +357,6 @@ export const AddMediaPage: React.FC<AddMediaPageProps> = ({
                 {formData.content || formData.summary || 'Tháng 9/2026, Asia Food & Beverage hân hạnh chào đón 5 thành viên mới gia nhập đại gia đình. Đây là những tài năng trẻ được tuyển chọn kỹ lưỡng từ nhiều trường đại học hàng đầu và các doanh nghiệp lớn. Chúng tôi tin tưởng rằng với sự bổ sung này, Á Châu sẽ ngày càng phát triển và đạt được những mục tiêu đề ra.'}
               </div>
 
-              {/* Bottom Actions */}
-              <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
-                <span className="text-xs text-slate-400">
-                  Kiểm tra bài viết trước khi xuất bản
-                </span>
-                <button
-                  type="button"
-                  onClick={handleSubmit}
-                  className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold shadow-xs transition-colors"
-                >
-                  Xác Nhận Đăng
-                </button>
-              </div>
             </div>
           </div>
         </div>
