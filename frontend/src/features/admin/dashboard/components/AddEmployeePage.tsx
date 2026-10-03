@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { Employee, EmployeeStatus } from '../types';
 import { AdminSelect } from './AdminSelect';
+import RichTextEditor from "@/components/ui/RichTextEditor";
 import { DEPARTMENTS } from '@/config/departments';
 
 interface AddEmployeePageProps {
@@ -34,6 +35,13 @@ const PRESET_AVATARS = [
   'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=400&q=80'
 ];
 
+function toPlainText(html: string): string {
+  return html
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+}
 export const AddEmployeePage: React.FC<AddEmployeePageProps> = ({
   onBack,
   onSave,
@@ -333,12 +341,9 @@ export const AddEmployeePage: React.FC<AddEmployeePageProps> = ({
                 <label className="block text-xs font-bold text-slate-700 mb-1.5">
                   Mô tả / Tiểu sử công việc
                 </label>
-                <textarea
-                  rows={3}
+                <RichTextEditor
                   value={formData.bio}
-                  onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
-                  placeholder="Kinh nghiệm, thế mạnh, chuyên môn phụ trách..."
-                  className="w-full px-3.5 py-2 text-xs bg-slate-50/70 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all resize-none"
+                  onChange={(bio) => setFormData({ ...formData, bio })}
                 />
               </div>
             </div>
@@ -557,7 +562,7 @@ export const AddEmployeePage: React.FC<AddEmployeePageProps> = ({
             {/* Content Tab 2: Bio description */}
             {previewTab === 'bio' && (
               <div className="p-4 bg-slate-50/80 rounded-2xl text-sm text-slate-700 leading-relaxed min-h-[220px]">
-                {formData.bio || (
+                {formData.bio ? toPlainText(formData.bio) : (
                   <span className="text-slate-400 italic">
                     Chưa nhập mô tả tiểu sử công việc. Nhập ở biểu mẫu bên trái để hiển thị tại đây.
                   </span>

@@ -10,10 +10,12 @@ import {
 } from 'lucide-react';
 import { Employee, MediaPost, ActiveTab, UserAccount } from '../types';
 
+import type { DashboardSummary } from '../dashboard.service';
 interface DashboardOverviewProps {
   employees: Employee[];
   mediaPosts: MediaPost[];
   users: UserAccount[];
+  summary: DashboardSummary | null;
   onNavigate: (tab: ActiveTab) => void;
   onPreviewMedia: (post: MediaPost) => void;
 }
@@ -23,14 +25,23 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
   mediaPosts,
   users,
   onNavigate,
+  summary,
   onPreviewMedia,
 }) => {
-  const activeEmployees = employees.filter((e) => e.status === 'active').length;
-  const probationEmployees = employees.filter((e) => e.status === 'probation').length;
+  const localActiveEmployees = employees.filter((e) => e.status === 'active').length;
+  const localProbationEmployees = employees.filter((e) => e.status === 'probation').length;
   const publishedPosts = mediaPosts.filter((m) => m.status === 'published').length;
-  const pendingAccounts = users.filter((user) => user.status === 'pending').length;
-  const approvedAccounts = users.filter((user) => user.status === 'approved').length;
-  const lockedAccounts = users.filter((user) => user.status === 'locked').length;
+  const localPendingAccounts = users.filter((user) => user.status === 'pending').length;
+  const localActiveAccounts = users.filter((user) => user.status === 'approved').length;
+  const localLockedAccounts = users.filter((user) => user.status === 'locked').length;
+
+  const totalEmployees = summary?.totalEmployees ?? employees.length;
+  const activeEmployees = summary?.activeEmployees ?? localActiveEmployees;
+  const probationEmployees = summary?.probationEmployees ?? localProbationEmployees;
+  const pendingAccounts = summary?.pendingAccounts ?? localPendingAccounts;
+  const activeAccounts = summary?.activeAccounts ?? localActiveAccounts;
+  const approvedAccounts = activeAccounts;
+  const lockedAccounts = summary?.lockedAccounts ?? localLockedAccounts;
 
   return (
     <div className="space-y-6">
@@ -53,7 +64,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
           </div>
           <div className="mt-4 flex items-baseline gap-2">
             <span className="text-3xl font-extrabold text-slate-900 tracking-tight">
-              {employees.length}
+              {totalEmployees}
             </span>
             <span className="text-xs font-medium text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full">
               {activeEmployees} đang làm việc
@@ -74,7 +85,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
         >
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-              Bài Viết Truyền Thông & Sự Kiện
+              Tin tức & Sự kiện
             </span>
             <div className="w-10 h-10 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center group-hover:scale-105 transition-transform">
               <Newspaper className="w-5 h-5" />

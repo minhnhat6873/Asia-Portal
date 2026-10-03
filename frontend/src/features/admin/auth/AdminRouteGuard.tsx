@@ -11,7 +11,7 @@ import {
   type AuthenticatedAdmin,
 } from "@/features/admin/login/auth.service";
 
-const PUBLIC_ADMIN_PATHS = new Set(["/admin/login", "/admin/register"]);
+const PUBLIC_ADMIN_PATHS = new Set(["/admin/login", "/admin/register", "/admin/forgot-password"]);
 
 function storeSession(admin: AuthenticatedAdmin): void {
   setAdminSession({

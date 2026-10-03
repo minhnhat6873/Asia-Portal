@@ -23,6 +23,14 @@ export const adminAccountRepository = {
     return AccountModel.find({}).sort({ createdAt: -1 }).lean();
   },
 
+  countAll() {
+    return AccountModel.countDocuments({});
+  },
+
+  countByStatus(status: "pending" | "active" | "inactive") {
+    return AccountModel.countDocuments({ status });
+  },
+
   findById(id: string) {
     return AccountModel.findById(id).lean();
   },
