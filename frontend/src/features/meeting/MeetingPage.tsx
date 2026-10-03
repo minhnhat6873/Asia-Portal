@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowUpRight, CalendarDays, CheckCircle2, ChevronDown, ChevronRight, Clock3, Grid2X2, List, Mail, MapPin, Plus, Search, Sparkles, Trash2, UsersRound, X } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, CalendarDays, CheckCircle2, ChevronDown, ChevronRight, Clock3, Mail, MapPin, Plus, Printer, Search, SlidersHorizontal, Sparkles, Trash2, UserRound, UsersRound, X } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
+import DatePicker from "@/components/ui/DatePicker";
 import { getPublicEmployees } from "@/services/employee.service";
 
 type RoomId = "room-01" | "room-02";
@@ -19,6 +20,7 @@ type Booking = {
   end: string;
   attendees: number;
   organizer: string;
+  email?: string;
   department: string;
   otpVerified: true;
 };
@@ -62,12 +64,13 @@ export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: b
   const router = useRouter();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loaded, setLoaded] = useState(false);
-  const [filter, setFilter] = useState<"all" | "today" | "upcoming">("all");
-  const [roomFilter, setRoomFilter] = useState<RoomId | "all">("all");
   const [search, setSearch] = useState("");
-  const [layout, setLayout] = useState<"list" | "grid">("list");
+  const [roomFilter, setRoomFilter] = useState<RoomId | "all">("all");
+  const [departmentFilter, setDepartmentFilter] = useState("all");
   const [formOpen, setFormOpen] = useState(false);
   const [formStep, setFormStep] = useState<"details" | "otp">("details");
+  const [otpAction, setOtpAction] = useState<"create" | "cancel">("create");
+  const [bookingToCancel, setBookingToCancel] = useState<Booking | null>(null);
   const [formError, setFormError] = useState("");
   const [otp, setOtp] = useState<string[]>(Array(6).fill(""));
   const [title, setTitle] = useState("");
@@ -117,16 +120,22 @@ export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: b
   const currentTime = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
   const todayCount = bookings.filter((booking) => booking.date === currentDate).length;
   const selectedRoom = rooms.find((room) => room.id === roomId)!;
+  const otpBooking = otpAction === "cancel" ? bookingToCancel : null;
+  const otpRoom = otpBooking ? rooms.find((room) => room.id === otpBooking.roomId)! : selectedRoom;
+  const otpEmail = otpBooking?.email ?? email;
+  const otpDate = otpBooking?.date ?? date;
+  const otpStart = otpBooking?.start ?? start;
+  const otpEnd = otpBooking?.end ?? end;
   const selectedTimeAvailable = start < end && !bookings.some((booking) => booking.roomId === roomId && booking.date === date && start < booking.end && end > booking.start);
+  const bookedDepartments = Array.from(new Set(bookings.map((booking) => booking.department).filter(Boolean))).sort();
   const visibleBookings = bookings
-    .filter((booking) => filter === "all" || (filter === "today" ? booking.date === currentDate : booking.date > currentDate || (booking.date === currentDate && booking.end > currentTime)))
     .filter((booking) => roomFilter === "all" || booking.roomId === roomFilter)
+    .filter((booking) => departmentFilter === "all" || booking.department === departmentFilter)
     .filter((booking) => `${booking.title} ${booking.organizer} ${booking.department}`.toLocaleLowerCase("vi").includes(search.trim().toLocaleLowerCase("vi")))
     .sort((a, b) => `${a.date} ${a.start}`.localeCompare(`${b.date} ${b.start}`));
 
   const openSchedule = () => {
     setFormOpen(false);
-    setFilter("all");
     if (scheduleOnly) {
       window.requestAnimationFrame(() => scheduleRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
       return;
@@ -141,6 +150,8 @@ export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: b
   const closeBookingForm = () => {
     setFormOpen(false);
     setFormStep("details");
+    setOtpAction("create");
+    setBookingToCancel(null);
     setFormError("");
     setOtp(Array(6).fill(""));
   };
@@ -174,6 +185,7 @@ export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: b
 
     setFormError("");
     setOtp(Array(6).fill(""));
+    setOtpAction("create");
     setFormStep("otp");
   };
 
@@ -183,9 +195,14 @@ export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: b
       setFormError("Vui lòng nhập đầy đủ mã OTP gồm 6 chữ số.");
       return;
     }
+    if (otpAction === "cancel" && bookingToCancel) {
+      saveBookings(bookings.filter((item) => item.id !== bookingToCancel.id));
+      closeBookingForm();
+      return;
+    }
     saveBookings([...bookings, {
       id: crypto.randomUUID(), title: title.trim(), roomId, date, start, end,
-      attendees, organizer: organizer.trim(), department: department.trim(), otpVerified: true,
+      attendees, organizer: organizer.trim(), email: email.trim(), department: department.trim(), otpVerified: true,
     }]);
     closeBookingForm();
     setTitle("");
@@ -195,12 +212,19 @@ export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: b
   };
 
   const cancelBooking = (booking: Booking) => {
-    if (window.confirm(`Hủy lịch "${booking.title}"?`)) saveBookings(bookings.filter((item) => item.id !== booking.id));
+    setBookingToCancel(booking);
+    setOtpAction("cancel");
+    setOtp(Array(6).fill(""));
+    setFormError("");
+    setFormStep("otp");
+    setFormOpen(true);
   };
 
   const openRoomBooking = (nextRoomId: RoomId) => {
     setRoomId(nextRoomId);
     setFormStep("details");
+    setOtpAction("create");
+    setBookingToCancel(null);
     setFormError("");
     setOtp(Array(6).fill(""));
     setFormOpen(true);
@@ -251,56 +275,39 @@ export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: b
 
         <div className={scheduleOnly ? "" : "hidden"}>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard label="Tổng lịch đã đặt" value={bookings.length} unit="cuộc họp" />
-          <StatCard label="Lịch họp hôm nay" value={todayCount} unit="cuộc họp" green />
-          {rooms.map((room) => <StatCard key={room.id} label={`${room.name} · ${room.capacity} chỗ`} value={bookings.filter((booking) => booking.roomId === room.id).length} unit="lượt đặt" />)}
+          <Link href="/meeting" className="group relative flex min-h-[116px] flex-col items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-[#08723d] to-[#159447] px-4 py-3 text-center text-white shadow-[0_8px_18px_rgba(8,114,61,0.2)] transition-transform hover:-translate-y-0.5"><span aria-hidden="true" className="absolute -right-5 -top-7 h-20 w-20 rounded-full bg-lime-300/20" /><span className="relative text-[10px] font-bold uppercase tracking-[0.12em] text-emerald-100">Đặt phòng mới</span><span className="relative mt-1 inline-flex items-center gap-2 text-sm font-extrabold"><span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/15 transition-transform group-hover:-translate-x-0.5"><ArrowLeft size={16} /></span>Quay về đặt phòng</span><span className="relative mt-1 text-[11px] text-emerald-100">Chọn phòng và khung giờ phù hợp</span></Link>
+          <StatCard label="Tổng lịch đã đặt" value={bookings.length} unit="cuộc họp" description="Tất cả lịch đã xác nhận" />
+          <StatCard label="Lịch họp hôm nay" value={todayCount} unit="cuộc họp" description="Lịch diễn ra trong ngày" green />
+          <button type="button" onClick={() => window.print()} className="group relative flex min-h-[116px] flex-col items-center justify-center overflow-hidden rounded-xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white px-4 py-3 text-center shadow-sm transition-all hover:-translate-y-0.5 hover:border-[#159447] hover:shadow-[0_8px_18px_rgba(8,114,61,0.12)]"><span aria-hidden="true" className="absolute -right-5 -bottom-8 h-20 w-20 rounded-full bg-[#f5c800]/20" /><span className="relative text-[10px] font-bold uppercase tracking-[0.12em] text-emerald-700">Lịch họp hôm nay</span><span className="relative mt-1 inline-flex items-center gap-2 text-sm font-extrabold text-[#08723d]"><span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#159447] text-white shadow-sm transition-transform group-hover:scale-105"><Printer size={15} /></span>In lịch đặt phòng</span><span className="relative mt-1 text-[11px] text-slate-500">In hoặc lưu danh sách cuộc họp</span></button>
         </div>
 
         <div ref={scheduleRef} className="scroll-mt-24">
-          <div className="mt-5 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex w-fit rounded-xl bg-slate-100 p-1 text-xs font-semibold">
-              {([ ["all", `Tất cả (${bookings.length})`], ["today", `Hôm nay (${todayCount})`], ["upcoming", "Sắp tới"] ] as const).map(([value, label]) => (
-                <button key={value} type="button" onClick={() => setFilter(value)} className={`rounded-lg px-3 py-2 transition-colors ${filter === value ? "bg-white text-[#0d5c0d] shadow-sm" : "text-slate-500 hover:text-slate-800"}`}>{label}</button>
-              ))}
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <select aria-label="Lọc theo phòng" value={roomFilter} onChange={(event) => setRoomFilter(event.target.value as RoomId | "all")} className="h-9 min-w-36 flex-1 rounded-lg border border-slate-200 bg-white px-3 text-xs text-slate-700 sm:flex-none">
-                <option value="all">Tất cả 2 phòng</option>
-                {rooms.map((room) => <option key={room.id} value={room.id}>{room.name}</option>)}
-              </select>
-              <label className="flex h-9 min-w-40 flex-1 items-center gap-2 rounded-lg border border-slate-200 px-3 text-slate-400 sm:flex-none">
-                <Search size={14} /><input aria-label="Tìm cuộc họp" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Tìm cuộc họp, người đặt..." className="w-full bg-transparent text-xs text-slate-700 outline-none" />
-              </label>
-              <div className="flex h-9 rounded-lg border border-slate-200 bg-slate-50 p-0.5">
-                <button type="button" aria-label="Xem dạng danh sách" aria-pressed={layout === "list"} onClick={() => setLayout("list")} className={`rounded-md px-2 ${layout === "list" ? "bg-white text-[#1a7a1a] shadow-sm" : "text-slate-400"}`}><List size={15} /></button>
-                <button type="button" aria-label="Xem dạng lưới" aria-pressed={layout === "grid"} onClick={() => setLayout("grid")} className={`rounded-md px-2 ${layout === "grid" ? "bg-white text-[#1a7a1a] shadow-sm" : "text-slate-400"}`}><Grid2X2 size={15} /></button>
-              </div>
-              <button type="button" onClick={() => { setFormStep("details"); setFormError(""); setOtp(Array(6).fill("")); setFormOpen(true); }} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-[#159447] px-3 text-xs font-bold text-white transition-colors hover:bg-[#0d5c0d]"><Plus size={15} /> Đặt Phòng Mới</button>
-            </div>
+          <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+            <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-[11px] font-bold uppercase tracking-[0.14em] text-emerald-600">Quản lý lịch họp</p><h1 className="mt-1 text-xl font-extrabold text-[#0d5c0d] sm:text-2xl">Lịch đặt phòng</h1><p className="mt-1.5 text-base text-slate-500">Tìm kiếm nhanh hoặc lọc lịch theo phòng họp và phòng ban.</p></div><span className="rounded-full bg-emerald-50 px-3 py-1.5 text-sm font-bold text-[#08723d]">{visibleBookings.length} lịch hiển thị</span></div><div className="mt-5 grid gap-3 lg:grid-cols-[minmax(0,1.5fr)_minmax(190px,0.7fr)_minmax(190px,0.7fr)]"><label className="flex h-12 items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 text-slate-400 transition focus-within:border-[#159447] focus-within:bg-white focus-within:ring-2 focus-within:ring-emerald-100"><Search size={19} /><input aria-label="Tìm lịch đặt phòng" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Tìm cuộc họp, người đặt hoặc phòng ban..." className="min-w-0 flex-1 bg-transparent text-base text-slate-700 outline-none placeholder:text-slate-400" /></label><label className="inline-flex h-12 items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 text-slate-500 transition hover:border-emerald-300"><SlidersHorizontal size={18} className="shrink-0 text-[#159447]" /><select aria-label="Lọc theo phòng họp" value={roomFilter} onChange={(event) => setRoomFilter(event.target.value as RoomId | "all")} className="min-w-0 flex-1 bg-transparent text-base font-medium text-slate-700 outline-none"><option value="all">Tất cả phòng họp</option>{rooms.map((room) => <option key={room.id} value={room.id}>{room.name}</option>)}</select></label><label className="inline-flex h-12 items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 text-slate-500 transition hover:border-emerald-300"><UsersRound size={18} className="shrink-0 text-[#159447]" /><select aria-label="Lọc theo phòng ban" value={departmentFilter} onChange={(event) => setDepartmentFilter(event.target.value)} className="min-w-0 flex-1 bg-transparent text-base font-medium text-slate-700 outline-none"><option value="all">Tất cả phòng ban</option>{bookedDepartments.map((item) => <option key={item} value={item}>{item}</option>)}</select></label></div>
           </div>
 
           {!loaded ? <div className="mt-4 rounded-2xl bg-white p-10 text-center text-sm text-slate-500">Đang tải lịch họp...</div>
-            : visibleBookings.length === 0 ? <div className="mt-4 rounded-2xl border border-dashed border-green-200 bg-white px-5 py-14 text-center text-sm text-slate-500">{bookings.length ? "Không có lịch họp phù hợp với bộ lọc." : "Chưa có lịch họp nào. Bấm “Đặt Phòng Mới” để tạo lịch."}</div>
-              : <div className={`mt-4 gap-3 ${layout === "grid" ? "grid sm:grid-cols-2" : "flex flex-col"}`}>
+            : visibleBookings.length === 0 ? <div className="mt-4 rounded-2xl border border-dashed border-green-200 bg-white px-5 py-14 text-center text-sm text-slate-500">{bookings.length ? "Không có lịch họp phù hợp với bộ lọc hiện tại." : "Chưa có lịch họp nào. Hãy quay về trang đặt phòng để tạo lịch mới."}</div>
+              : <div className="mt-4 flex flex-col gap-4">
                 {visibleBookings.map((booking) => {
                   const room = rooms.find((item) => item.id === booking.roomId)!;
                   const past = booking.date < currentDate || (booking.date === currentDate && booking.end <= currentTime);
-                  return <article key={booking.id} className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md sm:p-5">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold">
-                        <span className="rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-[#08723d]">{booking.start} – {booking.end}</span>
-                        <span className="inline-flex items-center gap-1 text-slate-500"><CalendarDays size={12} />{formatDate(booking.date)}</span>
-                        <span className="rounded bg-slate-100 px-2 py-1 uppercase tracking-wide text-slate-500">{booking.department}</span>
-                        <span className={`rounded px-2 py-1 ${past ? "bg-slate-100 text-slate-500" : "bg-sky-50 text-sky-600"}`}>{past ? "Đã qua" : "Sắp tới"}</span>
-                      </div>
-                      <h2 className="mt-2 text-sm font-bold text-slate-900">{booking.title}</h2>
-                      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
-                        <span className="inline-flex items-center gap-1 text-[#08723d]"><MapPin size={13} />{room.name} · {room.floor}</span>
-                        <span className="inline-flex items-center gap-1"><UsersRound size={13} />{booking.attendees} người</span>
-                        <span>Người đặt: <strong className="text-slate-700">{booking.organizer}</strong></span>
-                      </div>
+                  return <article key={booking.id} className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md sm:p-6">
+                    <span aria-hidden="true" className="absolute -right-12 -top-14 h-44 w-44 rounded-full bg-emerald-50/70" />
+                    <span aria-hidden="true" className="absolute -bottom-24 -right-8 h-40 w-40 rounded-full bg-rose-50/60" />
+                    <div className="relative flex flex-col gap-6 xl:flex-row xl:items-center">
+                      <section className="min-w-0 xl:w-[37%] xl:border-r xl:border-slate-200 xl:pr-8">
+                        <div className="flex flex-wrap gap-2 text-sm font-bold"><span className="inline-flex items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2 text-[#08723d]"><Clock3 size={17} />{booking.start} – {booking.end}</span><span className="inline-flex items-center gap-2 rounded-xl bg-slate-100 px-3 py-2 text-slate-600"><CalendarDays size={17} />{formatDate(booking.date)}</span><span className="rounded-xl bg-slate-100 px-3 py-2 uppercase text-slate-600">{booking.department}</span><span className={`inline-flex items-center gap-2 rounded-xl px-3 py-2 ${past ? "bg-slate-100 text-slate-500" : "bg-sky-50 text-sky-600"}`}><span className={`h-2 w-2 rounded-full ${past ? "bg-slate-400" : "bg-sky-500"}`} />{past ? "Đã qua" : "Sắp tới"}</span></div>
+                        <h2 className="mt-5 truncate text-2xl font-extrabold tracking-tight text-slate-950" title={booking.title}>{booking.title}</h2>
+                      </section>
+                      <section className="grid min-w-0 flex-1 gap-5 sm:grid-cols-2 xl:grid-cols-4 xl:gap-0">
+                        <div className="min-w-0 xl:px-7"><span className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 text-[#08723d]"><MapPin size={23} /></span><p className="mt-3 text-xs font-extrabold uppercase tracking-wide text-slate-500">Phòng họp</p><p className="mt-1 truncate text-base font-extrabold text-[#08723d]" title={`${room.name} · ${room.floor}`}>{room.name} · {room.floor}</p></div>
+                        <div className="min-w-0 xl:border-l xl:border-slate-200 xl:px-7"><span className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-600"><UsersRound size={23} /></span><p className="mt-3 text-xs font-extrabold uppercase tracking-wide text-slate-500">Thành phần tham dự</p><p className="mt-1 text-base font-extrabold text-slate-950">{booking.attendees} người</p></div>
+                        <div className="min-w-0 xl:border-l xl:border-slate-200 xl:px-7"><span className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-600"><UserRound size={23} /></span><p className="mt-3 text-xs font-extrabold uppercase tracking-wide text-slate-500">Người đặt</p><p className="mt-1 truncate text-base font-extrabold text-slate-950" title={booking.organizer}>{booking.organizer}</p></div>
+                        <div className="min-w-0 xl:border-l xl:border-slate-200 xl:px-7"><span className="flex h-12 w-12 items-center justify-center rounded-full bg-sky-50 text-sky-600"><Mail size={23} /></span><p className="mt-3 text-xs font-extrabold uppercase tracking-wide text-slate-500">Email đã đặt</p><p className="mt-1 truncate text-base font-extrabold text-slate-950" title={booking.email || "Email chưa được lưu"}>{booking.email || "Email chưa được lưu"}</p></div>
+                      </section>
+                      <div className="xl:border-l xl:border-slate-200 xl:pl-8"><button type="button" onClick={() => cancelBooking(booking)} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-rose-300 bg-rose-50 px-5 py-3 text-base font-extrabold text-rose-600 transition-colors hover:bg-rose-100 hover:text-rose-700"><Trash2 size={20} />Hủy lịch</button></div>
                     </div>
-                    <button type="button" onClick={() => cancelBooking(booking)} className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-600"><Trash2 size={14} /> Hủy lịch</button>
                   </article>;
                 })}
               </div>}
@@ -312,11 +319,11 @@ export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: b
       {formOpen ? <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/55 p-3 backdrop-blur-[2px] sm:p-5" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) closeBookingForm(); }}>
         <section role="dialog" aria-modal="true" aria-labelledby="meeting-form-title" className="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl bg-white shadow-[0_24px_70px_rgba(15,23,42,0.3)]">
           <div className="flex shrink-0 items-start justify-between gap-4 border-b border-emerald-100 bg-gradient-to-r from-emerald-50 to-white px-5 py-5 sm:px-7">
-            <div><div className="flex flex-wrap items-center gap-2.5"><h2 id="meeting-form-title" className="text-xl font-extrabold text-[#0d5c0d] sm:text-2xl">{formStep === "details" ? "Đặt phòng họp mới" : "Xác nhận mã OTP"}</h2>{formStep === "details" ? <span className="rounded-full bg-[#f5c800] px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wide text-[#0d5c0d]">{selectedRoom.name}</span> : null}</div><p className="mt-1.5 text-sm text-slate-500">{formStep === "details" ? "Điền thông tin và chọn khung giờ còn trống." : "Nhập mã gồm 6 chữ số đã được gửi đến email của bạn."}</p></div>
+            <div><div className="flex flex-wrap items-center gap-2.5"><h2 id="meeting-form-title" className="text-xl font-extrabold text-[#0d5c0d] sm:text-2xl">{formStep === "details" ? "Đặt phòng họp mới" : otpAction === "cancel" ? "Xác nhận hủy phòng" : "Xác nhận mã OTP"}</h2>{formStep === "details" ? <span className="rounded-full bg-[#f5c800] px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wide text-[#0d5c0d]">{selectedRoom.name}</span> : null}</div><p className="mt-1.5 text-sm text-slate-500">{formStep === "details" ? "Điền thông tin và chọn khung giờ còn trống." : otpAction === "cancel" ? "Nhập mã OTP được gửi đến email đã dùng để đặt phòng." : "Nhập mã gồm 6 chữ số đã được gửi đến email của bạn."}</p></div>
             <button type="button" onClick={closeBookingForm} aria-label="Đóng" className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-500 transition-colors hover:bg-white hover:text-slate-800"><X size={21} /></button>
           </div>
           {formStep === "details" ? <form onSubmit={createBooking} className="flex min-h-0 flex-1 flex-col">
-          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-5 sm:px-7 sm:py-6">
+          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-5 [scrollbar-width:none] sm:px-7 sm:py-6 [&::-webkit-scrollbar]:hidden">
             <Field label="Tiêu đề cuộc họp *"><input required value={title} onChange={(event) => setTitle(event.target.value)} placeholder="VD: Họp giao ban tuần, Báo cáo tiến độ dự án..." className="form-input" /></Field>
             <div className="grid gap-3 sm:grid-cols-2">
               <Field label="Người chủ trì / Người đặt *"><input required value={organizer} onChange={(event) => { const nextValue = event.target.value; if (!nextValue || NAME_PATTERN.test(nextValue)) setOrganizer(nextValue); }} placeholder="Họ và tên" className="form-input" /></Field>
@@ -327,15 +334,15 @@ export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: b
               <Field label="Số người tham dự"><div className="flex items-center gap-2"><input required type="number" min={1} max={selectedRoom.capacity} value={attendees} onChange={(event) => setAttendees(Math.min(selectedRoom.capacity, Math.max(1, Number(event.target.value) || 1)))} className="form-input min-w-0 flex-1 appearance-textfield [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" /><span className="shrink-0 text-[11px] font-normal text-slate-400">/ max {selectedRoom.capacity} người</span></div></Field>
             </div>
 
-            <section className="rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50/80 to-slate-50 p-4 sm:p-5">
-              <div className="flex flex-wrap items-center justify-between gap-2"><p className="inline-flex items-center gap-2 text-xs font-extrabold uppercase tracking-wide text-slate-700"><span className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-[#159447] shadow-sm"><Clock3 size={15} /></span> Khung giờ họp</p><span className="rounded-lg border border-emerald-200 bg-white px-2.5 py-1.5 text-[11px] font-bold text-[#08723d] shadow-sm">{start} → {end} ({Math.max((Number(end.slice(0, 2)) * 60 + Number(end.slice(3))) - (Number(start.slice(0, 2)) * 60 + Number(start.slice(3))), 0) / 60} giờ)</span></div>
-              <div className="mt-4 grid gap-3 sm:grid-cols-[1.1fr_1fr_1fr]">
-                <Field label="Ngày họp"><input required type="date" min={todayLocal()} value={date} onChange={(event) => setDate(event.target.value)} className="form-input" /></Field>
+            <section className="rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50/80 to-slate-50 p-3.5 sm:p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2"><p className="inline-flex items-center gap-2 text-xs font-extrabold uppercase tracking-wide text-slate-700"><span className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-[#159447] shadow-sm"><Clock3 size={14} /></span> Khung giờ họp</p><span className="rounded-lg border border-emerald-200 bg-white px-2.5 py-1 text-[11px] font-bold text-[#08723d] shadow-sm">{start} → {end} ({Math.max((Number(end.slice(0, 2)) * 60 + Number(end.slice(3))) - (Number(start.slice(0, 2)) * 60 + Number(start.slice(3))), 0) / 60} giờ)</span></div>
+              <div className="mt-3 grid gap-2.5 sm:grid-cols-[1.1fr_1fr_1fr]">
+                <Field label="Ngày họp"><DatePicker value={date} minValue={todayLocal()} onChange={setDate} /></Field>
                 <Field label="Giờ bắt đầu"><select value={start} onChange={(event) => setStart(event.target.value)} className="form-input">{MEETING_TIME_OPTIONS.slice(0, -1).map((value) => <option key={value} value={value}>{value}</option>)}</select></Field>
                 <Field label="Giờ kết thúc"><select value={end} onChange={(event) => setEnd(event.target.value)} className="form-input">{MEETING_TIME_OPTIONS.slice(1).map((value) => <option key={value} value={value}>{value}</option>)}</select></Field>
               </div>
-              <div className="mt-4 flex flex-wrap gap-2">{[[30, "30 phút"], [60, "1 giờ"], [90, "1.5 giờ"], [120, "2 giờ"], [180, "3 giờ"]].map(([minutes, label]) => <button key={minutes} type="button" onClick={() => setEnd(addMinutes(start, minutes as number))} className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${end === addMinutes(start, minutes as number) ? "border-[#159447] bg-[#159447] text-white" : "border-slate-200 bg-white text-slate-600 hover:border-green-300"}`}>{label}</button>)}</div>
-              <p className={`mt-4 rounded-xl border px-3 py-2.5 text-xs ${selectedTimeAvailable ? "border-emerald-200 bg-emerald-50 text-[#08723d]" : "border-rose-200 bg-rose-50 text-rose-700"}`}>{selectedTimeAvailable ? <>Khung giờ <strong>{start} - {end}</strong> ({formatDate(date)}) đang trống và sẵn sàng đặt.</> : "Khung giờ này đã trùng lịch hoặc chưa hợp lệ. Vui lòng chọn lại."}</p>
+              <div className="mt-3 flex flex-wrap gap-1.5">{[[30, "30 phút"], [60, "1 giờ"], [90, "1.5 giờ"], [120, "2 giờ"], [180, "3 giờ"]].map(([minutes, label]) => <button key={minutes} type="button" onClick={() => setEnd(addMinutes(start, minutes as number))} className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${end === addMinutes(start, minutes as number) ? "border-[#159447] bg-[#159447] text-white" : "border-slate-200 bg-white text-slate-600 hover:border-green-300"}`}>{label}</button>)}</div>
+              <p className={`mt-3 rounded-xl border px-3 py-2 text-xs ${selectedTimeAvailable ? "border-emerald-200 bg-emerald-50 text-[#08723d]" : "border-rose-200 bg-rose-50 text-rose-700"}`}>{selectedTimeAvailable ? <>Khung giờ <strong>{start} - {end}</strong> ({formatDate(date)}) đang trống và sẵn sàng đặt.</> : "Khung giờ này đã trùng lịch hoặc chưa hợp lệ. Vui lòng chọn lại."}</p>
             </section>
 
             {formError ? <p role="alert" className="rounded-xl border border-rose-100 bg-rose-50 px-3 py-2.5 text-sm text-rose-700">{formError}</p> : null}
@@ -343,23 +350,23 @@ export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: b
             <div className="flex shrink-0 justify-end border-t border-slate-100 bg-white px-5 py-4 sm:px-7"><button type="submit" className="rounded-xl bg-[#159447] px-5 py-2.5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-[#0d5c0d]">Xác nhận đặt phòng</button></div>
           </form>
           : <form onSubmit={confirmOtp} className="flex min-h-0 flex-1 flex-col">
-            <div className="min-h-0 flex-1 space-y-6 overflow-y-auto bg-gradient-to-br from-emerald-50 via-white to-amber-50/70 px-5 py-6 [scrollbar-width:none] sm:px-7 sm:py-7 [&::-webkit-scrollbar]:hidden">
-              <div className="mx-auto flex w-full max-w-lg flex-col items-center px-4 py-5 text-center sm:px-6 sm:py-6">
-                <span className="flex h-16 w-16 items-center justify-center rounded-full bg-[#159447] text-white shadow-[0_10px_22px_rgba(21,148,71,0.3)]"><Mail size={32} strokeWidth={2.2} /></span>
-                <p className="mt-4 text-sm leading-6 text-slate-600">Mã xác nhận đã được gửi đến</p>
-                <p className="mt-1 break-all text-lg font-extrabold tracking-tight text-slate-900 sm:text-xl">{email}</p>
-                <div className="mt-6 grid w-full gap-4 text-left sm:grid-cols-2 sm:gap-0">
-                  <div className="flex items-start gap-3 sm:pr-6"><span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-sm"><MapPin size={21} /></span><div><p className="text-[11px] font-bold uppercase tracking-[0.12em] text-emerald-700">Phòng họp</p><p className="mt-1 text-lg font-extrabold text-[#08723d]">{selectedRoom.name}</p></div></div>
-                  <div className="flex items-start gap-3 sm:pl-6"><span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-amber-400 text-amber-950 shadow-sm"><CalendarDays size={21} /></span><div><p className="text-[11px] font-bold uppercase tracking-[0.12em] text-amber-700">Ngày &amp; giờ đặt phòng</p><p className="mt-1 text-lg font-extrabold leading-snug text-slate-800">{formatDate(date)} {start} – {end}</p></div></div>
+            <div className="min-h-0 flex-1 space-y-5 overflow-y-auto bg-gradient-to-br from-emerald-50 via-white to-amber-50/70 px-5 py-5 [scrollbar-width:none] sm:px-7 sm:py-6 [&::-webkit-scrollbar]:hidden">
+              <div className="mx-auto flex w-full max-w-md flex-col items-center px-4 py-4 text-center sm:px-5 sm:py-5">
+                <span className="flex h-14 w-14 items-center justify-center rounded-full bg-[#159447] text-white shadow-[0_10px_22px_rgba(21,148,71,0.3)]"><Mail size={29} strokeWidth={2.2} /></span>
+                <p className="mt-3 text-sm leading-6 text-slate-600">{otpAction === "cancel" ? "Mã xác nhận hủy phòng đã được gửi đến" : "Mã xác nhận đã được gửi đến"}</p>
+                <p className="mt-1 break-all text-lg font-extrabold tracking-tight text-slate-900 sm:text-xl">{otpEmail || "Email chưa được lưu"}</p>
+                <div className="mt-5 grid w-full gap-4 text-left sm:grid-cols-2 sm:gap-5">
+                  <div className="flex items-start gap-2.5"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-sm"><MapPin size={19} /></span><div><p className="text-[10px] font-bold uppercase tracking-[0.12em] text-emerald-700">Phòng họp</p><p className="mt-0.5 text-base font-extrabold text-[#08723d]">{otpRoom.name}</p></div></div>
+                  <div className="flex items-start gap-2.5"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-400 text-amber-950 shadow-sm"><CalendarDays size={19} /></span><div><p className="text-[10px] font-bold uppercase tracking-[0.12em] text-amber-700">Ngày &amp; giờ đặt phòng</p><p className="mt-0.5 text-base font-extrabold leading-snug text-slate-800">{formatDate(otpDate)} {otpStart} – {otpEnd}</p></div></div>
                 </div>
               </div>
-              <div className="mx-auto flex max-w-lg justify-center gap-2 sm:gap-3" aria-label="Mã OTP gồm 6 chữ số">
+              <div className="mx-auto flex max-w-md justify-center gap-2 sm:gap-2.5" aria-label="Mã OTP gồm 6 chữ số">
                 {otp.map((digit, index) => <input key={index} ref={(element) => { otpInputRefs.current[index] = element; }} value={digit} onChange={(event) => updateOtp(index, event.target.value)} onKeyDown={(event) => { if (event.key === "Backspace" && !otp[index] && index > 0) otpInputRefs.current[index - 1]?.focus(); }} onPaste={(event) => { event.preventDefault(); updateOtp(index, event.clipboardData.getData("text")); }} inputMode="numeric" autoComplete={index === 0 ? "one-time-code" : "off"} maxLength={6} aria-label={`Chữ số OTP ${index + 1}`} className="h-12 w-10 rounded-xl border border-slate-200 bg-white text-center text-lg font-bold text-slate-800 shadow-sm outline-none transition focus:-translate-y-0.5 focus:border-[#159447] focus:ring-4 focus:ring-emerald-100 sm:h-14 sm:w-12 sm:text-xl" />)}
               </div>
               {formError ? <p role="alert" className="mx-auto max-w-md rounded-xl border border-rose-100 bg-rose-50 px-3 py-2.5 text-center text-sm text-rose-700">{formError}</p> : null}
-              <p className="text-center text-lg text-slate-600">Không nhận được mã? <button type="button" onClick={resendOtp} className="font-extrabold text-[#159447] underline decoration-emerald-300 decoration-2 underline-offset-4 hover:text-[#0d5c0d]">Gửi lại mã</button></p>
+              <p className="text-center text-base text-slate-600">Không nhận được mã? <button type="button" onClick={resendOtp} className="font-extrabold text-[#159447] underline decoration-emerald-300 decoration-2 underline-offset-4 hover:text-[#0d5c0d]">Gửi lại mã</button></p>
             </div>
-            <div className="flex shrink-0 items-center justify-between gap-4 border-t border-slate-100 bg-white px-6 py-5 sm:px-9"><button type="button" onClick={() => { setFormStep("details"); setFormError(""); }} className="rounded-xl bg-slate-50 px-6 py-3.5 text-base font-bold text-slate-600 transition-colors hover:bg-emerald-50 hover:text-[#08723d]">Quay lại</button><button type="submit" disabled={otp.join("").length !== 6} className="inline-flex items-center gap-2 rounded-xl bg-[#159447] px-7 py-3.5 text-base font-bold text-white shadow-[0_8px_18px_rgba(21,148,71,0.24)] transition-colors hover:bg-[#0d5c0d] disabled:cursor-not-allowed disabled:bg-emerald-200"><CheckCircle2 size={20} />Xác nhận mã OTP</button></div>
+            <div className="flex shrink-0 items-center justify-between gap-4 border-t border-slate-100 bg-white px-5 py-4 sm:px-7"><button type="button" onClick={() => { if (otpAction === "cancel") closeBookingForm(); else { setFormStep("details"); setFormError(""); } }} className="rounded-xl bg-slate-50 px-5 py-3 text-sm font-bold text-slate-600 transition-colors hover:bg-emerald-50 hover:text-[#08723d]">Quay lại</button><button type="submit" disabled={otp.join("").length !== 6} className="inline-flex items-center gap-2 rounded-xl bg-[#159447] px-6 py-3 text-sm font-bold text-white shadow-[0_8px_18px_rgba(21,148,71,0.24)] transition-colors hover:bg-[#0d5c0d] disabled:cursor-not-allowed disabled:bg-emerald-200"><CheckCircle2 size={18} />{otpAction === "cancel" ? "Xác nhận hủy phòng" : "Xác nhận mã OTP"}</button></div>
           </form>}
         </section>
       </div> : null}
@@ -367,8 +374,10 @@ export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: b
   );
 }
 
-function StatCard({ label, value, unit, green = false }: { label: string; value: number; unit: string; green?: boolean }) {
-  return <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm"><p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{label}</p><p className={`mt-2 text-xl font-extrabold ${green ? "text-[#159447]" : "text-slate-900"}`}>{value} <span className="text-xs font-medium text-slate-500">{unit}</span></p></div>;
+function StatCard({ label, value, unit, description, green = false }: { label: string; value: number; unit: string; description: string; green?: boolean }) {
+  const tone = green ? "border-emerald-200 bg-gradient-to-br from-emerald-50 to-white" : "border-sky-100 bg-gradient-to-br from-sky-50/80 to-white";
+  const iconTone = green ? "bg-[#159447] text-white" : "bg-sky-100 text-sky-700";
+  return <div className={`relative flex min-h-[116px] flex-col items-center justify-center overflow-hidden rounded-xl border px-4 py-3 text-center shadow-sm ${tone}`}><span aria-hidden="true" className={`absolute -right-5 -top-8 h-20 w-20 rounded-full ${green ? "bg-emerald-200/50" : "bg-sky-100/70"}`} /><span className={`relative flex h-7 w-7 items-center justify-center rounded-full ${iconTone}`}><CalendarDays size={15} /></span><p className="relative mt-1.5 text-[10px] font-bold uppercase tracking-wide text-slate-500">{label}</p><p className={`relative mt-1 text-2xl font-extrabold ${green ? "text-[#159447]" : "text-slate-900"}`}>{value} <span className="text-xs font-semibold text-slate-500">{unit}</span></p><p className="relative mt-0.5 text-[11px] text-slate-500">{description}</p></div>;
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
