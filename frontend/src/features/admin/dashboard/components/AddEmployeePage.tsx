@@ -570,18 +570,6 @@ export const AddEmployeePage: React.FC<AddEmployeePageProps> = ({
               </div>
             )}
 
-            <div className="pt-5 mt-5 border-t border-slate-100 flex items-center justify-between">
-              <span className="text-xs text-slate-400">
-                Kiểm tra thông tin trước khi nhấn lưu
-              </span>
-              <button
-                type="button"
-                onClick={handleSubmit}
-                className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-xs transition-colors"
-              >
-                Xác Nhận Lưu
-              </button>
-            </div>
           </div>
         </div>
       </div>
