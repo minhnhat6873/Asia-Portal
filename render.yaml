@@ -4,7 +4,7 @@ services:
     runtime: node
     plan: free
     rootDir: backend
-    buildCommand: yarn install --frozen-lockfile && yarn build
+    buildCommand: yarn install --frozen-lockfile --production=false && yarn build
     startCommand: yarn start
     healthCheckPath: /health
     envVars:
@@ -20,7 +20,7 @@ services:
     runtime: node
     plan: free
     rootDir: frontend
-    buildCommand: yarn install --frozen-lockfile && yarn build
+    buildCommand: yarn install --frozen-lockfile --production=false && yarn build
     startCommand: yarn start
     healthCheckPath: /
     envVars:
