@@ -10,6 +10,7 @@ import DiagramBreadcrumb from "./components/DiagramBreadcrumb";
 import { getPublicEmployees } from "@/services/employee.service";
 import type { Employee, EmployeePagination } from "@/types/employee";
 import { getEmployeeAvatar } from "@/features/employees/utils/employeeUtils";
+import { sortEmployeesByRank } from "@/config/employeeRanks";
 
 const PAGE_LIMIT = 12;
 
@@ -92,18 +93,35 @@ export default function DepartmentDiagramPage({ department, employeeDepartments 
           return;
         }
 
-        if (filterDepartments.length === 1) {
-          const result = await getPublicEmployees({ department: filterDepartments[0], page, limit: PAGE_LIMIT, sort: "latest" }, controller.signal);
-          setEmployees(result.items);
-          setPagination(result.pagination);
-          setError("");
-          return;
-        }
-
-        const firstPages = await Promise.all(filterDepartments.map((employeeDepartment) => getPublicEmployees({ department: employeeDepartment, page: 1, limit: 100, sort: "latest" }, controller.signal)));
-        const remainingPages = await Promise.all(firstPages.flatMap((result, index) => Array.from({ length: Math.max(result.pagination.totalPages - 1, 0) }, (_, offset) => getPublicEmployees({ department: filterDepartments[index], page: offset + 2, limit: 100, sort: "latest" }, controller.signal))));
-        const allEmployees = [...firstPages, ...remainingPages].flatMap((result) => result.items);
-        const total = firstPages.reduce((sum, result) => sum + result.pagination.total, 0);
+        const firstPages = await Promise.all(
+          filterDepartments.map((employeeDepartment) =>
+            getPublicEmployees(
+              { department: employeeDepartment, page: 1, limit: 100, sort: "latest" },
+              controller.signal,
+            ),
+          ),
+        );
+        const remainingPages = await Promise.all(
+          firstPages.flatMap((result, index) =>
+            Array.from(
+              { length: Math.max(result.pagination.totalPages - 1, 0) },
+              (_, offset) =>
+                getPublicEmployees(
+                  {
+                    department: filterDepartments[index],
+                    page: offset + 2,
+                    limit: 100,
+                    sort: "latest",
+                  },
+                  controller.signal,
+                ),
+            ),
+          ),
+        );
+        const allEmployees = sortEmployeesByRank(
+          [...firstPages, ...remainingPages].flatMap((result) => result.items),
+        );
+        const total = allEmployees.length;
         const totalPages = Math.ceil(total / PAGE_LIMIT);
         const start = (page - 1) * PAGE_LIMIT;
 

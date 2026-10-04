@@ -7,19 +7,15 @@ import {
   ShieldCheck,
   ShieldAlert,
   ChevronRight,
-  Eye,
   Sliders,
   MoreVertical,
   CheckCircle2,
-  Lock,
   Building2,
   RefreshCw,
   Sparkles,
   Trash2,
   AlertTriangle,
 } from 'lucide-react';
-import { AssignRoleModal } from './AssignRoleModal';
-import { UserDetailModal } from './UserDetailModal';
 import { CreateUserModal } from './CreateUserModal';
 import { PendingAccountsModal } from './PendingAccountsModal';
 import { AdminSelect } from '@/features/admin/dashboard/components/AdminSelect';
@@ -29,11 +25,10 @@ interface UserManagementViewProps {
   roles: Role[];
   permissions: SystemPermission[];
   modules: ModuleCategory[];
-  onUpdateUserRole: (userId: string, newRoleId: string) => void;
+  onSaveUserAccess: (userId: string, access: { roleId: string; status: 'active' | 'suspended' }) => void;
   onApproveUser: (userId: string, roleId?: string) => void;
   onRejectUser: (userId: string) => void;
   onDeleteUser: (userId: string) => void;
-  onToggleUserStatus: (userId: string) => void;
   onAddUser: (user: Omit<User, 'id' | 'lastActive'>) => void;
   onNavigateToCreateRole: () => void;
   onViewRoleDetail: (roleId: string) => void;
@@ -44,11 +39,10 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
   roles,
   permissions,
   modules,
-  onUpdateUserRole,
+  onSaveUserAccess,
   onApproveUser,
   onRejectUser,
   onDeleteUser,
-  onToggleUserStatus,
   onAddUser,
   onNavigateToCreateRole,
   onViewRoleDetail,
@@ -58,13 +52,10 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>('all');
 
   const pendingUsers = users.filter((u) => u.status === 'pending');
-  const rejectedUsers = users.filter((u) => u.status === 'rejected');
-  const [isRejectedAccountsOpen, setIsRejectedAccountsOpen] = useState(false);
 
   // Modals state
   const [isPendingAccountsOpen, setIsPendingAccountsOpen] = useState(false);
-  const [userToAssign, setUserToAssign] = useState<User | null>(null);
-  const [userToInspect, setUserToInspect] = useState<User | null>(null);
+  const [pendingAccessChanges, setPendingAccessChanges] = useState<Record<string, { roleId: string; status: 'active' | 'suspended' }>>({});
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [isCreateUserOpen, setIsCreateUserOpen] = useState(false);
   const hasPendingUsers = pendingUsers.length > 0;
@@ -86,82 +77,37 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
         ? user.status !== 'pending' && user.status !== 'rejected'
         : user.status === selectedStatusFilter;
 
-    return matchesSearch && matchesRole && matchesStatus;
+    return user.id !== 'usr_1' && matchesSearch && matchesRole && matchesStatus;
   });
 
-  const getRoleBadgeStyle = (role: Role | undefined) => {
-    switch (role?.color) {
-      case 'emerald':
-        return 'bg-emerald-50 border-emerald-200 text-emerald-800';
-      case 'blue':
-        return 'bg-sky-50 border-sky-200 text-sky-800';
-      case 'amber':
-        return 'bg-amber-50 border-amber-200 text-amber-800';
-      case 'rose':
-        return 'bg-rose-50 border-rose-200 text-rose-800';
-      case 'purple':
-        return 'bg-violet-50 border-violet-200 text-violet-800';
-      default:
-        return 'bg-slate-50 border-slate-200 text-slate-700';
-    }
-  };
 
   return (
     <div className="asia-access-control space-y-6">
       {/* Summary KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-slate-900/50 border border-slate-800/80 rounded-xl p-4 text-center">
-          <span className="text-xs text-slate-400 font-medium">Tổng người dùng</span>
-          <div className="text-2xl font-bold text-white font-mono tabular-nums mt-1">
-            {users.length}
-          </div>
-          <p className="text-[11px] text-slate-400 mt-1">Toàn chuỗi cửa hàng</p>
-        </div>
-
-        <div className="bg-slate-900/50 border border-slate-800/80 rounded-xl p-4 text-center">
-          <span className="text-xs text-slate-400 font-medium">Đang hoạt động</span>
-          <div className="text-2xl font-bold text-emerald-400 font-mono tabular-nums mt-1">
-            {users.filter((u) => u.status === 'active').length}
-          </div>
-          <p className="text-[11px] text-slate-400 mt-1">Đủ điều kiện đăng nhập</p>
-        </div>
-
-        <button
-          type="button"
-          onClick={() => setIsRejectedAccountsOpen(true)}
-          className="rounded-xl border border-rose-300 bg-rose-50/50 p-4 text-center transition-colors hover:bg-rose-50"
-        >
-          <span className="text-xs text-rose-600 font-medium">Tài khoản từ chối</span>
-          <div className="text-2xl font-bold text-rose-600 font-mono tabular-nums mt-1">
-            {rejectedUsers.length}
-          </div>
-          <p className="text-[11px] text-slate-400 mt-1">
-            Xem danh sách tài khoản đã từ chối
-          </p>
-        </button>
+      <div className="grid grid-cols-1 gap-4">
 
         <button
           type="button"
           onClick={() => setIsPendingAccountsOpen(true)}
-          title="Bấm để xem danh sách tài khoản chờ duyệt"
-          className={`bg-slate-900/50 rounded-xl p-4 text-center transition-colors ${
+          title={'B\u1ea5m \u0111\u1ec3 xem danh s\u00e1ch t\u00e0i kho\u1ea3n ch\u1edd duy\u1ec7t'}
+          className={`rounded-xl bg-slate-900/50 p-4 text-center transition-colors ${
             hasPendingUsers
-              ? 'pending-alert border-2 border-orange-500/50 cursor-pointer hover:bg-slate-900/80'
-              : 'border border-slate-800/80 cursor-pointer hover:bg-slate-900/80'
+              ? 'pending-alert cursor-pointer border-2 border-orange-500/50 hover:bg-slate-900/80'
+              : 'cursor-pointer border border-slate-800/80 hover:bg-slate-900/80'
           }`}
         >
-          <span className="text-xs text-slate-400 font-medium">Tài khoản chưa duyệt</span>
+          <span className="text-xs font-medium text-slate-400">{'T\u00e0i kho\u1ea3n ch\u01b0a duy\u1ec7t'}</span>
           <div
-            className={`text-2xl font-bold font-mono tabular-nums mt-1 ${
+            className={`mt-1 font-mono text-2xl font-bold tabular-nums ${
               hasPendingUsers ? 'text-orange-400' : 'text-teal-400'
             }`}
           >
             {pendingUsers.length}
           </div>
-          <p className="text-[11px] text-slate-400 mt-1">
+          <p className="mt-1 text-[11px] text-slate-400">
             {hasPendingUsers
-              ? 'Cần phê duyệt truy cập'
-              : 'Không có tài khoản chờ duyệt'}
+              ? '\u0043\u1ea7n ph\u00ea duy\u1ec7t truy c\u1eadp'
+              : '\u004bh\u00f4ng c\u00f3 t\u00e0i kho\u1ea3n ch\u1edd duy\u1ec7t'}
           </p>
         </button>
       </div>
@@ -220,32 +166,33 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
         <div className="overflow-x-auto">
           <table className="w-full table-fixed text-left text-sm text-slate-700">
             <colgroup>
-              <col className="w-[28%]" />
-              <col className="w-[26%]" />
-              <col className="w-[16%]" />
-              <col className="w-[13%]" />
-              <col className="w-[17%]" />
+              <col className="w-[42%]" />
+              <col className="w-[18%]" />
+              <col className="w-[40%]" />
             </colgroup>
             <thead className="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
               <tr>
-                <th className="py-3.5 px-4">Nhân sự / Tài khoản</th>
-                <th className="py-3.5 px-4 text-center">Nhóm quyền hiện tại</th>
-                <th className="py-3.5 px-4">Trạng thái</th>
-                <th className="px-4 py-3.5 text-center">Xóa tài khoản</th>
-                <th className="px-4 py-3.5 text-center">Thao tác phân quyền</th>
+                <th className="py-3.5 px-4">Nh&acirc;n s&#7921; / T&agrave;i kho&#7843;n</th>
+                <th className="px-4 py-3.5 text-center">X&oacute;a t&agrave;i kho&#7843;n</th>
+                <th className="px-4 py-3.5 text-center">Tr&#7841;ng th&aacute;i &amp; Ph&acirc;n quy&#7873;n</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="py-12 text-center text-slate-400 text-xs">
+                  <td colSpan={3} className="py-12 text-center text-slate-400 text-xs">
                     Không tìm thấy nhân sự phù hợp với bộ lọc hiện tại.
                   </td>
                 </tr>
               ) : (
                 filteredUsers.map((user) => {
-                  const role = roles.find((r) => r.id === user.roleId);
                   const isCurrentUser = user.id === 'usr_1';
+                  const selectedAccess = pendingAccessChanges[user.id] ?? {
+                    roleId: user.roleId,
+                    status: user.status === 'suspended' ? 'suspended' : 'active',
+                  };
+                  const hasPendingAccessChange =
+                    selectedAccess.roleId !== user.roleId || selectedAccess.status !== user.status;
 
                   return (
                     <tr
@@ -268,49 +215,6 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                         </div>
                       </td>
 
-                      {/* Role Badge */}
-                      <td className="py-3.5 px-4 text-center">
-                        <button
-                          onClick={() => role && onViewRoleDetail(role.id)}
-                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border transition-transform hover:scale-102 cursor-pointer ${getRoleBadgeStyle(
-                            role
-                          )}`}
-                          title="Bấm để xem danh sách quyền gán cho nhóm này"
-                        >
-                          <ShieldCheck className="w-3.5 h-3.5" />
-                          <span>{role?.name || 'Chưa gán'}</span>
-                        </button>
-                      </td>
-
-                      {/* Status */}
-                      <td className="py-3.5 px-4">
-                        <span
-                          className={`inline-flex items-center gap-1.5 text-xs font-medium ${
-                            user.status === 'active'
-                              ? 'text-emerald-400'
-                              : user.status === 'pending'
-                                ? 'text-orange-400'
-                                : 'text-rose-400'
-                          }`}
-                        >
-                          <span
-                            className={`w-1.5 h-1.5 rounded-full ${
-                              user.status === 'active'
-                                ? 'bg-emerald-400'
-                                : user.status === 'pending'
-                                  ? 'bg-orange-400'
-                                  : 'bg-rose-400'
-                            }`}
-                          />
-                          {user.status === 'active'
-                            ? 'Hoạt động'
-                            : user.status === 'pending'
-                              ? 'Chờ duyệt'
-                              : user.status === 'rejected'
-                                ? 'Đã từ chối'
-                                : 'Tạm khóa'}
-                        </span>
-                      </td>
 
                       {/* Delete account */}
                       <td className="px-4 py-3.5 text-center">
@@ -328,53 +232,57 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                           <span className="inline-block h-7" />
                         )}
                       </td>
-
-                      {/* Actions */}
+                      {/* Status and role are saved together for this account. */}
                       <td className="px-4 py-3.5 text-center">
-                        <div className="grid grid-cols-[1.75rem_auto_1.75rem] items-center justify-center gap-1.5">
-                          {/* View details */}
-                          <button
-                            onClick={() => setUserToInspect(user)}
-                            className="justify-self-center rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-emerald-50 hover:text-emerald-700"
-                            title="Xem chi tiết quyền được cấp"
+                        <div className="flex flex-wrap items-center justify-center gap-2">
+                          <select
+                            value={selectedAccess.status}
+                            onChange={(event) =>
+                              setPendingAccessChanges((items) => ({
+                                ...items,
+                                [user.id]: { ...selectedAccess, status: event.target.value as 'active' | 'suspended' },
+                              }))
+                            }
+                            aria-label={'Ch\u1ecdn tr\u1ea1ng th\u00e1i cho ' + user.name}
+                            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 outline-none transition-colors focus:border-emerald-500"
                           >
-                            <Eye className="w-4 h-4" />
-                          </button>
-
-                          {/* Assign role button */}
-                          <button
-                            onClick={() => setUserToAssign(user)}
-                            className="justify-self-center flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-xs font-semibold text-emerald-700 transition-colors hover:bg-emerald-100"
-                            title="Gán nhóm quyền khác cho người dùng"
+                            <option value="active">{'\u0110ang ho\u1ea1t \u0111\u1ed9ng'}</option>
+                            <option value="suspended">{'T\u1ea1m kh\u00f3a'}</option>
+                          </select>
+                          <select
+                            value={selectedAccess.roleId}
+                            onChange={(event) =>
+                              setPendingAccessChanges((items) => ({
+                                ...items,
+                                [user.id]: { ...selectedAccess, roleId: event.target.value },
+                              }))
+                            }
+                            aria-label={'Ch\u1ecdn nh\u00f3m quy\u1ec1n cho ' + user.name}
+                            className="max-w-[13rem] rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800 outline-none transition-colors focus:border-emerald-500"
                           >
-                            <ShieldCheck className="w-3.5 h-3.5" />
-                            <span>Phân quyền</span>
+                            <option value="">{'Ch\u01b0a g\u00e1n nh\u00f3m quy\u1ec1n'}</option>
+                            {roles.map((roleOption) => (
+                              <option key={roleOption.id} value={roleOption.id}>
+                                {roleOption.name}
+                              </option>
+                            ))}
+                          </select>
+                          <button
+                            type="button"
+                            disabled={!hasPendingAccessChange}
+                            onClick={() => {
+                              onSaveUserAccess(user.id, selectedAccess);
+                              setPendingAccessChanges((items) => {
+                                const next = { ...items };
+                                delete next[user.id];
+                                return next;
+                              });
+                            }}
+                            className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-700 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+                          >
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                            {'L\u01b0u'}
                           </button>
-
-                          {/* Toggle lock */}
-                          {!isCurrentUser ? (
-                            <button
-                              onClick={() => onToggleUserStatus(user.id)}
-                              className={`justify-self-center rounded-lg p-1.5 transition-colors ${
-                                user.status === 'active'
-                                  ? 'text-slate-400 hover:text-rose-400 hover:bg-rose-950/30'
-                                  : 'text-rose-500 hover:bg-rose-50 hover:text-rose-600'
-                              }`}
-                              title={
-                                user.status === 'active'
-                                  ? 'Tạm khóa tài khoản'
-                                  : 'Mở khóa tài khoản'
-                              }
-                            >
-                              {user.status === 'active' ? (
-                                <Lock className="w-4 h-4" />
-                              ) : (
-                                <Lock className="w-4 h-4" />
-                              )}
-                            </button>
-                          ) : (
-                            <span aria-hidden="true" className="h-7 w-7" />
-                          )}
                         </div>
                       </td>
                     </tr>
@@ -388,13 +296,15 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
 
       {/* Modals */}
       {userToDelete && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-[rgba(15,23,42,0.25)] p-4">
           <div role="dialog" aria-modal="true" aria-labelledby="delete-account-title" className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl">
             <div className="flex items-start gap-4">
               <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-rose-100 text-rose-600"><AlertTriangle className="h-5 w-5" /></span>
               <div>
-                <h2 id="delete-account-title" className="text-base font-bold text-slate-900">Xóa tài khoản phân quyền?</h2>
-                <p className="mt-1 text-sm leading-6 text-slate-500">Bạn có chắc muốn xóa tài khoản <strong className="text-slate-800">{userToDelete.name}</strong>? Tài khoản sẽ được chuyển vào Thùng rác và có thể khôi phục sau.</p>
+                <h2 id="delete-account-title" className="text-base font-bold text-slate-900">X&#x00F3;a t&#x00E0;i kho&#x1EA3;n?</h2>
+                <p className="mt-1 text-sm leading-6 text-slate-500">
+                  {'B\u1ea1n c\u00f3 ch\u1eafc mu\u1ed1n x\u00f3a t\u00e0i kho\u1ea3n '}<strong className="text-slate-800">{userToDelete.name}</strong>?
+                </p>
               </div>
             </div>
             <div className="mt-6 flex justify-end gap-3">
@@ -407,46 +317,11 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
 
       {isPendingAccountsOpen && (
         <PendingAccountsModal
-          mode="pending"
           users={users}
-          roles={roles}
           onClose={() => setIsPendingAccountsOpen(false)}
           onApproveUser={onApproveUser}
           onRejectUser={onRejectUser}
           onDeleteUser={onDeleteUser}
-        />
-      )}
-
-      {isRejectedAccountsOpen && (
-        <PendingAccountsModal
-          mode="rejected"
-          users={users}
-          roles={roles}
-          onClose={() => setIsRejectedAccountsOpen(false)}
-          onApproveUser={onApproveUser}
-          onRejectUser={onRejectUser}
-          onDeleteUser={onDeleteUser}
-        />
-      )}
-
-      {userToAssign && (
-        <AssignRoleModal
-          user={userToAssign}
-          roles={roles}
-          permissions={permissions}
-          onClose={() => setUserToAssign(null)}
-          onSave={onUpdateUserRole}
-        />
-      )}
-
-      {userToInspect && (
-        <UserDetailModal
-          user={userToInspect}
-          role={roles.find((r) => r.id === userToInspect.roleId)}
-          permissions={permissions}
-          modules={modules}
-          onClose={() => setUserToInspect(null)}
-          onOpenAssign={(u) => setUserToAssign(u)}
         />
       )}
 

@@ -31,6 +31,7 @@ interface EmployeeManagementProps {
   onCloseDossier: () => void;
   onOpenDossier: (emp: Employee) => void;
   onNavigateToAdd?: () => void;
+  onNavigateToEdit?: (employee: Employee) => void;
 }
 
 export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
@@ -42,6 +43,7 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
   onCloseDossier,
   onOpenDossier,
   onNavigateToAdd,
+  onNavigateToEdit,
 }) => {
   // Search & Filter State
   const [searchQuery, setSearchQuery] = useState('');
@@ -471,7 +473,7 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
                     </button>
                     <div className="flex items-center gap-2">
                       <button
-                        onClick={() => handleOpenEdit(emp)}
+                        onClick={() => onNavigateToEdit?.(emp)}
                         className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 font-medium transition-colors flex items-center gap-1"
                         title="Chỉnh sửa thông tin"
                       >
@@ -554,7 +556,7 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
                           </button>
                           <button
                             type="button"
-                            onClick={() => handleOpenEdit(emp)}
+                            onClick={() => onNavigateToEdit?.(emp)}
                             className="rounded-lg p-2 text-emerald-600 transition-colors hover:bg-emerald-50"
                             title="Chỉnh sửa"
                           >
@@ -927,7 +929,7 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
               <button
                 onClick={() => {
                   onCloseDossier();
-                  handleOpenEdit(selectedEmployeeForDossier);
+                  onNavigateToEdit?.(selectedEmployeeForDossier);
                 }}
                 className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl flex items-center gap-1.5"
               >

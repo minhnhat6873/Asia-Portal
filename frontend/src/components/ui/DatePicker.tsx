@@ -16,6 +16,7 @@ import {
   DateSegment,
   Dialog,
   Group,
+  I18nProvider,
   Popover,
 } from "react-aria-components";
 
@@ -23,13 +24,14 @@ type DatePickerProps = {
   value: string;
   minValue?: string;
   onChange: (value: string) => void;
+  ariaLabel?: string;
 };
 
-export default function DatePicker({value, minValue, onChange}: DatePickerProps) {
+export default function DatePicker({value, minValue, onChange, ariaLabel = "Date"}: DatePickerProps) {
   const selectedDate = value ? parseDate(value) : null;
   const minimumDate = minValue ? parseDate(minValue) : undefined;
 
-  return <AriaDatePicker aria-label="Ngày họp" value={selectedDate} minValue={minimumDate} onChange={(nextValue: CalendarDate | null) => onChange(nextValue?.toString() ?? "")}>
+  return <I18nProvider locale="en-GB"><AriaDatePicker aria-label={ariaLabel} value={selectedDate} minValue={minimumDate} onChange={(nextValue: CalendarDate | null) => onChange(nextValue?.toString() ?? "")}>
     <Group className="flex h-[42px] w-full items-center rounded-lg border border-slate-200 bg-white pl-3 text-sm text-slate-800 outline-none transition focus-within:border-[#159447] focus-within:ring-2 focus-within:ring-emerald-100">
       <DateInput className="flex min-w-0 flex-1 items-center text-sm outline-none">
         {(segment) => <DateSegment segment={segment} className="rounded px-0.5 tabular-nums outline-none data-[placeholder]:text-slate-400 focus:bg-emerald-100" />}
@@ -55,5 +57,5 @@ export default function DatePicker({value, minValue, onChange}: DatePickerProps)
         </Calendar>
       </Dialog>
     </Popover>
-  </AriaDatePicker>;
+  </AriaDatePicker></I18nProvider>;
 }

@@ -15,27 +15,25 @@ import { getStoredAccessUsers, saveStoredAccessUsers } from "./userStorage";
 import type { TrashItem } from "@/features/admin/dashboard/types";
 
 type AccessControlTab = "permissions" | "system-settings";
-const NO_ACCESS_ROLE_ID = "role_no_access";
+export type AccessControlPage =
+  | "accounts"
+  | "roles"
+  | "new-role"
+  | "trash";
+const CURRENT_USER_ID = "usr_1";
 const DEFAULT_ACCESS_USERS: User[] = INITIAL_USERS.map((user) => ({
   ...user,
-  roleId: user.status === "pending" ? NO_ACCESS_ROLE_ID : "role_admin",
+  // New accounts start without a role. Only the signed-in administrator keeps the built-in admin role.
+  roleId: user.id === CURRENT_USER_ID ? "role_admin" : "",
   branch: "ASIA F&B",
 }));
 const DEFAULT_ACCESS_ROLES: Role[] = INITIAL_ROLES
   .filter((role) => role.id === "role_admin")
-  .map((role) => ({ ...role, permissionIds: ACCESS_PERMISSIONS.map((permission) => permission.id) }))
-  .concat({
-    id: NO_ACCESS_ROLE_ID,
-    name: "Chưa phân quyền",
-    code: "NO_ACCESS",
-    description: "Tài khoản đã được duyệt nhưng chưa được cấp bất kỳ quyền nào.",
-    color: "slate",
-    permissionIds: [],
-    createdAt: "2026-01-01T00:00:00.000Z",
-    updatedAt: "2026-01-01T00:00:00.000Z",
-  });
+  .map((role) => ({ ...role, permissionIds: ACCESS_PERMISSIONS.map((permission) => permission.id) }));
 
 interface AccessControlTabsProps {
+  page: AccessControlPage;
+  onNavigateToPage: (page: AccessControlPage) => void;
   activeTab: AccessControlTab;
   onNavigate: (tab: AccessControlTab) => void;
   trashItems: TrashItem[];
@@ -44,7 +42,7 @@ interface AccessControlTabsProps {
   onRestoreExternalTrashItem: (item: TrashItem) => void;
 }
 
-export function AccessControlTabs({ activeTab, onNavigate, trashItems, onAddTrashItem, onRemoveTrashItem, onRestoreExternalTrashItem }: AccessControlTabsProps) {
+export function AccessControlTabs({ activeTab, onNavigate, page, onNavigateToPage, trashItems, onAddTrashItem, onRemoveTrashItem, onRestoreExternalTrashItem }: AccessControlTabsProps) {
   const [users, setUsers] = useState<User[]>(DEFAULT_ACCESS_USERS);
   const [roles, setRoles] = useState<Role[]>(DEFAULT_ACCESS_ROLES);
   const [isStoreLoaded, setIsStoreLoaded] = useState(false);
@@ -59,8 +57,23 @@ export function AccessControlTabs({ activeTab, onNavigate, trashItems, onAddTras
   // Keep server and first client render identical; browser storage loads after hydration.
   useEffect(() => {
     const frameId = window.requestAnimationFrame(() => {
-      setUsers(getStoredAccessUsers(DEFAULT_ACCESS_USERS));
-      setRoles(getStoredRoles(DEFAULT_ACCESS_ROLES));
+      const storedUsers = getStoredAccessUsers(DEFAULT_ACCESS_USERS);
+      setUsers(
+        storedUsers.map((user) =>
+          user.roleId === "role_no_access" ? { ...user, roleId: "" } : user,
+        ),
+      );
+      const storedRoles = getStoredRoles(DEFAULT_ACCESS_ROLES).filter((role) => role.id !== "role_no_access");
+      const allPermissionIds = ACCESS_PERMISSIONS.map((permission) => permission.id);
+
+      // A catalog update must never accidentally reduce the built-in administrator's access.
+      setRoles(
+        storedRoles.map((role) =>
+          role.id === "role_admin"
+            ? { ...role, permissionIds: allPermissionIds, updatedAt: new Date().toISOString() }
+            : role,
+        ),
+      );
       setIsStoreLoaded(true);
     });
     return () => window.cancelAnimationFrame(frameId);
@@ -90,7 +103,7 @@ export function AccessControlTabs({ activeTab, onNavigate, trashItems, onAddTras
     ]);
   };
 
-  if (activeTab === "permissions") {
+  if (activeTab === "permissions" && page === "accounts") {
     // Duyệt tài khoản chờ duyệt (từ thẻ "Tài khoản chưa duyệt")
     return (
       <UserManagementView
@@ -98,22 +111,23 @@ export function AccessControlTabs({ activeTab, onNavigate, trashItems, onAddTras
         roles={roles}
         permissions={ACCESS_PERMISSIONS}
         modules={ACCESS_MODULES}
-        onUpdateUserRole={(userId, roleId) => {
+        onSaveUserAccess={(userId, access) => {
           setUsers((items) => {
             const updatedUsers = items.map((user) =>
-              user.id === userId ? { ...user, roleId } : user
+              user.id === userId
+                ? { ...user, roleId: access.roleId, status: access.status }
+                : user,
             );
             saveStoredAccessUsers(updatedUsers);
             return updatedUsers;
           });
-          addLog("Phân quyền người dùng", "Đã cập nhật nhóm quyền cho người dùng.", userId, "user_assign");
+          addLog("\u0043\u1eadp nh\u1eadt t\u00e0i kho\u1ea3n", "\u0110\u00e3 l\u01b0u tr\u1ea1ng th\u00e1i v\u00e0 nh\u00f3m quy\u1ec1n cho t\u00e0i kho\u1ea3n.", userId, "user_update");
         }}
-        onToggleUserStatus={(userId) => setUsers((items) => items.map((user) => user.id === userId ? { ...user, status: user.status === "active" ? "suspended" : "active" } : user))}
         onApproveUser={(userId, roleId) => {
           setUsers((items) =>
             items.map((user) =>
               user.id === userId
-                ? { ...user, status: "active" as const, roleId: roleId ?? NO_ACCESS_ROLE_ID }
+                ? { ...user, status: "active" as const, roleId: roleId ?? "" }
                 : user
             )
           );
@@ -148,27 +162,35 @@ export function AccessControlTabs({ activeTab, onNavigate, trashItems, onAddTras
           addLog("Thêm tài khoản", `Đã tạo tài khoản ${newUser.name}.`, newUser.name, "user_create");
         }}
         onNavigateToCreateRole={() => {
-          setSettingsSubTab("create_role");
-          onNavigate("system-settings");
+          onNavigateToPage("new-role");
         }}
         onViewRoleDetail={(roleId) => {
           setSelectedRoleId(roleId);
-          setSettingsSubTab("manage_roles");
-          onNavigate("system-settings");
+          onNavigateToPage("roles");
         }}
       />
     );
   }
 
   // Chuyển tab (permissions = quản lý người dùng, system-settings = cài đặt hệ thống)
+  const routedSubTab = page === "roles"
+    ? "manage_roles"
+    : page === "new-role"
+      ? "create_role"
+      : page === "trash"
+        ? "audit_logs"
+        : "dashboard";
+  const initialActiveSubTab = activeTab === "permissions" ? routedSubTab : settingsSubTab;
+
   return (
     <SystemSettingsView
       roles={roles}
       permissions={ACCESS_PERMISSIONS}
+      key={`${activeTab}-${page}`}
       modules={ACCESS_MODULES}
       users={users}
       auditLogs={auditLogs}
-      initialActiveSubTab={settingsSubTab}
+      initialActiveSubTab={initialActiveSubTab}
       selectedRoleIdToView={selectedRoleId}
       onCreateRole={(role) => {
         const newRole: Role = { ...role, id: `role_${Date.now()}`, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
@@ -186,7 +208,14 @@ export function AccessControlTabs({ activeTab, onNavigate, trashItems, onAddTras
         addLog("Xóa nhóm quyền", `Đã chuyển nhóm quyền ${deletedRole.name} vào Thùng rác.`, deletedRole.name, "role_delete");
       }}
       onAssignUsersToRole={(roleId, userIds) => setUsers((items) => items.map((user) => userIds.includes(user.id) ? { ...user, roleId } : user))}
-      onNavigateToUserTab={() => onNavigate("permissions")}
+      onNavigateToUserTab={() => activeTab === "permissions" ? onNavigateToPage("accounts") : onNavigate("permissions")}
+      onNavigateToRoles={() => {
+        if (activeTab === "permissions") {
+          onNavigateToPage("roles");
+          return;
+        }
+        setSettingsSubTab("manage_roles");
+      }}
       trashItems={trashItems}
       onRestoreTrashItem={(item) => {
         if (item.entityType === "role") {

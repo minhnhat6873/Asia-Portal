@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import mongoose from "mongoose";
+import multer from "multer";
 
 import { AppError } from "../utils/errors/AppError";
 
@@ -17,6 +18,16 @@ export function globalErrorHandler(
     response.status(403).json({
       success: false,
       message: "Origin này không được phép gọi API",
+    });
+    return;
+  }
+
+  if (error instanceof multer.MulterError) {
+    response.status(400).json({
+      success: false,
+      message: error.code === "LIMIT_FILE_SIZE"
+        ? "Ảnh đại diện tối đa 5 MB."
+        : "Tải ảnh lên không thành công.",
     });
     return;
   }

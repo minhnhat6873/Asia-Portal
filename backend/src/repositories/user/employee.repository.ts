@@ -12,7 +12,12 @@ interface FindEmployeesOptions {
 
 export const userEmployeeRepository = {
   findAll({ filter, skip, limit, sort }: FindEmployeesOptions) {
-    return EmployeeModel.find(filter).sort(sort).skip(skip).limit(limit).lean();
+    return EmployeeModel.find(filter)
+      .select("-birthDate -createdBy")
+      .sort(sort)
+      .skip(skip)
+      .limit(limit)
+      .lean();
   },
 
   count(filter: QueryFilter<Employee>) {
@@ -20,6 +25,6 @@ export const userEmployeeRepository = {
   },
 
   findById(id: string) {
-    return EmployeeModel.findById(id).lean();
+    return EmployeeModel.findById(id).select("-birthDate -createdBy").lean();
   },
 };

@@ -6,6 +6,7 @@ export interface Employee {
   name: string;
   position: string;
   department: string;
+  rank?: string;
   email: string;
   phone: string;
   location: string;

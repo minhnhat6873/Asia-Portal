@@ -1,6 +1,6 @@
 export type RiskLevel = 'low' | 'medium' | 'high';
 
-export type SystemModuleId = 'pos' | 'menu' | 'inventory' | 'finance' | 'hr' | 'system';
+export type SystemModuleId = 'accounts' | 'roles' | 'employees' | 'media' | 'system' | 'pos' | 'menu' | 'inventory' | 'finance' | 'hr';
 
 export interface SystemPermission {
   id: string;

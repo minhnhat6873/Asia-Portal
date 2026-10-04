@@ -7,6 +7,7 @@ import {
   ShieldCheck,
   PlusCircle,
   Layers,
+  UserRound,
   AlertCircle,
   Search,
   Check,
@@ -14,8 +15,8 @@ import {
   Edit3,
   Copy,
   Users,
+  Newspaper,
   ChevronRight,
-  Sparkles,
   Info,
   Clock,
   ArrowRight,
@@ -48,6 +49,7 @@ interface SystemSettingsViewProps {
   onDeleteRole: (roleId: string) => void;
   onAssignUsersToRole: (roleId: string, userIds: string[]) => void;
   onNavigateToUserTab: () => void;
+  onNavigateToRoles?: () => void;
   onRestoreTrashItem: (item: TrashItem) => void;
   onPermanentlyDeleteTrashItem: (trashId: string) => void;
 }
@@ -66,6 +68,7 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
   onDeleteRole,
   onAssignUsersToRole,
   onNavigateToUserTab,
+  onNavigateToRoles,
   onRestoreTrashItem,
   onPermanentlyDeleteTrashItem,
 }) => {
@@ -100,8 +103,7 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
   const [newRoleName, setNewRoleName] = useState('');
   const [newRoleColor, setNewRoleColor] = useState('emerald');
   const [selectedPermissionIds, setSelectedPermissionIds] = useState<string[]>([]);
-  const [permSearchQuery, setPermSearchQuery] = useState('');
-  const [permModuleFilter, setPermModuleFilter] = useState<string>('all');
+  const [expandedModuleIds, setExpandedModuleIds] = useState<string[]>(() => modules.slice(0, 2).map((module) => module.id));
   const [formError, setFormError] = useState('');
 
   // Auto-generate code from name (trường Code đã bị xóa khỏi form)
@@ -131,17 +133,6 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
     setSelectedPermissionIds([]);
   };
 
-  const toggleModuleInCreate = (moduleId: string) => {
-    const modPermIds = permissions.filter((p) => p.module === moduleId).map((p) => p.id);
-    const allSelected = modPermIds.every((id) => selectedPermissionIds.includes(id));
-
-    if (allSelected) {
-      setSelectedPermissionIds((prev) => prev.filter((id) => !modPermIds.includes(id)));
-    } else {
-      setSelectedPermissionIds((prev) => Array.from(new Set([...prev, ...modPermIds])));
-    }
-  };
-
   const handleCreateRoleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newRoleName.trim()) {
@@ -166,7 +157,11 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
     const createdName = newRoleName;
     setNewRoleName('');
     setSelectedPermissionIds([]);
-    setActiveSubTab('manage_roles');
+    if (onNavigateToRoles) {
+      onNavigateToRoles();
+    } else {
+      setActiveSubTab('manage_roles');
+    }
   };
 
   // -------------------------------------------------------------
@@ -198,16 +193,6 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
     );
   };
 
-  const colorOptions = [
-    { label: 'Xanh ngọc (Emerald)', value: 'emerald', bg: 'bg-emerald-500', text: 'text-emerald-400' },
-    { label: 'Xanh dương (Blue)', value: 'blue', bg: 'bg-blue-500', text: 'text-blue-400' },
-    { label: 'Hổ phách (Amber)', value: 'amber', bg: 'bg-amber-500', text: 'text-amber-400' },
-    { label: 'Đỏ hồng (Rose)', value: 'rose', bg: 'bg-rose-500', text: 'text-rose-400' },
-    { label: 'Tím hoa (Purple)', value: 'purple', bg: 'bg-purple-500', text: 'text-purple-400' },
-    { label: 'Chàm đậm (Indigo)', value: 'indigo', bg: 'bg-indigo-500', text: 'text-indigo-400' },
-  ];
-  const selectedRoleColorClass = colorOptions.find((color) => color.value === newRoleColor)?.text ?? 'text-emerald-400';
-
   const filteredTrashItems = trashItems.filter((item) => {
     const matchesType = trashTypeFilter === 'all' || item.entityType === trashTypeFilter;
     const keyword = trashSearchQuery.trim().toLowerCase();
@@ -217,89 +202,6 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
 
   return (
     <div className="asia-access-control asia-system-settings space-y-6">
-      {/* Top Header of System Settings */}
-      <div className="bg-slate-900/60 border border-slate-800 p-6 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 text-xs font-semibold text-emerald-400 uppercase tracking-wider mb-1">
-            <ShieldCheck className="w-4 h-4" />
-            Cài đặt hệ thống · Quản trị phân quyền
-          </div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">
-            Cài đặt hệ thống & Quản lý nhóm quyền
-          </h1>
-          <p className="text-sm text-slate-400 mt-1 max-w-2xl">
-            Tạo tên nhóm quyền mới để gán các quyền có sẵn trong hệ thống, xem và kiểm tra chi tiết các quyền đã được gán cho từng vai trò.
-          </p>
-          {activeSubTab !== 'dashboard' && (
-            <button
-              type="button"
-              onClick={() => {
-                setIsEditingRolePermissions(false);
-                setSelectedRoleId('');
-                setActiveSubTab('dashboard');
-              }}
-              className="mt-4 inline-flex items-center rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-bold text-emerald-800 transition-all hover:-translate-y-0.5 hover:bg-emerald-100 hover:shadow-sm"
-            >
-              ← Quay về bảng điều khiển
-            </button>
-          )}
-        </div>
-
-        {/* Tab Navigator */}
-        <div className="hidden">
-          {activeSubTab !== 'dashboard' && (
-            <button
-              onClick={() => {
-                setIsEditingRolePermissions(false);
-                setSelectedRoleId('');
-                setActiveSubTab('dashboard');
-              }}
-              className="px-3.5 py-2 rounded-lg text-xs font-semibold text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800"
-            >
-              ← Bảng điều khiển
-            </button>
-          )}
-          <button
-            onClick={() => {
-              setActiveSubTab('manage_roles');
-              setIsEditingRolePermissions(false);
-            }}
-            className={`px-3.5 py-2 rounded-lg text-xs font-semibold transition-all flex items-center gap-2 ${
-              activeSubTab === 'manage_roles'
-                ? 'bg-[#15803d] text-white shadow-md'
-                : 'text-slate-400 hover:text-white hover:bg-slate-900'
-            }`}
-          >
-            <Layers className="w-4 h-4" />
-            <span>Xem quản lý quyền đã tạo ({roles.length})</span>
-          </button>
-
-          <button
-            onClick={() => setActiveSubTab('create_role')}
-            className={`px-3.5 py-2 rounded-lg text-xs font-semibold transition-all flex items-center gap-2 ${
-              activeSubTab === 'create_role'
-                ? 'bg-[#15803d] text-white shadow-md'
-                : 'text-slate-400 hover:text-white hover:bg-slate-900'
-            }`}
-          >
-            <PlusCircle className="w-4 h-4 text-emerald-300" />
-            <span>Tạo quyền mới</span>
-          </button>
-
-          <button
-            onClick={() => setActiveSubTab('audit_logs')}
-            className={`px-3.5 py-2 rounded-lg text-xs font-semibold transition-all flex items-center gap-2 ${
-              activeSubTab === 'audit_logs'
-                ? 'bg-[#15803d] text-white shadow-md'
-                : 'text-slate-400 hover:text-white hover:bg-slate-900'
-            }`}
-          >
-            <Clock className="w-4 h-4" />
-            <span>Nhật ký</span>
-          </button>
-        </div>
-      </div>
-
       {activeSubTab === 'dashboard' && (
         <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
           <button
@@ -653,11 +555,6 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                                     >
                                       {perm.name}
                                     </span>
-                                    {perm.riskLevel === 'high' && (
-                                      <span className="text-[10px] font-mono font-bold text-rose-500 shrink-0">
-                                        Quan trọng
-                                      </span>
-                                    )}
                                   </div>
                                   <p className="mt-1 text-[10px] leading-snug text-slate-400">
                                     {perm.description}
@@ -727,26 +624,17 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
       {/* những quyền có sẵn"                                                      */}
       {/* ========================================================================= */}
       {activeSubTab === 'create_role' && (
-        <form onSubmit={handleCreateRoleSubmit} className="space-y-6">
+        <form onSubmit={handleCreateRoleSubmit} className="space-y-5 rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs sm:p-5">
           {/* Top description card */}
-          <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6">
+          <div className="space-y-4">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                  <Sparkles className="w-5 h-5 text-emerald-400" />
-                  Tạo nhóm quyền mới từ các quyền có sẵn
+                <h2 className="flex items-center gap-2 text-2xl font-bold text-slate-900">
+                  T&#x1EA1;o nh&#x00F3;m quy&#x1EC1;n m&#x1EDB;i
                 </h2>
-                <p className="text-xs text-slate-400 mt-1 max-w-3xl leading-relaxed">
-                  Bạn chỉ cần nhập <strong className="text-white">Tên quyền</strong> (ví dụ: Tổ trưởng Bar, Quản lý kho, Kế toán chi nhánh...) và tích chọn các quyền có sẵn bên dưới để gán cho nhóm này. Nhóm quyền mới sẽ lập tức sẵn sàng để phân quyền cho nhân viên.
-                </p>
+
               </div>
 
-              <div className="text-right shrink-0 bg-emerald-950/40 border border-emerald-800/50 p-3 rounded-xl">
-                <span className="text-[11px] text-emerald-300 block font-medium">Đã chọn quyền</span>
-                <span className="text-xl font-bold font-mono text-emerald-400 tabular-nums">
-                  {selectedPermissionIds.length} / {permissions.length}
-                </span>
-              </div>
             </div>
 
             {formError && (
@@ -757,9 +645,9 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
             )}
 
             {/* Inputs: Tên quyền & Thông tin cơ bản */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+            <div className="mt-4 max-w-2xl">
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">
+                <label className="mb-1.5 block text-sm font-semibold uppercase tracking-wider text-slate-700">
                   Tên quyền <span className="text-rose-400">*</span>
                 </label>
                 <input
@@ -768,49 +656,24 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                   placeholder="VD: Quản lý Kho & Thu mua"
                   value={newRoleName}
                   onChange={(e) => setNewRoleName(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-950/80 border border-slate-700 rounded-xl text-white text-sm focus:outline-none focus:border-emerald-500 transition-colors"
+                  className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-base text-slate-800 outline-none transition-colors focus:border-emerald-500"
                 />
-                <span className="text-[11px] text-slate-400 mt-1 block">
+                <span className="mt-1 block text-xs text-slate-500">
                   Tên hiển thị khi phân quyền cho nhân sự
                 </span>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">
-                  Màu sắc nhận diện
-                </label>
-                <div className="flex items-center gap-2 pt-1">
-                  {colorOptions.map((c) => (
-                    <button
-                      key={c.value}
-                      type="button"
-                      onClick={() => setNewRoleColor(c.value)}
-                      title={c.label}
-                      className={`w-7 h-7 rounded-full ${c.bg} transition-all ${
-                        newRoleColor === c.value
-                          ? 'border-2 border-black scale-110'
-                          : 'border-2 border-transparent opacity-70 hover:opacity-100'
-                      }`}
-                    />
-                  ))}
-                </div>
-                <span className="text-[11px] text-slate-400 mt-1.5 block">
-                  Màu huy hiệu hiển thị trên bảng phân quyền
-                </span>
-              </div>
             </div>
 
 
           </div>
 
           {/* Section: "NHỮNG QUYỀN TÔI ĐƯA RA SẴN ĐỂ GÁN" */}
-          <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 space-y-4 shadow-2xs">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="space-y-4 border-t border-slate-200 pt-5">
+            <div className="flex flex-col gap-3 border-b border-slate-200 pb-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h3 className="text-sm font-bold text-slate-900">
-                  Danh sách quyền có sẵn trong hệ thống (Tích chọn để gán)
-                </h3>
-                <p className="text-[11px] text-slate-500">
+                <h3 className="text-xl font-bold text-slate-900">Danh s&#x00E1;ch quy&#x1EC1;n c&#x00F3; s&#x1EB5;n trong h&#x1EC7; th&#x1ED1;ng</h3>
+                <p className="text-sm text-slate-500">
                   Tích chọn các quyền chức năng bạn muốn phân bổ cho nhóm quyền này
                 </p>
               </div>
@@ -820,79 +683,68 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                 <button
                   type="button"
                   onClick={selectAllPermissionsInCreate}
-                  className="rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-emerald-800"
+                  className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-800"
                 >
                   Chọn tất cả ({permissions.length})
                 </button>
                 <button
                   type="button"
                   onClick={deselectAllPermissionsInCreate}
-                  className="rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-rose-700"
+                  className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-rose-700"
                 >
-                  Bỏ chọn tất cả
+                  &#x0110;&#x1EB7;t l&#x1EA1;i quy&#x1EC1;n
                 </button>
-              </div>
-            </div>
 
-            {/* Filter and search bar inside permission picker */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2">
-              <div className="relative flex-1">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
-                <input
-                  type="text"
-                  placeholder="Tìm quyền theo tên hoặc mã chức năng..."
-                  value={permSearchQuery}
-                  onChange={(e) => setPermSearchQuery(e.target.value)}
-                  className="w-full rounded-xl border border-slate-300 bg-white py-2 pl-9 pr-3 text-xs text-slate-700 placeholder-slate-400 outline-none focus:border-emerald-500"
-                />
               </div>
-
-              <select
-                value={permModuleFilter}
-                onChange={(e) => setPermModuleFilter(e.target.value)}
-                className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-700 outline-none focus:border-emerald-500"
-              >
-                <option value="all">Tất cả phân hệ ({modules.length})</option>
-                {modules.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.name}
-                  </option>
-                ))}
-              </select>
             </div>
 
             {/* Permissions list grouped by Module */}
             <div className="space-y-3 pt-1">
               {modules
-                .filter((m) => permModuleFilter === 'all' || m.id === permModuleFilter)
                 .map((mod) => {
-                  const modPerms = permissions.filter(
-                    (p) =>
-                      p.module === mod.id &&
-                      (p.name.toLowerCase().includes(permSearchQuery.toLowerCase()) ||
-                        p.code.toLowerCase().includes(permSearchQuery.toLowerCase()) ||
-                        p.description.toLowerCase().includes(permSearchQuery.toLowerCase()))
-                  );
+                  const modPerms = permissions.filter((permission) => permission.module === mod.id);
 
                   if (modPerms.length === 0) return null;
-
                   const selectedInMod = modPerms.filter((p) =>
                     selectedPermissionIds.includes(p.id)
                   );
                   const isModAllSelected = selectedInMod.length === modPerms.length;
+                  const isExpanded = expandedModuleIds.includes(mod.id);
+                  const ModuleIcon =
+                    mod.id === 'accounts'
+                      ? UserRound
+                      : mod.id === 'roles'
+                        ? Layers
+                        : mod.id === 'employees'
+                          ? Users
+                          : mod.id === 'media'
+                            ? Newspaper
+                            : ShieldCheck;
 
                   return (
                     <div
                       key={mod.id}
                       className="overflow-hidden rounded-2xl border border-slate-200 bg-white"
                     >
-                      <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-3 py-2.5">
-                        <div className="min-w-0"><span className="text-[11px] font-bold uppercase tracking-wide text-slate-800">{mod.name}</span><span className="ml-2 hidden text-[10px] text-slate-500 sm:inline">· {mod.description}</span></div>
-                        <button type="button" onClick={() => toggleModuleInCreate(mod.id)} className="shrink-0 text-[10px] font-medium text-slate-500 transition-colors hover:text-emerald-700">Bật / Tắt cả phân hệ</button>
-                      </div>
-
+                      <button
+                        type="button"
+                        onClick={() => setExpandedModuleIds((items) => items.includes(mod.id) ? items.filter((id) => id !== mod.id) : [...items, mod.id])}
+                        className="flex w-full items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 px-3 py-2.5 text-left transition-colors hover:bg-slate-100"
+                      >
+                        <div className="flex min-w-0 items-center gap-2">
+                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700">
+                            <ModuleIcon className="h-4 w-4" />
+                          </span>
+                          <span className="text-sm font-bold uppercase tracking-wide text-slate-800">{mod.name}</span>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-2 text-xs font-medium text-slate-600">
+                          <span>{selectedInMod.length} / {modPerms.length} quy&#x1EC1;n</span>
+                          <ChevronRight className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                        </div>
+                      </button>
                       {/* Permissions Grid */}
-                      <div className="grid grid-cols-1 gap-2 p-3 md:grid-cols-2">
+                      {isExpanded && (
+                        <div className="grid grid-cols-1 gap-2 p-3 md:grid-cols-2">
                         {modPerms.map((perm) => {
                           const isChecked = selectedPermissionIds.includes(perm.id);
 
@@ -909,7 +761,7 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                                   if (scrollContainer) scrollContainer.scrollTop = scrollTop;
                                 });
                               }}
-                              className={`perm-card flex cursor-pointer select-none items-start gap-3 rounded-xl border p-3 text-xs transition-all ${
+                              className={`perm-card flex cursor-pointer select-none items-start gap-3 rounded-xl border p-4 text-sm transition-all ${
                                 isChecked
                                   ? 'border-slate-200 bg-white text-slate-800'
                                   : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'
@@ -922,16 +774,11 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                                 tabIndex={-1}
                                 className="pointer-events-none sr-only"
                               />
-                              <div className="order-2 mt-0.5 shrink-0">
-                                {isChecked ? (
-                                  <div className="flex h-5 w-9 items-center justify-end rounded-full bg-emerald-700 p-0.5 shadow-inner">
-                                    <span className="h-4 w-4 rounded-full bg-white shadow-sm" />
-                                  </div>
-                                ) : (
-                                  <div className="flex h-5 w-9 items-center rounded-full bg-slate-300 p-0.5"><span className="h-4 w-4 rounded-full bg-white shadow-sm" /></div>
-                                )}
+                              <div
+                                className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border ${isChecked ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-emerald-300 bg-white'}`}
+                              >
+                                {isChecked && <Check className="h-3 w-3" />}
                               </div>
-
                               <div className="min-w-0 flex-1">
                                 <div className="flex items-center justify-between gap-1">
                                   <span
@@ -941,13 +788,8 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                                   >
                                     {perm.name}
                                   </span>
-                                  {perm.riskLevel === 'high' && (
-                                    <span className="text-[10px] font-mono font-bold text-rose-500 shrink-0">
-                                      Quan trọng
-                                    </span>
-                                  )}
                                 </div>
-                                <p className="mt-1 text-[10px] leading-snug text-slate-400">
+                                <p className="mt-1 text-xs leading-snug text-slate-500">
                                   {perm.description}
                                 </p>
                               </div>
@@ -955,34 +797,19 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                           );
                         })}
                       </div>
+                      )}
                     </div>
                   );
                 })}
             </div>
 
             {/* Submit Action Bar */}
-          <div className="bg-slate-900/95 border border-slate-700/80 p-4 rounded-2xl shadow-sm flex items-center justify-between">
+          <div className="flex items-center justify-end border-t border-slate-200 pt-4">
             <div className="flex items-center gap-3">
-              <span className="text-xs text-slate-400">
-                Tên quyền: <strong className={`ml-1 font-bold ${selectedRoleColorClass}`}>{newRoleName || '(Chưa nhập)'}</strong>
-              </span>
-              <span>·</span>
-              <span className="text-xs text-emerald-400 font-mono">
-                {selectedPermissionIds.length} quyền được gán
-              </span>
-            </div>
 
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => setActiveSubTab('manage_roles')}
-                className="px-4 py-2 text-xs font-semibold text-white bg-[#dc2626] hover:bg-[#b91c1c] rounded-xl transition-colors"
-              >
-                Hủy bỏ
-              </button>
               <button
                 type="submit"
-                className="px-5 py-2 text-xs font-semibold bg-[#15803d] hover:bg-[#166534] text-white rounded-xl shadow-lg shadow-emerald-950/60 flex items-center gap-2"
+                className="px-5 py-2.5 text-sm font-semibold bg-[#15803d] hover:bg-[#166534] text-white rounded-xl shadow-lg shadow-emerald-950/60 flex items-center gap-2"
               >
                 <Check className="w-4 h-4" />
                 Lưu & Kích hoạt nhóm quyền này

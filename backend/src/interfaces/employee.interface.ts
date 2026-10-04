@@ -1,4 +1,4 @@
-export const EMPLOYEE_STATUSES = ["active", "inactive"] as const;
+export const EMPLOYEE_STATUSES = ["active", "probation", "inactive"] as const;
 
 export type EmployeeStatus = (typeof EMPLOYEE_STATUSES)[number];
 
@@ -7,13 +7,20 @@ export interface Employee {
   name: string;
   position: string;
   department: string;
+  rank?: string;
   email: string;
   phone: string;
   location: string;
   avatar: string;
   joinDate: Date;
+  birthDate?: Date;
   status: EmployeeStatus;
   description?: string;
+  createdBy?: {
+    accountId: string;
+    name: string;
+    email: string;
+  };
   createdAt?: Date;
   updatedAt?: Date;
 }

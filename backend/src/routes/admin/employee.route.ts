@@ -7,14 +7,17 @@ import {
   updateEmployee,
 } from "../../controllers/admin/employee.controller";
 import {
+  requireCloudinaryConfig,
+  uploadAvatar,
+} from "../../helpers/multerCloudinary.helper";
+import {
   requireEmployeeUpdatePermission,
   requirePermissions,
 } from "../../middlewares/auth.middleware";
-import { validateBody } from "../../middlewares/validate.middleware";
 import {
-  createEmployeeSchema,
-  updateEmployeeSchema,
-} from "../../validates/admin/employee.validate";
+  validateEmployeeCreateUpload,
+  validateEmployeeUpdateUpload,
+} from "../../middlewares/employee-upload.middleware";
 
 const router = Router();
 
@@ -23,12 +26,16 @@ router.get("/:id", requirePermissions("employees:view"), getEmployeeById);
 router.post(
   "/",
   requirePermissions("employees:create"),
-  validateBody(createEmployeeSchema),
+  requireCloudinaryConfig,
+  uploadAvatar.single("avatar"),
+  validateEmployeeCreateUpload,
   createEmployee,
 );
 router.patch(
   "/:id",
-  validateBody(updateEmployeeSchema),
+  requireCloudinaryConfig,
+  uploadAvatar.single("avatar"),
+  validateEmployeeUpdateUpload,
   requireEmployeeUpdatePermission,
   updateEmployee,
 );

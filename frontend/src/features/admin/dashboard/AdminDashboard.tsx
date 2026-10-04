@@ -31,7 +31,7 @@ import { MediaManagement } from './components/MediaManagement';
 import { AddEmployeePage } from './components/AddEmployeePage';
 import { AddMediaPage } from './components/AddMediaPage';
 import { DEFAULT_ROLE_PERMISSIONS, PermissionsManagement } from './components/PermissionsManagement';
-import { AccessControlTabs } from '@/features/access-control/AccessControlTabs';
+import { AccessControlTabs, type AccessControlPage } from '@/features/access-control/AccessControlTabs';
 import AccountPage from '@/features/admin/account/AccountPage';
 import { Toast, ToastMessage } from './components/Toast';
 import Image from 'next/image';
@@ -46,12 +46,20 @@ export const ADMIN_TAB_ROUTES: Record<ActiveTab, string> = {
   overview: '/admin/dashboard',
   employees: '/admin/employees',
   'add-employee': '/admin/employees/new',
+  'edit-employee': '/admin/employees',
   media: '/admin/media',
   'add-media': '/admin/media/new',
   permissions: '/admin/access-control',
   'system-settings': '/admin/settings',
   account: '/admin/account',
 };
+const ACCESS_CONTROL_PAGE_ROUTES: Record<AccessControlPage, string> = {
+  accounts: '/admin/access-control',
+  roles: '/admin/access-control/roles',
+  'new-role': '/admin/access-control/roles/new',
+  trash: '/admin/access-control/trash',
+};
+
 
 interface AdminDashboardProps {
   initialTab?: ActiveTab;
@@ -59,6 +67,7 @@ interface AdminDashboardProps {
 
 function getTabFromPath(pathname: string): ActiveTab {
   if (pathname === "/admin/employees/new") return "add-employee";
+  if (/^\/admin\/employees\/[^/]+\/edit$/.test(pathname)) return "edit-employee";
   if (pathname.startsWith("/admin/employees")) return "employees";
   if (pathname === "/admin/media/new") return "add-media";
   if (pathname.startsWith("/admin/media")) return "media";
@@ -67,12 +76,22 @@ function getTabFromPath(pathname: string): ActiveTab {
   if (pathname.startsWith("/admin/account")) return "account";
   return "overview";
 }
+function getAccessControlPage(pathname: string): AccessControlPage {
+  if (pathname === '/admin/access-control/roles/new') return 'new-role';
+  if (pathname === '/admin/access-control/roles') return 'roles';
+  if (pathname === '/admin/access-control/trash') return 'trash';
+  return 'accounts';
+}
+
 
 export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
   const router = useRouter();
   const pathname = usePathname();
   const [activeTab, setActiveTab] = useState<ActiveTab>(() => initialTab ?? getTabFromPath(pathname));
+  const accessControlPage = getAccessControlPage(pathname);
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const editingEmployeeId = pathname.match(/^\/admin\/employees\/([^/]+)\/edit$/)?.[1];
+  const editingEmployee = employees.find((employee) => employee.id === decodeURIComponent(editingEmployeeId ?? ''));
   const [mediaPosts, setMediaPosts] = useState<MediaPost[]>([]);
   const [users, setUsers] = useState<UserAccount[]>([]);
   const [trashItems, setTrashItems] = useState<TrashItem[]>([]);
@@ -568,7 +587,6 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
 
           <span className="hidden" aria-hidden="true" />
         </header>
-
         <main className="flex-1 overflow-y-auto bg-[#f4f6f8] p-3 sm:p-4 md:p-6 lg:p-8">
           <div className="max-w-7xl mx-auto">
             {/* 1. Tổng quan Dashboard */}
@@ -640,14 +658,39 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
 
             {/* 6. Trang Phân Quyền Quản Lý & Duyệt Tài Khoản Đăng Ký */}
             {(activeTab === 'permissions' || activeTab === 'system-settings') && (
-              <AccessControlTabs
-                activeTab={activeTab}
-                onNavigate={navigateToTab}
-                trashItems={trashItems}
-                onAddTrashItem={addTrashItem}
-                onRemoveTrashItem={removeTrashItem}
-                onRestoreExternalTrashItem={restoreExternalTrashItem}
-              />
+              <div className="space-y-5">
+                {activeTab === 'permissions' && (
+                  <nav aria-label="Dieu huong phan quyen" className="flex flex-wrap gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-md">
+                    {([
+                      ['accounts', 'T\u00e0i kho\u1ea3n'],
+                      ['roles', 'Quy\u1ec1n \u0111\u00e3 t\u1ea1o'],
+                      ['new-role', 'T\u1ea1o quy\u1ec1n m\u1edbi'],
+                      ['trash', 'Th\u00f9ng r\u00e1c'],
+                    ] as const).map(([page, label]) => (
+                      <button
+                        key={page}
+                        type="button"
+                        aria-current={accessControlPage === page ? 'page' : undefined}
+                        onClick={() => router.push(ACCESS_CONTROL_PAGE_ROUTES[page])}
+                        className={`rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${accessControlPage === page ? 'bg-emerald-700 text-white shadow-sm' : 'text-slate-600 hover:bg-emerald-50 hover:text-emerald-800'}`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </nav>
+                )}
+
+                <AccessControlTabs
+                  activeTab={activeTab}
+                  onNavigate={navigateToTab}
+                  page={accessControlPage}
+                  onNavigateToPage={(page) => router.push(ACCESS_CONTROL_PAGE_ROUTES[page])}
+                  trashItems={trashItems}
+                  onAddTrashItem={addTrashItem}
+                  onRemoveTrashItem={removeTrashItem}
+                  onRestoreExternalTrashItem={restoreExternalTrashItem}
+                />
+              </div>
             )}
           </div>
         </main>

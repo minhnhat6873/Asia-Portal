@@ -16,7 +16,7 @@ export const CreateUserModal: React.FC<CreateUserModalProps> = ({
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
-  const [roleId, setRoleId] = useState(roles[1]?.id || roles[0]?.id || '');
+  const [roleId, setRoleId] = useState('');
   const [department, setDepartment] = useState('Vận hành Nhà hàng');
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -133,6 +133,7 @@ export const CreateUserModal: React.FC<CreateUserModalProps> = ({
                 onChange={(e) => setRoleId(e.target.value)}
                 className="w-full px-3.5 py-2.5 bg-slate-900/80 border border-slate-700 rounded-xl text-white text-sm focus:outline-none focus:border-emerald-500 transition-colors"
               >
+                <option value="" className="bg-slate-900 text-white">{'Ch\u01b0a g\u00e1n nh\u00f3m quy\u1ec1n'}</option>
                 {roles.map((r) => (
                   <option key={r.id} value={r.id} className="bg-slate-900 text-white">
                     {r.name} ({r.permissionIds.length} quyền)
@@ -140,7 +141,7 @@ export const CreateUserModal: React.FC<CreateUserModalProps> = ({
                 ))}
               </select>
               <p className="text-[11px] text-slate-400">
-                {roles.find((r) => r.id === roleId)?.description}
+                {roles.find((r) => r.id === roleId)?.description || 'Tài khoản chưa có quyền truy cập cho đến khi được gán nhóm quyền.'}
               </p>
             </div>
           </div>

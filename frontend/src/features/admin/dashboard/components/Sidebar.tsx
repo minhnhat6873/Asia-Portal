@@ -11,7 +11,6 @@ import {
   Newspaper,
   ShieldCheck,
   UserCheck,
-  Settings,
   LogOut,
 } from 'lucide-react';
 import { ActiveTab } from '../types';
@@ -141,7 +140,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           const Icon = item.icon;
           const isActive =
             activeTab === item.id ||
-            (item.id === 'employees' && activeTab === 'add-employee') ||
+            (item.id === 'employees' && (activeTab === 'add-employee' || activeTab === 'edit-employee')) ||
             (item.id === 'media' && activeTab === 'add-media');
           return (
             <button
@@ -192,18 +191,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* Footer account actions and profile */}
       <div className="mt-2 shrink-0 border-t border-slate-200 px-4 pb-4 pt-3">
         <div className="space-y-1">
-          <button
-            type="button"
-            onClick={() => onTabChange('system-settings')}
-            className={`group flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-left text-sm font-medium transition-all ${
-              activeTab === 'system-settings'
-                ? 'bg-gradient-to-r from-[#0d5c0d] to-[#1a7a1a] text-white font-semibold shadow-sm shadow-[#1a7a1a]/40'
-                : 'text-slate-700 hover:text-emerald-700 hover:bg-emerald-50'
-            }`}
-          >
-            <Settings className={`h-4 w-4 ${activeTab === 'system-settings' ? 'text-white' : 'text-slate-500'}`} />
-            Cài đặt hệ thống
-          </button>
           <button
             type="button"
             onClick={() => onTabChange('account')}

@@ -36,7 +36,7 @@ export default function RichTextEditor({
         plugins: ["lists", "link", "table", "code", "fullscreen", "wordcount"],
         font_family_formats: "Arial=Arial,Helvetica,sans-serif; Tahoma=Tahoma,Arial,sans-serif; Verdana=Verdana,Geneva,sans-serif; Georgia=Georgia,serif; Times New Roman='Times New Roman',Times,serif",
         toolbar: "undo redo | blocks fontfamily | bold italic underline | bullist numlist | link table | removeformat | code fullscreen",
-        content_style: "body { font-family: Arial, sans-serif; font-size: 14px; line-height: 1.65; }",
+        content_style: "body { font-family: Arial, sans-serif; font-size: 16px; line-height: 1.65; }",
       }}
     />
   );
