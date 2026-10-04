@@ -23,7 +23,7 @@ export default function InternalSystemsMenu() {
         if (!event.currentTarget.contains(event.relatedTarget as Node)) setOpen(false);
       }}
     >
-      <button
+      {/* <button
         type="button"
         aria-expanded={open}
         aria-haspopup="menu"
@@ -35,7 +35,7 @@ export default function InternalSystemsMenu() {
       >
         Hệ thống nội bộ Wana
         <ChevronDown size={15} className={`transition-transform ${open ? "rotate-180" : ""}`} />
-      </button>
+      </button> */}
 
       {open && (
         <div className="absolute left-0 top-full z-50 pt-2">
