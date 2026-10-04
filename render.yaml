@@ -2,6 +2,7 @@ services:
   - type: web
     name: asia-portal-api
     runtime: node
+    plan: free
     rootDir: backend
     buildCommand: yarn install --frozen-lockfile && yarn build
     startCommand: yarn start
