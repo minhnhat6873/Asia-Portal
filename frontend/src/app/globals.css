@@ -362,6 +362,35 @@ body {
   height: 3.75rem;
 }
 
+/* Meeting schedule uses the same green, white and yellow visual language as the room-booking page. */
+.meeting-booked-schedule .meeting-schedule-detail h2,
+.meeting-booked-schedule .meeting-schedule-table h2 {
+  color: var(--wana-green-dark) !important;
+}
+
+.meeting-booked-schedule .meeting-schedule-detail dl dt {
+  color: #64748b !important;
+}
+
+.meeting-booked-schedule .meeting-schedule-detail dl dd {
+  color: #173f24 !important;
+}
+
+.meeting-booked-schedule .meeting-schedule-detail [class*="border-[#edf1f6]"],
+.meeting-booked-schedule .meeting-schedule-table [class*="border-[#e0e9f4]"],
+.meeting-booked-schedule .meeting-schedule-table [class*="border-[#e8eef6]"] {
+  border-color: #d9eee0 !important;
+}
+
+.meeting-booked-schedule .meeting-schedule-table thead {
+  background-color: #edf9f0 !important;
+  color: #08723d !important;
+}
+
+.meeting-booked-schedule .meeting-schedule-table tbody tr:hover {
+  background-color: #f6fcf7;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-auth-in,
   .animate-toast-in,

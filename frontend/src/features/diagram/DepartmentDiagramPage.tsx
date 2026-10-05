@@ -30,21 +30,21 @@ type DepartmentDiagramPageProps = {
 
 function EmployeeCard({ employee }: { employee: Employee }) {
   return (
-    <article className="overflow-hidden rounded-2xl border border-emerald-100 bg-white shadow-[0_10px_28px_rgba(15,118,65,0.08)]">
+    <article className="group overflow-hidden rounded-2xl border border-emerald-100 bg-white shadow-[0_10px_28px_rgba(15,118,65,0.08)]">
       <div className="relative aspect-[4/3] bg-emerald-50">
         <Image
           src={getEmployeeAvatar(employee)}
           alt={`Chân dung ${employee.name}`}
           fill
           sizes="(min-width: 1024px) 30vw, (min-width: 640px) 45vw, 100vw"
-          className="object-cover object-top"
+          className="object-cover object-top transition-transform duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] will-change-transform group-hover:-translate-y-2 group-hover:scale-105"
         />
       </div>
-      <div className="flex min-h-[156px] gap-3 bg-emerald-50 px-5 py-4">
+      <div className="flex min-h-[144px] gap-3 bg-emerald-50 px-4 py-3.5">
         <div className="min-w-0 flex-1">
           <div className="flex items-start gap-3">
             <div className="min-w-0 flex-1">
-              <h2 className="text-lg font-extrabold leading-tight text-[#0d5c0d]">{employee.name}</h2>
+              <h2 className="text-base font-extrabold leading-tight text-[#0d5c0d]">{employee.name}</h2>
               <p className="mt-1 text-sm leading-6 text-slate-700">{employee.position}</p>
             </div>
           </div>
@@ -174,7 +174,7 @@ export default function DepartmentDiagramPage({ department, employeeDepartments 
               </button>
             </div>
           ) : isLoading ? (
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="mx-auto grid max-w-6xl grid-cols-1 gap-7 sm:grid-cols-2 lg:gap-8 lg:grid-cols-3">
               {Array.from({ length: 6 }).map((_, index) => (
                 <div key={index} className="overflow-hidden rounded-2xl border border-emerald-50 bg-white">
                   <div className="aspect-[4/3] animate-pulse bg-emerald-50" />
@@ -188,7 +188,7 @@ export default function DepartmentDiagramPage({ department, employeeDepartments 
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="mx-auto grid max-w-6xl grid-cols-1 gap-7 sm:grid-cols-2 lg:gap-8 lg:grid-cols-3">
                 {employees.map((employee) => <EmployeeCard key={employee.id} employee={employee} />)}
               </div>
               {pagination.totalPages > 1 ? (
