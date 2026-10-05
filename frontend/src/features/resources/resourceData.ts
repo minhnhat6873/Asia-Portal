@@ -105,7 +105,7 @@ export type ResourceItem = {
   /** Colour of the footer call-to-action text. */
   linkTone: string;
   linkText: string;
-  /** Where the card navigates — always the /demo placeholder for now. */
+  /** Where the card navigates. */
   href: string;
   /** Anchor consumed by the navbar "FAQ" shortcut. */
   anchor?: string;
@@ -141,7 +141,7 @@ export const RESOURCE_ITEMS: ResourceItem[] = [
     chipTone: "bg-blue-50 text-blue-600",
     linkTone: "text-blue-600",
     linkText: "Đăng nhập Slack",
-    href: buildDemoHref("email-slack"),
+    href: "https://pro218.emailserver.vn/mail/?_task=mail&_mbox=INBOX",
   },
   {
     title: "Sơ đồ Văn phòng & Wifi",
