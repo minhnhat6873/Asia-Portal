@@ -1,4 +1,5 @@
-const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000").replace(/\/$/, "");
+// Call the API through the frontend origin so authentication cookies belong to the frontend domain.
+const API_URL = "/backend-api";
 
 interface ApiResponse<T> {
   success: boolean;
