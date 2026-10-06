@@ -3,7 +3,7 @@
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import ProductHeroSlider from "./components/ProductHeroSlider";
-import { ArrowRight, CalendarDays, Download, Play, Toolbox, Trophy, Globe, Users, Leaf } from "lucide-react";
+import { ArrowRight, CalendarDays, Download, Gem, Globe, Leaf, Play, Target, Toolbox, Trophy, Users } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { RESOURCE_ITEMS, type ResourceItem } from "@/features/resources/resourceData";
@@ -89,6 +89,112 @@ function MeetingCard() {
     </Link>
   );
 }
+
+function AboutJourneyHero() {
+  return (
+    <section className="relative isolate overflow-hidden bg-[#fffdf7] lg:aspect-[3/2]">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/assets/images/bannersumenhtamnhin.png"
+        alt="Trụ sở Asia Food & Beverage và phong cảnh Việt Nam"
+        className="absolute inset-x-0 top-0 -z-20 h-full w-full object-cover object-top lg:h-auto"
+      />
+      <div className="relative mx-auto flex min-h-[440px] max-w-[1318px] items-start justify-between gap-10 px-6 pt-12 sm:px-10 lg:absolute lg:inset-x-0 lg:top-0 lg:min-h-0 lg:px-8 lg:pt-[4.1%] xl:px-0">
+        <div className="max-w-[470px] text-white lg:w-[36%]">
+          <p className="mb-5 text-[12px] font-black uppercase tracking-[0.17em] text-[#ffd400]">About Asia</p>
+          <h1 className="font-sans text-[42px] font-black uppercase leading-[1.02] tracking-[-0.035em] sm:text-[54px] lg:text-[clamp(40px,3.9vw,64px)]">
+            Hành trình<br />
+            <span className="text-[#ffd400]">phát triển</span>
+          </h1>
+          <p className="mt-6 max-w-[455px] font-sans text-[15px] font-medium leading-[1.55] text-white sm:text-[18px]">
+            Cùng nhau tạo ra những sản phẩm tốt hơn vì một cuộc sống khỏe mạnh và bền vững hơn.
+          </p>
+          <button
+            type="button"
+            className="mt-5 inline-flex items-center gap-3 rounded-full border border-white/80 bg-black/20 px-6 py-3 font-sans text-[15px] font-bold text-white shadow-[0_8px_20px_rgba(0,0,0,0.24)] backdrop-blur-sm transition hover:bg-black/35 sm:text-[17px]"
+          >
+            <Play size={19} className="fill-white" />
+            Xem video giới thiệu
+          </button>
+        </div>
+
+        <div className="hidden w-[210px] rounded-[20px] border border-[#f2e7c6]/70 bg-[#26391f]/45 px-5 py-4 text-center text-white shadow-[0_10px_28px_rgba(0,0,0,0.2)] backdrop-blur-[5px] md:block lg:mr-[1.2%]">
+          <span className="mx-auto flex h-[68px] w-[68px] items-center justify-center rounded-full">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/assets/images/asia-logo.png" alt="Asia Food & Beverage" className="h-[66px] w-[66px] object-contain" />
+          </span>
+          <p className="mt-2.5 font-sans text-[15px] font-extrabold leading-[1.35]">Asia Food &amp; Beverage<br />JSC</p>
+          <div className="mx-auto mt-3 h-px w-full bg-white/35" />
+          <p className="mt-3 font-sans text-[13px] font-medium leading-[1.35] text-white/85">Sức khỏe của bạn<br />là mục tiêu tốt đẹp hơn</p>
+        </div>
+      </div>
+
+      <div className="relative mx-auto px-6 pb-12 pt-12 sm:px-10 lg:absolute lg:inset-x-0 lg:top-[41.1%] lg:max-w-[1370px] lg:px-7 lg:pb-0 lg:pt-0 xl:px-0">
+        <header className="text-center">
+          <div className="flex items-center justify-center gap-4 font-sans text-[10px] font-black uppercase tracking-[0.3em] text-[#125d4d] sm:text-[12px]">
+            <span className="h-px w-12 bg-[#c58a32]" />
+            Giá trị chúng tôi theo đuổi
+            <span className="h-px w-12 bg-[#c58a32]" />
+          </div>
+          <h2 className="mt-2 font-[Georgia] text-[46px] italic leading-none tracking-[-0.045em] text-[#064e3b] sm:text-[64px] lg:text-[clamp(52px,5vw,76px)]">
+            Growing <span className="text-[#ca8414]">Together</span>
+          </h2>
+          <p className="mt-2 font-[Georgia] text-[15px] text-[#25324a] sm:text-[19px]">Cùng nhau phát triển – Lan tỏa giá trị Việt</p>
+        </header>
+
+        <div className="mt-8 grid gap-5 md:grid-cols-[1.12fr_1fr_1.04fr] lg:mt-[3.1%]">
+          <article className="px-1 py-2 lg:pr-8">
+            <h3 className="font-[Cambria] text-[31px] font-bold leading-tight text-[#0b3026] lg:text-[clamp(28px,2.55vw,42px)]">Sứ mệnh &amp; Tầm nhìn</h3>
+            <div className="mt-3 h-0.5 w-12 bg-[#bc7a1d]" />
+            <p className="mt-4 font-sans text-[15px] leading-[1.55] text-[#27364d] lg:text-[clamp(13px,1.2vw,18px)]">
+              Chúng tôi kiên định với sứ mệnh kiến tạo giá trị từ những nguyên liệu tự nhiên của Việt Nam và hướng đến tầm nhìn đưa thương hiệu Việt vươn xa trên bản đồ nước giải khát toàn cầu.
+            </p>
+            <Link href="#" className="mt-4 inline-flex items-center gap-4 rounded-full border-2 border-[#bd7217] bg-white/35 px-6 py-2.5 font-sans text-[15px] font-semibold text-[#a95e10] transition hover:bg-white/70 lg:text-[16px]">
+              Tìm hiểu thêm về chúng tôi
+              <ArrowRight size={18} />
+            </Link>
+          </article>
+
+          <article className="relative overflow-hidden rounded-[18px] border border-[#eadfc8] bg-[#fffdf7]/90 px-7 py-5 shadow-[0_8px_24px_rgba(101,83,47,0.08)] backdrop-blur-[2px] lg:min-h-[270px]">
+            <div className="flex items-center gap-5">
+              <span className="flex h-[62px] w-[62px] shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#dfad43] to-[#ae6c08] text-white shadow-md"><Gem size={29} /></span>
+              <h3 className="font-[Cambria] text-[26px] font-bold uppercase text-[#13392f] lg:text-[clamp(22px,1.9vw,30px)]">Sứ mệnh</h3>
+            </div>
+            <p className="mt-3 font-sans text-[15px] leading-[1.48] text-[#344155] lg:text-[clamp(13px,1.13vw,17px)]">
+              Kiến tạo những sản phẩm nước giải khát chất lượng từ nguồn nguyên liệu đặc trưng của Việt Nam, kết hợp công nghệ, đổi mới sáng tạo và năng lực sản xuất để đáp ứng đa dạng nhu cầu của thị trường trong nước và quốc tế.
+            </p>
+            <Leaf className="absolute -bottom-6 -right-5 h-32 w-32 rotate-[-18deg] text-[#cdb16b]/45" strokeWidth={1.1} />
+          </article>
+
+          <article className="relative overflow-hidden rounded-[18px] border border-[#b9dfd0] bg-[#e9f9f1]/90 px-7 py-5 shadow-[0_8px_24px_rgba(25,99,72,0.08)] backdrop-blur-[2px] lg:min-h-[270px]">
+            <div className="flex items-center gap-5">
+              <span className="flex h-[62px] w-[62px] shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#279768] to-[#075944] text-white shadow-md"><Target size={30} /></span>
+              <h3 className="font-[Cambria] text-[26px] font-bold uppercase text-[#13392f] lg:text-[clamp(22px,1.9vw,30px)]">Tầm nhìn</h3>
+            </div>
+            <p className="mt-3 font-sans text-[15px] leading-[1.48] text-[#344155] lg:text-[clamp(13px,1.13vw,17px)]">
+              Trở thành doanh nghiệp nước giải khát Việt Nam được tin chọn trên thị trường toàn cầu, sở hữu những thương hiệu có bản sắc riêng và đưa sản phẩm, nguyên liệu cùng hương vị Việt Nam đến với người tiêu dùng trên thế giới.
+            </p>
+          </article>
+        </div>
+
+        <div className="mt-5 ml-auto grid max-w-[740px] grid-cols-1 gap-4 border-t border-[#b79a68]/70 pt-4 font-sans text-[13px] font-medium leading-tight text-[#243f38] sm:grid-cols-3 lg:mt-[1.6%] lg:text-[14px]">
+          <div className="flex items-center justify-center gap-3 sm:border-r sm:border-[#bda26f]">
+            <Leaf size={46} className="rounded-full bg-[#096044] p-2.5 text-white" />
+            <span>Từ Việt Nam<br />đến thế giới</span>
+          </div>
+          <div className="flex items-center justify-center gap-3 sm:border-r sm:border-[#bda26f]">
+            <Globe size={46} className="rounded-full border-2 border-[#075c43] p-2 text-[#075c43]" />
+            <span>Hơn 20+<br />quốc gia và vùng lãnh thổ</span>
+          </div>
+          <div className="flex items-center justify-center gap-3">
+            <Leaf size={46} className="rounded-full border-2 border-[#075c43] p-2 text-[#075c43]" />
+            <span>Nguồn nguyên liệu<br />thuần Việt</span>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
 /* ── PAGE ── */
 export default function VeWanaPage() {
   const [activeMilestone, setActiveMilestone] = useState(1);
@@ -98,79 +204,13 @@ export default function VeWanaPage() {
     <main className="min-h-screen bg-white">
       <Navbar />
 
-      {/* ══════════════════════════════════
-          1. HERO — about-wana.png, single gradient
-         ══════════════════════════════════ */}
-      <section className="relative h-[300px] overflow-hidden sm:h-[340px]">
+      <AboutJourneyHero />
 
-        {/* Full-width about-wana photo */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="/assets/images/company-overview.png"
-          alt="Wana Building"
-          className="absolute inset-0 w-full h-full object-cover"
-          style={{ objectPosition: "60% center" }}
-        />
-
-        {/* Single smooth gradient: dark left → transparent right */}
-        <div
-          className="absolute inset-0"
-          style={{
-            background: "linear-gradient(to right, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.7) 25%, rgba(0,0,0,0.4) 45%, rgba(0,0,0,0.1) 65%, transparent 80%)",
-          }}
-        />
-
-        {/* Content */}
-        <div className="relative z-10 mx-auto flex h-full max-w-7xl items-center px-4 sm:px-6">
-          <div className="w-full flex items-center justify-between">
-
-            {/* LEFT: text */}
-            <div className="max-w-lg">
-              <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-[#f5c800] sm:mb-4 sm:text-xs">
-                About Wana
-              </p>
-              <h1 className="mb-3 text-3xl font-black leading-tight text-white sm:mb-4 sm:text-4xl xl:text-5xl">
-                HÀNH TRÌNH<br />
-                <span className="text-[#f5c800]">PHÁT TRIỂN</span>
-              </h1>
-              <p className="mb-5 max-w-[260px] text-xs leading-relaxed text-white/75 sm:mb-6 sm:max-w-sm sm:text-sm">
-                Cùng nhau tạo ra những sản phẩm tốt hơn vì một cuộc sống khỏe mạnh và bền vững hơn.
-              </p>
-              <button className="inline-flex items-center gap-2 bg-white/15 hover:bg-white/25 border border-white/30 text-xs font-semibold text-white px-4 py-2 sm:px-5 sm:py-2.5 sm:text-sm rounded-full transition-all backdrop-blur-sm">
-                <Play size={14} className="fill-white" />
-                Xem video giới thiệu
-              </button>
-            </div>
-
-            {/* RIGHT: Company card */}
-            <div className="hidden xl:block">
-              <div
-                className="rounded-2xl p-5 text-center max-w-[200px]"
-                style={{
-                  background: "rgba(0,0,0,0.45)",
-                  backdropFilter: "blur(10px)",
-                  border: "1px solid rgba(255,255,255,0.15)",
-                }}
-              >
-                <div className="bg-white rounded-xl px-4 py-2 mb-3 inline-block">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src="/assets/images/asia-logo.png" alt="Asia Food & Beverage JSC" className="h-10 w-10 object-contain" />
-                </div>
-                <p className="font-bold text-sm text-white">Asia Food &amp; Beverage JSC</p>
-                <div className="mt-3 pt-3 border-t border-white/20 text-xs text-white/65 leading-relaxed">
-                  Sức khỏe của bạn<br />là mục tiêu tốt đẹp hơn
-                </div>
-              </div>
-            </div>
-
-          </div>
-        </div>
-      </section>
-
+      <div className="flex flex-col">
       {/* ══════════════════════════════════
           2. ABOUT — White, 2 columns
          ══════════════════════════════════ */}
-      <section className="bg-white py-8 sm:py-10 xl:py-14">
+      <section className="order-3 bg-white py-8 sm:py-10 xl:py-14">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="relative isolate overflow-hidden rounded-[26px] bg-white px-0 py-3 sm:px-8 sm:py-8 md:px-10 lg:px-10 lg:py-10">
 
@@ -229,12 +269,9 @@ export default function VeWanaPage() {
       {/* ══════════════════════════════════
           2.5 PRODUCT HERO SLIDER — Teal bg, WANA watermark, product image
          ══════════════════════════════════ */}
-      <ProductHeroSlider />
+      <div className="order-2"><ProductHeroSlider /></div>
 
-      {/* ══════════════════════════════════
-          3. SẢN PHẨM TIÊU BIỂU — Nước Dừa Tươi Calamansi (aboutWana2.png)
-         ══════════════════════════════════ */}
-      <FeaturedProductBanner />
+      </div>
 
       {/* ══════════════════════════════════
           4. TIMELINE — White
@@ -367,89 +404,6 @@ function GrowingTogetherBanner() {
           >
             Growing<br />Together
           </p>
-        </div>
-      </div>
-    </section>
-  );
-}
-/* ── FEATURED PRODUCT BANNER ── */
-function FeaturedProductBanner() {
-  const features = [
-    { title: "100% nguyên liệu tự nhiên", desc: "Tươi ngon, an toàn" },
-    { title: "Giàu vitamin và khoáng chất", desc: "Tốt cho sức khỏe" },
-    { title: "Hương vị thanh mát", desc: "Phù hợp mọi lứa tuổi" },
-    { title: "Vì một lối sống lành mạnh", desc: "Cùng Wana mỗi ngày" },
-  ];
-
-  return (
-    <section className="relative mx-4 my-5 h-[360px] overflow-hidden rounded-2xl sm:my-6 sm:h-auto lg:mx-8">
-      {/* Image displayed at full natural size — NOT cropped */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src="/assets/images/coconut-calamansi.png"
-        alt="Wana Coconut Calamansi"
-        className="h-full w-full object-cover sm:h-auto sm:object-contain"
-      />
-
-      {/* Overlay: white fade left for text */}
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          background: "linear-gradient(to right, rgba(255,255,255,0.88) 0%, rgba(255,255,255,0.55) 22%, transparent 42%)",
-        }}
-      />
-
-      {/* Overlay: white fade right for feature list */}
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          background: "linear-gradient(to left, rgba(255,255,255,0.82) 0%, rgba(255,255,255,0.45) 20%, transparent 38%)",
-        }}
-      />
-
-      {/* Content sits on top */}
-      <div className="absolute inset-0 flex items-center px-5 sm:px-8 lg:px-12">
-        <div className="w-full flex items-center justify-between gap-4">
-
-          {/* LEFT: text */}
-          <div className="max-w-[190px] shrink-0 sm:max-w-[240px]">
-            <p className="text-[#1a7a1a] text-[10px] font-bold tracking-widest uppercase mb-2">
-              Sản phẩm tiêu biểu
-            </p>
-            <h2 className="mb-3 text-xl font-black leading-tight text-gray-900 sm:text-2xl md:text-3xl">
-              Nước Dừa Tươi<br />Calamansi
-            </h2>
-            <p className="mb-4 max-w-[180px] text-[11px] leading-relaxed text-gray-600 sm:mb-5 sm:max-w-[200px] sm:text-xs">
-              Sự kết hợp hoàn hảo giữa vị dừa tươi mát lành và hương calamansi thanh dịu, mang đến trải nghiệm tươi mới mỗi ngày.
-            </p>
-            <Link
-              href="#"
-              className="inline-flex items-center gap-2 bg-[#f5c800] hover:bg-[#d4aa00] text-gray-900 text-xs font-bold px-5 py-2.5 rounded-full transition-all shadow-sm"
-            >
-              Khám phá sản phẩm <ArrowRight size={13} />
-            </Link>
-          </div>
-
-          {/* CENTER: spacer — the product image is part of aboutWana2.png */}
-          <div className="flex-1" />
-
-          {/* RIGHT: feature list */}
-          <div className="hidden xl:flex flex-col gap-3 max-w-[210px] shrink-0">
-            {features.map((f, i) => (
-              <div key={i} className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-[#1a7a1a] rounded-full flex items-center justify-center shrink-0">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                </div>
-                <div>
-                  <p className="text-gray-900 font-bold text-xs leading-tight">{f.title}</p>
-                  <p className="text-gray-500 text-[10px]">{f.desc}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-
         </div>
       </div>
     </section>
