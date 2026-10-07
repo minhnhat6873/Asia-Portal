@@ -147,6 +147,7 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
 
   const filteredEmployees = employees;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const deletingEmployee = deletingId ? employees.find((employee) => employee.id === deletingId) : null;
 
   // Reset filter function requested by user
   const handleResetFilters = () => {
@@ -643,7 +644,7 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
             </div>
             <h3 className="font-bold text-slate-900 text-base">Xác nhận xóa nhân viên?</h3>
             <p className="text-xs text-slate-500 mt-1 mb-5">
-              Nhân viên này sẽ được chuyển vào thùng rác và có thể khôi phục sau. Bạn có chắc chắn muốn tiếp tục?
+              Nhân viên <span className="font-semibold text-slate-700">{deletingEmployee?.fullName ?? 'đã chọn'}</span> sẽ được chuyển vào thùng rác và có thể khôi phục sau. Bạn có chắc chắn muốn tiếp tục?
             </p>
             <div className="flex items-center justify-center gap-2">
               <button

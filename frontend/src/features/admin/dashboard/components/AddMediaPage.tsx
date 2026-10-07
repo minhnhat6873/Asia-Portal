@@ -48,7 +48,7 @@ export const AddMediaPage: React.FC<AddMediaPageProps> = ({
     coverImage: PRESET_COVERS[0],
     authorDepartment: 'Phòng HR&AD',
     publishDate: '01/09/2026',
-    status: 'published' as 'published' | 'draft'
+    status: 'draft' as 'published' | 'draft'
   });
 
   const [previewMode, setPreviewMode] = useState<'card' | 'full'>('card');
@@ -63,7 +63,7 @@ export const AddMediaPage: React.FC<AddMediaPageProps> = ({
     setErrorMsg(null);
     onSave({
       ...formData,
-      content: formData.content.trim() || formData.summary.trim(),
+      content: formData.content.trim(),
     });
   };
 
@@ -76,7 +76,7 @@ export const AddMediaPage: React.FC<AddMediaPageProps> = ({
       coverImage: PRESET_COVERS[0],
       authorDepartment: 'Phòng HR&AD',
       publishDate: '01/09/2026',
-      status: 'published'
+      status: 'draft'
     });
     setErrorMsg(null);
   };
@@ -117,18 +117,11 @@ export const AddMediaPage: React.FC<AddMediaPageProps> = ({
           </button>
           <button
             type="button"
-            onClick={onBack}
-            className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-semibold transition-colors"
-          >
-            Hủy & Quay lại
-          </button>
-          <button
-            type="button"
             onClick={handleSubmit}
             className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold transition-colors shadow-sm"
           >
             <Check className="w-4 h-4" />
-            <span>Đăng Bài Viết</span>
+            <span>Lưu Bản Nháp</span>
           </button>
         </div>
       </div>
@@ -209,8 +202,8 @@ export const AddMediaPage: React.FC<AddMediaPageProps> = ({
               </div>
             </div>
 
-            {/* Row 3: Cover Image URL (50%) | Status (50%) */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Row 3: Cover Image URL */}
+            <div>
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1.5">
                   Link ảnh bìa bài viết (Cover URL)
@@ -223,13 +216,6 @@ export const AddMediaPage: React.FC<AddMediaPageProps> = ({
                   className="w-full px-3.5 py-2.5 text-xs bg-slate-50/70 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all"
                 />
 
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  Trạng thái xuất bản
-                </label>
-                <AdminSelect value={formData.status} onChange={(status) => setFormData({ ...formData, status: status as 'published' | 'draft' })} options={[{ value: 'published', label: 'Đã xuất bản (Công khai)' }, { value: 'draft', label: 'Bản nháp (Lưu nội bộ)' }]} className="w-full" searchable={false} showSelectionCheck={false} />
               </div>
             </div>
 
@@ -276,7 +262,7 @@ export const AddMediaPage: React.FC<AddMediaPageProps> = ({
                 className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold transition-colors shadow-sm"
               >
                 <Check className="w-4 h-4" />
-                <span>Xuất Bản Bài Viết Này</span>
+                <span>Lưu Bản Nháp</span>
               </button>
             </div>
           </form>
@@ -352,10 +338,12 @@ export const AddMediaPage: React.FC<AddMediaPageProps> = ({
                 </div>
               </div>
 
-              {/* Light Green / Mint Content Box */}
-              <div className="bg-[#f0fdf4] border border-emerald-100/80 rounded-2xl p-4 text-xs md:text-sm text-emerald-900/90 leading-relaxed font-normal mt-2">
-                {formData.content || formData.summary || 'Tháng 9/2026, Asia Food & Beverage hân hạnh chào đón 5 thành viên mới gia nhập đại gia đình. Đây là những tài năng trẻ được tuyển chọn kỹ lưỡng từ nhiều trường đại học hàng đầu và các doanh nghiệp lớn. Chúng tôi tin tưởng rằng với sự bổ sung này, Á Châu sẽ ngày càng phát triển và đạt được những mục tiêu đề ra.'}
-              </div>
+              {/* Detailed content is previewed only when its own field has data. */}
+              {formData.content.trim() && (
+                <div className="bg-[#f0fdf4] border border-emerald-100/80 rounded-2xl p-4 text-xs md:text-sm text-emerald-900/90 leading-relaxed font-normal mt-2 whitespace-pre-line">
+                  {formData.content}
+                </div>
+              )}
 
             </div>
           </div>
