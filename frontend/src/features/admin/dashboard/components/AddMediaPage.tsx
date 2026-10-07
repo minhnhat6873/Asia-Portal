@@ -6,16 +6,14 @@ import {
   FileText, 
   Calendar, 
   User, 
-  Building, 
-  Image, 
-  Eye, 
-  Layers, 
-  Sparkles,
   AlertCircle,
   X
 } from 'lucide-react';
 import { MediaPost, MediaCategory } from '../types';
 import { AdminSelect } from './AdminSelect';
+import AvatarUploader from '@/components/ui/AvatarUploader';
+import RichTextEditor from '@/components/ui/RichTextEditor';
+import { hasRichTextContent, RichText } from '@/components/ui/RichText';
 
 interface AddMediaPageProps {
   onBack: () => void;
@@ -36,6 +34,27 @@ const PRESET_COVERS = [
   'https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=1000&q=80'
 ];
 
+async function createStoredCoverImage(file: File): Promise<string> {
+  const bitmap = await createImageBitmap(file);
+
+  try {
+    const maxWidth = 1600;
+    const maxHeight = 1200;
+    const scale = Math.min(1, maxWidth / bitmap.width, maxHeight / bitmap.height);
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+
+    const context = canvas.getContext('2d');
+    if (!context) throw new Error('Không thể xử lý ảnh bìa.');
+
+    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL('image/webp', 0.82);
+  } finally {
+    bitmap.close();
+  }
+}
+
 export const AddMediaPage: React.FC<AddMediaPageProps> = ({
   onBack,
   onSave,
@@ -45,24 +64,40 @@ export const AddMediaPage: React.FC<AddMediaPageProps> = ({
     category: 'Thông báo' as MediaCategory,
     summary: '',
     content: '',
-    coverImage: PRESET_COVERS[0],
+    coverImage: '',
     authorDepartment: 'Phòng HR&AD',
     publishDate: '01/09/2026',
     status: 'draft' as 'published' | 'draft'
   });
 
-  const [previewMode, setPreviewMode] = useState<'card' | 'full'>('card');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [coverUploaderKey, setCoverUploaderKey] = useState(0);
+
+  const handleCoverFileChange = async (file: File | null) => {
+    if (!file) {
+      setFormData((current) => ({ ...current, coverImage: '' }));
+      return;
+    }
+
+    try {
+      const coverImage = await createStoredCoverImage(file);
+      setFormData((current) => ({ ...current, coverImage }));
+      setErrorMsg(null);
+    } catch {
+      setErrorMsg('Không thể đọc ảnh bìa. Vui lòng chọn ảnh khác.');
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.title.trim() || !formData.summary.trim()) {
+    if (!formData.title.trim() || !hasRichTextContent(formData.summary)) {
       setErrorMsg('Vui lòng nhập Tiêu đề bài viết và Tóm tắt ngắn.');
       return;
     }
     setErrorMsg(null);
     onSave({
       ...formData,
+      coverImage: formData.coverImage || PRESET_COVERS[0],
       content: formData.content.trim(),
     });
   };
@@ -73,12 +108,13 @@ export const AddMediaPage: React.FC<AddMediaPageProps> = ({
       category: 'Thông báo',
       summary: '',
       content: '',
-      coverImage: PRESET_COVERS[0],
+      coverImage: '',
       authorDepartment: 'Phòng HR&AD',
       publishDate: '01/09/2026',
       status: 'draft'
     });
     setErrorMsg(null);
+    setCoverUploaderKey((current) => current + 1);
   };
 
   return (
@@ -202,22 +238,18 @@ export const AddMediaPage: React.FC<AddMediaPageProps> = ({
               </div>
             </div>
 
-            {/* Row 3: Cover Image URL */}
-            <div>
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  Link ảnh bìa bài viết (Cover URL)
-                </label>
-                <input
-                  type="url"
-                  value={formData.coverImage}
-                  onChange={(e) => setFormData({ ...formData, coverImage: e.target.value })}
-                  placeholder="https://images.unsplash.com/..."
-                  className="w-full px-3.5 py-2.5 text-xs bg-slate-50/70 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all"
-                />
-
-              </div>
-            </div>
+            {/* Row 3: Cover image upload */}
+            <AvatarUploader
+              key={coverUploaderKey}
+              onFileChange={handleCoverFileChange}
+              label="Ảnh bìa bài viết"
+              emptyHelperText="Kéo thả hoặc chọn ảnh JPEG, PNG, WebP (tối đa 5 MB). Ảnh hiển thị theo khung 4:3."
+              selectedHelperText="Ảnh bìa đã sẵn sàng để lưu cùng bài viết."
+              imageAlt="Xem trước ảnh bìa bài viết"
+              pickerAriaLabel="Chọn ảnh bìa bài viết"
+              removeAriaLabel="Bỏ ảnh bìa bài viết"
+              changeLabel="Thay ảnh bìa"
+            />
 
             {/* Row 4: Sapo Summary (50%) | Detailed Content (50%) */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -225,25 +257,20 @@ export const AddMediaPage: React.FC<AddMediaPageProps> = ({
                 <label className="block text-xs font-bold text-slate-700 mb-1.5">
                   Tóm tắt ngắn (Sapo) <span className="text-rose-500">*</span>
                 </label>
-                <textarea
-                  rows={5}
-                  required
+                <RichTextEditor
                   value={formData.summary}
-                  onChange={(e) => setFormData({ ...formData, summary: e.target.value })}
+                  onChange={(summary) => setFormData({ ...formData, summary })}
                   placeholder="Đoạn văn ngắn 2-3 câu giới thiệu tổng quan về sự kiện hoặc thông tin quan trọng..."
-                  className="w-full px-3.5 py-2.5 text-xs bg-slate-50/70 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all resize-none"
                 />
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1.5">
                   Nội dung chi tiết bài viết
                 </label>
-                <textarea
-                  rows={5}
+                <RichTextEditor
                   value={formData.content}
-                  onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+                  onChange={(content) => setFormData({ ...formData, content })}
                   placeholder="Nội dung đầy đủ của bài viết, số liệu, lịch trình hoặc thông cáo báo chí..."
-                  className="w-full px-3.5 py-2.5 text-xs bg-slate-50/70 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all resize-none"
                 />
               </div>
             </div>
@@ -319,9 +346,16 @@ export const AddMediaPage: React.FC<AddMediaPageProps> = ({
               </h2>
 
               {/* Sapo / Short Description */}
-              <p className="text-sm text-slate-500 leading-relaxed">
-                {formData.summary || 'Á Châu trân trọng chào đón 5 thành viên mới gia nhập đại gia đình trong tháng 9/2026.'}
-              </p>
+              {hasRichTextContent(formData.summary) ? (
+                <RichText
+                  html={formData.summary}
+                  className="text-sm text-slate-500 leading-relaxed [&_p]:my-0"
+                />
+              ) : (
+                <p className="text-sm text-slate-500 leading-relaxed">
+                  Á Châu trân trọng chào đón 5 thành viên mới gia nhập đại gia đình trong tháng 9/2026.
+                </p>
+              )}
 
               {/* Subtle divider */}
               <div className="border-b border-slate-100 pt-1"></div>
@@ -339,10 +373,11 @@ export const AddMediaPage: React.FC<AddMediaPageProps> = ({
               </div>
 
               {/* Detailed content is previewed only when its own field has data. */}
-              {formData.content.trim() && (
-                <div className="bg-[#f0fdf4] border border-emerald-100/80 rounded-2xl p-4 text-xs md:text-sm text-emerald-900/90 leading-relaxed font-normal mt-2 whitespace-pre-line">
-                  {formData.content}
-                </div>
+              {hasRichTextContent(formData.content) && (
+                <RichText
+                  html={formData.content}
+                  className="bg-[#f0fdf4] border border-emerald-100/80 rounded-2xl p-4 text-xs md:text-sm text-emerald-900/90 leading-relaxed font-normal mt-2 [&_p]:my-0"
+                />
               )}
 
             </div>

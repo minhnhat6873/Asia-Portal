@@ -98,7 +98,7 @@ function toPublicNews(admin: AdminMediaPost, index: number): NewsItem {
     id: employeeIdFromCode(admin.id ?? "", index + 1),
     title: admin.title ?? "",
     excerpt: admin.summary ?? "",
-    content: admin.content || admin.summary || "",
+    content: admin.content ?? "",
     category: mapNewsCategory(admin.category),
     date: admin.publishDate ?? "",
     author: admin.authorDepartment ?? "",

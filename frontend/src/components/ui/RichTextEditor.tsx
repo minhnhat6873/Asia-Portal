@@ -14,12 +14,14 @@ interface RichTextEditorProps {
   value: string;
   onChange: (html: string) => void;
   disabled?: boolean;
+  placeholder?: string;
 }
 
 export default function RichTextEditor({
   value,
   onChange,
   disabled = false,
+  placeholder = "",
 }: RichTextEditorProps) {
   return (
     <TinyMceEditor
@@ -30,6 +32,7 @@ export default function RichTextEditor({
       onEditorChange={onChange}
       init={{
         height: 260,
+        placeholder,
         menubar: false,
         statusbar: false,
         branding: false,

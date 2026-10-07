@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, Calendar, User } from "lucide-react";
 import type { NewsItem } from "@/config/news";
+import { hasRichTextContent, RichText } from "@/components/ui/RichText";
 
 /**
  * Badge colours for the four news categories. Tailwind classes cannot be built
@@ -66,13 +67,17 @@ export default function NewsArticle({ item, related }: Props) {
           <ArrowLeft size={15} /> Về trang Tin tức
         </Link>
 
-        <p className="mt-6 border-l-4 border-[#f5c800] pl-4 text-base font-medium leading-relaxed text-slate-700 sm:text-lg">
-          {item.excerpt}
-        </p>
+        <RichText
+          html={item.excerpt}
+          className="mt-6 border-l-4 border-[#f5c800] pl-4 text-base font-medium leading-relaxed text-slate-700 sm:text-lg [&_p]:my-0"
+        />
 
-        <p className="mt-6 text-sm leading-relaxed text-slate-600 sm:text-base">
-          {item.content}
-        </p>
+        {hasRichTextContent(item.content) && (
+          <RichText
+            html={item.content}
+            className="mt-6 text-sm leading-relaxed text-slate-600 sm:text-base [&_p]:my-0"
+          />
+        )}
 
         {/* Related articles */}
         {related.length > 0 && (

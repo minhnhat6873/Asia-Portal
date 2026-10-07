@@ -9,6 +9,7 @@ import {
   LockKeyhole
 } from 'lucide-react';
 import { Employee, MediaPost, ActiveTab, UserAccount } from '../types';
+import { RichText } from '@/components/ui/RichText';
 
 import type { DashboardSummary } from '../dashboard.service';
 interface DashboardOverviewProps {
@@ -167,9 +168,10 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
                 <h4 className="text-sm font-bold text-slate-900 truncate group-hover:text-sky-700 transition-colors">
                   {post.title}
                 </h4>
-                <p className="text-xs text-slate-500 line-clamp-1 mt-0.5">
-                  {post.summary}
-                </p>
+                <RichText
+                  html={post.summary}
+                  className="text-xs text-slate-500 line-clamp-1 mt-0.5 [&_p]:my-0"
+                />
               </div>
 
               <div className="shrink-0">

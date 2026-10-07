@@ -6,6 +6,7 @@ import Link from "next/link";
 import { newsCategories, NewsItem } from "@/config/news";
 import { useNews } from "@/lib/usePortalContent";
 import { ArrowRight, Calendar, User, ChevronRight, Search, ArrowDownUp, LayoutGrid, Newspaper, Users, Megaphone, X, RotateCcw } from "lucide-react";
+import { hasRichTextContent, RichText } from "@/components/ui/RichText";
 
 interface Props {
   preview?: boolean;
@@ -57,7 +58,7 @@ function FeaturedEvent({ item, onSelect }: { item: NewsItem; onSelect: () => voi
           {item.category}
         </span>
         <h3 className="mb-3 text-3xl font-black leading-tight text-[#16241a] md:text-4xl">{item.title}</h3>
-        <p className="mb-4 line-clamp-3 text-sm leading-relaxed text-gray-500">{item.excerpt}</p>
+        <RichText html={item.excerpt} className="mb-4 line-clamp-3 text-sm leading-relaxed text-gray-500 [&_p]:my-0" />
         <div className="flex items-center gap-4 text-xs text-gray-400">
           <span className="flex items-center gap-1"><Calendar size={12} /> {item.date}</span>
           <span className="flex items-center gap-1"><User size={12} /> {item.author}</span>
@@ -87,14 +88,14 @@ function NewsDetailPanel({ item, onClose }: { item: NewsItem; onClose: () => voi
       </div>
       <div className="p-5">
         <h3 className="text-xl font-black leading-snug text-[#16241a]">{item.title}</h3>
-        <p className="mt-3 text-sm leading-relaxed text-slate-500">{item.excerpt}</p>
+        <RichText html={item.excerpt} className="mt-3 text-sm leading-relaxed text-slate-500 [&_p]:my-0" />
         <div className="mt-5 border-t border-slate-100 pt-4 text-sm">
           <div className="flex items-center gap-2 text-slate-400"><Calendar size={15} /> <span>{item.date}</span></div>
           <div className="mt-3 flex items-center gap-2 text-slate-400"><User size={15} /> <span>{item.author}</span></div>
         </div>
-        <div className="mt-5 rounded-xl bg-[#eff9f1] p-3 text-xs leading-relaxed text-[#287348]">
-          {item.content}
-        </div>
+        {hasRichTextContent(item.content) && (
+          <RichText html={item.content} className="mt-5 rounded-xl bg-[#eff9f1] p-3 text-xs leading-relaxed text-[#287348] [&_p]:my-0" />
+        )}
       </div>
     </aside>
   );

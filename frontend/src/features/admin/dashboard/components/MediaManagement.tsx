@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { MediaPost, MediaCategory } from '../types';
 import { AdminSelect } from './AdminSelect';
+import { hasRichTextContent, RichText } from '@/components/ui/RichText';
 
 interface MediaManagementProps {
   mediaPosts: MediaPost[];
@@ -333,9 +334,10 @@ export const MediaManagement: React.FC<MediaManagementProps> = ({
                 </h2>
 
                 {/* Sapo Summary */}
-                <p className="text-sm text-slate-500 leading-relaxed">
-                  {activePost.summary}
-                </p>
+                <RichText
+                  html={activePost.summary}
+                  className="text-sm text-slate-500 leading-relaxed [&_p]:my-0"
+                />
 
                 {/* Subtle Divider */}
                 <div className="border-b border-slate-100 pt-1"></div>
@@ -353,11 +355,12 @@ export const MediaManagement: React.FC<MediaManagementProps> = ({
                 </div>
 
                 {/* Characteristic Mint Content Box */}
-                <div className="bg-[#f0fdf4] border border-emerald-100/80 rounded-2xl p-4 text-xs md:text-sm text-emerald-900/90 leading-relaxed font-normal mt-2">
-                  <p className="whitespace-pre-line">
-                    {activePost.content}
-                  </p>
-                </div>
+                {hasRichTextContent(activePost.content) && (
+                  <RichText
+                    html={activePost.content}
+                    className="bg-[#f0fdf4] border border-emerald-100/80 rounded-2xl p-4 text-xs md:text-sm text-emerald-900/90 leading-relaxed font-normal mt-2 [&_p]:my-0"
+                  />
+                )}
 
                 {/* Action Buttons */}
                 <div className="pt-2 flex items-center justify-between">
@@ -418,9 +421,10 @@ export const MediaManagement: React.FC<MediaManagementProps> = ({
                           >
                             {post.title}
                           </span>
-                          <span className="text-[11px] text-slate-400 line-clamp-1">
-                            {post.summary}
-                          </span>
+                          <RichText
+                            html={post.summary}
+                            className="text-[11px] text-slate-400 line-clamp-1 [&_p]:my-0"
+                          />
                         </div>
                       </div>
                     </td>

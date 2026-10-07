@@ -20,12 +20,28 @@ interface AvatarUploaderProps {
   onExistingAvatarRemove?: () => void;
   /** Avatar URL already saved for the employee being edited. */
   initialAvatarUrl?: string;
+  label?: string;
+  emptyHelperText?: string;
+  selectedHelperText?: string;
+  existingHelperText?: string;
+  imageAlt?: string;
+  pickerAriaLabel?: string;
+  removeAriaLabel?: string;
+  changeLabel?: string;
 }
 
 export default function AvatarUploader({
   onFileChange,
   onExistingAvatarRemove,
   initialAvatarUrl = "",
+  label = "Ảnh đại diện",
+  emptyHelperText = "Kéo thả hoặc chọn ảnh JPEG, PNG, WebP (tối đa 5 MB). Ảnh hiển thị theo khung 4:3.",
+  selectedHelperText = "Ảnh mới sẽ thay thế khi lưu hồ sơ.",
+  existingHelperText = "Đang giữ ảnh đại diện hiện tại.",
+  imageAlt = "Xem trước ảnh đại diện",
+  pickerAriaLabel = "Chọn ảnh đại diện",
+  removeAriaLabel = "Bỏ ảnh đại diện",
+  changeLabel = "Thay ảnh",
 }: AvatarUploaderProps) {
   const [message, setMessage] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -115,7 +131,7 @@ export default function AvatarUploader({
   return (
     <div>
       <label htmlFor="employee-avatar-upload" className="mb-1.5 block text-sm font-bold text-slate-700">
-        {"\u1ea2nh \u0111\u1ea1i di\u1ec7n"}
+        {label}
       </label>
 
       <input
@@ -132,14 +148,14 @@ export default function AvatarUploader({
         onKeyDown={handleEmptyPickerKeyDown}
         role={hasAvatar ? undefined : "button"}
         tabIndex={hasAvatar ? undefined : 0}
-        aria-label={hasAvatar ? undefined : "Chọn ảnh đại diện"}
+        aria-label={hasAvatar ? undefined : pickerAriaLabel}
       >
         {hasAvatar ? (
           <div className="mx-auto w-full max-w-[360px] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
             <div className="relative aspect-[4/3] w-full bg-slate-100">
               <Image
                 src={visibleAvatarUrl}
-                alt="Xem tr\u01b0\u1edbc \u1ea3nh \u0111\u1ea1i di\u1ec7n"
+                alt={imageAlt}
                 fill
                 unoptimized
                 sizes="360px"
@@ -148,7 +164,7 @@ export default function AvatarUploader({
               <button
                 type="button"
                 onClick={handleRemoveAvatar}
-                aria-label="B\u1ecf \u1ea3nh \u0111\u1ea1i di\u1ec7n"
+                aria-label={removeAriaLabel}
                 className="absolute right-2 top-2 inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/95 text-slate-600 shadow-sm ring-1 ring-slate-200 transition hover:bg-rose-50 hover:text-rose-600"
               >
                 <X size={16} strokeWidth={2.5} />
@@ -160,7 +176,7 @@ export default function AvatarUploader({
                 onClick={() => nativeInputRef.current?.click()}
                 className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700 transition hover:bg-emerald-100"
               >
-                {"Thay \u1ea3nh"}
+                {changeLabel}
               </button>
             </div>
           </div>
@@ -184,8 +200,8 @@ export default function AvatarUploader({
       <p className={"mt-2 flex items-center gap-1.5 text-xs " + (message ? "text-rose-600" : hasAvatar ? "text-emerald-700" : "text-slate-500")}>
         <span aria-hidden="true" className={"h-1.5 w-1.5 shrink-0 rounded-full " + (message ? "bg-rose-500" : hasAvatar ? "bg-emerald-500" : "bg-slate-300")} />
         {message || (hasAvatar
-          ? (selectedFile ? "\u1ea2nh m\u1edbi s\u1ebd thay th\u1ebf khi l\u01b0u h\u1ed3 s\u01a1." : "\u0110ang gi\u1eef \u1ea3nh \u0111\u1ea1i di\u1ec7n hi\u1ec7n t\u1ea1i.")
-          : "K\u00e9o th\u1ea3 ho\u1eb7c ch\u1ecdn \u1ea3nh JPEG, PNG, WebP (t\u1ed1i \u0111a 5 MB). \u1ea2nh hi\u1ec3n th\u1ecb theo khung 4:3.")}
+          ? (selectedFile ? selectedHelperText : existingHelperText)
+          : emptyHelperText)}
       </p>
     </div>
   );
