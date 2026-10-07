@@ -50,7 +50,7 @@ export const MediaManagement: React.FC<MediaManagementProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'table'>('table');
 
   // Modals
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);

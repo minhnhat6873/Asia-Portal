@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
-import { 
-  ArrowLeft, 
-  Check, 
-  RotateCcw, 
-  FileText, 
-  Calendar, 
-  User, 
+import {
+  ArrowLeft,
+  Check,
+  RotateCcw,
+  Calendar,
+  User,
   AlertCircle,
   X
 } from 'lucide-react';
@@ -183,21 +182,9 @@ export const AddMediaPage: React.FC<AddMediaPageProps> = ({
       )}
 
       {/* Main Grid: Form on Left (60%), Live Preview on Right (40%) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      <div className="grid grid-cols-1 2xl:grid-cols-12 gap-6 items-start">
         {/* Left Form: Balanced 2 Columns (7 cols) */}
-        <div className="lg:col-span-7 bg-white rounded-3xl border border-slate-200/90 shadow-2xs p-6 md:p-7">
-          <div className="flex items-center justify-between pb-4 mb-5 border-b border-slate-100">
-            <div>
-              <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <FileText className="w-4 h-4 text-sky-600" />
-                Nội Dung Soạn Thảo
-              </h2>
-              <p className="text-xs text-slate-500">
-                Nhập các thông số bài viết; bạn có thể xem trước dạng thẻ feed hoặc toàn bài ở cột bên phải.
-              </p>
-            </div>
-          </div>
-
+        <div className="2xl:col-span-7 bg-white rounded-3xl border border-slate-200/90 shadow-2xs p-6 md:p-7">
           <form onSubmit={handleSubmit} className="space-y-5">
             {/* Row 1: Title (50%) | Category (50%) */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -299,8 +286,9 @@ export const AddMediaPage: React.FC<AddMediaPageProps> = ({
           </form>
         </div>
 
-        {/* Right Preview Panel (5 cols) */}
-        <div className="lg:col-span-5 space-y-4 lg:sticky lg:top-4">
+        {/* Right Preview Panel (5 cols) — sticky so it stays pinned while scrolling */}
+        <div className="2xl:col-span-5 2xl:sticky 2xl:top-6 2xl:self-start">
+          <div className="space-y-4">
           <div className="flex items-center justify-between px-1">
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-sky-500 animate-pulse"></span>
@@ -384,6 +372,7 @@ export const AddMediaPage: React.FC<AddMediaPageProps> = ({
               )}
 
             </div>
+          </div>
           </div>
         </div>
       </div>
