@@ -1,21 +1,18 @@
 import React from 'react';
 import { 
+  Building2,
+  FileText,
   Users, 
-  Newspaper, 
   ArrowUpRight,
-  Calendar,
-  UserCheck,
-  ShieldCheck,
-  LockKeyhole
+  Calendar
 } from 'lucide-react';
-import { Employee, MediaPost, ActiveTab, UserAccount } from '../types';
+import { Employee, MediaPost, ActiveTab } from '../types';
 import { RichText } from '@/components/ui/RichText';
 
 import type { DashboardSummary } from '../dashboard.service';
 interface DashboardOverviewProps {
   employees: Employee[];
   mediaPosts: MediaPost[];
-  users: UserAccount[];
   summary: DashboardSummary | null;
   onNavigate: (tab: ActiveTab) => void;
   onPreviewMedia: (post: MediaPost) => void;
@@ -24,98 +21,55 @@ interface DashboardOverviewProps {
 export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
   employees,
   mediaPosts,
-  users,
   onNavigate,
   summary,
   onPreviewMedia,
 }) => {
-  const localActiveEmployees = employees.filter((e) => e.status === 'active').length;
-  const localProbationEmployees = employees.filter((e) => e.status === 'probation').length;
-  const publishedPosts = mediaPosts.filter((m) => m.status === 'published').length;
-  const localPendingAccounts = users.filter((user) => user.status === 'pending').length;
-  const localActiveAccounts = users.filter((user) => user.status === 'approved').length;
-  const localLockedAccounts = users.filter((user) => user.status === 'locked').length;
-
   const totalEmployees = summary?.totalEmployees ?? employees.length;
-  const activeEmployees = summary?.activeEmployees ?? localActiveEmployees;
-  const probationEmployees = summary?.probationEmployees ?? localProbationEmployees;
-  const pendingAccounts = summary?.pendingAccounts ?? localPendingAccounts;
-  const activeAccounts = summary?.activeAccounts ?? localActiveAccounts;
-  const approvedAccounts = activeAccounts;
-  const lockedAccounts = summary?.lockedAccounts ?? localLockedAccounts;
+  const totalDepartments = summary?.totalDepartments ?? new Set(employees.map((employee) => employee.department)).size;
 
   return (
     <div className="space-y-6">
 
 
-      {/* 2 Metric Cards Grid — two cards, so the row splits 50/50 */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {/* Card 1: Nhân sự */}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <div
           onClick={() => onNavigate('employees')}
-          className="bg-white p-6 rounded-3xl border border-slate-200/90 shadow-2xs hover:border-emerald-500/50 hover:shadow-sm transition-all cursor-pointer group"
+          className="group flex min-h-40 cursor-pointer items-center gap-5 rounded-3xl border border-slate-200/80 bg-white p-6 shadow-2xs transition-all hover:border-emerald-400/60 hover:shadow-sm"
         >
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-              Tổng Số Nhân Sự
-            </span>
-            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:scale-105 transition-transform">
-              <Users className="w-5 h-5" />
-            </div>
+          <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-3xl bg-emerald-50 text-emerald-600 transition-transform group-hover:scale-105">
+            <Users className="h-10 w-10" strokeWidth={2.2} />
           </div>
-          <div className="mt-4 flex items-baseline gap-2">
-            <span className="text-3xl font-extrabold text-slate-900 tracking-tight">
-              {totalEmployees}
-            </span>
-            <span className="text-xs font-medium text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full">
-              {activeEmployees} đang làm việc
-            </span>
-          </div>
-          <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-            <span>{probationEmployees} nhân sự thử việc</span>
-            <span className="text-emerald-700 font-semibold group-hover:translate-x-0.5 transition-transform flex items-center gap-0.5">
-              Xem chi tiết <ArrowUpRight className="w-3 h-3" />
-            </span>
+          <div>
+            <p className="text-base font-bold text-slate-600">Tổng số nhân viên</p>
+            <p className="mt-2 text-4xl font-black tracking-tight text-slate-950">{totalEmployees}</p>
           </div>
         </div>
 
-        {/* Card 2: Truyền thông */}
+        <div
+          onClick={() => onNavigate('employees')}
+          className="group flex min-h-40 cursor-pointer items-center gap-5 rounded-3xl border border-slate-200/80 bg-white p-6 shadow-2xs transition-all hover:border-sky-400/60 hover:shadow-sm"
+        >
+          <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-3xl bg-sky-50 text-sky-500 transition-transform group-hover:scale-105">
+            <Building2 className="h-10 w-10" strokeWidth={2.2} />
+          </div>
+          <div>
+            <p className="text-base font-bold text-slate-600">Số phòng ban</p>
+            <p className="mt-2 text-4xl font-black tracking-tight text-slate-950">{totalDepartments}</p>
+          </div>
+        </div>
+
         <div
           onClick={() => onNavigate('media')}
-          className="bg-white p-6 rounded-3xl border border-slate-200/90 shadow-2xs hover:border-sky-500/50 hover:shadow-sm transition-all cursor-pointer group"
+          className="group flex min-h-40 cursor-pointer items-center gap-5 rounded-3xl border border-slate-200/80 bg-white p-6 shadow-2xs transition-all hover:border-amber-400/60 hover:shadow-sm"
         >
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-              Tin tức & Sự kiện
-            </span>
-            <div className="w-10 h-10 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center group-hover:scale-105 transition-transform">
-              <Newspaper className="w-5 h-5" />
-            </div>
+          <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-3xl bg-amber-50 text-amber-500 transition-transform group-hover:scale-105">
+            <FileText className="h-10 w-10" strokeWidth={2.2} />
           </div>
-          <div className="mt-4 flex items-baseline gap-2">
-            <span className="text-3xl font-extrabold text-slate-900 tracking-tight">
-              {mediaPosts.length}
-            </span>
-            <span className="text-xs font-medium text-sky-700 bg-sky-50 px-2.5 py-0.5 rounded-full">
-              {publishedPosts} bài xuất bản
-            </span>
+          <div>
+            <p className="text-base font-bold text-slate-600">Bài viết</p>
+            <p className="mt-2 text-4xl font-black tracking-tight text-slate-950">{mediaPosts.length}</p>
           </div>
-          <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-            <span>Tin tức, thông cáo & sự kiện</span>
-            <span className="text-sky-700 font-semibold group-hover:translate-x-0.5 transition-transform flex items-center gap-0.5">
-              Xem chi tiết <ArrowUpRight className="w-3 h-3" />
-            </span>
-          </div>
-        </div>
-        <div onClick={() => onNavigate('permissions')} className="cursor-pointer rounded-3xl border border-slate-200/90 bg-white p-6 shadow-2xs transition-all hover:border-amber-500/50 hover:shadow-sm">
-          <div className="flex items-center justify-between"><span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Tài khoản chờ duyệt</span><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50 text-amber-600"><UserCheck className="h-5 w-5" /></div></div>
-          <div className="mt-4 flex items-baseline gap-2"><span className="text-3xl font-extrabold tracking-tight text-slate-900">{pendingAccounts}</span><span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-700">cần xử lý</span></div>
-          <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3 text-xs text-slate-500"><span>Vào trang phân quyền</span><ArrowUpRight className="h-3.5 w-3.5 text-amber-700" /></div>
-        </div>
-        <div onClick={() => onNavigate('permissions')} className="cursor-pointer rounded-3xl border border-slate-200/90 bg-white p-6 shadow-2xs transition-all hover:border-violet-500/50 hover:shadow-sm">
-          <div className="flex items-center justify-between"><span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Tài khoản hoạt động</span><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-50 text-violet-600"><ShieldCheck className="h-5 w-5" /></div></div>
-          <div className="mt-4 flex items-baseline gap-2"><span className="text-3xl font-extrabold tracking-tight text-slate-900">{approvedAccounts}</span><span className="rounded-full bg-violet-50 px-2.5 py-0.5 text-xs font-medium text-violet-700">đã duyệt</span></div>
-          <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3 text-xs text-slate-500"><span>{lockedAccounts} tài khoản tạm khóa</span><LockKeyhole className="h-3.5 w-3.5 text-violet-700" /></div>
         </div>
       </div>
 

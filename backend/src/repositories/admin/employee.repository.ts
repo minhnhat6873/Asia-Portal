@@ -27,6 +27,11 @@ export const adminEmployeeRepository = {
     return EmployeeModel.countDocuments(filter);
   },
 
+  async countDistinctDepartments(filter: QueryFilter<Employee>) {
+    const departments = await EmployeeModel.distinct("department", filter);
+    return departments.filter((department) => typeof department === "string" && department.trim()).length;
+  },
+
   findById(id: string) {
     return EmployeeModel.findOne({ _id: id, isDeleted: { $ne: true } }).lean();
   },

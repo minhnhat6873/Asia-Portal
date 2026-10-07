@@ -4,6 +4,7 @@ export interface DashboardSummary {
   totalEmployees: number;
   activeEmployees: number;
   probationEmployees: number;
+  totalDepartments: number;
   totalMediaPosts: number;
   publishedMediaPosts: number;
   pendingAccounts: number;

@@ -212,6 +212,15 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
     }
   }, [employeeListParams]);
 
+  const refreshDashboardSummary = useCallback(async (signal?: AbortSignal) => {
+    try {
+      const summary = await getDashboardSummary(signal);
+      setDashboardSummary(summary);
+    } catch {
+      if (!signal?.aborted) setDashboardSummary(null);
+    }
+  }, []);
+
   const handleEmployeeFiltersChange = useCallback((filters: AdminEmployeeListParams) => {
     setEmployeeListParams({ ...filters, page: 1, limit: 12 });
   }, []);
@@ -227,15 +236,10 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
   }, [loadEmployees]);
   useEffect(() => {
     const controller = new AbortController();
-
-    void getDashboardSummary(controller.signal)
-      .then(setDashboardSummary)
-      .catch(() => {
-        if (!controller.signal.aborted) setDashboardSummary(null);
-      });
+    void refreshDashboardSummary(controller.signal);
 
     return () => controller.abort();
-  }, []);
+  }, [refreshDashboardSummary]);
   useEffect(() => {
     if (!isAccountMenuOpen) return;
 
@@ -353,6 +357,7 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
       : { ...newEmpData, id: `emp-${Date.now()}` };
     const updated = [newEmployee, ...employees];
     setEmployees(updated);
+    void refreshDashboardSummary();
     addToast(`Đã thêm nhân viên ${newEmployee.fullName} (${newEmployee.code}) thành công!`);
   };
 
@@ -362,6 +367,7 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
     if (selectedDossierEmployee?.id === updatedEmp.id) {
       setSelectedDossierEmployee(updatedEmp);
     }
+    void refreshDashboardSummary();
     addToast(`Đã cập nhật thông tin nhân viên ${updatedEmp.fullName}!`);
   };
 
@@ -388,6 +394,7 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
     }
     toast.dismiss(loadingToastId);
     toast.success('Đã xóa nhân viên thành công.');
+    void refreshDashboardSummary();
     return true;
   };
 
@@ -637,7 +644,7 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
             navigateToTab(tab);
             if (window.matchMedia('(max-width: 767px)').matches) setIsSidebarOpen(false);
           }}
-          employeeCount={employees.length}
+          employeeCount={dashboardSummary?.totalEmployees ?? employeeTotal}
           mediaCount={mediaPosts.length}
           pendingUsersCount={pendingUsersCount}
         />
@@ -695,7 +702,6 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
               <DashboardOverview
                 employees={employees}
                 mediaPosts={mediaPosts}
-                users={users}
                 onNavigate={navigateToTab}
                 summary={dashboardSummary}
                 onPreviewMedia={(post) => {
@@ -731,7 +737,9 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
             {activeTab === 'employees' && isEmployeeTrashPage && (
               <EmployeeTrashPage
                 onBack={() => router.push('/admin/employees')}
-                onRestored={() => loadEmployees()}
+                onRestored={async () => {
+                  await Promise.all([loadEmployees(), refreshDashboardSummary()]);
+                }}
               />
             )}
 
