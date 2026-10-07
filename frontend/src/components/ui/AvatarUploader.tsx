@@ -7,6 +7,14 @@ import { defineFilePond, type FilePondEntry } from "filepond";
 import { locale } from "filepond/locales/vi-vn.js";
 import "filepond/types/react";
 
+const avatarLocale = {
+  ...locale,
+  descriptionBrowse: "Chọn {{maxFilesUnit}}",
+  descriptionBrowseDrop: "Thả {{maxFilesUnit}} vào đây hoặc duyệt",
+  descriptionBrowseDropSelect: "Thả {{maxFilesUnit}} vào đây, duyệt hoặc chọn từ:",
+  descriptionBrowseSelect: "Duyệt hoặc chọn {{maxFilesUnit}} từ:",
+};
+
 interface AvatarUploaderProps {
   onFileChange: (file: File | null) => void;
   onExistingAvatarRemove?: () => void;
@@ -31,7 +39,7 @@ export default function AvatarUploader({
 
   useEffect(() => {
     if (!customElements.get("file-pond")) {
-      defineFilePond({ locale });
+      defineFilePond({ locale: avatarLocale });
     }
   }, []);
 
@@ -79,6 +87,20 @@ export default function AvatarUploader({
     event.currentTarget.value = "";
   };
 
+  const handleEmptyPickerClick = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (hasAvatar) return;
+
+    event.preventDefault();
+    nativeInputRef.current?.click();
+  };
+
+  const handleEmptyPickerKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (hasAvatar || (event.key !== "Enter" && event.key !== " ")) return;
+
+    event.preventDefault();
+    nativeInputRef.current?.click();
+  };
+
   const handleRemoveAvatar = () => {
     if (selectedFile) {
       clearSelectedFile();
@@ -104,7 +126,14 @@ export default function AvatarUploader({
         onChange={handleNativeFileChange}
       />
 
-      <div className={"employee-avatar-picker " + (hasAvatar ? "employee-avatar-picker--filled" : "employee-avatar-picker--empty")}>
+      <div
+        className={"employee-avatar-picker " + (hasAvatar ? "employee-avatar-picker--filled" : "employee-avatar-picker--empty")}
+        onClick={handleEmptyPickerClick}
+        onKeyDown={handleEmptyPickerKeyDown}
+        role={hasAvatar ? undefined : "button"}
+        tabIndex={hasAvatar ? undefined : 0}
+        aria-label={hasAvatar ? undefined : "Chọn ảnh đại diện"}
+      >
         {hasAvatar ? (
           <div className="mx-auto w-full max-w-[360px] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
             <div className="relative aspect-[4/3] w-full bg-slate-100">

@@ -21,6 +21,7 @@ type Booking = {
   attendees: number;
   organizer: string;
   email?: string;
+  /** Legacy field from saved browser data; the room ID is now the sole source of the room name. */
   displayRoom?: string;
   department: string;
   otpVerified: true;
@@ -31,16 +32,16 @@ const MEETING_TIME_OPTIONS = ["08:00", "08:30", "09:00", "09:30", "10:00", "10:3
 const ASIA_FNB_EMAIL_PATTERN = /^[A-Z0-9._%+-]+@asiafnb\.com$/i;
 const NAME_PATTERN = /^[\p{L}\s]+$/u;
 const rooms = [
-  { id: "room-01" as const, name: "Phòng Họp 01", floor: "Tầng 1", capacity: 12, image: "/assets/images/Phonghop1.jpg" },
-  { id: "room-02" as const, name: "Phòng Họp 02", floor: "Tầng 1", capacity: 6, image: "/assets/images/phonghop2.jpg" },
+  { id: "room-01" as const, name: "Phòng 1", floor: "Tầng 1", capacity: 12, image: "/assets/images/Phonghop1.jpg" },
+  { id: "room-02" as const, name: "Phòng 2", floor: "Tầng 1", capacity: 6, image: "/assets/images/phonghop2.jpg" },
 ];
 
 const DEMO_BOOKINGS: Booking[] = [
-  { id: "demo-q4", title: "Họp chiến lược Q4", roomId: "room-01", displayRoom: "Phòng Lotus", date: "2026-10-05", start: "08:30", end: "09:30", attendees: 8, organizer: "Nguyễn Văn A", email: "nguyenvana@vietcorp.com", department: "Kinh doanh", otpVerified: true },
-  { id: "demo-product", title: "Demo sản phẩm", roomId: "room-02", displayRoom: "Phòng Sakura", date: "2026-10-05", start: "10:00", end: "11:00", attendees: 6, organizer: "Trần Thị B", email: "tranthib@vietcorp.com", department: "Sản phẩm", otpVerified: true },
-  { id: "demo-candidate", title: "Phỏng vấn ứng viên", roomId: "room-01", displayRoom: "Phòng Orchid", date: "2026-10-05", start: "14:00", end: "15:30", attendees: 4, organizer: "Lê Minh C", email: "leminhc@vietcorp.com", department: "Nhân sự", otpVerified: true },
-  { id: "demo-operations", title: "Họp vận hành", roomId: "room-02", displayRoom: "Phòng Rose", date: "2026-10-06", start: "09:00", end: "10:00", attendees: 10, organizer: "Phạm Thị D", email: "phamthid@vietcorp.com", department: "Vận hành", otpVerified: true },
-  { id: "demo-project", title: "Đánh giá dự án Q3", roomId: "room-01", displayRoom: "Phòng Tulip", date: "2026-10-07", start: "13:30", end: "15:00", attendees: 7, organizer: "Hoàng Văn E", email: "hoangvane@vietcorp.com", department: "Dự án", otpVerified: true },
+  { id: "demo-q4", title: "Họp chiến lược Q4", roomId: "room-01", date: "2026-10-05", start: "08:30", end: "09:30", attendees: 8, organizer: "Nguyễn Văn A", email: "nguyenvana@vietcorp.com", department: "Kinh doanh", otpVerified: true },
+  { id: "demo-product", title: "Demo sản phẩm", roomId: "room-02", date: "2026-10-05", start: "10:00", end: "11:00", attendees: 6, organizer: "Trần Thị B", email: "tranthib@vietcorp.com", department: "Sản phẩm", otpVerified: true },
+  { id: "demo-candidate", title: "Phỏng vấn ứng viên", roomId: "room-01", date: "2026-10-05", start: "14:00", end: "15:30", attendees: 4, organizer: "Lê Minh C", email: "leminhc@vietcorp.com", department: "Nhân sự", otpVerified: true },
+  { id: "demo-operations", title: "Họp vận hành", roomId: "room-02", date: "2026-10-06", start: "09:00", end: "10:00", attendees: 10, organizer: "Phạm Thị D", email: "phamthid@vietcorp.com", department: "Vận hành", otpVerified: true },
+  { id: "demo-project", title: "Đánh giá dự án Q3", roomId: "room-01", date: "2026-10-07", start: "13:30", end: "15:00", attendees: 7, organizer: "Hoàng Văn E", email: "hoangvane@vietcorp.com", department: "Dự án", otpVerified: true },
 ];
 
 function todayLocal() {
@@ -70,7 +71,7 @@ function sortBookingsByStart(list: Booking[]) {
 
 function bookingRoomLabel(booking: Booking) {
   const room = rooms.find((item) => item.id === booking.roomId);
-  const roomName = booking.displayRoom ?? room?.name ?? "—";
+  const roomName = room?.name ?? "—";
   return `${roomName} - ${room?.floor ?? "—"}`;
 }
 
@@ -284,7 +285,8 @@ export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: b
         const saved = JSON.parse(window.localStorage.getItem(STORAGE_KEY) ?? "[]") as unknown;
         if (Array.isArray(saved)) {
           const savedBookings = saved.filter(isBooking);
-          setBookings(savedBookings.length ? savedBookings : DEMO_BOOKINGS);
+          const normalizedBookings = savedBookings.map(({ displayRoom: _legacyDisplayRoom, ...booking }) => booking);
+          setBookings(normalizedBookings.length ? normalizedBookings : DEMO_BOOKINGS);
         } else {
           setBookings(DEMO_BOOKINGS);
         }
@@ -670,8 +672,8 @@ function BookedScheduleDashboard({
       </section> : null}
 
       <section className="mt-3 flex flex-wrap items-center gap-3">
-        <Metric icon={<CalendarDays size={20} />} label="Lịch đang hoạt động" value={activeBookings.length} active onClick={() => { setTableScope("active"); setViewMode("table"); }} />
-        <Metric icon={<List size={20} />} label="Lịch sử đã đặt phòng" value={historyBookings.length} onClick={() => { setTableScope("history"); setViewMode("table"); }} />
+        <Metric icon={<CalendarDays size={20} />} label="Lịch đang hoạt động" value={activeBookings.length} active={tableScope === "active"} onClick={() => { setTableScope("active"); setViewMode("table"); }} />
+        <Metric icon={<List size={20} />} label="Lịch sử đã đặt phòng" value={historyBookings.length} active={tableScope === "history"} onClick={() => { setTableScope("history"); setViewMode("table"); }} />
         <div className="ml-auto inline-flex overflow-hidden rounded-xl border border-emerald-100 bg-white shadow-sm"><button type="button" onClick={() => setViewMode("calendar")} className={`inline-flex h-8 items-center gap-2 px-3 text-[11px] font-semibold ${viewMode === "calendar" ? "bg-[#159447] text-white" : "text-slate-600 hover:bg-emerald-50"}`}><CalendarDays size={13} />Xem theo lịch</button><button type="button" onClick={() => { setTableScope("active"); setViewMode("table"); }} className={`inline-flex h-8 items-center gap-2 px-3 text-[11px] font-semibold ${viewMode === "table" && tableScope === "active" ? "bg-[#159447] text-white" : "text-slate-600 hover:bg-emerald-50"}`}><List size={13} />Xem theo bảng</button></div>
       </section>
 

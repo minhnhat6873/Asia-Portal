@@ -46,6 +46,7 @@ interface EmployeeFormDraft {
 
 const COMPANY_EMAIL_PATTERN = /^[A-Z0-9._%+-]+@asiafnb\.com$/i;
 const VIETNAM_PHONE_PATTERN = /^0(?:3|5|7|8|9)\d{8}$/;
+const EMPLOYEE_CODE_PATTERN = /^\d+$/;
 
 function toPlainText(value: string): string {
   return value.replace(/<[^>]*>/g, " ").replace(/&nbsp;/g, " ").trim();
@@ -152,6 +153,7 @@ export const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({
     const phone = formData.phone.trim().replace(/[\s.-]/g, "");
 
     if (!code) errors.code = "Vui lòng nhập mã nhân viên.";
+    else if (!EMPLOYEE_CODE_PATTERN.test(code)) errors.code = "Mã nhân viên chỉ được nhập số.";
     if (!fullName) errors.fullName = "Vui lòng nhập họ và tên.";
     else if (fullName.length < 2 || fullName.length > 100) errors.fullName = "Họ và tên phải từ 2 đến 100 ký tự.";
     if (!position) errors.position = "Vui lòng nhập chức vụ.";
@@ -362,7 +364,9 @@ export const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({
                   type="text"
                   required
                   value={formData.code}
-                  onChange={(e) => setFormData({ ...formData, code: e.target.value })}
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  onChange={(e) => setFormData({ ...formData, code: e.target.value.replace(/\D/g, "") })}
                   aria-invalid={Boolean(fieldErrors.code)}
                   className={inputClassName("code", "font-mono font-medium")}
                 />
