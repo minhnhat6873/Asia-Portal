@@ -400,7 +400,7 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
     const updated = [newPost, ...mediaPosts];
     setMediaPosts(updated);
     saveStoredMediaPosts(updated);
-    addToast(`Đã đăng bài viết truyền thông "${newPost.title.slice(0, 32)}..." thành công!`);
+    addToast(`Đã lưu bài viết truyền thông "${newPost.title.slice(0, 32)}..." thành công!`);
   };
 
   const handleUpdateMedia = (updatedPost: MediaPost) => {

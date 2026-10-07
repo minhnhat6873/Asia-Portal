@@ -34,6 +34,11 @@ const CATEGORIES: MediaCategory[] = [
   'Thông báo'
 ];
 
+const MEDIA_STATUS_OPTIONS = [
+  { value: 'draft', label: 'Chưa xuất bản' },
+  { value: 'published', label: 'Đã xuất bản' },
+] as const;
+
 export const MediaManagement: React.FC<MediaManagementProps> = ({
   mediaPosts,
   onAddMedia,
@@ -51,6 +56,10 @@ export const MediaManagement: React.FC<MediaManagementProps> = ({
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingPost, setEditingPost] = useState<MediaPost | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [pendingStatusChange, setPendingStatusChange] = useState<{
+    post: MediaPost;
+    status: MediaPost['status'];
+  } | null>(null);
 
   // Form State - balanced and clean
   const [formData, setFormData] = useState({
@@ -61,7 +70,7 @@ export const MediaManagement: React.FC<MediaManagementProps> = ({
     coverImage: 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&w=1000&q=80',
     authorDepartment: 'Phòng MKT',
     publishDate: '22/09/2026',
-    status: 'published' as 'published' | 'draft'
+    status: 'draft' as 'published' | 'draft'
   });
 
   const filteredPosts = useMemo(() => {
@@ -95,7 +104,7 @@ export const MediaManagement: React.FC<MediaManagementProps> = ({
       coverImage: 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&w=1000&q=80',
       authorDepartment: 'Phòng MKT',
       publishDate: '22/09/2026',
-      status: 'published'
+      status: 'draft'
     });
     setIsAddModalOpen(true);
   };
@@ -270,7 +279,7 @@ export const MediaManagement: React.FC<MediaManagementProps> = ({
                         </span>
                         {post.status === 'draft' && (
                           <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500 text-slate-950">
-                            Bản nháp
+                            Chưa xuất bản
                           </span>
                         )}
                       </div>
@@ -365,7 +374,7 @@ export const MediaManagement: React.FC<MediaManagementProps> = ({
                 {/* Action Buttons */}
                 <div className="pt-2 flex items-center justify-between">
                   <span className="text-[11px] text-slate-400">
-                    Trạng thái: <strong>{activePost.status === 'published' ? 'Đã xuất bản' : 'Bản nháp'}</strong>
+                    Trạng thái: <strong>{activePost.status === 'published' ? 'Đã xuất bản' : 'Chưa xuất bản'}</strong>
                   </span>
                   {!isTrashedPreview && <div className="flex items-center gap-2">
                     <button
@@ -436,17 +445,21 @@ export const MediaManagement: React.FC<MediaManagementProps> = ({
                     <td className="py-3 px-4 font-medium text-slate-700">{post.publishDate}</td>
                     <td className="py-3 px-4 text-slate-600">{post.authorDepartment}</td>
                     <td className="py-3 px-4">
-                      {post.status === 'published' ? (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-600 border border-emerald-100">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                          Đã xuất bản
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-600 border border-amber-100">
-                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-                          Bản nháp
-                        </span>
-                      )}
+                      <AdminSelect
+                        value={post.status}
+                        onChange={(value) => {
+                          const status = value as MediaPost['status'];
+                          if (status !== post.status) setPendingStatusChange({ post, status });
+                        }}
+                        options={MEDIA_STATUS_OPTIONS}
+                        searchable={false}
+                        showSelectionCheck={false}
+                        className={`min-w-36 [&>button]:rounded-full [&>button]:px-3 [&>button]:py-1.5 [&>button]:text-[11px] ${
+                          post.status === 'published'
+                            ? '[&>button]:!border-emerald-100 [&>button]:!bg-emerald-50 [&>button]:!text-emerald-700'
+                            : '[&>button]:!border-amber-200 [&>button]:!bg-amber-50 [&>button]:!text-amber-700'
+                        }`}
+                      />
                     </td>
                     <td className="py-3 px-4 text-center">
                       <div className="flex items-center justify-center gap-4">
@@ -595,7 +608,7 @@ export const MediaManagement: React.FC<MediaManagementProps> = ({
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/20 font-medium"
                   >
                     <option value="published">Đã xuất bản</option>
-                    <option value="draft">Bản nháp</option>
+                    <option value="draft">Chưa xuất bản</option>
                   </select>
                 </div>
               </div>
@@ -646,6 +659,57 @@ export const MediaManagement: React.FC<MediaManagementProps> = ({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* CONFIRM STATUS CHANGE MODAL */}
+      {pendingStatusChange && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-200 text-center">
+            <div className={`mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full ${
+              pendingStatusChange.status === 'published'
+                ? 'bg-emerald-50 text-emerald-600'
+                : 'bg-amber-50 text-amber-600'
+            }`}>
+              <ArrowRight className="h-6 w-6" />
+            </div>
+            <h3 className="text-base font-bold text-slate-900">
+              {pendingStatusChange.status === 'published'
+                ? 'Xác nhận xuất bản bài viết?'
+                : 'Xác nhận ngừng xuất bản bài viết?'}
+            </h3>
+            <p className="mt-1 text-xs leading-relaxed text-slate-500">
+              {pendingStatusChange.status === 'published'
+                ? `Bài viết “${pendingStatusChange.post.title}” sẽ được hiển thị công khai.`
+                : `Bài viết “${pendingStatusChange.post.title}” sẽ chuyển về trạng thái chưa xuất bản.`}
+            </p>
+            <div className="mt-5 flex items-center justify-center gap-2">
+              <button
+                type="button"
+                onClick={() => setPendingStatusChange(null)}
+                className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                Hủy bỏ
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onUpdateMedia({
+                    ...pendingStatusChange.post,
+                    status: pendingStatusChange.status,
+                  });
+                  setPendingStatusChange(null);
+                }}
+                className={`rounded-xl px-4 py-2 text-xs font-bold text-white ${
+                  pendingStatusChange.status === 'published'
+                    ? 'bg-emerald-600 hover:bg-emerald-700'
+                    : 'bg-amber-500 hover:bg-amber-600'
+                }`}
+              >
+                Đồng ý
+              </button>
+            </div>
           </div>
         </div>
       )}

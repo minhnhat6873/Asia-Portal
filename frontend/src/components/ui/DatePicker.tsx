@@ -11,6 +11,8 @@ import {
   CalendarGridHeader,
   CalendarHeaderCell,
   CalendarHeading,
+  CalendarMonthPicker,
+  CalendarYearPicker,
   DateInput,
   DatePicker as AriaDatePicker,
   DateSegment,
@@ -43,7 +45,37 @@ export default function DatePicker({value, minValue, onChange, ariaLabel = "Date
         <Calendar className="w-[280px]">
           <header className="mb-3 flex items-center justify-between px-1">
             <Button slot="previous" className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-600 outline-none transition hover:bg-emerald-50 hover:text-[#159447]"><ChevronLeft size={19} /></Button>
-            <CalendarHeading className="text-sm font-extrabold text-slate-800" />
+            <CalendarHeading className="sr-only" />
+            <div className="flex items-center justify-center gap-1">
+              <CalendarMonthPicker format="short">
+                {({items, value, onChange, ...ariaProps}) => (
+                  <select
+                    {...ariaProps}
+                    value={String(value)}
+                    onChange={(event) => onChange(Number(event.target.value))}
+                    className="cursor-pointer rounded-lg border-0 bg-transparent px-1.5 py-1 text-sm font-bold text-slate-800 outline-none transition hover:bg-slate-50 focus:ring-2 focus:ring-emerald-200"
+                  >
+                    {items.map((month) => (
+                      <option key={month.id} value={month.id}>{month.formatted}</option>
+                    ))}
+                  </select>
+                )}
+              </CalendarMonthPicker>
+              <CalendarYearPicker visibleYears={120}>
+                {({items, value, onChange, ...ariaProps}) => (
+                  <select
+                    {...ariaProps}
+                    value={String(value)}
+                    onChange={(event) => onChange(Number(event.target.value))}
+                    className="cursor-pointer rounded-lg border-0 bg-transparent px-1.5 py-1 text-sm font-bold text-slate-800 outline-none transition hover:bg-slate-50 focus:ring-2 focus:ring-emerald-200"
+                  >
+                    {items.map((year) => (
+                      <option key={year.id} value={year.id}>{year.formatted}</option>
+                    ))}
+                  </select>
+                )}
+              </CalendarYearPicker>
+            </div>
             <Button slot="next" className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-600 outline-none transition hover:bg-emerald-50 hover:text-[#159447]"><ChevronRight size={19} /></Button>
           </header>
           <CalendarGrid className="w-full border-collapse text-center">

@@ -12,6 +12,7 @@ import {
 import { MediaPost, MediaCategory } from '../types';
 import { AdminSelect } from './AdminSelect';
 import AvatarUploader from '@/components/ui/AvatarUploader';
+import DatePicker from '@/components/ui/DatePicker';
 import RichTextEditor from '@/components/ui/RichTextEditor';
 import { hasRichTextContent, RichText } from '@/components/ui/RichText';
 
@@ -33,6 +34,18 @@ const PRESET_COVERS = [
   'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&w=1000&q=80',
   'https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=1000&q=80'
 ];
+
+function toDatePickerValue(value: string): string {
+  const [day, month, year] = value.split('/');
+  if (!day || !month || !year) return '';
+  return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+}
+
+function fromDatePickerValue(value: string): string {
+  const [year, month, day] = value.split('-');
+  if (!day || !month || !year) return '';
+  return `${day}/${month}/${year}`;
+}
 
 async function createStoredCoverImage(file: File): Promise<string> {
   const bitmap = await createImageBitmap(file);
@@ -157,7 +170,7 @@ export const AddMediaPage: React.FC<AddMediaPageProps> = ({
             className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold transition-colors shadow-sm"
           >
             <Check className="w-4 h-4" />
-            <span>Lưu Bản Nháp</span>
+            <span>Lưu Bài Viết</span>
           </button>
         </div>
       </div>
@@ -185,11 +198,11 @@ export const AddMediaPage: React.FC<AddMediaPageProps> = ({
             </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-5">
             {/* Row 1: Title (50%) | Category (50%) */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                <label className="block text-sm font-bold text-slate-700 mb-1.5">
                   Tiêu đề bài viết <span className="text-rose-500">*</span>
                 </label>
                 <input
@@ -198,11 +211,11 @@ export const AddMediaPage: React.FC<AddMediaPageProps> = ({
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                   placeholder="Ví dụ: Asia F&B khánh thành dây chuyền chiết rót tự động mới"
-                  className="w-full px-3.5 py-2.5 text-xs bg-slate-50/70 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all font-medium"
+                  className="w-full px-4 py-3 text-sm bg-slate-50/70 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all font-medium"
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                <label className="block text-sm font-bold text-slate-700 mb-1.5">
                   Chuyên mục / Phân loại <span className="text-rose-500">*</span>
                 </label>
                 <AdminSelect value={formData.category} onChange={(category) => setFormData({ ...formData, category: category as MediaCategory })} options={CATEGORIES.map((value) => ({ value, label: value }))} className="w-full" searchable={false} showSelectionCheck={false} />
@@ -212,25 +225,23 @@ export const AddMediaPage: React.FC<AddMediaPageProps> = ({
             {/* Row 2: Publish Date (50%) | Author Department (50%) */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                <label className="block text-sm font-bold text-slate-700 mb-1.5">
                   Ngày đăng bài (DD/MM/YYYY)
                 </label>
-                <input
-                  type="text"
-                  value={formData.publishDate}
-                  onChange={(e) => setFormData({ ...formData, publishDate: e.target.value })}
-                  placeholder="22/09/2026"
-                  className="w-full px-3.5 py-2.5 text-xs bg-slate-50/70 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all font-medium"
+                <DatePicker
+                  value={toDatePickerValue(formData.publishDate)}
+                  onChange={(value) => setFormData({ ...formData, publishDate: fromDatePickerValue(value) })}
+                  ariaLabel="Ngày đăng bài"
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                <label className="block text-sm font-bold text-slate-700 mb-1.5">
                   Đơn vị / Phòng ban đăng tin
                 </label>
                 <select
                   value={formData.authorDepartment}
                   onChange={(e) => setFormData({ ...formData, authorDepartment: e.target.value })}
-                  className="w-full px-3.5 py-2.5 text-xs bg-slate-50/70 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all font-medium"
+                  className="w-full px-4 py-3 text-sm bg-slate-50/70 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all font-medium"
                 >
                   <option value="Phòng HR&AD">Phòng HR&AD</option>
                   <option value="Phòng MKT">Phòng MKT</option>
@@ -251,10 +262,10 @@ export const AddMediaPage: React.FC<AddMediaPageProps> = ({
               changeLabel="Thay ảnh bìa"
             />
 
-            {/* Row 4: Sapo Summary (50%) | Detailed Content (50%) */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Row 4: Full-width Sapo followed by full-width detailed content */}
+            <div className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                <label className="block text-sm font-bold text-slate-700 mb-1.5">
                   Tóm tắt ngắn (Sapo) <span className="text-rose-500">*</span>
                 </label>
                 <RichTextEditor
@@ -264,7 +275,7 @@ export const AddMediaPage: React.FC<AddMediaPageProps> = ({
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                <label className="block text-sm font-bold text-slate-700 mb-1.5">
                   Nội dung chi tiết bài viết
                 </label>
                 <RichTextEditor
@@ -276,20 +287,13 @@ export const AddMediaPage: React.FC<AddMediaPageProps> = ({
             </div>
 
             {/* Form actions at bottom */}
-            <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
-              <button
-                type="button"
-                onClick={onBack}
-                className="text-xs text-slate-500 hover:text-slate-700 font-medium"
-              >
-                ← Quay lại danh sách truyền thông
-              </button>
+            <div className="pt-4 border-t border-slate-100 flex items-center justify-end">
               <button
                 type="submit"
                 className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold transition-colors shadow-sm"
               >
                 <Check className="w-4 h-4" />
-                <span>Lưu Bản Nháp</span>
+                <span>Lưu Bài Viết</span>
               </button>
             </div>
           </form>
@@ -304,7 +308,6 @@ export const AddMediaPage: React.FC<AddMediaPageProps> = ({
                 Bản Xem Trước Trực Quan (Live Preview)
               </span>
             </div>
-            <span className="text-[11px] text-slate-400">Khớp 100% hình ảnh thực tế</span>
           </div>
 
           {/* EXACT Match with User Image 2 */}
