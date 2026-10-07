@@ -30,6 +30,7 @@ const employeeSchema = new Schema<Employee>(
     phone: { type: String, required: true, trim: true },
     location: { type: String, required: true, trim: true },
     avatar: { type: String, default: "", trim: true },
+    avatarPublicId: { type: String, default: "", trim: true },
     joinDate: { type: Date, required: true },
     birthDate: { type: Date },
     status: {
@@ -39,6 +40,14 @@ const employeeSchema = new Schema<Employee>(
       index: true,
     },
     description: { type: String, trim: true, default: "" },
+    isDeleted: { type: Boolean, default: false, index: true },
+    deletedAt: { type: Date, default: null },
+    deletedBy: {
+      accountId: { type: String, trim: true },
+      name: { type: String, trim: true },
+      email: { type: String, trim: true, lowercase: true },
+      _id: false,
+    },
     createdBy: {
       accountId: { type: String, trim: true },
       name: { type: String, trim: true },

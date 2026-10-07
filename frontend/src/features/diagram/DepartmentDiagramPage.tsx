@@ -11,6 +11,7 @@ import { getPublicEmployees } from "@/services/employee.service";
 import type { Employee, EmployeePagination } from "@/types/employee";
 import { getEmployeeAvatar } from "@/features/employees/utils/employeeUtils";
 import { sortEmployeesByRank } from "@/config/employeeRanks";
+import { getEmployeeDepartmentLabel } from "@/components/ui/employee-department-options";
 
 const PAGE_LIMIT = 12;
 
@@ -49,7 +50,7 @@ function EmployeeCard({ employee }: { employee: Employee }) {
             </div>
           </div>
           <div className="mt-3 space-y-1 text-xs font-medium text-slate-600">
-            <p className="flex items-center gap-1.5"><Building2 size={14} className="shrink-0 text-[#1a7a1a]" />{employee.department}</p>
+            <p className="flex items-center gap-1.5"><Building2 size={14} className="shrink-0 text-[#1a7a1a]" />{getEmployeeDepartmentLabel(employee.department)}</p>
             <p className="flex items-center gap-1.5"><MapPin size={14} className="shrink-0 text-[#1a7a1a]" />{employee.location}</p>
             <p className="flex items-center gap-1.5 font-semibold text-[#16883b]"><Circle size={9} fill="currentColor" className="shrink-0" />Đang làm việc</p>
           </div>

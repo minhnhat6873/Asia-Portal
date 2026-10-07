@@ -4,6 +4,7 @@ export const PERMISSION_ACTIONS = [
   "employees:create",
   "employees:update",
   "employees:deactivate",
+  "employees:delete",
 ] as const;
 
 export const PERMISSION_GROUP_STATUSES = ["active", "inactive"] as const;

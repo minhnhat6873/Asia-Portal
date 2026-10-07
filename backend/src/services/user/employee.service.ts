@@ -18,7 +18,7 @@ export const userEmployeeService = {
   async getEmployees(query: EmployeeListQuery) {
     const page = Math.max(Number(query.page) || 1, 1);
     const limit = Math.min(Math.max(Number(query.limit) || 12, 1), 100);
-    const filter: QueryFilter<Employee> = { status: "active" };
+    const filter: QueryFilter<Employee> = { status: "active", isDeleted: { $ne: true } };
 
     if (query.search?.trim()) {
       const keyword = new RegExp(escapeRegex(query.search.trim()), "i");

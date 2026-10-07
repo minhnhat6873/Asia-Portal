@@ -8,8 +8,21 @@ const employeeFields = {
   position: Joi.string().trim().min(2).max(100),
   department: Joi.string().trim().min(2).max(100),
   rank: Joi.string().trim().valid("BOD", "Executive", "Manager", "Team Leader", "Staff", "Intern"),
-  email: Joi.string().trim().lowercase().email().max(150),
-  phone: Joi.string().trim().min(8).max(20),
+  email: Joi.string()
+    .trim()
+    .lowercase()
+    .email()
+    .max(150)
+    .pattern(/@asiafnb\.com$/i)
+    .messages({
+      "string.pattern.base": "Email công việc phải có đuôi @asiafnb.com",
+    }),
+  phone: Joi.string()
+    .trim()
+    .pattern(/^0(?:3|5|7|8|9)\d{8}$/)
+    .messages({
+      "string.pattern.base": "Số điện thoại Việt Nam không hợp lệ",
+    }),
   location: Joi.string().trim().min(2).max(100),
   avatar: Joi.string().trim().allow("").max(500),
   joinDate: Joi.date().iso(),
@@ -35,3 +48,14 @@ export const createEmployeeSchema = Joi.object({
 });
 
 export const updateEmployeeSchema = Joi.object(employeeFields).min(1);
+
+export const employeeListQuerySchema = Joi.object({
+  search: Joi.string().trim().allow("").max(100),
+  department: Joi.string().trim().min(2).max(100),
+  position: Joi.string().trim().min(2).max(100),
+  rank: employeeFields.rank,
+  status: employeeFields.status,
+  page: Joi.number().integer().min(1),
+  limit: Joi.number().integer().min(1).max(100),
+  sort: Joi.string().valid("latest", "oldest"),
+});

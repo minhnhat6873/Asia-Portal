@@ -1,4 +1,5 @@
 import type { Employee } from "@/types/employee";
+import { getEmployeeDepartmentLabel } from "@/components/ui/employee-department-options";
 import { getEmployeeCode } from "../utils/employeeUtils";
 
 interface EmployeeListProps {
@@ -39,7 +40,7 @@ export default function EmployeeList({ employees, selectedId, onSelect }: Employ
                   </div>
                 </td>
                 <td className="px-3 py-3 text-sm font-medium text-slate-600">{employee.position}</td>
-                <td className="px-3 py-3 text-sm text-slate-600">{employee.department}</td>
+                <td className="px-3 py-3 text-sm text-slate-600">{getEmployeeDepartmentLabel(employee.department)}</td>
                 <td className="px-5 py-3"><span className="inline-flex items-center gap-2 rounded-full bg-green-50 px-3 py-1.5 text-xs font-semibold text-[#159447]"><span className="h-2.5 w-2.5 rounded-full bg-[#16b85c]" />Đang làm việc</span></td>
               </tr>
             );

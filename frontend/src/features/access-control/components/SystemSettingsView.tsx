@@ -50,7 +50,7 @@ interface SystemSettingsViewProps {
   onAssignUsersToRole: (roleId: string, userIds: string[]) => void;
   onNavigateToUserTab: () => void;
   onNavigateToRoles?: () => void;
-  onRestoreTrashItem: (item: TrashItem) => void;
+  onRestoreTrashItem: (item: TrashItem) => void | Promise<void>;
   onPermanentlyDeleteTrashItem: (trashId: string) => void;
 }
 
@@ -889,7 +889,7 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                   <div className="flex shrink-0 items-center gap-2">
                     {employee && <button type="button" onClick={(event) => { event.stopPropagation(); setTrashEmployeeDetail(employee); }} className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50"><Eye className="h-3.5 w-3.5" />Xem chi tiết</button>}
                     {mediaPost && <button type="button" onClick={(event) => { event.stopPropagation(); setTrashMediaDetail(mediaPost); }} className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50"><Eye className="h-3.5 w-3.5" />Xem chi tiết</button>}
-                    <button type="button" onClick={(event) => { event.stopPropagation(); onRestoreTrashItem(item); setSelectedTrashIds((ids) => ids.filter((id) => id !== item.id)); }} className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-100"><RotateCcw className="h-3.5 w-3.5" />Khôi phục</button>
+                    <button type="button" onClick={async (event) => { event.stopPropagation(); await onRestoreTrashItem(item); setSelectedTrashIds((ids) => ids.filter((id) => id !== item.id)); }} className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-100"><RotateCcw className="h-3.5 w-3.5" />Khôi phục</button>
                     <button type="button" onClick={(event) => { event.stopPropagation(); setTrashDeleteTarget(item); }} className="inline-flex items-center gap-1.5 rounded-xl border border-rose-300 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700 hover:bg-rose-100"><Trash2 className="h-3.5 w-3.5" />Xóa</button>
                   </div>
                 </div>

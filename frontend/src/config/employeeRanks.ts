@@ -1,36 +1,30 @@
-export const EMPLOYEE_RANKS = [
-  { value: "BOD", label: "Ban lãnh đạo", order: 0 },
-  { value: "Executive", label: "Ban điều hành", order: 1 },
-  { value: "Manager", label: "Quản lý", order: 2 },
-  { value: "Team Leader", label: "Trưởng nhóm", order: 3 },
-  { value: "Staff", label: "Nhân viên", order: 4 },
-  { value: "Intern", label: "Thực tập sinh", order: 5 },
-] as const;
+import {
+  EMPLOYEE_RANK_OPTIONS_UI,
+  getEmployeeRankLabel,
+} from "@/components/ui/employee-rank-options";
 
-export const EMPLOYEE_RANK_OPTIONS = EMPLOYEE_RANKS.map(({ value, label }) => ({
-  value,
-  label,
+export { getEmployeeRankLabel };
+
+export const EMPLOYEE_RANKS = EMPLOYEE_RANK_OPTIONS_UI.map((rank, order) => ({
+  ...rank,
+  order,
 }));
 
-const rankByValue = new Map<string, (typeof EMPLOYEE_RANKS)[number]>(
-  EMPLOYEE_RANKS.map((rank) => [rank.value, rank]),
-);
+/** @deprecated Import EMPLOYEE_RANK_OPTIONS_UI từ components/ui cho code mới. */
+export const EMPLOYEE_RANK_OPTIONS = EMPLOYEE_RANK_OPTIONS_UI;
 
-export function getEmployeeRankLabel(rank?: string): string {
-  return (rank && rankByValue.get(rank)?.label) || "Chưa cập nhật";
-}
+const rankOrder = new Map(EMPLOYEE_RANKS.map(({ value, order }) => [value, order]));
 
 export function getEmployeeRankOrder(rank?: string): number {
   if (!rank) return Number.MAX_SAFE_INTEGER;
-  return rankByValue.get(rank)?.order ?? Number.MAX_SAFE_INTEGER;
+  return rankOrder.get(rank as (typeof EMPLOYEE_RANKS)[number]["value"]) ?? Number.MAX_SAFE_INTEGER;
 }
 
 export function sortEmployeesByRank<T extends { rank?: string; joinDate?: string }>(
   employees: T[],
 ): T[] {
   return [...employees].sort((left, right) => {
-    const rankDifference =
-      getEmployeeRankOrder(left.rank) - getEmployeeRankOrder(right.rank);
+    const rankDifference = getEmployeeRankOrder(left.rank) - getEmployeeRankOrder(right.rank);
     if (rankDifference !== 0) return rankDifference;
 
     const leftDate = left.joinDate ? new Date(left.joinDate).getTime() : 0;

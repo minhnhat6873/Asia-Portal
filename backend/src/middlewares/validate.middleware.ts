@@ -21,3 +21,23 @@ export function validateBody(schema: ObjectSchema) {
     next();
   };
 }
+
+export function validateQuery(schema: ObjectSchema) {
+  return (request: Request, response: Response, next: NextFunction): void => {
+    const { error } = schema.validate(request.query, {
+      abortEarly: false,
+      allowUnknown: false,
+    });
+
+    if (error) {
+      response.status(400).json({
+        success: false,
+        message: "Tham số lọc không hợp lệ",
+        errors: error.details.map((detail) => detail.message),
+      });
+      return;
+    }
+
+    next();
+  };
+}

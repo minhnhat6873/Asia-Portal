@@ -4,7 +4,7 @@ import { Check, ChevronDown, Search } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 export interface AdminSelectOption { value: string; label: string; }
-interface AdminSelectProps { value: string; options: AdminSelectOption[]; onChange: (value: string) => void; placeholder?: string; searchPlaceholder?: string; className?: string; disabled?: boolean; searchable?: boolean; showSelectionCheck?: boolean; }
+interface AdminSelectProps { value: string; options: readonly AdminSelectOption[]; onChange: (value: string) => void; placeholder?: string; searchPlaceholder?: string; className?: string; disabled?: boolean; searchable?: boolean; showSelectionCheck?: boolean; }
 
 /** Bộ lọc có tìm kiếm vốn chỉ dùng ở danh sách nhân sự. */
 export function AdminSelect({ value, options, onChange, placeholder = 'Chọn dữ liệu', searchPlaceholder = 'Tìm kiếm...', className = '', disabled = false, searchable = true, showSelectionCheck = true }: AdminSelectProps) {

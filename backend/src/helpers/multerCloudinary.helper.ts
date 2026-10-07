@@ -50,6 +50,23 @@ export async function deleteCloudinaryAsset(publicId?: string): Promise<void> {
   await cloudinary.uploader.destroy(publicId, { resource_type: "image" });
 }
 
+export function getCloudinaryPublicIdFromUrl(url?: string): string | undefined {
+  if (!url) return undefined;
+  try {
+    const pathname = new URL(url).pathname;
+    const uploadMarker = "/image/upload/";
+    const uploadIndex = pathname.indexOf(uploadMarker);
+    if (uploadIndex < 0) return undefined;
+    const uploadedPath = pathname.slice(uploadIndex + uploadMarker.length);
+    const withoutVersion = uploadedPath.replace(/^v\d+\//, "");
+    const extensionIndex = withoutVersion.lastIndexOf(".");
+    const publicId = extensionIndex > 0 ? withoutVersion.slice(0, extensionIndex) : withoutVersion;
+    return publicId ? decodeURIComponent(publicId) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export const uploadAvatar = multer({
   storage: avatarStorage,
   limits: { fileSize: 5 * 1024 * 1024 },

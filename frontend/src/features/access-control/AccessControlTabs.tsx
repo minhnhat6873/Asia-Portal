@@ -1,35 +1,26 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
 import { UserManagementView } from "./components/UserManagementView";
 import { SystemSettingsView } from "./components/SystemSettingsView";
-import {
-  INITIAL_LOGS,
-  INITIAL_ROLES,
-  INITIAL_USERS,
-} from "./data/initialData";
 import { ACCESS_MODULES, ACCESS_PERMISSIONS } from "./permissionCatalog";
-import { AuditLog, Role, User } from "./types";
-import { getStoredRoles, saveStoredRoles } from "./roleStorage";
-import { getStoredAccessUsers, saveStoredAccessUsers } from "./userStorage";
+import type { AuditLog, Role, User } from "./types";
 import type { TrashItem } from "@/features/admin/dashboard/types";
+import {
+  createAccount,
+  createPermissionGroup,
+  getAccounts,
+  getPermissionGroups,
+  updateAccount,
+  updatePermissionGroup,
+  type ApiAccount,
+  type ApiPermissionGroup,
+  type PermissionAction,
+} from "@/services/access-control.service";
 
 type AccessControlTab = "permissions" | "system-settings";
-export type AccessControlPage =
-  | "accounts"
-  | "roles"
-  | "new-role"
-  | "trash";
-const CURRENT_USER_ID = "usr_1";
-const DEFAULT_ACCESS_USERS: User[] = INITIAL_USERS.map((user) => ({
-  ...user,
-  // New accounts start without a role. Only the signed-in administrator keeps the built-in admin role.
-  roleId: user.id === CURRENT_USER_ID ? "role_admin" : "",
-  branch: "ASIA F&B",
-}));
-const DEFAULT_ACCESS_ROLES: Role[] = INITIAL_ROLES
-  .filter((role) => role.id === "role_admin")
-  .map((role) => ({ ...role, permissionIds: ACCESS_PERMISSIONS.map((permission) => permission.id) }));
+export type AccessControlPage = "accounts" | "roles" | "new-role" | "trash";
 
 interface AccessControlTabsProps {
   page: AccessControlPage;
@@ -39,197 +30,132 @@ interface AccessControlTabsProps {
   trashItems: TrashItem[];
   onAddTrashItem: (item: Omit<TrashItem, "id" | "deletedAt">) => void;
   onRemoveTrashItem: (trashId: string) => void;
-  onRestoreExternalTrashItem: (item: TrashItem) => void;
+  onRestoreExternalTrashItem: (item: TrashItem) => void | Promise<void>;
 }
 
-export function AccessControlTabs({ activeTab, onNavigate, page, onNavigateToPage, trashItems, onAddTrashItem, onRemoveTrashItem, onRestoreExternalTrashItem }: AccessControlTabsProps) {
-  const [users, setUsers] = useState<User[]>(DEFAULT_ACCESS_USERS);
-  const [roles, setRoles] = useState<Role[]>(DEFAULT_ACCESS_ROLES);
-  const [isStoreLoaded, setIsStoreLoaded] = useState(false);
-  const [auditLogs, setAuditLogs] = useState<AuditLog[]>(() =>
-    INITIAL_LOGS.filter(
-      (log) =>
-        !["Quản lý Chi nhánh", "Thu ngân", "Bếp trưởng", "Nhân viên Phục vụ"].some(
-          (name) => log.detail.includes(name) || log.target.includes(name)
-        )
-    )
-  );
-  // Keep server and first client render identical; browser storage loads after hydration.
-  useEffect(() => {
-    const frameId = window.requestAnimationFrame(() => {
-      const storedUsers = getStoredAccessUsers(DEFAULT_ACCESS_USERS);
-      setUsers(
-        storedUsers.map((user) =>
-          user.roleId === "role_no_access" ? { ...user, roleId: "" } : user,
-        ),
-      );
-      const storedRoles = getStoredRoles(DEFAULT_ACCESS_ROLES).filter((role) => role.id !== "role_no_access");
-      const allPermissionIds = ACCESS_PERMISSIONS.map((permission) => permission.id);
+function toRole(group: ApiPermissionGroup): Role {
+  return {
+    id: group.id,
+    name: group.name,
+    code: group.name.toUpperCase().replace(/[^A-Z0-9]+/g, "_").replace(/^_|_$/g, "") || "GROUP",
+    description: `${group.actions.length} quyền đang áp dụng từ backend`,
+    color: "emerald",
+    permissionIds: group.actions,
+    createdAt: group.createdAt ?? "",
+    updatedAt: group.updatedAt ?? "",
+  };
+}
 
-      // A catalog update must never accidentally reduce the built-in administrator's access.
-      setRoles(
-        storedRoles.map((role) =>
-          role.id === "role_admin"
-            ? { ...role, permissionIds: allPermissionIds, updatedAt: new Date().toISOString() }
-            : role,
-        ),
-      );
-      setIsStoreLoaded(true);
-    });
-    return () => window.cancelAnimationFrame(frameId);
+function toUser(account: ApiAccount): User {
+  return {
+    id: account.id,
+    name: account.name,
+    email: account.email,
+    phone: account.phone ?? "",
+    roleId: account.role === "admin" ? "" : account.permissionGroupIds[0] ?? "",
+    branch: "ASIA F&B",
+    department: account.role === "admin" ? "Quản trị hệ thống" : "",
+    status: account.status === "inactive" ? "suspended" : account.status,
+    lastActive: account.updatedAt ? new Date(account.updatedAt).toLocaleString("vi-VN") : "",
+  };
+}
+
+export function AccessControlTabs({ activeTab, onNavigate, page, onNavigateToPage, trashItems, onRemoveTrashItem, onRestoreExternalTrashItem }: AccessControlTabsProps) {
+  const [users, setUsers] = useState<User[]>([]);
+  const [roles, setRoles] = useState<Role[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null);
+  const [settingsSubTab, setSettingsSubTab] = useState<"dashboard" | "manage_roles" | "create_role" | "audit_logs">("dashboard");
+  const [auditLogs] = useState<AuditLog[]>([]);
+
+  const reload = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const [accounts, groups] = await Promise.all([getAccounts(), getPermissionGroups()]);
+      setUsers(accounts.map(toUser));
+      setRoles(groups.filter((group) => group.status === "active").map(toRole));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Không thể tải dữ liệu phân quyền.");
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
   useEffect(() => {
-    if (isStoreLoaded) saveStoredRoles(roles);
-  }, [isStoreLoaded, roles]);
-  useEffect(() => {
-    if (isStoreLoaded) saveStoredAccessUsers(users);
-  }, [isStoreLoaded, users]);
-  const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null);
-  const [settingsSubTab, setSettingsSubTab] = useState<"dashboard" | "manage_roles" | "create_role" | "audit_logs">("dashboard");
+    const timer = window.setTimeout(() => { void reload(); }, 0);
+    return () => window.clearTimeout(timer);
+  }, [reload]);
 
-  const addLog = (action: string, detail: string, target: string, type: AuditLog["type"]) => {
-    setAuditLogs((logs) => [
-      {
-        id: `log_${Date.now()}`,
-        action,
-        detail,
-        actor: "Quản trị viên",
-        target,
-        timestamp: new Date().toLocaleString("vi-VN"),
-        type,
-      },
-      ...logs,
-    ]);
+  const saveAccountAccess = async (userId: string, access: { roleId: string; status: "active" | "suspended" }) => {
+    try {
+      await updateAccount(userId, {
+        status: access.status === "suspended" ? "inactive" : "active",
+        permissionGroupIds: access.roleId ? [access.roleId] : [],
+      });
+      await reload();
+      toast.success("Đã cập nhật trạng thái và nhóm quyền.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Không thể cập nhật tài khoản.");
+    }
   };
 
-  if (activeTab === "permissions" && page === "accounts") {
-    // Duyệt tài khoản chờ duyệt (từ thẻ "Tài khoản chưa duyệt")
-    return (
-      <UserManagementView
-        users={users}
-        roles={roles}
-        permissions={ACCESS_PERMISSIONS}
-        modules={ACCESS_MODULES}
-        onSaveUserAccess={(userId, access) => {
-          setUsers((items) => {
-            const updatedUsers = items.map((user) =>
-              user.id === userId
-                ? { ...user, roleId: access.roleId, status: access.status }
-                : user,
-            );
-            saveStoredAccessUsers(updatedUsers);
-            return updatedUsers;
-          });
-          addLog("\u0043\u1eadp nh\u1eadt t\u00e0i kho\u1ea3n", "\u0110\u00e3 l\u01b0u tr\u1ea1ng th\u00e1i v\u00e0 nh\u00f3m quy\u1ec1n cho t\u00e0i kho\u1ea3n.", userId, "user_update");
-        }}
-        onApproveUser={(userId, roleId) => {
-          setUsers((items) =>
-            items.map((user) =>
-              user.id === userId
-                ? { ...user, status: "active" as const, roleId: roleId ?? "" }
-                : user
-            )
-          );
-          const approvedUser = users.find((user) => user.id === userId);
-          if (approvedUser) {
-            addLog(
-              "Duyệt tài khoản",
-              roleId
-                ? `Đã duyệt và gán nhóm quyền cho ${approvedUser.name}.`
-                : `Đã duyệt tài khoản ${approvedUser.name} nhưng chưa cấp quyền.`,
-              approvedUser.name,
-              "user_update"
-            );
-          }
-        }}
-        onRejectUser={(userId) => {
-          const rejectedUser = users.find((user) => user.id === userId);
-          setUsers((items) => items.map((user) => user.id === userId ? { ...user, status: "rejected" } : user));
-          if (rejectedUser) addLog("Từ chối tài khoản", `Đã từ chối tài khoản ${rejectedUser.name}.`, rejectedUser.name, "user_update");
-        }}
-        onDeleteUser={(userId) => {
-          const deletedUser = users.find((user) => user.id === userId);
-          setUsers((items) => items.filter((user) => user.id !== userId));
-          if (deletedUser) {
-            onAddTrashItem({ entityType: "access_user", title: deletedUser.name, payload: deletedUser });
-            addLog("Xóa tài khoản", `Đã chuyển tài khoản ${deletedUser.name} vào Thùng rác.`, deletedUser.name, "user_update");
-          }
-        }}
-        onAddUser={(user) => {
-          const newUser: User = { ...user, id: `usr_${Date.now()}`, lastActive: "Vừa tạo" };
-          setUsers((items) => [newUser, ...items]);
-          addLog("Thêm tài khoản", `Đã tạo tài khoản ${newUser.name}.`, newUser.name, "user_create");
-        }}
-        onNavigateToCreateRole={() => {
-          onNavigateToPage("new-role");
-        }}
-        onViewRoleDetail={(roleId) => {
-          setSelectedRoleId(roleId);
-          onNavigateToPage("roles");
-        }}
-      />
-    );
-  }
-
-  // Chuyển tab (permissions = quản lý người dùng, system-settings = cài đặt hệ thống)
-  const routedSubTab = page === "roles"
-    ? "manage_roles"
-    : page === "new-role"
-      ? "create_role"
-      : page === "trash"
-        ? "audit_logs"
-        : "dashboard";
+  const routedSubTab = page === "roles" ? "manage_roles" : page === "new-role" ? "create_role" : page === "trash" ? "audit_logs" : "dashboard";
   const initialActiveSubTab = activeTab === "permissions" ? routedSubTab : settingsSubTab;
 
-  return (
-    <SystemSettingsView
-      roles={roles}
-      permissions={ACCESS_PERMISSIONS}
-      key={`${activeTab}-${page}`}
-      modules={ACCESS_MODULES}
+  if (isLoading) return <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500">Đang tải dữ liệu phân quyền...</div>;
+
+  if (activeTab === "permissions" && page === "accounts") {
+    return <UserManagementView
       users={users}
-      auditLogs={auditLogs}
-      initialActiveSubTab={initialActiveSubTab}
-      selectedRoleIdToView={selectedRoleId}
-      onCreateRole={(role) => {
-        const newRole: Role = { ...role, id: `role_${Date.now()}`, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
-        setRoles((items) => [...items, newRole]);
-        setSelectedRoleId(newRole.id);
-        addLog("Tạo nhóm quyền", `Đã tạo nhóm quyền ${newRole.name}.`, newRole.name, "role_create");
-      }}
-      onUpdateRolePermissions={(roleId, permissionIds) => setRoles((items) => items.map((role) => role.id === roleId ? { ...role, permissionIds, updatedAt: new Date().toISOString() } : role))}
-      onDeleteRole={(roleId) => {
-        const deletedRole = roles.find((role) => role.id === roleId && !role.isSystemDefault);
-        if (!deletedRole) return;
-        setRoles((items) => items.filter((role) => role.id !== roleId));
-        onAddTrashItem({ entityType: "role", title: deletedRole.name, payload: deletedRole });
-        setSelectedRoleId(null);
-        addLog("Xóa nhóm quyền", `Đã chuyển nhóm quyền ${deletedRole.name} vào Thùng rác.`, deletedRole.name, "role_delete");
-      }}
-      onAssignUsersToRole={(roleId, userIds) => setUsers((items) => items.map((user) => userIds.includes(user.id) ? { ...user, roleId } : user))}
-      onNavigateToUserTab={() => activeTab === "permissions" ? onNavigateToPage("accounts") : onNavigate("permissions")}
-      onNavigateToRoles={() => {
-        if (activeTab === "permissions") {
-          onNavigateToPage("roles");
-          return;
-        }
-        setSettingsSubTab("manage_roles");
-      }}
-      trashItems={trashItems}
-      onRestoreTrashItem={(item) => {
-        if (item.entityType === "role") {
-          const role = item.payload as Role;
-          setRoles((items) => items.some((entry) => entry.id === role.id) ? items : [...items, role]);
-        } else if (item.entityType === "access_user") {
-          const user = item.payload as User;
-          setUsers((items) => items.some((entry) => entry.id === user.id) ? items : [user, ...items]);
-        } else {
-          onRestoreExternalTrashItem(item);
-        }
-        onRemoveTrashItem(item.id);
-      }}
-      onPermanentlyDeleteTrashItem={onRemoveTrashItem}
-    />
-  );
+      roles={roles.filter((role) => !role.isSystemDefault)}
+      permissions={ACCESS_PERMISSIONS}
+      modules={ACCESS_MODULES}
+      onSaveUserAccess={saveAccountAccess}
+      onApproveUser={(userId, roleId) => void saveAccountAccess(userId, { roleId: roleId ?? "", status: "active" })}
+      onRejectUser={(userId) => void saveAccountAccess(userId, { roleId: "", status: "suspended" })}
+      onDeleteUser={(userId) => void saveAccountAccess(userId, { roleId: "", status: "suspended" })}
+      onAddUser={(user) => void (async () => {
+        try {
+          if (!user.password) {
+            toast.error("Vui lòng nhập mật khẩu ban đầu.");
+            return;
+          }
+          await createAccount({ name: user.name, email: user.email, password: user.password, role: "manager", permissionGroupIds: user.roleId ? [user.roleId] : [] });
+          await reload();
+          toast.success("Đã tạo tài khoản.");
+        } catch (error) { toast.error(error instanceof Error ? error.message : "Không thể tạo tài khoản."); }
+      })()}
+      onNavigateToCreateRole={() => onNavigateToPage("new-role")}
+      onViewRoleDetail={(roleId) => { setSelectedRoleId(roleId); onNavigateToPage("roles"); }}
+    />;
+  }
+
+  return <SystemSettingsView
+    roles={roles}
+    permissions={ACCESS_PERMISSIONS}
+    key={`${activeTab}-${page}`}
+    modules={ACCESS_MODULES}
+    users={users}
+    auditLogs={auditLogs}
+    initialActiveSubTab={initialActiveSubTab}
+    selectedRoleIdToView={selectedRoleId}
+    onCreateRole={(role) => void (async () => {
+      try { await createPermissionGroup({ name: role.name, actions: role.permissionIds as PermissionAction[] }); await reload(); toast.success("Đã tạo nhóm quyền."); }
+      catch (error) { toast.error(error instanceof Error ? error.message : "Không thể tạo nhóm quyền."); }
+    })()}
+    onUpdateRolePermissions={(roleId, permissionIds) => void (async () => {
+      try { await updatePermissionGroup(roleId, { actions: permissionIds as PermissionAction[] }); await reload(); toast.success("Đã lưu nhóm quyền."); }
+      catch (error) { toast.error(error instanceof Error ? error.message : "Không thể lưu nhóm quyền."); }
+    })()}
+    onDeleteRole={(roleId) => void (async () => {
+      try { await updatePermissionGroup(roleId, { status: "inactive" }); await reload(); toast.success("Đã ngừng áp dụng nhóm quyền."); }
+      catch (error) { toast.error(error instanceof Error ? error.message : "Không thể cập nhật nhóm quyền."); }
+    })()}
+    onAssignUsersToRole={(roleId, userIds) => void Promise.all(userIds.map((userId) => updateAccount(userId, { permissionGroupIds: [roleId] }))).then(reload).catch((error: unknown) => toast.error(error instanceof Error ? error.message : "Không thể gán nhóm quyền."))}
+    onNavigateToUserTab={() => activeTab === "permissions" ? onNavigateToPage("accounts") : onNavigate("permissions")}
+    onNavigateToRoles={() => activeTab === "permissions" ? onNavigateToPage("roles") : setSettingsSubTab("manage_roles")}
+    trashItems={trashItems}
+    onRestoreTrashItem={async (item) => { await onRestoreExternalTrashItem(item); onRemoveTrashItem(item.id); }}
+    onPermanentlyDeleteTrashItem={onRemoveTrashItem}
+  />;
 }

@@ -12,10 +12,18 @@ export interface Employee {
   phone: string;
   location: string;
   avatar: string;
+  avatarPublicId?: string;
   joinDate: Date;
   birthDate?: Date;
   status: EmployeeStatus;
   description?: string;
+  isDeleted?: boolean;
+  deletedAt?: Date;
+  deletedBy?: {
+    accountId: string;
+    name: string;
+    email: string;
+  };
   createdBy?: {
     accountId: string;
     name: string;
@@ -25,13 +33,17 @@ export interface Employee {
   updatedAt?: Date;
 }
 
-export type CreateEmployeeInput = Omit<Employee, "createdAt" | "updatedAt">;
+export type CreateEmployeeInput = Omit<
+  Employee,
+  "createdAt" | "updatedAt" | "isDeleted" | "deletedAt" | "deletedBy"
+>;
 export type UpdateEmployeeInput = Partial<CreateEmployeeInput>;
 
 export interface EmployeeListQuery {
   search?: string;
   department?: string;
   position?: string;
+  rank?: string;
   status?: EmployeeStatus;
   page?: string;
   limit?: string;

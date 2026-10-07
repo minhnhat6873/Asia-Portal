@@ -42,6 +42,8 @@ export interface User {
   status: 'active' | 'suspended' | 'pending' | 'rejected';
   avatar?: string;
   lastActive: string;
+  /** Only present while creating an account; never persisted in frontend state. */
+  password?: string;
 }
 
 export interface AuditLog {

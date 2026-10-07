@@ -66,6 +66,19 @@ export async function apiPost<T>(path: string, body: unknown): Promise<T> {
   return payload.data;
 }
 
+export async function apiPatch<T>(path: string, body: unknown): Promise<T> {
+  const response = await fetch(`${API_URL}${path}`, {
+    method: "PATCH",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+  const payload = await readPayload<T>(response);
+  throwIfRequestFailed(response, payload);
+  return payload.data;
+}
+
 export async function apiPostFormData<T>(path: string, body: FormData): Promise<T> {
   const response = await fetch(`${API_URL}${path}`, {
     method: "POST",
@@ -84,6 +97,17 @@ export async function apiPatchFormData<T>(path: string, body: FormData): Promise
     method: "PATCH",
     credentials: "include",
     body,
+  });
+
+  const payload = await readPayload<T>(response);
+  throwIfRequestFailed(response, payload);
+  return payload.data;
+}
+
+export async function apiDelete<T>(path: string): Promise<T> {
+  const response = await fetch(`${API_URL}${path}`, {
+    method: "DELETE",
+    credentials: "include",
   });
 
   const payload = await readPayload<T>(response);

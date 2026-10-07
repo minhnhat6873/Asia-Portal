@@ -19,8 +19,10 @@ export const allowedCorsOrigins = (configuredOrigins
 
 export const securityConfig = {
   rateLimitWindowMs: parsePositiveInteger(process.env.RATE_LIMIT_WINDOW_MS, 15 * 60 * 1000),
-  rateLimitMax: parsePositiveInteger(process.env.RATE_LIMIT_MAX, 100),
+  rateLimitMax: parsePositiveInteger(process.env.RATE_LIMIT_MAX, 300),
   authRateLimitMax: parsePositiveInteger(process.env.AUTH_RATE_LIMIT_MAX, 5),
+  authenticatedRateLimitMax: parsePositiveInteger(process.env.AUTHENTICATED_RATE_LIMIT_MAX, 600),
+  refreshRateLimitMax: parsePositiveInteger(process.env.REFRESH_RATE_LIMIT_MAX, 60),
   trustProxyHops: Number(process.env.TRUST_PROXY_HOPS) || 0,
 };
 

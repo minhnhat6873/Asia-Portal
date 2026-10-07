@@ -1,8 +1,7 @@
 import { Employee, MediaPost, TrashItem, UserAccount } from '../types';
-import { INITIAL_EMPLOYEES, INITIAL_MEDIA_POSTS, INITIAL_USERS } from '../data/initialData';
+import { INITIAL_MEDIA_POSTS, INITIAL_USERS } from '../data/initialData';
 import { notifyPortalContentChanged } from '@/lib/portalContent';
 
-const EMPLOYEES_STORAGE_KEY = 'asia_fnb_employees_v2';
 const MEDIA_STORAGE_KEY = 'asia_fnb_media_v2';
 const USERS_STORAGE_KEY = 'asia_fnb_users_v2';
 const CURRENT_USER_KEY = 'asia_fnb_current_user_v2';
@@ -69,30 +68,6 @@ export function saveStoredTrashItems(items: TrashItem[]): void {
   }
 }
 
-export function getStoredEmployees(): Employee[] {
-  try {
-    const item = localStorage.getItem(EMPLOYEES_STORAGE_KEY);
-    if (!item) {
-      localStorage.setItem(EMPLOYEES_STORAGE_KEY, JSON.stringify(INITIAL_EMPLOYEES));
-      return INITIAL_EMPLOYEES;
-    }
-    return JSON.parse(item);
-  } catch (error) {
-    console.error('Error reading employees from localStorage', error);
-    return INITIAL_EMPLOYEES;
-  }
-}
-
-export function saveStoredEmployees(employees: Employee[]): void {
-  try {
-    localStorage.setItem(EMPLOYEES_STORAGE_KEY, JSON.stringify(employees));
-    // Let the public portal pages re-read immediately (same tab and other tabs).
-    notifyPortalContentChanged();
-  } catch (error) {
-    console.error('Error saving employees to localStorage', error);
-  }
-}
-
 export function getStoredMediaPosts(): MediaPost[] {
   try {
     const item = localStorage.getItem(MEDIA_STORAGE_KEY);
@@ -115,16 +90,6 @@ export function saveStoredMediaPosts(posts: MediaPost[]): void {
   } catch (error) {
     console.error('Error saving media posts to localStorage', error);
   }
-}
-
-export function resetToDefaults(): { employees: Employee[]; mediaPosts: MediaPost[] } {
-  localStorage.setItem(EMPLOYEES_STORAGE_KEY, JSON.stringify(INITIAL_EMPLOYEES));
-  localStorage.setItem(MEDIA_STORAGE_KEY, JSON.stringify(INITIAL_MEDIA_POSTS));
-  notifyPortalContentChanged();
-  return {
-    employees: INITIAL_EMPLOYEES,
-    mediaPosts: INITIAL_MEDIA_POSTS
-  };
 }
 
 /* -------------------------------------------------------------------------- *

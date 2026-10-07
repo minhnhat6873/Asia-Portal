@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   ArrowLeft, 
   Check, 
@@ -19,39 +20,43 @@ import RichTextEditor from "@/components/ui/RichTextEditor";
 import DatePicker from "@/components/ui/DatePicker";
 import EmployeeProfileCard from "@/components/ui/EmployeeProfileCard";
 import AvatarUploader from "@/components/ui/AvatarUploader";
-import { DEPARTMENTS } from '@/config/departments';
-import { EMPLOYEE_RANK_OPTIONS, getEmployeeRankLabel } from '@/config/employeeRanks';
+import { EMPLOYEE_DEPARTMENT_OPTIONS, getEmployeeDepartmentLabel, normalizeEmployeeDepartment } from '@/components/ui/employee-department-options';
+import { EMPLOYEE_RANK_OPTIONS_UI, getEmployeeRankLabel } from '@/components/ui/employee-rank-options';
+import { EMPLOYEE_STATUS_OPTIONS_UI } from '@/components/ui/employee-status-options';
 import { createAdminEmployee, updateAdminEmployee } from '@/services/admin-employee.service';
 
-interface AddEmployeePageProps {
+type FormField = "code" | "fullName" | "position" | "department" | "rank" | "joinDate" | "birthDate" | "location" | "status" | "email" | "phone" | "bio";
+type FormErrors = Partial<Record<FormField, string>>;
+
+interface EmployeeFormDraft {
+  code: string;
+  fullName: string;
+  position: string;
+  department: string;
+  rank: string;
+  status: EmployeeStatus | '';
+  joinDate: string;
+  birthDate: string;
+  location: string;
+  email: string;
+  phone: string;
+  avatar: string;
+  bio: string;
+}
+
+const COMPANY_EMAIL_PATTERN = /^[A-Z0-9._%+-]+@asiafnb\.com$/i;
+const VIETNAM_PHONE_PATTERN = /^0(?:3|5|7|8|9)\d{8}$/;
+
+function toPlainText(value: string): string {
+  return value.replace(/<[^>]*>/g, " ").replace(/&nbsp;/g, " ").trim();
+}
+
+interface EmployeeFormPageProps {
   onBack: () => void;
   onSave: (employee: Employee) => void;
   existingCount: number;
   mode?: 'create' | 'edit';
   initialEmployee?: Employee;
-}
-
-const PRESET_AVATARS = [
-  'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=400&q=80',
-  'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
-  'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80',
-  'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=400&q=80',
-  'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=400&q=80',
-  'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=400&q=80'
-];
-
-function decodeHtmlEntities(value: string): string {
-  if (typeof document === "undefined") return value;
-  const textarea = document.createElement("textarea");
-  textarea.innerHTML = value;
-  return textarea.value;
-}
-
-function toPlainText(html: string): string {
-  return decodeHtmlEntities(html)
-    .replace(/<[^>]*>/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
 }
 
 function toDatePickerValue(value: string): string {
@@ -66,24 +71,25 @@ function fromDatePickerValue(value: string): string {
   return day + "/" + month + "/" + year;
 }
 
-export const AddEmployeePage: React.FC<AddEmployeePageProps> = ({
+export const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({
   onBack,
   onSave,
   mode = 'create',
   initialEmployee,
 }) => {
   const isEditing = mode === 'edit' && Boolean(initialEmployee);
+  const draftStorageKey = `asia.admin.employee-form.${isEditing ? initialEmployee?.id : 'new'}`;
 
-  const emptyForm = {
+  const emptyForm: EmployeeFormDraft = {
     code: '', fullName: '', position: '', department: '', rank: '',
     status: '' as EmployeeStatus, joinDate: '', birthDate: '', location: '',
     email: '', phone: '', avatar: '', bio: ''
   };
-  const [formData, setFormData] = useState(() => initialEmployee ? {
+  const [formData, setFormData] = useState<EmployeeFormDraft>(() => initialEmployee ? {
     code: initialEmployee.code,
     fullName: initialEmployee.fullName,
     position: initialEmployee.position,
-    department: initialEmployee.department,
+    department: normalizeEmployeeDepartment(initialEmployee.department),
     rank: initialEmployee.rank ?? '',
     status: initialEmployee.status,
     joinDate: initialEmployee.joinDate,
@@ -96,13 +102,15 @@ export const AddEmployeePage: React.FC<AddEmployeePageProps> = ({
   } : emptyForm);
 
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<FormErrors>({});
   const [avatarUploaderKey, setAvatarUploaderKey] = useState(0);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDraftRestored, setIsDraftRestored] = useState(false);
 
   const avatarPreview = useMemo(
     () => (avatarFile ? URL.createObjectURL(avatarFile) : formData.avatar),
-    [avatarFile],
+    [avatarFile, formData.avatar],
   );
 
   useEffect(() => {
@@ -111,23 +119,68 @@ export const AddEmployeePage: React.FC<AddEmployeePageProps> = ({
     };
   }, [avatarPreview]);
 
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      try {
+        const draft = JSON.parse(sessionStorage.getItem(draftStorageKey) ?? 'null') as Partial<EmployeeFormDraft> | null;
+        if (draft) setFormData((current) => ({ ...current, ...draft }));
+      } catch {
+        sessionStorage.removeItem(draftStorageKey);
+      } finally {
+        setIsDraftRestored(true);
+      }
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [draftStorageKey]);
+
+  useEffect(() => {
+    if (!isDraftRestored) return;
+    const timer = window.setTimeout(() => {
+      sessionStorage.setItem(draftStorageKey, JSON.stringify(formData));
+    }, 250);
+
+    return () => window.clearTimeout(timer);
+  }, [draftStorageKey, formData, isDraftRestored]);
+
+  const validateForm = (): FormErrors => {
+    const errors: FormErrors = {};
+    const code = formData.code.trim();
+    const fullName = formData.fullName.trim();
+    const position = formData.position.trim();
+    const email = formData.email.trim();
+    const phone = formData.phone.trim().replace(/[\s.-]/g, "");
+
+    if (!code) errors.code = "Vui lòng nhập mã nhân viên.";
+    if (!fullName) errors.fullName = "Vui lòng nhập họ và tên.";
+    else if (fullName.length < 2 || fullName.length > 100) errors.fullName = "Họ và tên phải từ 2 đến 100 ký tự.";
+    if (!position) errors.position = "Vui lòng nhập chức vụ.";
+    else if (position.length < 2 || position.length > 100) errors.position = "Chức vụ phải từ 2 đến 100 ký tự.";
+    if (!formData.department) errors.department = "Vui lòng chọn phòng ban.";
+    if (!formData.rank) errors.rank = "Vui lòng chọn cấp bậc.";
+    if (!formData.joinDate || !toDatePickerValue(formData.joinDate)) errors.joinDate = "Vui lòng chọn ngày gia nhập hợp lệ.";
+    if (formData.birthDate && !toDatePickerValue(formData.birthDate)) errors.birthDate = "Ngày sinh không hợp lệ.";
+    if (!formData.location) errors.location = "Vui lòng chọn địa điểm làm việc.";
+    if (!formData.status) errors.status = "Vui lòng chọn trạng thái làm việc.";
+    if (!email) errors.email = "Vui lòng nhập email công việc.";
+    else if (!COMPANY_EMAIL_PATTERN.test(email)) errors.email = "Email công việc phải có đuôi @asiafnb.com.";
+    if (!phone) errors.phone = "Vui lòng nhập số điện thoại.";
+    else if (!VIETNAM_PHONE_PATTERN.test(phone)) errors.phone = "Số điện thoại Việt Nam không hợp lệ.";
+    if (toPlainText(formData.bio).length > 2000) errors.bio = "Mô tả không được vượt quá 2.000 ký tự.";
+    return errors;
+  };
+
+  const inputClassName = (field: FormField, extra = "") =>
+    `w-full px-4 py-3 text-sm bg-slate-50/70 border rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all ${fieldErrors[field] ? "border-rose-400 bg-rose-50/60" : "border-slate-200"} ${extra}`;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSaving) return;
 
-    const requiredValues = [
-      formData.code,
-      formData.fullName,
-      formData.position,
-      formData.department,
-      formData.rank,
-      formData.joinDate,
-      formData.location,
-      formData.email,
-      formData.phone,
-    ];
-    if (requiredValues.some((value) => !value.trim())) {
-      setErrorMsg("Vui l\u00f2ng \u0111i\u1ec1n \u0111\u1ea7y \u0111\u1ee7 c\u00e1c tr\u01b0\u1eddng th\u00f4ng tin b\u1eaft bu\u1ed9c.");
+    const errors = validateForm();
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      setErrorMsg("Vui lòng kiểm tra các trường được đánh dấu trước khi lưu.");
       return;
     }
 
@@ -136,7 +189,9 @@ export const AddEmployeePage: React.FC<AddEmployeePageProps> = ({
 
     try {
       if (isEditing && initialEmployee && !/^[a-f\d]{24}$/i.test(initialEmployee.id)) {
-        onSave({ ...initialEmployee, ...formData, avatar: avatarPreview || initialEmployee.avatar });
+        setIsDraftRestored(false);
+        sessionStorage.removeItem(draftStorageKey);
+        onSave({ ...initialEmployee, ...formData, status: formData.status || 'active', avatar: avatarPreview || initialEmployee.avatar });
         return;
       }
       const saveEmployee = isEditing && initialEmployee
@@ -150,16 +205,19 @@ export const AddEmployeePage: React.FC<AddEmployeePageProps> = ({
           department: formData.department,
           rank: formData.rank,
           email: formData.email.trim(),
-          phone: formData.phone.trim(),
+          phone: formData.phone.trim().replace(/[\s.-]/g, ""),
           location: formData.location,
           joinDate: toDatePickerValue(formData.joinDate),
           birthDate: toDatePickerValue(formData.birthDate) || undefined,
           status: formData.status || undefined,
           description: formData.bio.trim(),
+          avatar: isEditing ? formData.avatar : undefined,
         },
         avatarFile,
       );
 
+      setIsDraftRestored(false);
+      sessionStorage.removeItem(draftStorageKey);
       onSave({
         ...formData,
         id: employee._id || initialEmployee?.id || '',
@@ -191,18 +249,35 @@ export const AddEmployeePage: React.FC<AddEmployeePageProps> = ({
   const handleReset = () => {
     setFormData(initialEmployee ? {
       code: initialEmployee.code, fullName: initialEmployee.fullName, position: initialEmployee.position,
-      department: initialEmployee.department, rank: initialEmployee.rank ?? '', status: initialEmployee.status,
+      department: normalizeEmployeeDepartment(initialEmployee.department), rank: initialEmployee.rank ?? '', status: initialEmployee.status,
       joinDate: initialEmployee.joinDate, birthDate: initialEmployee.birthDate, location: initialEmployee.location,
       email: initialEmployee.email, phone: initialEmployee.phone, avatar: initialEmployee.avatar, bio: initialEmployee.bio ?? '',
     } : emptyForm);
     setErrorMsg(null);
+    setFieldErrors({});
     setAvatarFile(null);
+    sessionStorage.removeItem(draftStorageKey);
     setAvatarUploaderKey((value) => value + 1);
   };
 
 
   return (
     <div className="space-y-6 pb-12">
+      {isSaving && typeof document !== 'undefined' && createPortal(
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/35 p-4 backdrop-blur-sm"
+          role="status"
+          aria-live="polite"
+          aria-label="Đang lưu nhân viên"
+        >
+          <div className="flex w-full max-w-sm flex-col items-center rounded-3xl bg-white px-8 py-7 text-center shadow-2xl">
+            <span className="h-10 w-10 animate-spin rounded-full border-4 border-emerald-100 border-t-emerald-600" />
+            <p className="mt-4 text-base font-bold text-slate-900">Đang lưu nhân viên</p>
+            <p className="mt-1 text-sm text-slate-500">Vui lòng chờ trong giây lát</p>
+          </div>
+        </div>,
+        document.body,
+      )}
       {/* Top Breadcrumb & Action Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-3xl border border-slate-200/90 shadow-2xs">
         <div className="flex items-center gap-3.5">
@@ -244,7 +319,8 @@ export const AddEmployeePage: React.FC<AddEmployeePageProps> = ({
           <button
             type="button"
             onClick={handleSubmit}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-colors shadow-sm"
+            disabled={isSaving}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-colors shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
           >
             <Check className="w-4 h-4" />
             <span>{isEditing ? "L\u01b0u thay \u0111\u1ed5i" : "L\u01b0u nh\u00e2n vi\u00ean"}</span>
@@ -287,8 +363,10 @@ export const AddEmployeePage: React.FC<AddEmployeePageProps> = ({
                   required
                   value={formData.code}
                   onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                  className="w-full px-4 py-3 text-sm bg-slate-50/70 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-mono font-medium"
+                  aria-invalid={Boolean(fieldErrors.code)}
+                  className={inputClassName("code", "font-mono font-medium")}
                 />
+                {fieldErrors.code && <p className="mt-1 text-xs text-rose-600">{fieldErrors.code}</p>}
               </div>
               <div>
                 <label className="block text-sm font-bold text-slate-700 mb-1.5">
@@ -299,8 +377,10 @@ export const AddEmployeePage: React.FC<AddEmployeePageProps> = ({
                   required
                   value={formData.fullName}
                   onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                  className="w-full px-4 py-3 text-sm bg-slate-50/70 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+                  aria-invalid={Boolean(fieldErrors.fullName)}
+                  className={inputClassName("fullName")}
                 />
+                {fieldErrors.fullName && <p className="mt-1 text-xs text-rose-600">{fieldErrors.fullName}</p>}
               </div>
             </div>
 
@@ -315,14 +395,17 @@ export const AddEmployeePage: React.FC<AddEmployeePageProps> = ({
                   required
                   value={formData.position}
                   onChange={(e) => setFormData({ ...formData, position: e.target.value })}
-                  className="w-full px-4 py-3 text-sm bg-slate-50/70 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+                  aria-invalid={Boolean(fieldErrors.position)}
+                  className={inputClassName("position")}
                 />
+                {fieldErrors.position && <p className="mt-1 text-xs text-rose-600">{fieldErrors.position}</p>}
               </div>
               <div>
                 <label className="block text-sm font-bold text-slate-700 mb-1.5">
                   Phòng ban <span className="text-rose-500">*</span>
                 </label>
-                <AdminSelect value={formData.department} onChange={(department) => setFormData({ ...formData, department })} options={DEPARTMENTS.map((value) => ({ value, label: value }))} placeholder="" className="w-full" searchable={false} showSelectionCheck={false} />
+                <AdminSelect value={formData.department} onChange={(department) => setFormData({ ...formData, department })} options={EMPLOYEE_DEPARTMENT_OPTIONS} placeholder="" className="w-full" searchable={false} showSelectionCheck={false} />
+                {fieldErrors.department && <p className="mt-1 text-xs text-rose-600">{fieldErrors.department}</p>}
               </div>
             </div>
 
@@ -333,12 +416,13 @@ export const AddEmployeePage: React.FC<AddEmployeePageProps> = ({
               <AdminSelect
                 value={formData.rank}
                 onChange={(rank) => setFormData({ ...formData, rank })}
-                options={EMPLOYEE_RANK_OPTIONS}
+                options={EMPLOYEE_RANK_OPTIONS_UI}
                 placeholder="Chọn cấp bậc"
                 className="w-full"
                 searchable={false}
                 showSelectionCheck={false}
               />
+              {fieldErrors.rank && <p className="mt-1 text-xs text-rose-600">{fieldErrors.rank}</p>}
             </div>
             {/* Row 3: Join Date (50%) | Birth Date (50%) */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -351,6 +435,7 @@ export const AddEmployeePage: React.FC<AddEmployeePageProps> = ({
                   onChange={(value) => setFormData({ ...formData, joinDate: fromDatePickerValue(value) })}
                   ariaLabel="Ng?y gia nh?p"
                 />
+                {fieldErrors.joinDate && <p className="mt-1 text-xs text-rose-600">{fieldErrors.joinDate}</p>}
               </div>
               <div>
                 <label className="block text-sm font-bold text-slate-700 mb-1.5">
@@ -361,6 +446,7 @@ export const AddEmployeePage: React.FC<AddEmployeePageProps> = ({
                   onChange={(value) => setFormData({ ...formData, birthDate: fromDatePickerValue(value) })}
                   ariaLabel="Ng?y sinh"
                 />
+                {fieldErrors.birthDate && <p className="mt-1 text-xs text-rose-600">{fieldErrors.birthDate}</p>}
               </div>
             </div>
 
@@ -371,16 +457,14 @@ export const AddEmployeePage: React.FC<AddEmployeePageProps> = ({
                   Văn phòng / Địa điểm làm việc
                 </label>
                 <AdminSelect value={formData.location} onChange={(location) => setFormData({ ...formData, location })} options={[{ value: 'Văn Phòng Á Châu Dĩ An', label: 'Văn Phòng Á Châu Dĩ An' }, { value: 'Bình Dương', label: 'Bình Dương (Nhà máy số 1)' }, { value: 'Long An', label: 'Long An (Nhà máy số 2)' }]} placeholder="" className="w-full" searchable={false} showSelectionCheck={false} />
+                {fieldErrors.location && <p className="mt-1 text-xs text-rose-600">{fieldErrors.location}</p>}
               </div>
               <div>
                 <label className="block text-sm font-bold text-slate-700 mb-1.5">
                   Trạng thái làm việc
                 </label>
-                <AdminSelect value={formData.status} onChange={(status) => setFormData({ ...formData, status: status as EmployeeStatus })} options={[
-                  { value: 'active', label: '\u0110ang l\u00e0m vi\u1ec7c' },
-                  { value: 'probation', label: 'Th\u1eed vi\u1ec7c' },
-                  { value: 'inactive', label: '\u0110\u00e3 ngh\u1ec9 vi\u1ec7c' },
-                ]} placeholder="" className="w-full" searchable={false} showSelectionCheck={false} />
+                <AdminSelect value={formData.status} onChange={(status) => setFormData({ ...formData, status: status as EmployeeStatus })} options={EMPLOYEE_STATUS_OPTIONS_UI} placeholder="" className="w-full" searchable={false} showSelectionCheck={false} />
+                {fieldErrors.status && <p className="mt-1 text-xs text-rose-600">{fieldErrors.status}</p>}
               </div>
             </div>
 
@@ -394,25 +478,33 @@ export const AddEmployeePage: React.FC<AddEmployeePageProps> = ({
                   type="email"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full px-4 py-3 text-sm bg-slate-50/70 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+                  placeholder="ten.nhanvien@asiafnb.com"
+                  aria-invalid={Boolean(fieldErrors.email)}
+                  className={inputClassName("email")}
                 />
+                {fieldErrors.email && <p className="mt-1 text-xs text-rose-600">{fieldErrors.email}</p>}
               </div>
               <div>
                 <label className="block text-sm font-bold text-slate-700 mb-1.5">
                   Số điện thoại
                 </label>
                 <input
-                  type="text"
+                  type="tel"
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  className="w-full px-4 py-3 text-sm bg-slate-50/70 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
+                  placeholder="0901234567"
+                  aria-invalid={Boolean(fieldErrors.phone)}
+                  className={inputClassName("phone")}
                 />
+                {fieldErrors.phone && <p className="mt-1 text-xs text-rose-600">{fieldErrors.phone}</p>}
               </div>
             </div>
 
             {/* Row 6: Avatar upload */}
             <AvatarUploader
               key={avatarUploaderKey}
+              initialAvatarUrl={formData.avatar}
+              onExistingAvatarRemove={() => setFormData((current) => ({ ...current, avatar: "" }))}
               onFileChange={setAvatarFile}
             />
 
@@ -425,6 +517,7 @@ export const AddEmployeePage: React.FC<AddEmployeePageProps> = ({
                   value={formData.bio}
                   onChange={(bio) => setFormData({ ...formData, bio })}
                 />
+                {fieldErrors.bio && <p className="mt-1 text-xs text-rose-600">{fieldErrors.bio}</p>}
               </div>
 
             {/* Bottom Actions inside form */}
@@ -438,7 +531,8 @@ export const AddEmployeePage: React.FC<AddEmployeePageProps> = ({
               </button>
               <button
                 type="submit"
-                className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold transition-colors shadow-sm"
+                disabled={isSaving}
+                className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold transition-colors shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <Check className="w-4 h-4" />
                 <span>{isEditing ? "L\u01b0u thay \u0111\u1ed5i" : "L\u01b0u nh\u00e2n vi\u00ean n\u00e0y"}</span>
@@ -458,22 +552,21 @@ export const AddEmployeePage: React.FC<AddEmployeePageProps> = ({
 
           <EmployeeProfileCard
             avatar={avatarPreview}
-            fallbackAvatar={PRESET_AVATARS[0]}
-            name={formData.fullName || "B\u00f9i Th\u1ecb H"}
-            position={formData.position || "Logistics Coordinator"}
-            status={formData.status || "inactive"}
+            name={formData.fullName || "Ch\u01b0a c\u00f3 h\u1ecd t\u00ean"}
+            position={formData.position || "Ch\u01b0a c\u00f3 ch\u1ee9c v\u1ee5"}
+            status={formData.status || undefined}
             details={[
-              { icon: UserPlus, label: "M\u00e3 nh\u00e2n vi\u00ean", value: formData.code || "ACF0008" },
-              { icon: Calendar, label: "Ng\u00e0y gia nh\u1eadp", value: formData.joinDate || "15/07/2021" },
-              { icon: Briefcase, label: "Ch\u1ee9c v\u1ee5", value: formData.position || "Logistics Coordinator" },
-              { icon: Briefcase, label: "Cấp bậc", value: getEmployeeRankLabel(formData.rank) },
-              { icon: Building, label: "Ph\u00f2ng ban", value: formData.department || "Ph\u00f2ng Logistics" },
-              { icon: MapPin, label: "V\u0103n ph\u00f2ng", value: formData.location || "V\u0103n Ph\u00f2ng \u00c1 Ch\u00e2u D\u0129 An" },
-              { icon: Mail, label: "Email", value: formData.email || "buithih@wana.com" },
-              { icon: Phone, label: "S\u1ed1 \u0111i\u1ec7n tho\u1ea1i", value: formData.phone || "0908 901 234" },
-              { icon: Cake, label: "Ng\u00e0y sinh", value: formData.birthDate || "25/12/1994" },
+              { icon: UserPlus, label: "M\u00e3 nh\u00e2n vi\u00ean", value: formData.code || "Ch\u01b0a c\u00f3 d\u1eef li\u1ec7u" },
+              { icon: Calendar, label: "Ng\u00e0y gia nh\u1eadp", value: formData.joinDate || "Ch\u01b0a c\u00f3 d\u1eef li\u1ec7u" },
+              { icon: Briefcase, label: "Ch\u1ee9c v\u1ee5", value: formData.position || "Ch\u01b0a c\u00f3 d\u1eef li\u1ec7u" },
+              { icon: Briefcase, label: "C\u1ea5p b\u1eadc", value: formData.rank ? getEmployeeRankLabel(formData.rank) : "Ch\u01b0a c\u00f3 d\u1eef li\u1ec7u" },
+              { icon: Building, label: "Ph\u00f2ng ban", value: formData.department ? getEmployeeDepartmentLabel(formData.department) : "Ch\u01b0a c\u00f3 d\u1eef li\u1ec7u" },
+              { icon: MapPin, label: "V\u0103n ph\u00f2ng", value: formData.location || "Ch\u01b0a c\u00f3 d\u1eef li\u1ec7u" },
+              { icon: Mail, label: "Email", value: formData.email || "Ch\u01b0a c\u00f3 d\u1eef li\u1ec7u" },
+              { icon: Phone, label: "S\u1ed1 \u0111i\u1ec7n tho\u1ea1i", value: formData.phone || "Ch\u01b0a c\u00f3 d\u1eef li\u1ec7u" },
+              { icon: Cake, label: "Ng\u00e0y sinh", value: formData.birthDate || "Ch\u01b0a c\u00f3 d\u1eef li\u1ec7u" },
             ]}
-            description={formData.bio ? toPlainText(formData.bio) : ""}
+            description={formData.bio}
             imageSizes="360px"
             className="w-full max-w-[360px]"
           />
@@ -482,3 +575,5 @@ export const AddEmployeePage: React.FC<AddEmployeePageProps> = ({
     </div>
   );
 };
+
+export { EmployeeFormPage as AddEmployeePage };

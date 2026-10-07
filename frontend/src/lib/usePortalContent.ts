@@ -3,9 +3,8 @@
 /**
  * React bindings for the shared portal content store.
  *
- * Public pages call these instead of importing the static config directly, so
- * whatever the admin dashboard saves shows up on the portal — on first render
- * and again whenever the admin changes something (same tab or another tab).
+ * React binding retained for media posts while that module still uses the
+ * shared localStorage store. Employee pages use the backend API directly.
  *
  * Implementation note: this deliberately does NOT use `useSyncExternalStore`.
  * These pages are statically prerendered, and the store lives in `localStorage`,
@@ -18,21 +17,15 @@
  */
 
 import { useEffect, useState } from "react";
-import { departments as configDepartments, employees as configEmployees } from "@/config/employees";
-import type { Employee as PublicEmployee } from "@/config/employees";
 import { news as configNews } from "@/config/news";
 import type { NewsItem } from "@/config/news";
 import {
-  readPublicDepartments,
-  readPublicEmployees,
   readPublicNews,
   subscribePortalContent,
 } from "@/lib/portalContent";
 
 /* Stable fallback references so React state identity does not churn. */
-const EMPLOYEE_FALLBACK: PublicEmployee[] = configEmployees ?? [];
 const NEWS_FALLBACK: NewsItem[] = configNews ?? [];
-const DEPARTMENT_FALLBACK: string[] = configDepartments ?? [];
 
 /**
  * Generic live reader: starts from `fallback` (matching the prerendered HTML),
@@ -65,19 +58,7 @@ function useLiveContent<T>(read: () => T, fallback: T): T {
 
 /* Module-level readers: stable identity, and each closes over its own fallback
  * so `useLiveContent` is never handed a fresh function per render. */
-const readEmployees = () => readPublicEmployees(EMPLOYEE_FALLBACK);
 const readNews = () => readPublicNews(NEWS_FALLBACK);
-
-/** Live employee list: static config until an admin writes, then admin data. */
-export function useEmployees(): PublicEmployee[] {
-  return useLiveContent<PublicEmployee[]>(readEmployees, EMPLOYEE_FALLBACK);
-}
-
-/** Live department filter list, including any department an admin added. */
-export function useDepartments(): string[] {
-  const employees = useEmployees();
-  return readPublicDepartments(employees, DEPARTMENT_FALLBACK);
-}
 
 /** Live news list, published admin posts first once the admin has posted. */
 export function useNews(): NewsItem[] {

@@ -47,7 +47,9 @@ app.use(
     limit: securityConfig.rateLimitMax,
     standardHeaders: "draft-8",
     legacyHeaders: false,
-    skip: (request) => request.path === "/health",
+    // Admin routes have dedicated limits keyed by account. Keeping them in the
+    // public IP bucket would log out an active user after normal dashboard use.
+    skip: (request) => request.path === "/health" || request.path.startsWith("/admin/"),
     message: {
       success: false,
       message: "Bạn đã gửi quá nhiều yêu cầu, vui lòng thử lại sau.",

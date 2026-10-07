@@ -20,22 +20,19 @@ export const adminEmployeeService = {
   async getEmployees(query: EmployeeListQuery) {
     const page = Math.max(Number(query.page) || 1, 1);
     const limit = Math.min(Math.max(Number(query.limit) || 12, 1), 100);
-    const filter: QueryFilter<Employee> = {};
+    const filter: QueryFilter<Employee> = { isDeleted: { $ne: true } };
 
     if (query.search?.trim()) {
       const keyword = new RegExp(escapeRegex(query.search.trim()), "i");
       filter.$or = [
         { name: keyword },
         { employeeCode: keyword },
-        { email: keyword },
-        { phone: keyword },
-        { department: keyword },
-        { position: keyword },
       ];
     }
 
     if (query.department) filter.department = query.department;
     if (query.position) filter.position = query.position;
+    if (query.rank) filter.rank = query.rank;
     if (query.status) filter.status = query.status;
 
     const sortDirection = query.sort === "oldest" ? 1 : -1;
@@ -99,5 +96,56 @@ export const adminEmployeeService = {
     const updatedEmployee = await adminEmployeeRepository.updateById(id, data);
     if (!updatedEmployee) throw new AppError(404, "Không tìm thấy nhân viên");
     return updatedEmployee;
+  },
+
+
+  async softDeleteEmployee(id: string, deletedBy: Employee["deletedBy"]) {
+    ensureValidId(id);
+    const employee = await adminEmployeeRepository.softDeleteById(id, deletedBy);
+    if (!employee) throw new AppError(404, "Không tìm thấy nhân viên");
+    return employee;
+  },
+
+  async getDeletedEmployees(query: EmployeeListQuery) {
+    const page = Math.max(Number(query.page) || 1, 1);
+    const limit = Math.min(Math.max(Number(query.limit) || 20, 1), 100);
+    const filter: QueryFilter<Employee> = { isDeleted: true };
+
+    if (query.search?.trim()) {
+      const keyword = new RegExp(escapeRegex(query.search.trim()), "i");
+      filter.$or = [{ name: keyword }, { employeeCode: keyword }];
+    }
+
+    if (query.department) filter.department = query.department;
+    if (query.rank) filter.rank = query.rank;
+    if (query.status) filter.status = query.status;
+
+    const [items, total] = await Promise.all([
+      adminEmployeeRepository.findAll({
+        filter,
+        skip: (page - 1) * limit,
+        limit,
+        sort: { deletedAt: -1 },
+      }),
+      adminEmployeeRepository.count(filter),
+    ]);
+
+    return {
+      items,
+      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+    };
+  },
+  async restoreEmployee(id: string) {
+    ensureValidId(id);
+    const employee = await adminEmployeeRepository.restoreById(id);
+    if (!employee) throw new AppError(404, "Không tìm thấy nhân viên trong thùng rác");
+    return employee;
+  },
+
+  async permanentlyDeleteEmployee(id: string) {
+    ensureValidId(id);
+    const employee = await adminEmployeeRepository.permanentlyDeleteById(id);
+    if (!employee) throw new AppError(404, "Không tìm thấy nhân viên trong thùng rác");
+    return employee;
   },
 };

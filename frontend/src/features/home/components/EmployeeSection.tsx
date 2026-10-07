@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { ArrowRight, ChevronDown, Grid2X2, Mail, Phone, Search, Users, X } from "lucide-react";
 import { getPublicEmployees } from "@/services/employee.service";
 import type { Employee } from "@/types/employee";
+import { getEmployeeDepartmentLabel } from "@/components/ui/employee-department-options";
 
 const ALL_DEPARTMENTS = "Tất cả phòng ban";
 
@@ -71,8 +72,8 @@ export default function EmployeeSection() {
               </div>
 
               <div ref={departmentMenuRef} className="relative w-full shrink-0 xl:w-auto">
-                <button type="button" onClick={() => setDepartmentOpen((open) => !open)} className="flex w-full items-center gap-3 rounded-full border border-green-100 bg-[#fbfffc] px-5 py-3.5 text-sm hover:border-[#1a7a1a] sm:text-base xl:w-72"><Grid2X2 size={23} className="shrink-0 text-[#087d3e]" /><span className="flex-1 truncate text-left font-medium text-gray-700">{department}</span><ChevronDown size={19} className="shrink-0 text-gray-800" /></button>
-                {departmentOpen && <div className="absolute right-0 top-full z-20 mt-2 w-56 overflow-hidden rounded-xl border border-gray-100 bg-white py-1 shadow-lg">{departments.map((item) => <button type="button" key={item} onClick={() => { setDepartment(item); setDepartmentOpen(false); }} className={`w-full px-4 py-2.5 text-left text-sm hover:bg-green-50 hover:text-[#1a7a1a] ${department === item ? "bg-green-50 font-semibold text-[#1a7a1a]" : "text-gray-700"}`}>{item}</button>)}</div>}
+                <button type="button" onClick={() => setDepartmentOpen((open) => !open)} className="flex w-full items-center gap-3 rounded-full border border-green-100 bg-[#fbfffc] px-5 py-3.5 text-sm hover:border-[#1a7a1a] sm:text-base xl:w-72"><Grid2X2 size={23} className="shrink-0 text-[#087d3e]" /><span className="flex-1 truncate text-left font-medium text-gray-700">{department === ALL_DEPARTMENTS ? department : getEmployeeDepartmentLabel(department)}</span><ChevronDown size={19} className="shrink-0 text-gray-800" /></button>
+                {departmentOpen && <div className="absolute right-0 top-full z-20 mt-2 w-56 overflow-hidden rounded-xl border border-gray-100 bg-white py-1 shadow-lg">{departments.map((item) => <button type="button" key={item} onClick={() => { setDepartment(item); setDepartmentOpen(false); }} className={`w-full px-4 py-2.5 text-left text-sm hover:bg-green-50 hover:text-[#1a7a1a] ${department === item ? "bg-green-50 font-semibold text-[#1a7a1a]" : "text-gray-700"}`}>{item === ALL_DEPARTMENTS ? item : getEmployeeDepartmentLabel(item)}</button>)}</div>}
               </div>
             </form>
 
@@ -94,7 +95,7 @@ function EmployeeCard({ employee }: { employee: Employee }) {
       <div className="p-3 sm:p-4">
         <p className="text-xs font-bold leading-tight text-gray-900 sm:text-sm">{employee.name}</p>
         <p className="mt-1 min-h-0 text-[11px] leading-snug text-gray-500 sm:min-h-10 sm:text-xs">{employee.position}</p>
-        <div className="mt-2 space-y-1 text-[11px] text-gray-500 sm:mt-3 sm:space-y-1.5 sm:text-xs"><p className="flex items-center gap-1.5"><Users size={12} className="shrink-0 text-[#1a7a1a]" />{employee.department}</p><p className="hidden items-center gap-1.5 sm:flex"><Mail size={12} className="shrink-0 text-[#1a7a1a]" /><span className="truncate">{employee.email}</span></p><p className="hidden items-center gap-1.5 sm:flex"><Phone size={12} className="shrink-0 text-[#1a7a1a]" />{employee.phone}</p></div>
+        <div className="mt-2 space-y-1 text-[11px] text-gray-500 sm:mt-3 sm:space-y-1.5 sm:text-xs"><p className="flex items-center gap-1.5"><Users size={12} className="shrink-0 text-[#1a7a1a]" />{getEmployeeDepartmentLabel(employee.department)}</p><p className="hidden items-center gap-1.5 sm:flex"><Mail size={12} className="shrink-0 text-[#1a7a1a]" /><span className="truncate">{employee.email}</span></p><p className="hidden items-center gap-1.5 sm:flex"><Phone size={12} className="shrink-0 text-[#1a7a1a]" />{employee.phone}</p></div>
       </div>
     </Link>
   );

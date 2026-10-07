@@ -10,6 +10,7 @@ import {
   RotateCcw,
   Search,
 } from "lucide-react";
+import { getEmployeeDepartmentLabel } from "@/components/ui/employee-department-options";
 
 interface EmployeeFiltersProps {
   search: string;
@@ -33,6 +34,7 @@ function SelectFilter({
   label,
   icon: Icon,
   iconClass,
+  getOptionLabel = (option) => option,
 }: {
   value: string;
   options: string[];
@@ -40,6 +42,7 @@ function SelectFilter({
   label: string;
   icon: typeof Building2;
   iconClass: string;
+  getOptionLabel?: (option: string) => string;
 }) {
   const [open, setOpen] = useState(false);
   const [keyword, setKeyword] = useState("");
@@ -55,7 +58,7 @@ function SelectFilter({
   }, [open]);
 
   const visibleOptions = options.filter((option) =>
-    option.toLowerCase().includes(keyword.trim().toLowerCase()),
+    getOptionLabel(option).toLowerCase().includes(keyword.trim().toLowerCase()),
   );
 
   return (
@@ -69,7 +72,7 @@ function SelectFilter({
         }`}
       >
         <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${iconClass}`}><Icon size={17} /></span>
-        <span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-700">{value}</span>
+        <span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-700">{getOptionLabel(value)}</span>
         <ChevronDown size={18} className={`shrink-0 text-[#0b4937] transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
 
@@ -94,7 +97,7 @@ function SelectFilter({
                   className={`flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-left transition-colors ${active ? "bg-gradient-to-r from-green-50 to-[#f5fbf6]" : "hover:bg-slate-50"}`}
                 >
                   <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${iconClass}`}><Icon size={19} /></span>
-                  <span className={`min-w-0 flex-1 truncate text-sm ${active ? "font-bold text-[#064c32]" : "font-medium text-slate-700"}`}>{option}</span>
+                  <span className={`min-w-0 flex-1 truncate text-sm ${active ? "font-bold text-[#064c32]" : "font-medium text-slate-700"}`}>{getOptionLabel(option)}</span>
                   {active && <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#16934b] text-white"><Check size={16} strokeWidth={3} /></span>}
                 </button>
               );
@@ -127,7 +130,7 @@ export default function EmployeeFilters({
         <Search size={20} className="shrink-0 text-[#08723d]" />
         <input type="search" value={search} onChange={(event) => onSearchChange(event.target.value)} placeholder="Tìm kiếm theo tên, phòng ban, chức vụ..." className="min-w-0 flex-1 bg-transparent py-2.5 text-xs text-slate-800 outline-none placeholder:text-slate-400 sm:py-3 sm:text-sm" />
       </label>
-      <SelectFilter value={department} options={departments} onChange={onDepartmentChange} label="phòng ban" icon={Building2} iconClass="bg-green-100 text-[#08723d]" />
+      <SelectFilter value={department} options={departments} onChange={onDepartmentChange} label="phòng ban" icon={Building2} iconClass="bg-green-100 text-[#08723d]" getOptionLabel={(option) => option.startsWith("Tất cả") ? option : getEmployeeDepartmentLabel(option)} />
       <SelectFilter value={position} options={positions} onChange={onPositionChange} label="chức vụ" icon={BriefcaseBusiness} iconClass="bg-blue-50 text-blue-700" />
       <button type="button" onClick={onToggleSort} className="col-span-2 inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-semibold text-slate-600 shadow-[0_2px_8px_rgba(15,23,42,0.04)] transition-colors hover:border-[#16894a] hover:text-[#08723d] sm:px-5 sm:py-3 sm:text-sm md:col-span-1 xl:min-h-14">
         <ArrowDownUp size={17} className="text-[#08723d]" />{newestFirst ? "Mới nhất" : "Cũ nhất"}<span className="sr-only">Đổi thứ tự ngày gia nhập</span>

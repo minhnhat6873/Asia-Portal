@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   Employee,
@@ -13,8 +13,6 @@ import {
   TrashItem
 } from './types';
 import {
-  getStoredEmployees,
-  saveStoredEmployees,
   getStoredMediaPosts,
   saveStoredMediaPosts,
   getStoredUsers,
@@ -27,13 +25,13 @@ import {
 import { Sidebar } from './components/Sidebar';
 import { DashboardOverview } from './components/DashboardOverview';
 import { EmployeeManagement } from './components/EmployeeManagement';
+import { EmployeeTrashPage } from './components/EmployeeTrashPage';
 import { MediaManagement } from './components/MediaManagement';
 import { AddEmployeePage } from './components/AddEmployeePage';
 import { AddMediaPage } from './components/AddMediaPage';
 import { DEFAULT_ROLE_PERMISSIONS, PermissionsManagement } from './components/PermissionsManagement';
 import { AccessControlTabs, type AccessControlPage } from '@/features/access-control/AccessControlTabs';
 import AccountPage from '@/features/admin/account/AccountPage';
-import { Toast, ToastMessage } from './components/Toast';
 import Image from 'next/image';
 import Link from 'next/link';
 import { clearAdminSession, getAdminSession, type AdminUser } from '@/lib/adminSession';
@@ -41,6 +39,8 @@ import { logoutAdmin } from '@/features/admin/login/auth.service';
 import { subscribePortalContent } from '@/lib/portalContent';
 import { ChevronDown, KeyRound, LogOut, Menu, ShieldCheck, UserRound } from 'lucide-react';
 import { getDashboardSummary, type DashboardSummary } from './dashboard.service';
+import { getAdminEmployee, getAdminEmployees, softDeleteAdminEmployee, type AdminEmployeeListParams, type AdminEmployeeResult } from '@/services/admin-employee.service';
+import { toast } from 'sonner';
 
 export const ADMIN_TAB_ROUTES: Record<ActiveTab, string> = {
   overview: '/admin/dashboard',
@@ -76,6 +76,43 @@ function getTabFromPath(pathname: string): ActiveTab {
   if (pathname.startsWith("/admin/account")) return "account";
   return "overview";
 }
+
+function formatEmployeeDate(value?: string): string {
+  if (!value) return "";
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(value)) return value;
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+
+  return [
+    String(date.getUTCDate()).padStart(2, "0"),
+    String(date.getUTCMonth() + 1).padStart(2, "0"),
+    String(date.getUTCFullYear()),
+  ].join("/");
+}
+
+function mapApiEmployeeToDashboardEmployee(employee: AdminEmployeeResult): Employee {
+  return {
+    id: employee._id,
+    code: employee.employeeCode,
+    fullName: employee.name,
+    position: employee.position,
+    department: employee.department,
+    rank: employee.rank ?? "",
+    email: employee.email,
+    phone: employee.phone,
+    location: employee.location,
+    avatar: employee.avatar ?? "",
+    joinDate: formatEmployeeDate(employee.joinDate),
+    birthDate: formatEmployeeDate(employee.birthDate),
+    status: employee.status,
+    bio: employee.description ?? "",
+    createdBy: employee.createdBy,
+    createdAt: employee.createdAt,
+    updatedAt: employee.updatedAt,
+  };
+}
+
 function getAccessControlPage(pathname: string): AccessControlPage {
   if (pathname === '/admin/access-control/roles/new') return 'new-role';
   if (pathname === '/admin/access-control/roles') return 'roles';
@@ -89,22 +126,62 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
   const pathname = usePathname();
   const [activeTab, setActiveTab] = useState<ActiveTab>(() => initialTab ?? getTabFromPath(pathname));
   const accessControlPage = getAccessControlPage(pathname);
+  const isEmployeeTrashPage = pathname === '/admin/employees/trash';
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [employeeTotal, setEmployeeTotal] = useState(0);
+  const [employeeListParams, setEmployeeListParams] = useState<AdminEmployeeListParams>({ page: 1, limit: 12 });
+  const [employeesLoadError, setEmployeesLoadError] = useState<string | null>(null);
+  const [areEmployeesLoading, setAreEmployeesLoading] = useState(true);
   const editingEmployeeId = pathname.match(/^\/admin\/employees\/([^/]+)\/edit$/)?.[1];
-  const editingEmployee = employees.find((employee) => employee.id === decodeURIComponent(editingEmployeeId ?? ''));
+  const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
+  const [isEditingEmployeeLoading, setIsEditingEmployeeLoading] = useState(false);
+  const [editingEmployeeError, setEditingEmployeeError] = useState<string | null>(null);
   const [mediaPosts, setMediaPosts] = useState<MediaPost[]>([]);
   const [users, setUsers] = useState<UserAccount[]>([]);
   const [trashItems, setTrashItems] = useState<TrashItem[]>([]);
   const [currentUser, setCurrentUserState] = useState<UserAccount | null>(null);
   const [sessionAccount, setSessionAccount] = useState<AdminUser | null>(null);
   const [dashboardSummary, setDashboardSummary] = useState<DashboardSummary | null>(null);
-  const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   useEffect(() => {
     setActiveTab(getTabFromPath(pathname));
   }, [pathname]);
   const accountMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!editingEmployeeId) {
+      setEditingEmployee(null);
+      setEditingEmployeeError(null);
+      setIsEditingEmployeeLoading(false);
+      return;
+    }
+
+    const employeeId = decodeURIComponent(editingEmployeeId);
+    if (!/^[a-f\d]{24}$/i.test(employeeId)) {
+      setEditingEmployee(null);
+      setEditingEmployeeError("Không tìm thấy hồ sơ nhân viên trên hệ thống.");
+      setIsEditingEmployeeLoading(false);
+      return;
+    }
+    const controller = new AbortController();
+    setIsEditingEmployeeLoading(true);
+    setEditingEmployeeError(null);
+
+    void getAdminEmployee(employeeId, controller.signal)
+      .then((employee) => setEditingEmployee(mapApiEmployeeToDashboardEmployee(employee)))
+      .catch((error: unknown) => {
+        if (!controller.signal.aborted) {
+          setEditingEmployee(null);
+          setEditingEmployeeError(error instanceof Error ? error.message : "Không thể tải hồ sơ nhân viên.");
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setIsEditingEmployeeLoading(false);
+      });
+
+    return () => controller.abort();
+  }, [editingEmployeeId]);
 
   useEffect(() => {
     const syncSession = () => setSessionAccount(getAdminSession());
@@ -115,6 +192,39 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
       window.removeEventListener("asia-admin-session", syncSession);
       window.removeEventListener("storage", syncSession);
     };
+  }, []);
+
+  const loadEmployees = useCallback(async (signal?: AbortSignal) => {
+    setAreEmployeesLoading(true);
+    try {
+      const result = await getAdminEmployees(employeeListParams, signal);
+      setEmployees(result.items.map(mapApiEmployeeToDashboardEmployee));
+      setEmployeeTotal(result.pagination.total);
+      setEmployeesLoadError(null);
+    } catch (error) {
+      if (!signal?.aborted) {
+        setEmployees([]);
+        setEmployeeTotal(0);
+        setEmployeesLoadError(error instanceof Error ? error.message : "Không thể tải danh sách nhân viên.");
+      }
+    } finally {
+      if (!signal?.aborted) setAreEmployeesLoading(false);
+    }
+  }, [employeeListParams]);
+
+  const handleEmployeeFiltersChange = useCallback((filters: AdminEmployeeListParams) => {
+    setEmployeeListParams({ ...filters, page: 1, limit: 12 });
+  }, []);
+
+  const handleEmployeePageChange = useCallback((page: number) => {
+    setEmployeeListParams((current) => ({ ...current, page }));
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    void loadEmployees(controller.signal);
+    return () => controller.abort();
+  }, [loadEmployees]);
   useEffect(() => {
     const controller = new AbortController();
 
@@ -125,8 +235,6 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
       });
 
     return () => controller.abort();
-  }, []);
-
   }, []);
   useEffect(() => {
     if (!isAccountMenuOpen) return;
@@ -153,7 +261,6 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
   // that edits the same store (e.g. a second admin dashboard window).
   useEffect(() => {
     const load = () => {
-      setEmployees(getStoredEmployees());
       setMediaPosts(getStoredMediaPosts());
       const storedUsers = getStoredUsers();
       const normalizedUsers = storedUsers.map((user) =>
@@ -176,7 +283,10 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
       );
       if (needsAdminNormalization) saveStoredUsers(normalizedUsers);
       setUsers(normalizedUsers);
-      setTrashItems(getStoredTrashItems());
+      const storedTrashItems = getStoredTrashItems();
+      const realTrashItems = storedTrashItems.filter((item) => item.entityType !== 'employee');
+      if (realTrashItems.length !== storedTrashItems.length) saveStoredTrashItems(realTrashItems);
+      setTrashItems(realTrashItems);
       setCurrentUserState(getCurrentUser());
     };
 
@@ -199,15 +309,8 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
   };
   // Helper toast notifier
   const addToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
-    const id = Date.now().toString();
-    setToasts((prev) => [...prev, { id, message, type }]);
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 3800);
-  };
-
-  const removeToast = (id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
+    const notify = type === 'success' ? toast.success : type === 'error' ? toast.error : toast.info;
+    notify(message);
   };
 
   const addTrashItem = (item: Omit<TrashItem, 'id' | 'deletedAt'>) => {
@@ -244,38 +347,48 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
   };
 
   // --- EMPLOYEE CRUD ---
-  const handleAddEmployee = (newEmpData: Omit<Employee, 'id'>) => {
-    const newEmployee: Employee = {
-      ...newEmpData,
-      id: `emp-${Date.now()}`,
-    };
+  const handleAddEmployee = (newEmpData: Employee) => {
+    const newEmployee: Employee = newEmpData.id
+      ? newEmpData
+      : { ...newEmpData, id: `emp-${Date.now()}` };
     const updated = [newEmployee, ...employees];
     setEmployees(updated);
-    saveStoredEmployees(updated);
     addToast(`Đã thêm nhân viên ${newEmployee.fullName} (${newEmployee.code}) thành công!`);
   };
 
   const handleUpdateEmployee = (updatedEmp: Employee) => {
     const updated = employees.map((e) => (e.id === updatedEmp.id ? updatedEmp : e));
     setEmployees(updated);
-    saveStoredEmployees(updated);
     if (selectedDossierEmployee?.id === updatedEmp.id) {
       setSelectedDossierEmployee(updatedEmp);
     }
     addToast(`Đã cập nhật thông tin nhân viên ${updatedEmp.fullName}!`);
   };
 
-  const handleDeleteEmployee = (id: string) => {
+  const handleDeleteEmployee = async (id: string): Promise<boolean> => {
     const empToDelete = employees.find((e) => e.id === id);
-    if (!empToDelete) return;
+    if (!empToDelete) return false;
+
+    const loadingToastId = toast.loading('Đang xóa nhân viên, vui lòng chờ trong giây lát...');
+
+    if (/^[a-f\d]{24}$/i.test(id)) {
+      try {
+        await softDeleteAdminEmployee(id);
+      } catch (error) {
+        toast.dismiss(loadingToastId);
+        toast.error(error instanceof Error ? error.message : 'Không thể xóa nhân viên. Vui lòng thử lại.');
+        return false;
+      }
+    }
+
     const updated = employees.filter((e) => e.id !== id);
     setEmployees(updated);
-    saveStoredEmployees(updated);
     if (selectedDossierEmployee?.id === id) {
       setSelectedDossierEmployee(null);
     }
-    addTrashItem({ entityType: 'employee', title: empToDelete.fullName, payload: empToDelete });
-    addToast(`Đã xóa nhân viên ${empToDelete?.fullName || ''} khỏi hệ thống.`, 'info');
+    toast.dismiss(loadingToastId);
+    toast.success('Đã xóa nhân viên thành công.');
+    return true;
   };
 
   // --- MEDIA CRUD ---
@@ -422,17 +535,7 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
     addToast(`Đã chuyển tài khoản ${targetUser.fullName} vào Thùng rác.`, 'info');
   };
 
-  const restoreExternalTrashItem = (item: TrashItem) => {
-    if (item.entityType === 'employee') {
-      const employee = item.payload as Employee;
-      setEmployees((items) => {
-        const next = items.some((entry) => entry.id === employee.id) ? items : [employee, ...items];
-        saveStoredEmployees(next);
-        return next;
-      });
-      addToast(`Đã khôi phục nhân sự ${employee.fullName}.`);
-      return;
-    }
+  const restoreExternalTrashItem = async (item: TrashItem) => {
     if (item.entityType === 'media') {
       const post = item.payload as MediaPost;
       setMediaPosts((items) => {
@@ -459,8 +562,6 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
   return (
     <div className={`relative flex h-screen flex-col overflow-hidden bg-[#f8fafc] font-sans text-slate-800`}>
       {/* Toast notifications */}
-      <Toast toasts={toasts} onDismiss={removeToast} />
-
       <header className="flex h-[76px] shrink-0 items-center justify-between bg-white px-4 sm:px-6 lg:px-8">
           <Link href="/admin/dashboard" className="flex min-w-0 items-center gap-3 rounded-xl outline-none transition-opacity hover:opacity-80 focus-visible:ring-2 focus-visible:ring-emerald-500">
           <span className="flex h-12 w-12 shrink-0 items-center justify-center">
@@ -574,7 +675,7 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
             <span className="hidden items-center gap-2 px-1 text-lg font-bold uppercase tracking-[0.04em] text-slate-800 lg:inline-flex">
               <span className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.65)]" />
               {activeTab === 'overview' && 'Bảng Điều Khiển'}
-              {activeTab === 'employees' && 'Quản Lý Nhân Sự'}
+              {activeTab === 'employees' && (isEmployeeTrashPage ? 'Thùng Rác Nhân Viên' : 'Quản Lý Nhân Sự')}
               {activeTab === 'add-employee' && 'Thêm Nhân Viên Mới'}
               {activeTab === 'media' && 'Quản Lý Truyền Thông'}
               {activeTab === 'add-media' && 'Đăng Tin Truyền Thông'}
@@ -607,16 +708,30 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
             {activeTab === 'account' && <AccountPage embedded initialAdminUser={sessionAccount} />}
 
             {/* 2. Danh sách Quản lý Nhân sự */}
-            {activeTab === 'employees' && (
+            {activeTab === 'employees' && !isEmployeeTrashPage && (
               <EmployeeManagement
                 employees={employees}
-                onAddEmployee={handleAddEmployee}
-                onUpdateEmployee={handleUpdateEmployee}
+                total={employeeTotal}
+                page={Number(employeeListParams.page) || 1}
+                pageSize={Number(employeeListParams.limit) || 12}
+                loadError={employeesLoadError}
+                isLoading={areEmployeesLoading}
                 onDeleteEmployee={handleDeleteEmployee}
+                onFiltersChange={handleEmployeeFiltersChange}
+                onPageChange={handleEmployeePageChange}
                 selectedEmployeeForDossier={selectedDossierEmployee}
                 onCloseDossier={() => setSelectedDossierEmployee(null)}
                 onOpenDossier={(emp) => setSelectedDossierEmployee(emp)}
                 onNavigateToAdd={() => navigateToTab('add-employee')}
+                onNavigateToEdit={(employee) => router.push(`/admin/employees/${encodeURIComponent(employee.id)}/edit`)}
+                onNavigateToTrash={() => router.push('/admin/employees/trash')}
+              />
+            )}
+
+            {activeTab === 'employees' && isEmployeeTrashPage && (
+              <EmployeeTrashPage
+                onBack={() => router.push('/admin/employees')}
+                onRestored={() => loadEmployees()}
               />
             )}
 
@@ -633,6 +748,28 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
             )}
 
             {/* 4. Danh sách Quản lý Truyền thông */}
+            {activeTab === 'edit-employee' && (
+              isEditingEmployeeLoading ? (
+                <div className="rounded-3xl border border-slate-200 bg-white p-8 text-sm text-slate-500">\u0110ang t\u1ea3i h\u1ed3 s\u01a1 nh\u00e2n vi\u00ean...</div>
+              ) : editingEmployee ? (
+                <AddEmployeePage
+                  key={editingEmployee.id}
+                  mode="edit"
+                  initialEmployee={editingEmployee}
+                  onBack={() => router.push('/admin/employees')}
+                  onSave={(updatedEmployee) => {
+                    handleUpdateEmployee(updatedEmployee);
+                    router.push('/admin/employees');
+                  }}
+                  existingCount={employees.length}
+                />
+              ) : (
+                <div className="rounded-3xl border border-rose-200 bg-rose-50 p-6 text-sm text-rose-700">
+                  {editingEmployeeError ?? '\u004b\u0068\u00f4\u006e\u0067 t\u00ec\u006d th\u1ea5\u0079 h\u1ed3 s\u01a1 nh\u00e2\u006e vi\u00ea\u006e.'}
+                </div>
+              )
+            )}
+
             {activeTab === 'media' && (
               <MediaManagement
                 mediaPosts={mediaPosts}
@@ -685,7 +822,7 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
                   onNavigate={navigateToTab}
                   page={accessControlPage}
                   onNavigateToPage={(page) => router.push(ACCESS_CONTROL_PAGE_ROUTES[page])}
-                  trashItems={trashItems}
+                  trashItems={trashItems.filter((item) => item.entityType !== 'employee')}
                   onAddTrashItem={addTrashItem}
                   onRemoveTrashItem={removeTrashItem}
                   onRestoreExternalTrashItem={restoreExternalTrashItem}
@@ -699,6 +836,3 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
     </div>
   );
 }
-
-
-

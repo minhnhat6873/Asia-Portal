@@ -15,6 +15,7 @@ export const CreateUserModal: React.FC<CreateUserModalProps> = ({
 }) => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [phone, setPhone] = useState('');
   const [roleId, setRoleId] = useState('');
   const [department, setDepartment] = useState('Vận hành Nhà hàng');
@@ -26,6 +27,7 @@ export const CreateUserModal: React.FC<CreateUserModalProps> = ({
     onSave({
       name: name.trim(),
       email: email.trim(),
+      password,
       phone: phone.trim() || '0901 000 000',
       roleId,
       branch: 'ASIA F&B',
@@ -107,6 +109,21 @@ export const CreateUserModal: React.FC<CreateUserModalProps> = ({
                   className="w-full pl-9 pr-3.5 py-2.5 bg-slate-900/80 border border-slate-700 rounded-xl text-white text-sm focus:outline-none focus:border-emerald-500 transition-colors"
                 />
               </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">
+              Mật khẩu ban đầu <span className="text-rose-400">*</span>
+            </label>
+            <input
+              type="password"
+              required
+              minLength={8}
+              placeholder="Ít nhất 8 ký tự"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full px-3.5 py-2.5 bg-slate-900/80 border border-slate-700 rounded-xl text-white text-sm focus:outline-none focus:border-emerald-500 transition-colors"
+            />
           </div>
 
           <div>

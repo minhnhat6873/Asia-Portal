@@ -1,4 +1,4 @@
-import { apiPatchFormData, apiPostFormData } from "./api";
+import { apiDelete, apiGet, apiPatchFormData, apiPost, apiPostFormData } from "./api";
 
 export interface CreateAdminEmployeeInput {
   employeeCode: string;
@@ -13,6 +13,7 @@ export interface CreateAdminEmployeeInput {
   birthDate?: string;
   status?: "active" | "probation" | "inactive";
   description?: string;
+  avatar?: string;
 }
 
 export interface AdminEmployeeResult {
@@ -31,8 +32,61 @@ export interface AdminEmployeeResult {
   status: "active" | "probation" | "inactive";
   description?: string;
   createdBy?: { accountId: string; name: string; email: string };
+  deletedBy?: { accountId: string; name: string; email: string };
+  deletedAt?: string;
   createdAt?: string;
   updatedAt?: string;
+}
+
+export interface AdminEmployeeListResult {
+  items: AdminEmployeeResult[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
+export interface AdminEmployeeListParams {
+  search?: string;
+  department?: string;
+  rank?: string;
+  status?: "active" | "probation" | "inactive";
+  page?: number;
+  limit?: number;
+  sort?: "latest" | "oldest";
+}
+
+export function getAdminEmployees(
+  params: AdminEmployeeListParams = {},
+  signal?: AbortSignal,
+): Promise<AdminEmployeeListResult> {
+  const query = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== "") query.set(key, String(value));
+  });
+  const suffix = query.size ? `?${query.toString()}` : "";
+  return apiGet<AdminEmployeeListResult>(`/admin/employees${suffix}`, signal);
+}
+
+export function getAdminEmployee(
+  id: string,
+  signal?: AbortSignal,
+): Promise<AdminEmployeeResult> {
+  return apiGet<AdminEmployeeResult>(`/admin/employees/${encodeURIComponent(id)}`, signal);
+}
+
+export function getDeletedAdminEmployees(
+  params: Pick<AdminEmployeeListParams, "search" | "department" | "rank" | "status" | "page" | "limit"> = {},
+  signal?: AbortSignal,
+): Promise<AdminEmployeeListResult> {
+  const query = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== "") query.set(key, String(value));
+  });
+  const suffix = query.size ? `?${query.toString()}` : "";
+  return apiGet<AdminEmployeeListResult>(`/admin/employees/trash${suffix}`, signal);
 }
 
 export function createAdminEmployee(
@@ -42,7 +96,7 @@ export function createAdminEmployee(
   const body = new FormData();
 
   Object.entries(input).forEach(([key, value]) => {
-    if (value !== undefined && value !== "") body.append(key, value);
+    if (value !== undefined && (value !== "" || key === "avatar")) body.append(key, value);
   });
 
   if (avatarFile) body.append("avatar", avatarFile);
@@ -59,10 +113,21 @@ export function updateAdminEmployee(
   const body = new FormData();
 
   Object.entries(input).forEach(([key, value]) => {
-    if (value !== undefined && value !== "") body.append(key, value);
+    if (value !== undefined && (value !== "" || key === "avatar")) body.append(key, value);
   });
 
   if (avatarFile) body.append("avatar", avatarFile);
 
   return apiPatchFormData<AdminEmployeeResult>(`/admin/employees/${id}`, body);
+}
+
+export function softDeleteAdminEmployee(id: string): Promise<AdminEmployeeResult> {
+  return apiDelete<AdminEmployeeResult>(`/admin/employees/${encodeURIComponent(id)}`);
+}
+export function restoreAdminEmployee(id: string): Promise<AdminEmployeeResult> {
+  return apiPost<AdminEmployeeResult>(`/admin/employees/${encodeURIComponent(id)}/restore`, {});
+}
+
+export function permanentlyDeleteAdminEmployee(id: string): Promise<AdminEmployeeResult> {
+  return apiDelete<AdminEmployeeResult>(`/admin/employees/${encodeURIComponent(id)}/permanent`);
 }

@@ -453,3 +453,25 @@ body {
 .employee-avatar-picker--filled .employee-avatar-pond {
   margin-bottom: 0.75rem;
 }
+/* Compact horizontal scrollbar for wide employee tables. */
+.employee-table-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #94a3b8 transparent;
+}
+
+.employee-table-scroll::-webkit-scrollbar {
+  height: 5px;
+}
+
+.employee-table-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.employee-table-scroll::-webkit-scrollbar-thumb {
+  background: #94a3b8;
+  border-radius: 9999px;
+}
+
+.employee-table-scroll::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}

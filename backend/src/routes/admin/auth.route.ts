@@ -52,6 +52,29 @@ const registerLimiter = rateLimit({
   },
 });
 
+const refreshLimiter = rateLimit({
+  windowMs: securityConfig.rateLimitWindowMs,
+  limit: securityConfig.refreshRateLimitMax,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: "Làm mới phiên quá nhiều lần, vui lòng thử lại sau.",
+  },
+});
+
+const sessionLimiter = rateLimit({
+  windowMs: securityConfig.rateLimitWindowMs,
+  limit: securityConfig.authenticatedRateLimitMax,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  keyGenerator: (request) => `account:${request.admin!.id}`,
+  message: {
+    success: false,
+    message: "Kiểm tra phiên quá nhiều lần, vui lòng thử lại sau.",
+  },
+});
+
 router.post("/login", loginLimiter, validateBody(loginSchema), login);
 router.post("/register", registerLimiter, validateBody(registerAccountSchema), register);
 router.post("/register/verify-otp", registerLimiter, validateBody(verifyRegistrationOtpSchema), verifyRegistrationOtp);
@@ -62,8 +85,8 @@ router.post("/forgot-password/verify-otp", registerLimiter, validateBody(verifyP
 router.post("/forgot-password/reset", registerLimiter, validateBody(resetPasswordWithOtpSchema), resetPasswordWithOtp);
 router.post("/forgot-password/resend-otp", registerLimiter, validateBody(requestPasswordResetOtpSchema), resendPasswordResetOtp);
 
-router.post("/refresh", refreshLogin);
+router.post("/refresh", refreshLimiter, refreshLogin);
 router.post("/logout", logout);
-router.get("/me", requireAdminAuth, getCurrentAccount);
+router.get("/me", requireAdminAuth, sessionLimiter, getCurrentAccount);
 
 export default router;

@@ -1,23 +1,33 @@
 'use client';
 
 import Image from "next/image";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { X } from "lucide-react";
 import { defineFilePond, type FilePondEntry } from "filepond";
 import { locale } from "filepond/locales/vi-vn.js";
 import "filepond/types/react";
 
 interface AvatarUploaderProps {
   onFileChange: (file: File | null) => void;
+  onExistingAvatarRemove?: () => void;
+  /** Avatar URL already saved for the employee being edited. */
+  initialAvatarUrl?: string;
 }
 
-export default function AvatarUploader({ onFileChange }: AvatarUploaderProps) {
+export default function AvatarUploader({
+  onFileChange,
+  onExistingAvatarRemove,
+  initialAvatarUrl = "",
+}: AvatarUploaderProps) {
   const [message, setMessage] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const hasFile = selectedFile !== null;
+  const nativeInputRef = useRef<HTMLInputElement>(null);
   const previewUrl = useMemo(
     () => (selectedFile ? URL.createObjectURL(selectedFile) : ""),
     [selectedFile],
   );
+  const visibleAvatarUrl = previewUrl || initialAvatarUrl;
+  const hasAvatar = Boolean(visibleAvatarUrl);
 
   useEffect(() => {
     if (!customElements.get("file-pond")) {
@@ -31,28 +41,25 @@ export default function AvatarUploader({ onFileChange }: AvatarUploaderProps) {
     };
   }, [previewUrl]);
 
-  const clearSelection = (errorMessage = "") => {
+  const clearSelectedFile = (errorMessage = "") => {
     setSelectedFile(null);
     setMessage(errorMessage);
     onFileChange(null);
   };
 
-  const handleEntriesChange = (event: CustomEvent<FilePondEntry[]>) => {
-    const firstEntry = event.detail[0];
-    const file = firstEntry && "file" in firstEntry ? firstEntry.file : undefined;
-
+  const acceptFile = (file?: File) => {
     if (!file) {
-      clearSelection();
+      clearSelectedFile();
       return;
     }
 
     if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
-      clearSelection("Ch\u1ec9 ch\u1ea5p nh\u1eadn \u1ea3nh JPEG, PNG ho\u1eb7c WebP.");
+      clearSelectedFile("Ch\u1ec9 ch\u1ea5p nh\u1eadn \u1ea3nh JPEG, PNG ho\u1eb7c WebP.");
       return;
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      clearSelection("\u1ea2nh \u0111\u1ea1i di\u1ec7n t\u1ed1i \u0111a 5 MB.");
+      clearSelectedFile("\u1ea2nh \u0111\u1ea1i di\u1ec7n t\u1ed1i \u0111a 5 MB.");
       return;
     }
 
@@ -61,49 +68,95 @@ export default function AvatarUploader({ onFileChange }: AvatarUploaderProps) {
     onFileChange(file);
   };
 
+  const handleEntriesChange = (event: CustomEvent<FilePondEntry[]>) => {
+    const firstEntry = event.detail[0];
+    const file = firstEntry && "file" in firstEntry ? firstEntry.file : undefined;
+    acceptFile(file);
+  };
+
+  const handleNativeFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    acceptFile(event.currentTarget.files?.[0]);
+    event.currentTarget.value = "";
+  };
+
+  const handleRemoveAvatar = () => {
+    if (selectedFile) {
+      clearSelectedFile();
+      return;
+    }
+
+    setMessage("");
+    onExistingAvatarRemove?.();
+    onFileChange(null);
+  };
+
   return (
     <div>
       <label htmlFor="employee-avatar-upload" className="mb-1.5 block text-sm font-bold text-slate-700">
         {"\u1ea2nh \u0111\u1ea1i di\u1ec7n"}
       </label>
 
-      <div className={"employee-avatar-picker " + (hasFile ? "employee-avatar-picker--filled" : "employee-avatar-picker--empty")}>
-        <file-pond
-          id="employee-avatar-upload"
-          name="avatar"
-          accept="image/jpeg,image/png,image/webp"
-          multiple={false}
-          maxFiles={1}
-          maxSize="5MB"
-          noBrowse={hasFile}
-          noDrop={hasFile}
-          noAttribution
-          className="employee-avatar-pond block"
-          onentrieschange={handleEntriesChange}
-        >
-          <input type="file" accept="image/jpeg,image/png,image/webp" />
-        </file-pond>
+      <input
+        ref={nativeInputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        className="sr-only"
+        onChange={handleNativeFileChange}
+      />
 
-        {previewUrl && (
-          <div className="relative mx-auto aspect-[4/3] w-full max-w-[360px] overflow-hidden rounded-xl bg-slate-100 shadow-sm ring-1 ring-slate-200">
-            <Image
-              src={previewUrl}
-              alt="Xem tr\u01b0\u1edbc \u1ea3nh \u0111\u1ea1i di\u1ec7n"
-              fill
-              unoptimized
-              sizes="360px"
-              className="object-cover object-top"
-            />
+      <div className={"employee-avatar-picker " + (hasAvatar ? "employee-avatar-picker--filled" : "employee-avatar-picker--empty")}>
+        {hasAvatar ? (
+          <div className="mx-auto w-full max-w-[360px] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+            <div className="relative aspect-[4/3] w-full bg-slate-100">
+              <Image
+                src={visibleAvatarUrl}
+                alt="Xem tr\u01b0\u1edbc \u1ea3nh \u0111\u1ea1i di\u1ec7n"
+                fill
+                unoptimized
+                sizes="360px"
+                className="object-cover object-top"
+              />
+              <button
+                type="button"
+                onClick={handleRemoveAvatar}
+                aria-label="B\u1ecf \u1ea3nh \u0111\u1ea1i di\u1ec7n"
+                className="absolute right-2 top-2 inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/95 text-slate-600 shadow-sm ring-1 ring-slate-200 transition hover:bg-rose-50 hover:text-rose-600"
+              >
+                <X size={16} strokeWidth={2.5} />
+              </button>
+            </div>
+            <div className="flex justify-end border-t border-slate-100 px-3 py-2.5">
+              <button
+                type="button"
+                onClick={() => nativeInputRef.current?.click()}
+                className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700 transition hover:bg-emerald-100"
+              >
+                {"Thay \u1ea3nh"}
+              </button>
+            </div>
           </div>
+        ) : (
+          <file-pond
+            id="employee-avatar-upload"
+            name="avatar"
+            accept="image/jpeg,image/png,image/webp"
+            multiple={false}
+            maxFiles={1}
+            maxSize="5MB"
+            noAttribution
+            className="employee-avatar-pond block"
+            onentrieschange={handleEntriesChange}
+          >
+            <input type="file" accept="image/jpeg,image/png,image/webp" />
+          </file-pond>
         )}
       </div>
 
-      <p className={"mt-2 flex items-center gap-1.5 text-xs " + (message ? "text-rose-600" : hasFile ? "text-emerald-700" : "text-slate-500")}>
-        <span aria-hidden="true" className={"h-1.5 w-1.5 shrink-0 rounded-full " + (message ? "bg-rose-500" : hasFile ? "bg-emerald-500" : "bg-slate-300")} />
-        {message ||
-          (hasFile
-            ? "\u0110\u00e3 ch\u1ecdn 1 \u1ea3nh. H\u00e3y x\u00f3a \u1ea3nh hi\u1ec7n t\u1ea1i n\u1ebfu mu\u1ed1n ch\u1ecdn \u1ea3nh kh\u00e1c."
-            : "JPEG, PNG ho\u1eb7c WebP, t\u1ed1i \u0111a 5 MB. \u1ea2nh hi\u1ec3n th\u1ecb theo khung 4:3.")}
+      <p className={"mt-2 flex items-center gap-1.5 text-xs " + (message ? "text-rose-600" : hasAvatar ? "text-emerald-700" : "text-slate-500")}>
+        <span aria-hidden="true" className={"h-1.5 w-1.5 shrink-0 rounded-full " + (message ? "bg-rose-500" : hasAvatar ? "bg-emerald-500" : "bg-slate-300")} />
+        {message || (hasAvatar
+          ? (selectedFile ? "\u1ea2nh m\u1edbi s\u1ebd thay th\u1ebf khi l\u01b0u h\u1ed3 s\u01a1." : "\u0110ang gi\u1eef \u1ea3nh \u0111\u1ea1i di\u1ec7n hi\u1ec7n t\u1ea1i.")
+          : "K\u00e9o th\u1ea3 ho\u1eb7c ch\u1ecdn \u1ea3nh JPEG, PNG, WebP (t\u1ed1i \u0111a 5 MB). \u1ea2nh hi\u1ec3n th\u1ecb theo khung 4:3.")}
       </p>
     </div>
   );
