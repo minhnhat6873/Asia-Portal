@@ -1,6 +1,6 @@
 import Joi from "joi";
 
-import { EMPLOYEE_STATUSES } from "../../interfaces/employee.interface";
+import { EMPLOYEE_GENDERS, EMPLOYEE_STATUSES } from "../../interfaces/employee.interface";
 
 const employeeFields = {
   employeeCode: Joi.string().trim().uppercase().max(20),
@@ -27,6 +27,7 @@ const employeeFields = {
   avatar: Joi.string().trim().allow("").max(500),
   joinDate: Joi.date().iso(),
   birthDate: Joi.date().iso(),
+  gender: Joi.string().valid(...EMPLOYEE_GENDERS),
   status: Joi.string().valid(...EMPLOYEE_STATUSES),
   description: Joi.string().trim().allow("").max(2000),
 };
@@ -43,6 +44,7 @@ export const createEmployeeSchema = Joi.object({
   avatar: employeeFields.avatar.default(""),
   joinDate: employeeFields.joinDate.required(),
   birthDate: employeeFields.birthDate.optional(),
+  gender: employeeFields.gender.required(),
   status: employeeFields.status.default("active"),
   description: employeeFields.description.default(""),
 });

@@ -4,6 +4,7 @@ import {
   ArrowLeft, 
   Check, 
   RotateCcw, 
+  User,
   UserPlus, 
   Mail, 
   Phone, 
@@ -14,7 +15,7 @@ import {
   Cake, 
   AlertCircle
 } from 'lucide-react';
-import { Employee, EmployeeStatus } from '../types';
+import { Employee, EmployeeGender, EmployeeStatus } from '../types';
 import { AdminSelect } from './AdminSelect';
 import RichTextEditor from "@/components/ui/RichTextEditor";
 import DatePicker from "@/components/ui/DatePicker";
@@ -23,9 +24,10 @@ import AvatarUploader from "@/components/ui/AvatarUploader";
 import { EMPLOYEE_DEPARTMENT_OPTIONS, getEmployeeDepartmentLabel, normalizeEmployeeDepartment } from '@/components/ui/employee-department-options';
 import { EMPLOYEE_RANK_OPTIONS_UI, getEmployeeRankLabel } from '@/components/ui/employee-rank-options';
 import { EMPLOYEE_STATUS_OPTIONS_UI } from '@/components/ui/employee-status-options';
+import { EMPLOYEE_GENDER_OPTIONS, getEmployeeGenderLabel } from '@/components/ui/employee-gender-options';
 import { createAdminEmployee, updateAdminEmployee } from '@/services/admin-employee.service';
 
-type FormField = "code" | "fullName" | "position" | "department" | "rank" | "joinDate" | "birthDate" | "location" | "status" | "email" | "phone" | "bio";
+type FormField = "code" | "fullName" | "position" | "department" | "rank" | "joinDate" | "birthDate" | "gender" | "location" | "status" | "email" | "phone" | "bio";
 type FormErrors = Partial<Record<FormField, string>>;
 
 interface EmployeeFormDraft {
@@ -37,6 +39,7 @@ interface EmployeeFormDraft {
   status: EmployeeStatus | '';
   joinDate: string;
   birthDate: string;
+  gender: EmployeeGender | '';
   location: string;
   email: string;
   phone: string;
@@ -83,7 +86,7 @@ export const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({
 
   const emptyForm: EmployeeFormDraft = {
     code: '', fullName: '', position: '', department: '', rank: '',
-    status: '' as EmployeeStatus, joinDate: '', birthDate: '', location: '',
+    status: '' as EmployeeStatus, joinDate: '', birthDate: '', gender: '', location: '',
     email: '', phone: '', avatar: '', bio: ''
   };
   const [formData, setFormData] = useState<EmployeeFormDraft>(() => initialEmployee ? {
@@ -95,6 +98,7 @@ export const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({
     status: initialEmployee.status,
     joinDate: initialEmployee.joinDate,
     birthDate: initialEmployee.birthDate,
+    gender: initialEmployee.gender ?? '',
     location: initialEmployee.location,
     email: initialEmployee.email,
     phone: initialEmployee.phone,
@@ -162,6 +166,7 @@ export const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({
     if (!formData.rank) errors.rank = "Vui lòng chọn cấp bậc.";
     if (!formData.joinDate || !toDatePickerValue(formData.joinDate)) errors.joinDate = "Vui lòng chọn ngày gia nhập hợp lệ.";
     if (formData.birthDate && !toDatePickerValue(formData.birthDate)) errors.birthDate = "Ngày sinh không hợp lệ.";
+    if (!formData.gender) errors.gender = "Vui lòng chọn giới tính.";
     if (!formData.location) errors.location = "Vui lòng chọn địa điểm làm việc.";
     if (!formData.status) errors.status = "Vui lòng chọn trạng thái làm việc.";
     if (!email) errors.email = "Vui lòng nhập email công việc.";
@@ -193,7 +198,7 @@ export const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({
       if (isEditing && initialEmployee && !/^[a-f\d]{24}$/i.test(initialEmployee.id)) {
         setIsDraftRestored(false);
         sessionStorage.removeItem(draftStorageKey);
-        onSave({ ...initialEmployee, ...formData, status: formData.status || 'active', avatar: avatarPreview || initialEmployee.avatar });
+        onSave({ ...initialEmployee, ...formData, gender: formData.gender as EmployeeGender, status: formData.status || 'active', avatar: avatarPreview || initialEmployee.avatar });
         return;
       }
       const saveEmployee = isEditing && initialEmployee
@@ -211,6 +216,7 @@ export const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({
           location: formData.location,
           joinDate: toDatePickerValue(formData.joinDate),
           birthDate: toDatePickerValue(formData.birthDate) || undefined,
+          gender: formData.gender as EmployeeGender,
           status: formData.status || undefined,
           description: formData.bio.trim(),
           avatar: isEditing ? formData.avatar : undefined,
@@ -233,6 +239,7 @@ export const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({
         email: employee.email,
         phone: employee.phone,
         location: employee.location,
+        gender: employee.gender ?? formData.gender as EmployeeGender,
         bio: employee.description ?? "",
         createdBy: employee.createdBy ?? initialEmployee?.createdBy,
         createdAt: employee.createdAt ?? initialEmployee?.createdAt,
@@ -252,7 +259,7 @@ export const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({
     setFormData(initialEmployee ? {
       code: initialEmployee.code, fullName: initialEmployee.fullName, position: initialEmployee.position,
       department: normalizeEmployeeDepartment(initialEmployee.department), rank: initialEmployee.rank ?? '', status: initialEmployee.status,
-      joinDate: initialEmployee.joinDate, birthDate: initialEmployee.birthDate, location: initialEmployee.location,
+      joinDate: initialEmployee.joinDate, birthDate: initialEmployee.birthDate, gender: initialEmployee.gender ?? '', location: initialEmployee.location,
       email: initialEmployee.email, phone: initialEmployee.phone, avatar: initialEmployee.avatar, bio: initialEmployee.bio ?? '',
     } : emptyForm);
     setErrorMsg(null);
@@ -413,20 +420,37 @@ export const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-bold text-slate-700 mb-1.5">
-                Cấp bậc <span className="text-rose-500">*</span>
-              </label>
-              <AdminSelect
-                value={formData.rank}
-                onChange={(rank) => setFormData({ ...formData, rank })}
-                options={EMPLOYEE_RANK_OPTIONS_UI}
-                placeholder="Chọn cấp bậc"
-                className="w-full"
-                searchable={false}
-                showSelectionCheck={false}
-              />
-              {fieldErrors.rank && <p className="mt-1 text-xs text-rose-600">{fieldErrors.rank}</p>}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-1.5">
+                  Cấp bậc <span className="text-rose-500">*</span>
+                </label>
+                <AdminSelect
+                  value={formData.rank}
+                  onChange={(rank) => setFormData({ ...formData, rank })}
+                  options={EMPLOYEE_RANK_OPTIONS_UI}
+                  placeholder="Chọn cấp bậc"
+                  className="w-full"
+                  searchable={false}
+                  showSelectionCheck={false}
+                />
+                {fieldErrors.rank && <p className="mt-1 text-xs text-rose-600">{fieldErrors.rank}</p>}
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-1.5">
+                  Giới tính <span className="text-rose-500">*</span>
+                </label>
+                <AdminSelect
+                  value={formData.gender}
+                  onChange={(gender) => setFormData({ ...formData, gender: gender as EmployeeGender })}
+                  options={EMPLOYEE_GENDER_OPTIONS.map((option) => ({ ...option }))}
+                  placeholder="Chọn giới tính"
+                  className="w-full"
+                  searchable={false}
+                  showSelectionCheck={false}
+                />
+                {fieldErrors.gender && <p className="mt-1 text-xs text-rose-600">{fieldErrors.gender}</p>}
+              </div>
             </div>
             {/* Row 3: Join Date (50%) | Birth Date (50%) */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -569,6 +593,7 @@ export const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({
               { icon: Mail, label: "Email", value: formData.email || "Ch\u01b0a c\u00f3 d\u1eef li\u1ec7u" },
               { icon: Phone, label: "S\u1ed1 \u0111i\u1ec7n tho\u1ea1i", value: formData.phone || "Ch\u01b0a c\u00f3 d\u1eef li\u1ec7u" },
               { icon: Cake, label: "Ng\u00e0y sinh", value: formData.birthDate || "Ch\u01b0a c\u00f3 d\u1eef li\u1ec7u" },
+              { icon: User, label: "Giới tính", value: getEmployeeGenderLabel(formData.gender) },
             ]}
             description={formData.bio}
             imageSizes="360px"

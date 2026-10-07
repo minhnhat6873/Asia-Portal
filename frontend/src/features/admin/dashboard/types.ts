@@ -1,4 +1,5 @@
 export type EmployeeStatus = 'active' | 'probation' | 'inactive';
+export type EmployeeGender = 'male' | 'female' | 'other';
 
 export interface Employee {
   id: string;
@@ -12,6 +13,7 @@ export interface Employee {
   status: EmployeeStatus; // 'active' -> Ã„Âang lÃƒÂ m viÃ¡Â»â€¡c, 'probation' -> ThÃ¡Â»Â­ viÃ¡Â»â€¡c, 'inactive' -> Ã„ÂÃƒÂ£ nghÃ¡Â»â€°
   joinDate: string; // e.g. 01/06/2022
   birthDate: string; // e.g. 15/03/1995
+  gender?: EmployeeGender;
   location: string; // e.g. HÃ¡Â»â€œ ChÃƒÂ­ Minh, BÃƒÂ¬nh DÃ†Â°Ã†Â¡ng, Long An
   avatar: string;
   bio?: string;

@@ -12,6 +12,7 @@ const validEmployee = {
   location: "Hồ Chí Minh",
   avatar: "",
   joinDate: "2026-10-06",
+  gender: "male",
   status: "active",
   description: "",
 };
@@ -28,6 +29,14 @@ describe("employee validation", () => {
       { abortEarly: false },
     );
     expect(result.error?.details.some((detail) => detail.message.includes("@asiafnb.com"))).toBe(true);
+  });
+
+  it("yêu cầu giới tính hợp lệ khi tạo nhân viên", () => {
+    const result = createEmployeeSchema.validate(
+      { ...validEmployee, gender: "invalid" },
+      { abortEarly: false },
+    );
+    expect(result.error?.details.some((detail) => detail.path[0] === "gender")).toBe(true);
   });
 
   it.each(["12345678", "0212345678", "0936 123 456", "09361234567"])(

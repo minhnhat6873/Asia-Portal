@@ -11,6 +11,7 @@ export interface CreateAdminEmployeeInput {
   location: string;
   joinDate: string;
   birthDate?: string;
+  gender: "male" | "female" | "other";
   status?: "active" | "probation" | "inactive";
   description?: string;
   avatar?: string;
@@ -29,6 +30,7 @@ export interface AdminEmployeeResult {
   avatar: string;
   joinDate: string;
   birthDate?: string;
+  gender?: "male" | "female" | "other";
   status: "active" | "probation" | "inactive";
   description?: string;
   createdBy?: { accountId: string; name: string; email: string };

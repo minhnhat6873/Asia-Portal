@@ -105,6 +105,7 @@ function mapApiEmployeeToDashboardEmployee(employee: AdminEmployeeResult): Emplo
     avatar: employee.avatar ?? "",
     joinDate: formatEmployeeDate(employee.joinDate),
     birthDate: formatEmployeeDate(employee.birthDate),
+    gender: employee.gender,
     status: employee.status,
     bio: employee.description ?? "",
     createdBy: employee.createdBy,

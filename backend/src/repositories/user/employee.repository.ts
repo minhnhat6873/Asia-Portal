@@ -13,7 +13,7 @@ interface FindEmployeesOptions {
 export const userEmployeeRepository = {
   findAll({ filter, skip, limit, sort }: FindEmployeesOptions) {
     return EmployeeModel.find(filter)
-      .select("-birthDate -createdBy -avatarPublicId")
+      .select("-birthDate -gender -createdBy -avatarPublicId")
       .sort(sort)
       .skip(skip)
       .limit(limit)
@@ -26,7 +26,7 @@ export const userEmployeeRepository = {
 
   findById(id: string) {
     return EmployeeModel.findOne({ _id: id, isDeleted: { $ne: true } })
-      .select("-birthDate -createdBy -avatarPublicId")
+      .select("-birthDate -gender -createdBy -avatarPublicId")
       .lean();
   },
 };

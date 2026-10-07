@@ -197,10 +197,11 @@ export function setCurrentUser(user: UserAccount | null): void {
 }
 
 export function exportEmployeesToCSV(employees: Employee[]): void {
-  const headers = ['Mã nhân viên', 'Họ và tên', 'Chức vụ', 'Phòng ban', 'Trạng thái', 'Ngày gia nhập', 'Ngày sinh', 'Văn phòng', 'Email', 'Số điện thoại'];
+  const headers = ['Mã nhân viên', 'Họ và tên', 'Giới tính', 'Chức vụ', 'Phòng ban', 'Trạng thái', 'Ngày gia nhập', 'Ngày sinh', 'Văn phòng', 'Email', 'Số điện thoại'];
   const rows = employees.map(emp => [
     emp.code,
     `"${emp.fullName}"`,
+    emp.gender === 'male' ? 'Nam' : emp.gender === 'female' ? 'Nữ' : emp.gender === 'other' ? 'Khác' : '',
     `"${emp.position}"`,
     `"${emp.department}"`,
     emp.status === 'active' ? 'Đang làm việc' : emp.status === 'probation' ? 'Thử việc' : 'Đã nghỉ',

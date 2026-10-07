@@ -1,6 +1,8 @@
 export const EMPLOYEE_STATUSES = ["active", "probation", "inactive"] as const;
+export const EMPLOYEE_GENDERS = ["male", "female", "other"] as const;
 
 export type EmployeeStatus = (typeof EMPLOYEE_STATUSES)[number];
+export type EmployeeGender = (typeof EMPLOYEE_GENDERS)[number];
 
 export interface Employee {
   employeeCode: string;
@@ -15,6 +17,7 @@ export interface Employee {
   avatarPublicId?: string;
   joinDate: Date;
   birthDate?: Date;
+  gender?: EmployeeGender;
   status: EmployeeStatus;
   description?: string;
   isDeleted?: boolean;

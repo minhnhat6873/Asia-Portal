@@ -28,6 +28,7 @@ import { AdminSelect } from './AdminSelect';
 import { EMPLOYEE_DEPARTMENT_OPTIONS, getEmployeeDepartmentLabel } from '@/components/ui/employee-department-options';
 import { EMPLOYEE_RANK_OPTIONS_UI, getEmployeeRankLabel } from '@/components/ui/employee-rank-options';
 import { EMPLOYEE_STATUS_OPTIONS_UI } from '@/components/ui/employee-status-options';
+import { getEmployeeGenderLabel } from '@/components/ui/employee-gender-options';
 import type { AdminEmployeeListParams } from '@/services/admin-employee.service';
 
 const EMPLOYEE_FILTER_STORAGE_KEY = 'asia.admin.employee-filters';
@@ -456,6 +457,14 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
                           <span className="w-36 text-slate-500 font-normal">Ngày sinh</span>
                           <span className="font-bold text-slate-900">{emp.birthDate}</span>
                         </div>
+
+                        <div className="flex items-center">
+                          <span className="w-8 flex items-center justify-start text-slate-400">
+                            <User className="w-4 h-4" />
+                          </span>
+                          <span className="w-36 text-slate-500 font-normal">Giới tính</span>
+                          <span className="font-bold text-slate-900">{getEmployeeGenderLabel(emp.gender)}</span>
+                        </div>
                       </div>
                     )}
 
@@ -765,6 +774,11 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
                 <span className="w-8 flex items-center justify-start text-slate-400"><Cake className="w-4 h-4" /></span>
                 <span className="w-36 text-slate-500 font-normal">Ngày sinh</span>
                 <span className="font-bold text-slate-900">{selectedEmployeeForDossier.birthDate}</span>
+              </div>
+              <div className="flex items-center">
+                <span className="w-8 flex items-center justify-start text-slate-400"><User className="w-4 h-4" /></span>
+                <span className="w-36 text-slate-500 font-normal">Giới tính</span>
+                <span className="font-bold text-slate-900">{getEmployeeGenderLabel(selectedEmployeeForDossier.gender)}</span>
               </div>
             </div>
 

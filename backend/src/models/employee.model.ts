@@ -1,6 +1,7 @@
 import { model, models, Schema } from "mongoose";
 
 import {
+  EMPLOYEE_GENDERS,
   EMPLOYEE_STATUSES,
   type Employee,
 } from "../interfaces/employee.interface";
@@ -33,6 +34,7 @@ const employeeSchema = new Schema<Employee>(
     avatarPublicId: { type: String, default: "", trim: true },
     joinDate: { type: Date, required: true },
     birthDate: { type: Date },
+    gender: { type: String, enum: EMPLOYEE_GENDERS },
     status: {
       type: String,
       enum: EMPLOYEE_STATUSES,
