@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useLayoutEffect, useRef, useState } from 'react';
 import {
   ArrowLeft,
   Check,
@@ -84,6 +84,68 @@ export const AddMediaPage: React.FC<AddMediaPageProps> = ({
 
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [coverUploaderKey, setCoverUploaderKey] = useState(0);
+  const previewAnchorRef = useRef<HTMLDivElement>(null);
+  const [previewFixedStyle, setPreviewFixedStyle] = useState<React.CSSProperties>();
+
+  useLayoutEffect(() => {
+    const previewAnchor = previewAnchorRef.current;
+    if (!previewAnchor) return;
+
+    const largeScreen = window.matchMedia('(min-width: 1536px)');
+    let frame = 0;
+
+    const applyPosition = () => {
+      frame = 0;
+      if (!largeScreen.matches) {
+        setPreviewFixedStyle(undefined);
+        return;
+      }
+
+      const anchor = previewAnchorRef.current;
+      if (!anchor) return;
+
+      // Anchor's natural (in-flow) position relative to the viewport.
+      const rect = anchor.getBoundingClientRect();
+      const stickyTop = 24;
+
+      // Only pin once the panel's natural top has scrolled above the sticky offset.
+      if (rect.top <= stickyTop) {
+        setPreviewFixedStyle({
+          position: 'fixed',
+          top: stickyTop,
+          left: rect.left,
+          width: rect.width,
+          zIndex: 20,
+          maxHeight: `calc(100vh - ${stickyTop + 16}px)`,
+          overflowY: 'auto',
+        });
+      } else {
+        setPreviewFixedStyle(undefined);
+      }
+    };
+
+    const scheduleUpdate = () => {
+      if (frame) return;
+      frame = window.requestAnimationFrame(applyPosition);
+    };
+
+    scheduleUpdate();
+
+    // Capture-phase scroll listener catches the <main> scroller (and any ancestor).
+    window.addEventListener('scroll', scheduleUpdate, true);
+    window.addEventListener('resize', scheduleUpdate);
+    largeScreen.addEventListener('change', scheduleUpdate);
+    const resizeObserver = new ResizeObserver(scheduleUpdate);
+    resizeObserver.observe(document.body);
+
+    return () => {
+      if (frame) window.cancelAnimationFrame(frame);
+      window.removeEventListener('scroll', scheduleUpdate, true);
+      window.removeEventListener('resize', scheduleUpdate);
+      largeScreen.removeEventListener('change', scheduleUpdate);
+      resizeObserver.disconnect();
+    };
+  }, []);
 
   const handleCoverFileChange = async (file: File | null) => {
     if (!file) {
@@ -286,9 +348,9 @@ export const AddMediaPage: React.FC<AddMediaPageProps> = ({
           </form>
         </div>
 
-        {/* Right Preview Panel (5 cols) — sticky so it stays pinned while scrolling */}
-        <div className="2xl:col-span-5 2xl:sticky 2xl:top-6 2xl:self-start">
-          <div className="space-y-4">
+        {/* Right Preview Panel (5 cols) — pinned while scrolling on large screens */}
+        <div ref={previewAnchorRef} className="2xl:col-span-5">
+          <div style={previewFixedStyle} className="space-y-4">
           <div className="flex items-center justify-between px-1">
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-sky-500 animate-pulse"></span>
