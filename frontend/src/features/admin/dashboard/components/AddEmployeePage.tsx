@@ -26,6 +26,7 @@ import { EMPLOYEE_RANK_OPTIONS_UI, getEmployeeRankLabel } from '@/components/ui/
 import { EMPLOYEE_STATUS_OPTIONS_UI } from '@/components/ui/employee-status-options';
 import { EMPLOYEE_GENDER_OPTIONS, getEmployeeGenderLabel } from '@/components/ui/employee-gender-options';
 import { createAdminEmployee, updateAdminEmployee } from '@/services/admin-employee.service';
+import { ApiError } from '@/services/api';
 
 type FormField = "code" | "fullName" | "position" | "department" | "rank" | "joinDate" | "birthDate" | "gender" | "location" | "status" | "email" | "phone" | "bio";
 type FormErrors = Partial<Record<FormField, string>>;
@@ -246,11 +247,13 @@ export const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({
         updatedAt: employee.updatedAt ?? initialEmployee?.updatedAt,
       });
     } catch (error) {
-      setErrorMsg(
-        error instanceof Error
-          ? error.message
-          : "Kh\u00f4ng th\u1ec3 l\u01b0u nh\u00e2n vi\u00ean. Vui l\u00f2ng th\u1eed l\u1ea1i.",
-      );
+      const message = error instanceof Error
+        ? error.message
+        : "Kh\u00f4ng th\u1ec3 l\u01b0u nh\u00e2n vi\u00ean. Vui l\u00f2ng th\u1eed l\u1ea1i.";
+      setErrorMsg(message);
+      if (error instanceof ApiError && error.status === 409 && message.toLocaleLowerCase('vi').includes('email')) {
+        setFieldErrors((current) => ({ ...current, email: message }));
+      }
     } finally {
       setIsSaving(false);
     }
@@ -505,12 +508,18 @@ export const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({
                 <input
                   type="email"
                   value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  onChange={(e) => {
+                    setFormData({ ...formData, email: e.target.value });
+                    if (fieldErrors.email) {
+                      setFieldErrors((current) => ({ ...current, email: undefined }));
+                    }
+                  }}
                   placeholder="ten.nhanvien@asiafnb.com"
                   aria-invalid={Boolean(fieldErrors.email)}
+                  aria-describedby={fieldErrors.email ? "employee-email-error" : undefined}
                   className={inputClassName("email")}
                 />
-                {fieldErrors.email && <p className="mt-1 text-xs text-rose-600">{fieldErrors.email}</p>}
+                {fieldErrors.email && <p id="employee-email-error" className="mt-1 text-xs text-rose-600">{fieldErrors.email}</p>}
               </div>
               <div>
                 <label className="block text-sm font-bold text-slate-700 mb-1.5">
