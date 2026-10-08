@@ -15,6 +15,8 @@ export interface Employee {
   location: string;
   avatar: string;
   avatarPublicId?: string;
+  chartAvatar?: string;
+  chartAvatarPublicId?: string;
   joinDate: Date;
   birthDate?: Date;
   gender?: EmployeeGender;

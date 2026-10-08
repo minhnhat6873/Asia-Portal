@@ -11,6 +11,7 @@ export interface Employee {
   phone: string;
   location: string;
   avatar: string;
+  chartAvatar?: string;
   joinDate: string;
   status: EmployeeStatus;
   description?: string;
@@ -32,6 +33,7 @@ export interface EmployeeListParams {
   search?: string;
   department?: string;
   position?: string;
+  rank?: string;
   page?: number;
   limit?: number;
   sort?: "latest" | "oldest";

@@ -5,11 +5,7 @@ import { CloudinaryStorage } from "multer-storage-cloudinary";
 
 import { AppError } from "../utils/errors/AppError";
 
-const allowedAvatarMimeTypes = new Set([
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-]);
+const allowedAvatarMimeTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_NAME,
@@ -17,42 +13,20 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-const avatarStorage = new CloudinaryStorage({
-  cloudinary,
-  params: {
-    folder: "asia-portal/avatars",
-    resource_type: "image",
-    allowed_formats: ["jpg", "jpeg", "png", "webp"],
-  } as never,
-});
-
-const mediaCoverStorage = new CloudinaryStorage({
-  cloudinary,
-  params: {
-    folder: "asia-portal/media",
-    resource_type: "image",
-    allowed_formats: ["jpg", "jpeg", "png", "webp"],
-  } as never,
-});
-
-export function requireCloudinaryConfig(
-  _request: Request,
-  _response: Response,
-  next: NextFunction,
-): void {
-  const hasConfiguration = [
-    process.env.CLOUDINARY_NAME,
-    process.env.CLOUDINARY_API_KEY,
-    process.env.CLOUDINARY_API_SECRET,
-  ].every((value) => value?.trim());
-
-  if (!hasConfiguration) {
-    next(new AppError(503, "Cloudinary ch\u01b0a \u0111\u01b0\u1ee3c c\u1ea5u h\u00ecnh tr\u00ean m\u00e1y ch\u1ee7."));
-    return;
-  }
-
-  next();
+function createImageStorage(folder: string): CloudinaryStorage {
+  return new CloudinaryStorage({
+    cloudinary,
+    params: {
+      folder,
+      resource_type: "image",
+      allowed_formats: ["jpg", "jpeg", "png", "webp"],
+    } as never,
+  });
 }
+
+const avatarStorage = createImageStorage("asia-portal/avatars");
+const mediaCoverStorage = createImageStorage("asia-portal/media");
+const chartAvatarStorage = createImageStorage("asia-portal/chart-avatars");
 
 function hasCloudinaryConfiguration(): boolean {
   return [
@@ -60,6 +34,19 @@ function hasCloudinaryConfiguration(): boolean {
     process.env.CLOUDINARY_API_KEY,
     process.env.CLOUDINARY_API_SECRET,
   ].every((value) => value?.trim());
+}
+
+export function requireCloudinaryConfig(
+  _request: Request,
+  _response: Response,
+  next: NextFunction,
+): void {
+  if (!hasCloudinaryConfiguration()) {
+    next(new AppError(503, "Cloudinary chưa được cấu hình trên máy chủ."));
+    return;
+  }
+
+  next();
 }
 
 export async function deleteCloudinaryAsset(publicId?: string): Promise<void> {
@@ -84,31 +71,24 @@ export function getCloudinaryPublicIdFromUrl(url?: string): string | undefined {
   }
 }
 
-export const uploadAvatar = multer({
-  storage: avatarStorage,
-  limits: { fileSize: 5 * 1024 * 1024 },
-  fileFilter: (_request, file, callback) => {
-    if (!allowedAvatarMimeTypes.has(file.mimetype)) {
-      callback(new AppError(400, "Ch\u1ec9 ch\u1ea5p nh\u1eadn \u1ea3nh JPEG, PNG ho\u1eb7c WebP."));
-      return;
-    }
+function createImageUploader(storage: CloudinaryStorage, checkConfiguration = false) {
+  return multer({
+    storage,
+    limits: { fileSize: 5 * 1024 * 1024 },
+    fileFilter: (_request, file, callback) => {
+      if (checkConfiguration && !hasCloudinaryConfiguration()) {
+        callback(new AppError(503, "Cloudinary chưa được cấu hình trên máy chủ."));
+        return;
+      }
+      if (!allowedAvatarMimeTypes.has(file.mimetype)) {
+        callback(new AppError(400, "Chỉ chấp nhận ảnh JPEG, PNG hoặc WebP."));
+        return;
+      }
+      callback(null, true);
+    },
+  });
+}
 
-    callback(null, true);
-  },
-});
-
-export const uploadMediaCover = multer({
-  storage: mediaCoverStorage,
-  limits: { fileSize: 5 * 1024 * 1024 },
-  fileFilter: (_request, file, callback) => {
-    if (!hasCloudinaryConfiguration()) {
-      callback(new AppError(503, "Cloudinary chưa được cấu hình trên máy chủ."));
-      return;
-    }
-    if (!allowedAvatarMimeTypes.has(file.mimetype)) {
-      callback(new AppError(400, "Chỉ chấp nhận ảnh JPEG, PNG hoặc WebP."));
-      return;
-    }
-    callback(null, true);
-  },
-});
+export const uploadAvatar = createImageUploader(avatarStorage);
+export const uploadMediaCover = createImageUploader(mediaCoverStorage, true);
+export const uploadChartAvatar = createImageUploader(chartAvatarStorage);

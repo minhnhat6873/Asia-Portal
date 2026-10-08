@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { hasRichTextContent, RichText } from '@/components/ui/RichText';
 import { 
@@ -21,15 +21,17 @@ import {
   LayoutGrid,
   List,
   LoaderCircle,
+  ImagePlus,
   X
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { Employee, EmployeeStatus } from '../types';
 import { AdminSelect } from './AdminSelect';
 import { EMPLOYEE_DEPARTMENT_OPTIONS, getEmployeeDepartmentLabel } from '@/components/ui/employee-department-options';
 import { EMPLOYEE_RANK_OPTIONS_UI, getEmployeeRankLabel } from '@/components/ui/employee-rank-options';
 import { EMPLOYEE_STATUS_OPTIONS_UI } from '@/components/ui/employee-status-options';
 import { getEmployeeGenderLabel } from '@/components/ui/employee-gender-options';
-import type { AdminEmployeeListParams } from '@/services/admin-employee.service';
+import { updateAdminEmployeeChartAvatar, type AdminEmployeeListParams } from '@/services/admin-employee.service';
 import EmployeeProfileCard from '@/components/ui/EmployeeProfileCard';
 
 const EMPLOYEE_FILTER_STORAGE_KEY = 'asia.admin.employee-filters';
@@ -71,6 +73,7 @@ interface EmployeeManagementProps {
   onNavigateToAdd: () => void;
   onNavigateToEdit?: (employee: Employee) => void;
   onNavigateToTrash?: () => void;
+  onChartAvatarUpdated?: () => void | Promise<void>;
 }
 
 export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
@@ -89,6 +92,7 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
   onNavigateToAdd,
   onNavigateToEdit,
   onNavigateToTrash,
+  onChartAvatarUpdated,
 }) => {
   // Search & Filter State
   const [searchQuery, setSearchQuery] = useState('');
@@ -103,6 +107,78 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
 
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [isDeleteSubmitting, setIsDeleteSubmitting] = useState(false);
+  const [chartAvatarEmployee, setChartAvatarEmployee] = useState<Employee | null>(null);
+  const [chartAvatarFile, setChartAvatarFile] = useState<File | null>(null);
+  const [chartAvatarPreview, setChartAvatarPreview] = useState('');
+  const [isChartAvatarSaving, setIsChartAvatarSaving] = useState(false);
+  const [chartAvatarZoom, setChartAvatarZoom] = useState(1);
+  const [chartAvatarOffset, setChartAvatarOffset] = useState({ x: 0, y: 0 });
+  const [chartAvatarSize, setChartAvatarSize] = useState({ width: 0, height: 0 });
+  const chartAvatarImageRef = useRef<HTMLImageElement>(null);
+  const dragStartRef = useRef<{ pointerX: number; pointerY: number; imageX: number; imageY: number } | null>(null);
+
+  useEffect(() => () => {
+    if (chartAvatarPreview.startsWith('blob:')) URL.revokeObjectURL(chartAvatarPreview);
+  }, [chartAvatarPreview]);
+
+  const chooseChartAvatar = (file?: File) => {
+    if (!file) return;
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 5 * 1024 * 1024) {
+      toast.error('Chỉ nhận ảnh JPEG, PNG hoặc WebP tối đa 5 MB.');
+      return;
+    }
+    setChartAvatarFile(file);
+    setChartAvatarPreview(URL.createObjectURL(file));
+    setChartAvatarZoom(1);
+    setChartAvatarOffset({ x: 0, y: 0 });
+  };
+
+  const clampChartAvatarOffset = (x: number, y: number, zoom = chartAvatarZoom) => {
+    if (!chartAvatarSize.width || !chartAvatarSize.height) return { x: 0, y: 0 };
+    const baseScale = Math.max(224 / chartAvatarSize.width, 224 / chartAvatarSize.height);
+    const maxX = Math.max(0, (chartAvatarSize.width * baseScale * zoom - 224) / 2);
+    const maxY = Math.max(0, (chartAvatarSize.height * baseScale * zoom - 224) / 2);
+    return { x: Math.max(-maxX, Math.min(maxX, x)), y: Math.max(-maxY, Math.min(maxY, y)) };
+  };
+
+  const createCroppedChartAvatar = async (): Promise<File> => {
+    const image = chartAvatarImageRef.current;
+    if (!image || !chartAvatarFile) throw new Error('Không thể xử lý ảnh đã chọn.');
+    const viewportSize = 224;
+    const outputSize = 600;
+    const baseScale = Math.max(viewportSize / image.naturalWidth, viewportSize / image.naturalHeight);
+    const renderedScale = baseScale * chartAvatarZoom;
+    const sourceSize = viewportSize / renderedScale;
+    const sourceX = image.naturalWidth / 2 - (viewportSize / 2 + chartAvatarOffset.x) / renderedScale;
+    const sourceY = image.naturalHeight / 2 - (viewportSize / 2 + chartAvatarOffset.y) / renderedScale;
+    const canvas = document.createElement('canvas');
+    canvas.width = outputSize;
+    canvas.height = outputSize;
+    const context = canvas.getContext('2d');
+    if (!context) throw new Error('Trình duyệt không hỗ trợ xử lý ảnh.');
+    context.drawImage(image, sourceX, sourceY, sourceSize, sourceSize, 0, 0, outputSize, outputSize);
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.9));
+    if (!blob) throw new Error('Không thể tạo ảnh đã cắt.');
+    return new File([blob], `chart-avatar-${chartAvatarEmployee?.id ?? 'employee'}.jpg`, { type: 'image/jpeg' });
+  };
+
+  const saveChartAvatar = async () => {
+    if (!chartAvatarEmployee || !chartAvatarFile || isChartAvatarSaving) return;
+    setIsChartAvatarSaving(true);
+    try {
+      const croppedFile = await createCroppedChartAvatar();
+      await updateAdminEmployeeChartAvatar(chartAvatarEmployee.id, croppedFile);
+      toast.success('Đã lưu ảnh sơ đồ');
+      setChartAvatarEmployee(null);
+      setChartAvatarFile(null);
+      setChartAvatarPreview('');
+      await onChartAvatarUpdated?.();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Không thể lưu ảnh sơ đồ.');
+    } finally {
+      setIsChartAvatarSaving(false);
+    }
+  };
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -523,7 +599,7 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
         /* VIEW: TABLE */
         <div className="bg-white rounded-2xl border border-slate-200/80 shadow-2xs overflow-hidden">
           <div className="employee-table-scroll overflow-x-auto overscroll-x-contain">
-            <table className="w-full min-w-[900px] table-auto text-xs text-slate-600">
+            <table className="w-full min-w-[1020px] table-auto text-xs text-slate-600">
               <thead className="border-b border-slate-200 bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-500">
                 <tr>
                   <th className="whitespace-nowrap px-2.5 py-2 text-left">Mã nhân viên</th>
@@ -533,13 +609,14 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
                   <th className="whitespace-nowrap px-2.5 py-2 text-left">Cấp bậc</th>
                   <th className="whitespace-nowrap px-2.5 py-2 text-center">Trạng thái</th>
                   <th className="px-2.5 py-2 text-left">Người tạo</th>
+                  <th className="whitespace-nowrap px-2.5 py-2 text-center">Ảnh sơ đồ</th>
                   <th className="whitespace-nowrap px-2.5 py-2 text-center">Thao tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filteredEmployees.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-3 py-10 text-left text-sm text-slate-400">
+                    <td colSpan={9} className="px-3 py-10 text-left text-sm text-slate-400">
                       Không tìm thấy nhân viên nào phù hợp.
                     </td>
                   </tr>
@@ -570,6 +647,24 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
                           <p className="break-all text-slate-500">{emp.createdBy?.email ?? "—"}</p>
                           <p className="text-[11px] text-slate-400">{formatCreatedAt(emp.createdAt)}</p>
                         </div>
+                      </td>
+                      <td className="px-2.5 py-2 text-center">
+                        {['BOD', 'Executive'].includes(emp.rank ?? '') ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setChartAvatarEmployee(emp);
+                              setChartAvatarFile(null);
+                              setChartAvatarPreview(emp.chartAvatar || emp.avatar || '');
+                              setChartAvatarZoom(1);
+                              setChartAvatarOffset({ x: 0, y: 0 });
+                            }}
+                            className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1.5 font-semibold text-emerald-700 transition-colors hover:bg-emerald-100"
+                          >
+                            <ImagePlus className="h-4 w-4" />
+                            {emp.chartAvatar ? 'Thay ảnh' : 'Thêm ảnh'}
+                          </button>
+                        ) : <span className="text-slate-300">—</span>}
                       </td>
                       <td className="px-2.5 py-2 text-center">
                         <div className="flex items-center justify-center gap-0.5">
@@ -676,6 +771,82 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
       )}
 
       {/* DETAIL DOSSIER POPUP MODAL */}
+      {chartAvatarEmployee && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h3 className="text-lg font-bold text-slate-900">Ảnh sơ đồ</h3>
+                <p className="mt-1 text-sm text-slate-500">{chartAvatarEmployee.fullName}</p>
+              </div>
+              <button type="button" disabled={isChartAvatarSaving} onClick={() => setChartAvatarEmployee(null)} className="rounded-full p-2 text-slate-500 hover:bg-slate-100"><X className="h-5 w-5" /></button>
+            </div>
+            <div
+              className="relative mx-auto mt-6 h-56 w-56 touch-none overflow-hidden rounded-full border-4 border-white bg-slate-100 shadow-[0_0_0_1px_#cbd5e1]"
+              onPointerDown={(event) => {
+                if (!chartAvatarFile) return;
+                event.currentTarget.setPointerCapture(event.pointerId);
+                dragStartRef.current = { pointerX: event.clientX, pointerY: event.clientY, imageX: chartAvatarOffset.x, imageY: chartAvatarOffset.y };
+              }}
+              onPointerMove={(event) => {
+                const start = dragStartRef.current;
+                if (!start) return;
+                setChartAvatarOffset(clampChartAvatarOffset(start.imageX + event.clientX - start.pointerX, start.imageY + event.clientY - start.pointerY));
+              }}
+              onPointerUp={() => { dragStartRef.current = null; }}
+              onPointerCancel={() => { dragStartRef.current = null; }}
+            >
+              {chartAvatarPreview ? (
+                <img
+                  ref={chartAvatarImageRef}
+                  src={chartAvatarPreview}
+                  alt="Xem trước ảnh sơ đồ"
+                  draggable={false}
+                  onLoad={(event) => setChartAvatarSize({ width: event.currentTarget.naturalWidth, height: event.currentTarget.naturalHeight })}
+                  className={`absolute max-w-none select-none ${chartAvatarFile ? 'cursor-grab active:cursor-grabbing' : ''}`}
+                  style={chartAvatarSize.width && chartAvatarSize.height ? (() => {
+                    const scale = Math.max(224 / chartAvatarSize.width, 224 / chartAvatarSize.height) * chartAvatarZoom;
+                    const width = chartAvatarSize.width * scale;
+                    const height = chartAvatarSize.height * scale;
+                    return { width, height, left: (224 - width) / 2 + chartAvatarOffset.x, top: (224 - height) / 2 + chartAvatarOffset.y };
+                  })() : { width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+              ) : <div className="flex h-full items-center justify-center text-slate-400"><User className="h-16 w-16" /></div>}
+            </div>
+            <p className="mt-4 text-center text-xs text-slate-500">Chọn ảnh rồi kéo để căn khuôn mặt trong khung tròn.</p>
+            {chartAvatarFile ? (
+              <label className="mt-4 flex items-center gap-3 text-xs font-semibold text-slate-600">
+                Thu phóng
+                <input
+                  type="range"
+                  min="1"
+                  max="3"
+                  step="0.01"
+                  value={chartAvatarZoom}
+                  onChange={(event) => {
+                    const zoom = Number(event.target.value);
+                    setChartAvatarZoom(zoom);
+                    setChartAvatarOffset((current) => clampChartAvatarOffset(current.x, current.y, zoom));
+                  }}
+                  className="flex-1 accent-emerald-600"
+                />
+              </label>
+            ) : null}
+            <label className="mt-5 flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-emerald-300 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700 hover:bg-emerald-100">
+              <ImagePlus className="h-4 w-4" /> Chọn ảnh sơ đồ
+              <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(event) => chooseChartAvatar(event.target.files?.[0])} />
+            </label>
+            <div className="mt-6 flex justify-end gap-3">
+              <button type="button" disabled={isChartAvatarSaving} onClick={() => setChartAvatarEmployee(null)} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 disabled:opacity-50">Hủy</button>
+              <button type="button" disabled={!chartAvatarFile || isChartAvatarSaving} onClick={saveChartAvatar} className="inline-flex min-w-32 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50">
+                {isChartAvatarSaving ? <><LoaderCircle className="h-4 w-4 animate-spin" /> Đang lưu...</> : 'Lưu ảnh'}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
+
       {selectedEmployeeForDossier && (
         <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-900/60 p-4 backdrop-blur-xs">
           <div className="relative my-auto w-full max-w-[360px]">

@@ -34,6 +34,7 @@ export const userEmployeeService = {
 
     if (query.department) filter.department = query.department;
     if (query.position) filter.position = query.position;
+    if (query.rank) filter.rank = query.rank;
 
     const sortDirection = query.sort === "oldest" ? 1 : -1;
     const [items, total] = await Promise.all([

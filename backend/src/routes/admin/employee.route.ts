@@ -9,10 +9,12 @@ import {
   restoreEmployee,
   softDeleteEmployee,
   updateEmployee,
+  updateEmployeeChartAvatar,
 } from "../../controllers/admin/employee.controller";
 import {
   requireCloudinaryConfig,
   uploadAvatar,
+  uploadChartAvatar,
 } from "../../helpers/multerCloudinary.helper";
 import {
   requireEmployeeUpdatePermission,
@@ -45,6 +47,13 @@ router.patch(
   validateEmployeeUpdateUpload,
   requireEmployeeUpdatePermission,
   updateEmployee,
+);
+router.patch(
+  "/:id/chart-avatar",
+  requirePermissions("employees:update"),
+  requireCloudinaryConfig,
+  uploadChartAvatar.single("chartAvatar"),
+  updateEmployeeChartAvatar,
 );
 router.post("/:id/restore", requirePermissions("employees:delete"), restoreEmployee);
 router.delete("/:id/permanent", requirePermissions("employees:delete"), permanentlyDeleteEmployee);

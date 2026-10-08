@@ -15,14 +15,15 @@ import {
   UsersRound,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { DIAGRAM_DEPARTMENTS } from "@/config/diagramDepartments";
 import type { DiagramDepartment } from "@/config/diagramDepartments";
+import { getPublicEmployees } from "@/services/employee.service";
 
 type Executive = {
   role: string;
   name: string;
-  avatar: string;
+  avatar?: string;
 };
 
 type Division = {
@@ -33,30 +34,6 @@ type Division = {
   icon: LucideIcon;
   tone: string;
 };
-
-const executiveDirector: Executive = {
-  role: "Tổng giám đốc",
-  name: "Ông Trần Văn Khánh",
-  avatar: "/assets/images/avatar-Khanh.png",
-};
-
-const deputyDirectors: Executive[] = [
-  {
-    role: "Phó Tổng giám đốc",
-    name: "Ông Nguyễn Duy Tài",
-    avatar: "/assets/images/SALES XK_NV HUY.jpg",
-  },
-  {
-    role: "Phó Tổng giám đốc",
-    name: "Ông Phan Văn Đức",
-    avatar: "/assets/images/LOG_NV HUY.jpg",
-  },
-  {
-    role: "Phó Tổng giám đốc",
-    name: "Ông Kiều Ngọc Minh",
-    avatar: "/assets/images/BOD_NV KIỀU.png",
-  },
-];
 
 const divisions: Division[] = [
   { id: "human-resources", name: "Hành chính & Nhân sự", description: "Điều phối hành chính và phát triển đội ngũ.", departments: "HR + Admin", icon: UsersRound, tone: "bg-rose-50 text-rose-500" },
@@ -72,7 +49,11 @@ function ExecutiveCard({ executive, primary = false }: { executive: Executive; p
     <article className={`flex overflow-hidden rounded-2xl border-[1.5px] shadow-[0_8px_20px_rgba(15,118,65,0.10)] ${primary ? "h-[102px] w-[470px] border-[#43cf87] bg-emerald-600" : "h-[92px] w-full items-center justify-center gap-3 border-[#72dfa7] bg-emerald-50"}`}>
       <div className={`flex shrink-0 items-center justify-center bg-emerald-50 ${primary ? "w-[116px]" : "w-[78px]"}`}>
         <div className={`relative overflow-hidden rounded-full border-4 border-white shadow-sm ${primary ? "h-[92px] w-[92px]" : "h-[78px] w-[78px]"}`}>
-          <Image src={executive.avatar} alt={executive.name} fill sizes={primary ? "92px" : "78px"} className="object-cover object-top" />
+          {executive.avatar ? (
+            <Image src={executive.avatar} alt={executive.name} fill sizes={primary ? "92px" : "78px"} className="object-cover object-center" />
+          ) : (
+            <span className="flex h-full w-full items-center justify-center bg-emerald-100 text-emerald-700"><CircleUserRound size={primary ? 42 : 34} /></span>
+          )}
         </div>
       </div>
       <div className={`flex min-w-0 flex-col justify-center ${primary ? "flex-1 items-center px-5 text-center" : "w-[190px] shrink-0 items-start text-left"} ${primary ? "bg-gradient-to-r from-[#159947] to-[#0f8a3e] text-white" : "bg-emerald-50"}`}>
@@ -187,6 +168,31 @@ function DivisionPanelHeader({ division }: { division: Division }) {
 
 export default function OrganizationChart() {
   const [expandedDivision, setExpandedDivision] = useState<string | null>(null);
+  const [apiExecutiveDirector, setApiExecutiveDirector] = useState<Executive | null>(null);
+  const [apiDeputyDirectors, setApiDeputyDirectors] = useState<Executive[]>([]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    Promise.all([
+      getPublicEmployees({ rank: "BOD", limit: 1 }, controller.signal),
+      getPublicEmployees({ rank: "Executive", limit: 3 }, controller.signal),
+    ]).then(([leaders, executives]) => {
+      const leader = leaders.items[0];
+      setApiExecutiveDirector(leader ? {
+        role: leader.position,
+        name: leader.name,
+        avatar: leader.chartAvatar || leader.avatar,
+      } : null);
+      setApiDeputyDirectors(executives.items.map((employee) => ({
+        role: employee.position,
+        name: employee.name,
+        avatar: employee.chartAvatar || employee.avatar,
+      })));
+    }).catch((error) => {
+      if (!(error instanceof DOMException && error.name === "AbortError")) console.error("Không thể tải nhân sự sơ đồ", error);
+    });
+    return () => controller.abort();
+  }, []);
   const activeDivision = divisions.find((division) => division.id === expandedDivision);
   const activeDivisionIndex = divisions.findIndex((division) => division.id === expandedDivision);
   const selectedDivisionPosition = activeDivisionIndex >= 0
@@ -207,7 +213,9 @@ export default function OrganizationChart() {
       <div className="overflow-x-auto">
         <div className="min-w-[1120px] px-6 pt-3">
         <div className="mx-auto w-fit">
-          <ExecutiveCard executive={executiveDirector} primary />
+          {apiExecutiveDirector ? <ExecutiveCard executive={apiExecutiveDirector} primary /> : (
+            <div className="flex h-[102px] w-[470px] items-center justify-center rounded-2xl border border-dashed border-emerald-300 bg-emerald-50 text-sm font-semibold text-emerald-700">Chưa có nhân sự Ban lãnh đạo</div>
+          )}
         </div>
 
         <div className="relative mx-auto h-10 w-[2px] bg-[#24934d]">
@@ -216,13 +224,14 @@ export default function OrganizationChart() {
         <div className="relative mx-auto max-w-[1080px] pt-10">
           <div className="absolute top-0 h-[2px] bg-[#24934d]" style={{ left: "calc((100% - 8rem) / 6)", right: "calc((100% - 8rem) / 6)" }} />
           <div className="grid grid-cols-3 gap-16">
-            {deputyDirectors.map((executive) => (
+            {apiDeputyDirectors.map((executive) => (
               <div key={executive.name} className="relative">
                 <div className="absolute -top-10 left-1/2 h-10 w-[2px] -translate-x-1/2 bg-[#24934d]">
                 </div>
                 <ExecutiveCard executive={executive} />
               </div>
             ))}
+            {apiDeputyDirectors.length === 0 ? <p className="col-span-3 text-center text-sm text-slate-500">Chưa có nhân sự Ban điều hành</p> : null}
           </div>
         </div>
 

@@ -16,6 +16,7 @@ export interface Employee {
   gender?: EmployeeGender;
   location: string; // e.g. HÃ¡Â»â€œ ChÃƒÂ­ Minh, BÃƒÂ¬nh DÃ†Â°Ã†Â¡ng, Long An
   avatar: string;
+  chartAvatar?: string;
   bio?: string;
   createdBy?: { accountId: string; name: string; email: string };
   createdAt?: string;

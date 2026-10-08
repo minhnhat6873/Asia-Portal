@@ -28,6 +28,7 @@ export interface AdminEmployeeResult {
   phone: string;
   location: string;
   avatar: string;
+  chartAvatar?: string;
   joinDate: string;
   birthDate?: string;
   gender?: "male" | "female" | "other";
@@ -132,4 +133,10 @@ export function restoreAdminEmployee(id: string): Promise<AdminEmployeeResult> {
 
 export function permanentlyDeleteAdminEmployee(id: string): Promise<AdminEmployeeResult> {
   return apiDelete<AdminEmployeeResult>(`/admin/employees/${encodeURIComponent(id)}/permanent`);
+}
+
+export function updateAdminEmployeeChartAvatar(id: string, file: File): Promise<AdminEmployeeResult> {
+  const body = new FormData();
+  body.append("chartAvatar", file);
+  return apiPatchFormData<AdminEmployeeResult>(`/admin/employees/${encodeURIComponent(id)}/chart-avatar`, body);
 }

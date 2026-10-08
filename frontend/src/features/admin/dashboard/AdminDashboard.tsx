@@ -104,6 +104,7 @@ function mapApiEmployeeToDashboardEmployee(employee: AdminEmployeeResult): Emplo
     phone: employee.phone,
     location: employee.location,
     avatar: employee.avatar ?? "",
+    chartAvatar: employee.chartAvatar ?? "",
     joinDate: formatEmployeeDate(employee.joinDate),
     birthDate: formatEmployeeDate(employee.birthDate),
     gender: employee.gender,
@@ -767,6 +768,7 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
                 onNavigateToAdd={() => navigateToTab('add-employee')}
                 onNavigateToEdit={(employee) => router.push(`/admin/employees/${encodeURIComponent(employee.id)}/edit`)}
                 onNavigateToTrash={() => router.push('/admin/employees/trash')}
+                onChartAvatarUpdated={() => loadEmployees()}
               />
             )}
 
