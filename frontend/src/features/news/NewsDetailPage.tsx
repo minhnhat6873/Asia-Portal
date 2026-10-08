@@ -1,53 +1,45 @@
-import type { Metadata } from "next";
-import { notFound } from "next/navigation";
-import Navbar from "@/components/layout/Navbar";
+"use client";
+
+import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
+import Link from "next/link";
+
 import Footer from "@/components/layout/Footer";
-import { news } from "@/config/news";
+import Navbar from "@/components/layout/Navbar";
+import type { NewsItem } from "@/config/news";
+import { ApiError } from "@/services/api";
+import { getPublicMedia, getPublicMediaById } from "@/services/media.service";
 import NewsArticle from "./components/NewsArticle";
 
-type Props = {
-  params: Promise<{ id: string }>;
-};
+export default function NewsDetailPage() {
+  const params = useParams<{ id: string }>();
+  const [item, setItem] = useState<NewsItem | null>(null);
+  const [related, setRelated] = useState<NewsItem[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-/** The site is exported statically, so every article URL is pre-rendered. */
-export function generateStaticParams() {
-  return news.map((item) => ({ id: String(item.id) }));
-}
-
-/** Unknown ids are not generated at all. */
-export const dynamicParams = false;
-
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { id } = await params;
-  const item = news.find((entry) => String(entry.id) === id);
-
-  if (!item) {
-    return { title: "Tin tức · Asia Food & Beverage" };
-  }
-
-  return {
-    title: `${item.title} · Asia Food & Beverage`,
-    description: item.excerpt,
-  };
-}
-
-export default async function NewsDetailPage({ params }: Props) {
-  const { id } = await params;
-  const index = news.findIndex((entry) => String(entry.id) === id);
-
-  if (index === -1) {
-    notFound();
-  }
-
-  const item = news[index];
-  const related = news.filter((entry) => entry.id !== item.id).slice(0, 3);
+  useEffect(() => {
+    const controller = new AbortController();
+    Promise.all([
+      getPublicMediaById(params.id, controller.signal),
+      getPublicMedia({ limit: 4, sort: "latest" }, controller.signal),
+    ]).then(([post, list]) => {
+      setItem(post);
+      setRelated(list.items.filter((entry) => String(entry.id) !== String(post.id)).slice(0, 3));
+      setError(null);
+    }).catch((reason: unknown) => {
+      if (!controller.signal.aborted) {
+        setItem(null);
+        setError(reason instanceof ApiError && reason.status === 404 ? "Không tìm thấy bài viết." : reason instanceof Error ? reason.message : "Không thể tải bài viết.");
+      }
+    }).finally(() => { if (!controller.signal.aborted) setIsLoading(false); });
+    return () => controller.abort();
+  }, [params.id]);
 
   return (
     <main className="min-h-screen bg-white">
       <Navbar />
-
-      <NewsArticle item={item} related={related} />
-
+      {isLoading ? <div className="mx-auto max-w-4xl px-4 py-24"><div className="h-72 animate-pulse rounded-3xl bg-slate-100" /></div> : item ? <NewsArticle item={item} related={related} /> : <div className="mx-auto max-w-4xl px-4 py-24 text-center"><h1 className="text-2xl font-black text-slate-900">{error}</h1><Link href="/news" className="mt-5 inline-block rounded-full bg-emerald-700 px-5 py-3 font-bold text-white">Về trang tin tức</Link></div>}
       <Footer />
     </main>
   );

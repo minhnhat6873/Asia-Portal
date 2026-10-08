@@ -1,3 +1,1 @@
-export { default, generateMetadata, generateStaticParams } from "@/features/news/NewsDetailPage";
-
-export const dynamicParams = false;
+export { default } from "@/features/news/NewsDetailPage";

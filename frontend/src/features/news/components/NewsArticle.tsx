@@ -67,15 +67,12 @@ export default function NewsArticle({ item, related }: Props) {
           <ArrowLeft size={15} /> Về trang Tin tức
         </Link>
 
-        <RichText
-          html={item.excerpt}
-          className="mt-6 border-l-4 border-[#f5c800] pl-4 text-base font-medium leading-relaxed text-slate-700 sm:text-lg [&_p]:my-0"
-        />
+        <p className="mt-6 border-l-4 border-[#f5c800] pl-4 text-base font-medium leading-relaxed text-slate-700 sm:text-lg">{item.excerpt}</p>
 
         {hasRichTextContent(item.content) && (
           <RichText
             html={item.content}
-            className="mt-6 text-sm leading-relaxed text-slate-600 sm:text-base [&_p]:my-0"
+            className="rich-content mt-6 text-sm leading-relaxed text-slate-600 sm:text-base"
           />
         )}
 

@@ -1,33 +1,10 @@
-import { Employee, MediaPost, TrashItem, UserAccount } from '../types';
-import { INITIAL_MEDIA_POSTS, INITIAL_USERS } from '../data/initialData';
+import { Employee, TrashItem, UserAccount } from '../types';
+import { INITIAL_USERS } from '../data/initialData';
 import { notifyPortalContentChanged } from '@/lib/portalContent';
 
-const MEDIA_STORAGE_KEY = 'asia_fnb_media_v2';
 const USERS_STORAGE_KEY = 'asia_fnb_users_v2';
 const CURRENT_USER_KEY = 'asia_fnb_current_user_v2';
 const TRASH_STORAGE_KEY = 'asia_fnb_trash_v1';
-const TEAM_BUILDING_RESTORE_KEY = 'asia_fnb_team_building_2026_restored';
-
-/**
- * Restore the requested Team Building feature once for browsers that already
- * had the former seed data in localStorage. The flag means a later intentional
- * deletion from the admin page is respected.
- */
-function restoreTeamBuildingPost(posts: MediaPost[]): MediaPost[] {
-  if (localStorage.getItem(TEAM_BUILDING_RESTORE_KEY)) return posts;
-
-  const teamBuildingPost = INITIAL_MEDIA_POSTS.find(
-    (post) => post.id === 'media-team-building-2026'
-  );
-  const alreadyPresent = posts.some(
-    (post) => post.id === teamBuildingPost?.id || post.title === teamBuildingPost?.title
-  );
-  const nextPosts = teamBuildingPost && !alreadyPresent ? [teamBuildingPost, ...posts] : posts;
-
-  localStorage.setItem(TEAM_BUILDING_RESTORE_KEY, 'true');
-  if (nextPosts !== posts) localStorage.setItem(MEDIA_STORAGE_KEY, JSON.stringify(nextPosts));
-  return nextPosts;
-}
 
 export function getStoredTrashItems(): TrashItem[] {
   try {
@@ -65,30 +42,6 @@ export function saveStoredTrashItems(items: TrashItem[]): void {
     notifyPortalContentChanged();
   } catch (error) {
     console.error('Error saving trash to localStorage', error);
-  }
-}
-
-export function getStoredMediaPosts(): MediaPost[] {
-  try {
-    const item = localStorage.getItem(MEDIA_STORAGE_KEY);
-    if (!item) {
-      localStorage.setItem(MEDIA_STORAGE_KEY, JSON.stringify(INITIAL_MEDIA_POSTS));
-      return INITIAL_MEDIA_POSTS;
-    }
-    return restoreTeamBuildingPost(JSON.parse(item) as MediaPost[]);
-  } catch (error) {
-    console.error('Error reading media posts from localStorage', error);
-    return INITIAL_MEDIA_POSTS;
-  }
-}
-
-export function saveStoredMediaPosts(posts: MediaPost[]): void {
-  try {
-    localStorage.setItem(MEDIA_STORAGE_KEY, JSON.stringify(posts));
-    // Let the public portal pages re-read immediately (same tab and other tabs).
-    notifyPortalContentChanged();
-  } catch (error) {
-    console.error('Error saving media posts to localStorage', error);
   }
 }
 

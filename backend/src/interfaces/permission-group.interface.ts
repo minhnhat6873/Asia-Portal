@@ -5,6 +5,11 @@ export const PERMISSION_ACTIONS = [
   "employees:update",
   "employees:deactivate",
   "employees:delete",
+  "media:view",
+  "media:create",
+  "media:update",
+  "media:publish",
+  "media:delete",
 ] as const;
 
 export const PERMISSION_GROUP_STATUSES = ["active", "inactive"] as const;

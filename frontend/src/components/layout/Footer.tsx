@@ -6,7 +6,7 @@ const footerLinks = [
   { label: "Nhân viên", href: "/employees" },
   { label: "Truyền thông", href: "/news" },
 
-  { label: "Về Á Châu", href: "/about-wana" },
+  { label: "Về Á Châu", href: "/about-asia" },
 ];
 
 const supportLinks = [
@@ -65,10 +65,6 @@ export default function Footer() {
                 </li>
               ))}
             </ul>
-            <div className="mt-4 pt-4 border-t border-white/10">
-              <p className="text-white/40 text-xs">Giờ làm việc: T2–T6, 8:00–17:30</p>
-              <p className="text-white/40 text-xs">IT Helpdesk: ext. 100</p>
-            </div>
           </div>
         </div>
 
@@ -76,9 +72,6 @@ export default function Footer() {
         <div className="mt-7 flex flex-col gap-2 border-t border-white/10 pt-5 text-center sm:mt-8 sm:pt-6 md:flex-row md:text-left items-center justify-between gap-3">
           <p className="text-white/40 text-xs">
             © 2026 Asia Food & Beverage. All rights reserved.
-          </p>
-          <p className="text-white/40 text-xs">
-            Phiên bản Demo v1.0 — Dữ liệu hiển thị chỉ mang tính minh họa
           </p>
         </div>
       </div>

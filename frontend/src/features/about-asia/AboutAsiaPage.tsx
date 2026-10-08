@@ -55,13 +55,8 @@ const milestones = [
 
 function ResourceCard({ item }: { item: ResourceItem }) {
   const Icon = item.icon;
-
-  return (
-    <Link
-      id={item.anchor}
-      href={item.href}
-      className="group flex flex-col justify-between rounded-2xl border border-slate-100 bg-white p-6 shadow-lg shadow-slate-100 transition-all hover:border-[#bbf7d0] hover:shadow-xl"
-    >
+  const content = (
+    <>
       <div>
         <div className={`mb-4 flex h-12 w-12 items-center justify-center rounded-xl transition-transform group-hover:scale-110 ${item.chipTone}`}>
           <Icon size={22} />
@@ -73,6 +68,22 @@ function ResourceCard({ item }: { item: ResourceItem }) {
         <span>{item.linkText}</span>
         {item.showDownloadIcon ? <Download size={13} /> : <ArrowRight size={13} className="transition-transform group-hover:translate-x-1" />}
       </div>
+    </>
+  );
+
+  const cardClassName = "group flex flex-col justify-between rounded-2xl border border-slate-100 bg-white p-6 shadow-lg shadow-slate-100 transition-all hover:border-[#bbf7d0] hover:shadow-xl";
+
+  if (!item.href) {
+    return <div id={item.anchor} className={cardClassName}>{content}</div>;
+  }
+
+  return (
+    <Link
+      id={item.anchor}
+      href={item.href}
+      className={cardClassName}
+    >
+      {content}
     </Link>
   );
 }
@@ -111,6 +122,7 @@ function AboutJourneyHero() {
           </p>
           <button
             type="button"
+            onClick={() => document.getElementById("company-intro-video")?.scrollIntoView({ behavior: "smooth", block: "center" })}
             className="mt-5 inline-flex items-center gap-3 rounded-full border border-white/80 bg-black/20 px-6 py-3 font-sans text-[15px] font-bold text-white shadow-[0_8px_20px_rgba(0,0,0,0.24)] backdrop-blur-sm transition hover:bg-black/35 sm:text-[17px]"
           >
             <Play size={19} className="fill-white" />
@@ -144,12 +156,12 @@ function AboutJourneyHero() {
 
         <div className="mt-8 grid gap-5 md:grid-cols-[1.12fr_1fr_1.04fr] lg:mt-[3.1%]">
           <article className="px-1 py-2 lg:pr-8">
-            <h3 className="font-[Cambria] text-[31px] font-bold leading-tight text-[#0b3026] lg:text-[clamp(28px,2.55vw,42px)]">Sứ mệnh &amp; Tầm nhìn</h3>
-            <div className="mt-3 h-0.5 w-12 bg-[#bc7a1d]" />
-            <p className="mt-4 font-sans text-[15px] leading-[1.55] text-[#27364d] lg:text-[clamp(13px,1.2vw,18px)]">
+            <h3 className="font-[Cambria] text-[31px] font-black leading-tight text-[#062f27] drop-shadow-[0_1px_1px_rgba(255,255,255,0.65)] lg:text-[clamp(28px,2.55vw,42px)]">Sứ mệnh &amp; Tầm nhìn</h3>
+            <div className="mt-3 h-[3px] w-14 rounded-full bg-[#9b5308]" />
+            <p className="mt-4 font-sans text-[15px] font-semibold leading-[1.6] text-[#142f2b] drop-shadow-[0_1px_1px_rgba(255,255,255,0.7)] lg:text-[clamp(14px,1.2vw,18px)]">
               Chúng tôi kiên định với sứ mệnh kiến tạo giá trị từ những nguyên liệu tự nhiên của Việt Nam và hướng đến tầm nhìn đưa thương hiệu Việt vươn xa trên bản đồ nước giải khát toàn cầu.
             </p>
-            <Link href="#" className="mt-4 inline-flex items-center gap-4 rounded-full border-2 border-[#bd7217] bg-white/35 px-6 py-2.5 font-sans text-[15px] font-semibold text-[#a95e10] transition hover:bg-white/70 lg:text-[16px]">
+            <Link href="#" className="mt-4 inline-flex items-center gap-4 rounded-full border-2 border-[#dc932d] bg-white/55 px-6 py-2.5 font-sans text-[15px] font-extrabold text-[#b7650b] shadow-[0_5px_16px_rgba(181,105,20,0.18)] backdrop-blur-[3px] transition hover:border-[#efab45] hover:bg-white/75 hover:text-[#9d5005] lg:text-[16px]">
               Tìm hiểu thêm về chúng tôi
               <ArrowRight size={18} />
             </Link>
@@ -177,18 +189,18 @@ function AboutJourneyHero() {
           </article>
         </div>
 
-        <div className="mt-5 ml-auto grid max-w-[740px] grid-cols-1 gap-4 border-t border-[#b79a68]/70 pt-4 font-sans text-[13px] font-medium leading-tight text-[#243f38] sm:grid-cols-3 lg:mt-[1.6%] lg:text-[14px]">
-          <div className="flex items-center justify-center gap-3 sm:border-r sm:border-[#bda26f]">
-            <Leaf size={46} className="rounded-full bg-[#096044] p-2.5 text-white" />
-            <span>Từ Việt Nam<br />đến thế giới</span>
+        <div className="mt-5 ml-auto grid max-w-[820px] grid-cols-1 gap-2 rounded-[22px] border border-white/80 bg-white/78 p-3 font-sans text-[14px] font-bold leading-[1.35] text-[#153f34] shadow-[0_14px_38px_rgba(43,73,56,0.2)] backdrop-blur-md sm:grid-cols-3 lg:mt-[1.6%] lg:text-[15px]">
+          <div className="flex min-h-[76px] items-center justify-center gap-4 rounded-2xl px-4 py-3 transition-colors hover:bg-emerald-50/80 sm:border-r sm:border-[#c8b17d]/70 sm:rounded-none">
+            <Leaf size={50} className="shrink-0 rounded-full bg-gradient-to-br from-[#087354] to-[#034c3a] p-3 text-white shadow-[0_7px_18px_rgba(4,92,66,0.28)]" />
+            <span>Từ Việt Nam<br /><strong className="font-extrabold text-[#087354]">đến thế giới</strong></span>
           </div>
-          <div className="flex items-center justify-center gap-3 sm:border-r sm:border-[#bda26f]">
-            <Globe size={46} className="rounded-full border-2 border-[#075c43] p-2 text-[#075c43]" />
-            <span>Hơn 20+<br />quốc gia và vùng lãnh thổ</span>
+          <div className="flex min-h-[76px] items-center justify-center gap-4 rounded-2xl px-4 py-3 transition-colors hover:bg-emerald-50/80 sm:border-r sm:border-[#c8b17d]/70 sm:rounded-none">
+            <Globe size={50} className="shrink-0 rounded-full border-[3px] border-[#087354] bg-white/80 p-2.5 text-[#087354] shadow-[0_7px_18px_rgba(4,92,66,0.16)]" />
+            <span>Hơn <strong className="text-[18px] font-black text-[#087354]">20+</strong><br />quốc gia và vùng lãnh thổ</span>
           </div>
-          <div className="flex items-center justify-center gap-3">
-            <Leaf size={46} className="rounded-full border-2 border-[#075c43] p-2 text-[#075c43]" />
-            <span>Nguồn nguyên liệu<br />thuần Việt</span>
+          <div className="flex min-h-[76px] items-center justify-center gap-4 rounded-2xl px-4 py-3 transition-colors hover:bg-emerald-50/80">
+            <Leaf size={50} className="shrink-0 rounded-full border-[3px] border-[#087354] bg-white/80 p-2.5 text-[#087354] shadow-[0_7px_18px_rgba(4,92,66,0.16)]" />
+            <span>Nguồn nguyên liệu<br /><strong className="font-extrabold text-[#087354]">thuần Việt</strong></span>
           </div>
         </div>
       </div>
@@ -198,6 +210,7 @@ function AboutJourneyHero() {
 /* ── PAGE ── */
 export default function VeWanaPage() {
   const [activeMilestone, setActiveMilestone] = useState(1);
+  const [isCompanyVideoPlaying, setIsCompanyVideoPlaying] = useState(false);
   const selectedMilestone = milestones[activeMilestone];
 
   return (
@@ -210,22 +223,28 @@ export default function VeWanaPage() {
       {/* ══════════════════════════════════
           2. ABOUT — White, 2 columns
          ══════════════════════════════════ */}
-      <section className="order-3 bg-white py-8 sm:py-10 xl:py-14">
+      <section className="order-2 bg-white py-8 sm:py-10 xl:py-14">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="relative isolate overflow-hidden rounded-[26px] bg-white px-0 py-3 sm:px-8 sm:py-8 md:px-10 lg:px-10 lg:py-10">
 
-            <div className="relative z-10 grid grid-cols-1 items-center gap-7 xl:grid-cols-[0.95fr_1.05fr] xl:gap-10">
+            <div className="relative z-10 grid grid-cols-1 items-start gap-7 xl:grid-cols-[0.95fr_1.05fr] xl:items-center xl:gap-10">
               <div className="max-w-[540px]">
                 <p className="section-label mb-2">Về chúng tôi</p>
                 <h2 className="text-2xl font-black leading-[1.18] text-slate-900 sm:text-[2rem] xl:text-[2.15rem]">
-                  Wana – Không chỉ là đồ uống,<br />
-                  <span className="text-[#16812a]">mà là cuộc sống tốt đẹp hơn</span>
+                  ASIA FOOD &amp; BEVERAGE<br />
+                  <span className="text-[#16812a]">MANG HƯƠNG VỊ VIỆT NAM ĐẾN THỊ TRƯỜNG THẾ GIỚI</span>
                 </h2>
-                <p className="mt-5 text-sm leading-relaxed text-slate-500 xl:text-[0.95rem]">
-                  Công ty Cổ phần nước giải khát Wana được thành lập với sứ mệnh mang đến những sản phẩm đồ uống chất lượng, an toàn và tốt cho sức khỏe, đáp ứng nhu cầu ngày càng cao của người tiêu dùng trong và ngoài nước.
+                <p className="mt-5 text-sm font-normal leading-relaxed text-black xl:text-[0.95rem]">
+                  Asia F&amp;B chuyên phát triển và phân phối các sản phẩm đồ uống có nguồn gốc từ thiên nhiên cho thị trường trong nước và quốc tế. Từ năm 2016, chúng tôi đã đồng hành cùng hơn 100 thương hiệu tại hơn 50 quốc gia, tích lũy kinh nghiệm từ nghiên cứu công thức, phát triển sản phẩm đến sản xuất, đóng gói và đưa sản phẩm ra thị trường.
                 </p>
-                <p className="mt-4 text-sm leading-relaxed text-slate-500 xl:text-[0.95rem]">
-                  Chúng tôi không ngừng đổi mới, sáng tạo và mở rộng, hướng đến trở thành thương hiệu đồ uống được yêu thích và tin tưởng hàng đầu tại Việt Nam.
+                <p className="mt-4 text-sm font-normal leading-relaxed text-black xl:text-[0.95rem]">
+                  Tại Việt Nam, Asia F&amp;B phát triển thương hiệu Wana với các dòng nước dừa, nước ép trái cây, nước nha đam, nước hạt chia, kombucha và thức uống bổ sung collagen. Trên thị trường quốc tế, Solavie, Wizer, M-Coffee và Zizi-pop mang đến nhiều lựa chọn từ đồ uống có nguồn gốc tự nhiên, thức uống bổ sung khoáng chất và điện giải đến nước có ga và cà phê mang bản sắc Việt Nam.
+                </p>
+                <p className="mt-4 text-sm font-normal leading-relaxed text-black xl:text-[0.95rem]">
+                  Với kinh nghiệm quốc tế và nền tảng sản xuất vững chắc, Asia F&amp;B hướng đến trở thành đối tác đáng tin cậy của các nhà phân phối, hệ thống bán lẻ, đối tác thương mại và doanh nghiệp B2B, cùng phát triển thị trường và đưa những sản phẩm Việt chất lượng đến gần hơn với người tiêu dùng trong nước và thế giới.
+                </p>
+                <p className="mt-4 text-sm font-bold leading-relaxed text-[#08735b] xl:text-[0.95rem]">
+                  Asia F&amp;B – From Vietnam, For the World.
                 </p>
                 <Link
                   href="#"
@@ -235,33 +254,53 @@ export default function VeWanaPage() {
                 </Link>
               </div>
 
-              <div className="relative min-h-[245px] overflow-hidden rounded-[20px] shadow-[0_14px_30px_rgba(26,55,32,0.12)] sm:min-h-[300px] xl:min-h-[340px]">
-                <img
-                  src="/assets/images/workplace.png"
-                  alt="Không gian làm việc Wana"
-                  className="absolute inset-0 h-full w-full object-cover"
-                />
-                <div className="absolute inset-0 bg-gradient-to-tr from-[#0c2519]/15 via-transparent to-white/10" />
+              <div>
+                <div id="company-intro-video" className="relative min-h-[245px] overflow-hidden rounded-[20px] shadow-[0_14px_30px_rgba(26,55,32,0.12)] sm:min-h-[300px] xl:min-h-[340px]">
+                  {isCompanyVideoPlaying ? (
+                    <iframe
+                      src="https://www.youtube-nocookie.com/embed/WhKFjee7F5A?autoplay=1&rel=0"
+                      title="Giới thiệu Asia Food & Beverage"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      allowFullScreen
+                      className="absolute inset-0 h-full w-full border-0"
+                    />
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setIsCompanyVideoPlaying(true)}
+                      aria-label="Phát video giới thiệu Asia Food & Beverage"
+                      className="group absolute inset-0 h-full w-full bg-cover bg-center"
+                      style={{ backgroundImage: "url('https://img.youtube.com/vi/WhKFjee7F5A/maxresdefault.jpg')" }}
+                    >
+                      <span className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-black/15 transition-colors group-hover:from-black/65" />
+                      <span className="absolute left-1/2 top-1/2 flex h-16 w-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-2xl bg-red-600 text-white shadow-[0_12px_30px_rgba(0,0,0,0.35)] transition-transform group-hover:scale-110">
+                        <Play className="ml-1 h-7 w-7 fill-current" />
+                      </span>
+                      <span className="absolute inset-x-5 bottom-4 text-left text-sm font-bold text-white drop-shadow-md sm:text-base">
+                        Asia Food &amp; Beverage – From Vietnam to Global
+                      </span>
+                    </button>
+                  )}
+                </div>
+
+                <div className="mt-5 grid grid-cols-2 gap-x-5 gap-y-4 border-t border-gray-100 pt-5">
+                  {stats.map((s) => {
+                    const Icon = s.icon;
+                    return (
+                      <div key={s.label} className="flex items-center gap-3">
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-green-50">
+                          <Icon size={21} className="text-[#1a7a1a]" />
+                        </div>
+                        <div>
+                          <p className="text-xl font-black leading-none text-[#1a7a1a] sm:text-2xl">{s.value}</p>
+                          <p className="mt-1 text-[11px] text-gray-500 sm:text-xs">{s.label}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
-          </div>
-
-          {/* Stats bar */}
-          <div className="mt-8 grid grid-cols-2 gap-4 border-t border-gray-100 pt-6 sm:mt-10 sm:gap-6 sm:pt-8 md:grid-cols-4">
-            {stats.map((s) => {
-              const Icon = s.icon;
-              return (
-                <div key={s.label} className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center shrink-0">
-                    <Icon size={20} className="text-[#1a7a1a]" />
-                  </div>
-                  <div>
-                    <p className="text-xl font-black text-[#1a7a1a] sm:text-2xl">{s.value}</p>
-                    <p className="text-xs text-gray-500">{s.label}</p>
-                  </div>
-                </div>
-              );
-            })}
           </div>
         </div>
       </section>
@@ -269,7 +308,7 @@ export default function VeWanaPage() {
       {/* ══════════════════════════════════
           2.5 PRODUCT HERO SLIDER — Teal bg, WANA watermark, product image
          ══════════════════════════════════ */}
-      <div className="order-2"><ProductHeroSlider /></div>
+      <div className="order-3"><ProductHeroSlider /></div>
 
       </div>
 
@@ -381,7 +420,7 @@ function GrowingTogetherBanner() {
         <div className="relative z-10 flex min-h-[280px] items-center px-4 py-8 sm:min-h-[320px] sm:px-10 sm:py-10 lg:px-16">
           <div className="max-w-[440px]">
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#16812a]">
-              Wana – Growing Together
+              Asia – Growing Together
             </p>
             <h2 className="mt-3 text-2xl font-black leading-tight text-slate-900 sm:text-3xl md:text-4xl">
               Cùng nhau kiến tạo<br />

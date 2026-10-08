@@ -127,3 +127,14 @@ export function requireEmployeeUpdatePermission(
 
   requirePermissions(permission)(request, response, next);
 }
+
+export function requireMediaUpdatePermission(
+  request: Request,
+  response: Response,
+  next: NextFunction,
+): void {
+  const permission: PermissionAction = request.body?.status !== undefined
+    ? "media:publish"
+    : "media:update";
+  requirePermissions(permission)(request, response, next);
+}

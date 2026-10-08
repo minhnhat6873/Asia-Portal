@@ -4,6 +4,9 @@ export const AUDIT_ACTIONS = [
   "employee.soft_deleted",
   "employee.restored",
   "employee.permanently_deleted",
+  "media.created",
+  "media.updated",
+  "media.permanently_deleted",
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
@@ -17,7 +20,7 @@ export interface AuditActor {
 export interface AuditLog {
   actor: AuditActor;
   action: AuditAction;
-  entityType: "employee";
+  entityType: "employee" | "media";
   entityId: string;
   description: string;
   metadata?: Record<string, unknown>;

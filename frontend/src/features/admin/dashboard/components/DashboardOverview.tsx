@@ -7,7 +7,7 @@ import {
   Calendar
 } from 'lucide-react';
 import { Employee, MediaPost, ActiveTab } from '../types';
-import { RichText } from '@/components/ui/RichText';
+import { stripHtml } from '@/utils/stripHtml';
 
 import type { DashboardSummary } from '../dashboard.service';
 interface DashboardOverviewProps {
@@ -27,6 +27,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
 }) => {
   const totalEmployees = summary?.totalEmployees ?? employees.length;
   const totalDepartments = summary?.totalDepartments ?? new Set(employees.map((employee) => employee.department)).size;
+  const totalMediaPosts = summary?.totalMediaPosts ?? mediaPosts.length;
 
   return (
     <div className="space-y-6">
@@ -68,7 +69,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
           </div>
           <div>
             <p className="text-base font-bold text-slate-600">Bài viết</p>
-            <p className="mt-2 text-4xl font-black tracking-tight text-slate-950">{mediaPosts.length}</p>
+            <p className="mt-2 text-4xl font-black tracking-tight text-slate-950">{totalMediaPosts}</p>
           </div>
         </div>
       </div>
@@ -88,7 +89,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
             onClick={() => onNavigate('media')}
             className="text-xs font-semibold text-sky-700 hover:text-sky-800 flex items-center gap-1"
           >
-            Xem tất cả ({mediaPosts.length}) <ArrowUpRight className="w-3.5 h-3.5" />
+            Xem tất cả ({totalMediaPosts}) <ArrowUpRight className="w-3.5 h-3.5" />
           </button>
         </div>
 
@@ -122,10 +123,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
                 <h4 className="text-sm font-bold text-slate-900 truncate group-hover:text-sky-700 transition-colors">
                   {post.title}
                 </h4>
-                <RichText
-                  html={post.summary}
-                  className="text-xs text-slate-500 line-clamp-1 mt-0.5 [&_p]:my-0"
-                />
+                <p className="mt-0.5 line-clamp-1 text-xs text-slate-500">{stripHtml(post.summary)}</p>
               </div>
 
               <div className="shrink-0">

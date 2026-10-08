@@ -23,6 +23,10 @@ export const adminEmployeeRepository = {
     return EmployeeModel.find(filter).sort(sort).skip(skip).limit(limit).lean();
   },
 
+  findAllForSearch(filter: QueryFilter<Employee>, sort: Record<string, SortOrder>) {
+    return EmployeeModel.find(filter).sort(sort).lean();
+  },
+
   count(filter: QueryFilter<Employee>) {
     return EmployeeModel.countDocuments(filter);
   },

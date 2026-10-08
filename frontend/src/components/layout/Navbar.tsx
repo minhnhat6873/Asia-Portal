@@ -13,7 +13,7 @@ const navLinks = [
   { href: "/news", label: "Truyền thông" },
   { href: "/diagram", label: "Sơ đồ tổ chức" },
 
-  { href: "/about-wana", label: "Về Á Châu" },
+  { href: "/about-asia", label: "Về Á Châu" },
 ];
 
 const internalSystems = [

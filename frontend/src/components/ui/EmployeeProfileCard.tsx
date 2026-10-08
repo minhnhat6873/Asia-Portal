@@ -11,7 +11,7 @@ import {
   UserRound,
   type LucideIcon,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { hasRichTextContent, RichText } from "@/components/ui/RichText";
 
 export type EmployeeProfileStatus = "active" | "probation" | "inactive";
@@ -32,6 +32,7 @@ type EmployeeProfileCardProps = {
   description?: string;
   imageSizes?: string;
   className?: string;
+  footer?: ReactNode;
 };
 
 const statusCopy: Record<EmployeeProfileStatus, string> = {
@@ -56,6 +57,7 @@ export default function EmployeeProfileCard({
   description = "",
   imageSizes = "360px",
   className = "",
+  footer,
 }: EmployeeProfileCardProps) {
   const [activeTab, setActiveTab] = useState<"general" | "description">("general");
   const portrait = avatar || fallbackAvatar;
@@ -127,6 +129,12 @@ export default function EmployeeProfileCard({
           <p className="py-4 text-sm leading-6 text-slate-600">{"Ch\u01b0a c\u00f3 m\u00f4 t\u1ea3 cho nh\u00e2n vi\u00ean n\u00e0y."}</p>
         )}
       </div>
+
+      {footer && (
+        <div className="flex items-center justify-end border-t border-slate-100 px-4 py-3">
+          {footer}
+        </div>
+      )}
     </aside>
   );
 }

@@ -30,6 +30,7 @@ import { EMPLOYEE_RANK_OPTIONS_UI, getEmployeeRankLabel } from '@/components/ui/
 import { EMPLOYEE_STATUS_OPTIONS_UI } from '@/components/ui/employee-status-options';
 import { getEmployeeGenderLabel } from '@/components/ui/employee-gender-options';
 import type { AdminEmployeeListParams } from '@/services/admin-employee.service';
+import EmployeeProfileCard from '@/components/ui/EmployeeProfileCard';
 
 const EMPLOYEE_FILTER_STORAGE_KEY = 'asia.admin.employee-filters';
 
@@ -146,7 +147,9 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
     return () => window.clearTimeout(timer);
   }, [areFiltersRestored, onFiltersChange, searchQuery, selectedDept, selectedRank, selectedStatus, viewMode]);
 
-  const filteredEmployees = employees;
+  const filteredEmployees = [...employees].sort((left, right) =>
+    left.code.localeCompare(right.code, 'vi', { numeric: true, sensitivity: 'base' }),
+  );
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const deletingEmployee = deletingId ? employees.find((employee) => employee.id === deletingId) : null;
 
@@ -223,7 +226,7 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             type="text"
-            placeholder="Tìm theo tên hoặc mã nhân viên..."
+            placeholder="Tìm theo mã nhân viên hoặc họ tên..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all placeholder:text-slate-400"
@@ -520,45 +523,33 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
         /* VIEW: TABLE */
         <div className="bg-white rounded-2xl border border-slate-200/80 shadow-2xs overflow-hidden">
           <div className="employee-table-scroll overflow-x-auto overscroll-x-contain">
-            <table className="w-full min-w-[1400px] table-fixed text-xs text-slate-600">
-              <colgroup>
-                <col className="w-[8%]" />
-                <col className="w-[13%]" />
-                <col className="w-[11%]" />
-                <col className="w-[13%]" />
-                <col className="w-[9%]" />
-                <col className="w-[10%]" />
-                <col className="w-[10%]" />
-                <col className="w-[17%]" />
-                <col className="w-[9%]" />
-              </colgroup>
+            <table className="w-full min-w-[900px] table-auto text-xs text-slate-600">
               <thead className="border-b border-slate-200 bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-500">
                 <tr>
-                  <th className="whitespace-nowrap px-4 py-4 text-center">Mã nhân viên</th>
-                  <th className="px-4 py-4 text-center">Họ và tên</th>
-                  <th className="px-4 py-4 text-center">Phòng ban</th>
-                  <th className="px-4 py-4 text-center">Chức vụ</th>
-                  <th className="whitespace-nowrap px-4 py-4 text-center">Cấp bậc</th>
-                  <th className="whitespace-nowrap px-4 py-4 text-center">Ngày gia nhập</th>
-                  <th className="whitespace-nowrap px-4 py-4 text-center">Trạng thái</th>
-                                    <th className="px-4 py-4 text-left">{"NG\u01af\u1edcI T\u1ea0O"}</th>
-<th className="whitespace-nowrap px-4 py-4 text-center">Thao tác</th>
+                  <th className="whitespace-nowrap px-2.5 py-2 text-left">Mã nhân viên</th>
+                  <th className="px-2.5 py-2 text-left">Họ và tên</th>
+                  <th className="px-2.5 py-2 text-left">Phòng ban</th>
+                  <th className="px-2.5 py-2 text-left">Chức vụ</th>
+                  <th className="whitespace-nowrap px-2.5 py-2 text-left">Cấp bậc</th>
+                  <th className="whitespace-nowrap px-2.5 py-2 text-center">Trạng thái</th>
+                  <th className="px-2.5 py-2 text-left">Người tạo</th>
+                  <th className="whitespace-nowrap px-2.5 py-2 text-center">Thao tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filteredEmployees.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="px-4 py-14 text-center text-sm text-slate-400">
+                    <td colSpan={8} className="px-3 py-10 text-left text-sm text-slate-400">
                       Không tìm thấy nhân viên nào phù hợp.
                     </td>
                   </tr>
                 ) : (
                   filteredEmployees.map((emp) => (
                     <tr key={emp.id} className="transition-colors hover:bg-emerald-50/35">
-                      <td className="whitespace-nowrap px-4 py-4 text-center font-mono text-xs font-bold text-emerald-700">
+                      <td className="whitespace-nowrap px-2.5 py-2 text-left font-mono text-xs font-bold text-emerald-700">
                         {emp.code}
                       </td>
-                      <td className="break-words px-4 py-4 text-center">
+                      <td className="break-words px-2.5 py-2 text-left">
                         <button
                           type="button"
                           onClick={() => onOpenDossier(emp)}
@@ -567,13 +558,12 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
                           {emp.fullName}
                         </button>
                       </td>
-                      <td className="break-words px-4 py-4 text-center text-slate-600">{getEmployeeDepartmentLabel(emp.department)}</td>
-                      <td className="break-words px-4 py-4 text-center font-medium text-slate-800">{emp.position}</td>
-                      <td className="break-words px-4 py-4 text-center font-medium text-slate-700">{getEmployeeRankLabel(emp.rank)}</td>
-                      <td className="whitespace-nowrap px-4 py-4 text-center font-medium text-slate-700">{emp.joinDate}</td>
-                      <td className="px-4 py-4 text-center">{renderStatusPill(emp.status)}</td>
-                      <td className="px-4 py-4 text-left">
-                        <div className="space-y-1 text-left text-xs leading-5">
+                      <td className="break-words px-2.5 py-2 text-left text-slate-600">{getEmployeeDepartmentLabel(emp.department)}</td>
+                      <td className="break-words px-2.5 py-2 text-left font-medium text-slate-800">{emp.position}</td>
+                      <td className="break-words px-2.5 py-2 text-left font-medium text-slate-700">{getEmployeeRankLabel(emp.rank)}</td>
+                      <td className="px-2.5 py-2 text-center">{renderStatusPill(emp.status)}</td>
+                      <td className="px-2.5 py-2 text-left">
+                        <div className="space-y-0 text-left text-[11px] leading-4">
                           <p className="break-words font-semibold text-slate-800">
                             {emp.createdBy?.name ?? "Ch\u01b0a c\u00f3 d\u1eef li\u1ec7u"}
                           </p>
@@ -581,8 +571,8 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
                           <p className="text-[11px] text-slate-400">{formatCreatedAt(emp.createdAt)}</p>
                         </div>
                       </td>
-                      <td className="px-4 py-4 text-center">
-                        <div className="flex items-center justify-center gap-1.5">
+                      <td className="px-2.5 py-2 text-center">
+                        <div className="flex items-center justify-center gap-0.5">
                           <button
                             type="button"
                             onClick={() => onOpenDossier(emp)}
@@ -687,122 +677,45 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
 
       {/* DETAIL DOSSIER POPUP MODAL */}
       {selectedEmployeeForDossier && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 relative">
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-900/60 p-4 backdrop-blur-xs">
+          <div className="relative my-auto w-full max-w-[360px]">
             <button
               onClick={onCloseDossier}
-              className="absolute top-5 right-5 p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full"
+              className="absolute right-3 top-3 z-10 rounded-full bg-white/90 p-1.5 text-slate-400 shadow-sm transition-colors hover:bg-white hover:text-slate-700"
+              aria-label="Đóng hồ sơ nhân viên"
             >
               <X className="w-5 h-5" />
             </button>
-
-            {/* Top Row: Avatar & Profile Header */}
-            <div className="flex items-start gap-4">
-              <div className="shrink-0">
-                {renderAvatar(selectedEmployeeForDossier, 'w-24 h-24')}
-              </div>
-
-              <div className="flex-1 min-w-0 pt-1">
-                <div className="mb-2">
-                  {renderStatusPill(selectedEmployeeForDossier.status)}
-                </div>
-                <h3 className="text-xl font-bold text-slate-900 tracking-tight leading-tight truncate">
-                  {selectedEmployeeForDossier.fullName}
-                </h3>
-                <p className="text-sm text-slate-600 font-medium mt-0.5">
-                  {selectedEmployeeForDossier.position}
-                </p>
-                <p className="text-sm text-slate-400 font-normal">
-                  {getEmployeeDepartmentLabel(selectedEmployeeForDossier.department)}
-                </p>
-              </div>
-            </div>
-
-            {/* Tabs */}
-            <div className="mt-5 border-b border-slate-100 flex items-center gap-6 text-sm">
-              <span className="pb-2.5 font-bold text-emerald-700 relative">
-                Thông tin chung
-                <span className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-emerald-600 rounded-full" />
-              </span>
-            </div>
-
-            {/* Fields list */}
-            <div className="mt-4 space-y-3.5 text-sm">
-              <div className="flex items-center">
-                <span className="w-8 flex items-center justify-start text-slate-400"><User className="w-4 h-4" /></span>
-                <span className="w-36 text-slate-500 font-normal">Mã nhân viên</span>
-                <span className="font-bold text-slate-900">{selectedEmployeeForDossier.code}</span>
-              </div>
-
-              <div className="flex items-center">
-                <span className="w-8 flex items-center justify-start text-slate-400"><Calendar className="w-4 h-4" /></span>
-                <span className="w-36 text-slate-500 font-normal">Ngày gia nhập</span>
-                <span className="font-bold text-slate-900">{selectedEmployeeForDossier.joinDate}</span>
-              </div>
-
-              <div className="flex items-center">
-                <span className="w-8 flex items-center justify-start text-slate-400"><Briefcase className="w-4 h-4" /></span>
-                <span className="w-36 text-slate-500 font-normal">Chức vụ</span>
-                <span className="font-bold text-slate-900">{selectedEmployeeForDossier.position}</span>
-              </div>
-
-              <div className="flex items-center">
-                <span className="w-8 flex items-center justify-start text-slate-400"><Building className="w-4 h-4" /></span>
-                <span className="w-36 text-slate-500 font-normal">Phòng ban</span>
-                <span className="font-bold text-slate-900">{getEmployeeDepartmentLabel(selectedEmployeeForDossier.department)}</span>
-              </div>
-
-              <div className="flex items-center">
-                <span className="w-8 flex items-center justify-start text-slate-400"><MapPin className="w-4 h-4" /></span>
-                <span className="w-36 text-slate-500 font-normal">Văn phòng</span>
-                <span className="font-bold text-slate-900">{selectedEmployeeForDossier.location}</span>
-              </div>
-
-              <div className="flex items-center">
-                <span className="w-8 flex items-center justify-start text-slate-400"><Mail className="w-4 h-4" /></span>
-                <span className="w-36 text-slate-500 font-normal">Email</span>
-                <span className="font-bold text-slate-900">{selectedEmployeeForDossier.email}</span>
-              </div>
-
-              <div className="flex items-center">
-                <span className="w-8 flex items-center justify-start text-slate-400"><Phone className="w-4 h-4" /></span>
-                <span className="w-36 text-slate-500 font-normal">Số điện thoại</span>
-                <span className="font-bold text-slate-900">{selectedEmployeeForDossier.phone}</span>
-              </div>
-
-              <div className="flex items-center">
-                <span className="w-8 flex items-center justify-start text-slate-400"><Cake className="w-4 h-4" /></span>
-                <span className="w-36 text-slate-500 font-normal">Ngày sinh</span>
-                <span className="font-bold text-slate-900">{selectedEmployeeForDossier.birthDate}</span>
-              </div>
-              <div className="flex items-center">
-                <span className="w-8 flex items-center justify-start text-slate-400"><User className="w-4 h-4" /></span>
-                <span className="w-36 text-slate-500 font-normal">Giới tính</span>
-                <span className="font-bold text-slate-900">{getEmployeeGenderLabel(selectedEmployeeForDossier.gender)}</span>
-              </div>
-            </div>
-
-            {hasRichTextContent(selectedEmployeeForDossier.bio) && (
-              <div className="mt-4 p-3 bg-slate-50 rounded-2xl border border-slate-100 text-xs text-slate-700">
-                <span className="font-semibold block text-slate-500 mb-1">Mô tả:</span>
-                <RichText
-                  html={selectedEmployeeForDossier.bio ?? ""}
-                  className="leading-5 [&_a]:text-emerald-700 [&_a]:underline [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:mb-2 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5"
-                />
-              </div>
-            )}
-
-            <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
-              <button
-                onClick={() => {
-                  onCloseDossier();
-                  onNavigateToEdit?.(selectedEmployeeForDossier);
-                }}
-                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl flex items-center gap-1.5"
-              >
-                <Edit3 className="w-3.5 h-3.5" /> Chỉnh sửa hồ sơ
-              </button>
-            </div>
+            <EmployeeProfileCard
+              avatar={selectedEmployeeForDossier.avatar}
+              fallbackAvatar="/assets/images/default-avatar.png"
+              name={selectedEmployeeForDossier.fullName}
+              position={selectedEmployeeForDossier.position}
+              status={selectedEmployeeForDossier.status}
+              details={[
+                { icon: User, label: 'Mã nhân viên', value: selectedEmployeeForDossier.code },
+                { icon: Calendar, label: 'Ngày gia nhập', value: selectedEmployeeForDossier.joinDate },
+                { icon: Briefcase, label: 'Chức vụ', value: selectedEmployeeForDossier.position },
+                { icon: Building, label: 'Phòng ban', value: getEmployeeDepartmentLabel(selectedEmployeeForDossier.department) },
+                { icon: MapPin, label: 'Văn phòng', value: selectedEmployeeForDossier.location },
+                { icon: Mail, label: 'Email', value: selectedEmployeeForDossier.email },
+                { icon: Phone, label: 'Số điện thoại', value: selectedEmployeeForDossier.phone },
+              ]}
+              description={selectedEmployeeForDossier.bio}
+              imageSizes="360px"
+              className="w-full shadow-2xl"
+              footer={
+                <button
+                  onClick={() => {
+                    onCloseDossier();
+                    onNavigateToEdit?.(selectedEmployeeForDossier);
+                  }}
+                  className="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-700"
+                >
+                  <Edit3 className="h-3.5 w-3.5" /> Chỉnh sửa hồ sơ
+                </button>
+              }
+            />
           </div>
         </div>
       )}

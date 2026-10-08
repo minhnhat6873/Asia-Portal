@@ -141,7 +141,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           const isActive =
             activeTab === item.id ||
             (item.id === 'employees' && (activeTab === 'add-employee' || activeTab === 'edit-employee')) ||
-            (item.id === 'media' && activeTab === 'add-media');
+            (item.id === 'media' && (activeTab === 'add-media' || activeTab === 'edit-media'));
           return (
             <button
               key={item.id}

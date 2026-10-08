@@ -34,6 +34,8 @@ export interface MediaPost {
   authorDepartment: string; // e.g. PhÃƒÂ²ng Marketing, Ban TruyÃ¡Â»Ân thÃƒÂ´ng
   publishDate: string; // e.g. 05/09/2026
   status: 'published' | 'draft';
+  createdBy?: { accountId: string; name: string; email: string };
+  createdAt?: string;
 }
 
 export type TrashEntityType = 'employee' | 'media' | 'account' | 'access_user' | 'role';
@@ -49,7 +51,7 @@ export interface TrashItem {
   payload: unknown;
 }
 
-export type ActiveTab = 'overview' | 'employees' | 'media' | 'add-employee' | 'edit-employee' | 'add-media' | 'permissions' | 'system-settings' | 'account';
+export type ActiveTab = 'overview' | 'employees' | 'media' | 'add-employee' | 'edit-employee' | 'add-media' | 'edit-media' | 'permissions' | 'system-settings' | 'account';
 
 /* -------------------------------------------------------------------------- *
  * Account roles & permissions Ã¢â‚¬â€ the "PhÃƒÂ¢n quyÃ¡Â»Ân quÃ¡ÂºÂ£n lÃƒÂ½" tab

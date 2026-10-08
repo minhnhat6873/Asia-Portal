@@ -13,8 +13,6 @@ import {
   TrashItem
 } from './types';
 import {
-  getStoredMediaPosts,
-  saveStoredMediaPosts,
   getStoredUsers,
   saveStoredUsers,
   getStoredTrashItems,
@@ -41,6 +39,7 @@ import { ChevronDown, KeyRound, LogOut, Menu, ShieldCheck, UserRound } from 'luc
 import { getDashboardSummary, type DashboardSummary } from './dashboard.service';
 import { getAdminEmployee, getAdminEmployees, softDeleteAdminEmployee, type AdminEmployeeListParams, type AdminEmployeeResult } from '@/services/admin-employee.service';
 import { toast } from 'sonner';
+import { getAdminMedia, getAdminMediaById, type AdminMediaListParams } from '@/services/admin-media.service';
 
 export const ADMIN_TAB_ROUTES: Record<ActiveTab, string> = {
   overview: '/admin/dashboard',
@@ -49,6 +48,7 @@ export const ADMIN_TAB_ROUTES: Record<ActiveTab, string> = {
   'edit-employee': '/admin/employees',
   media: '/admin/media',
   'add-media': '/admin/media/new',
+  'edit-media': '/admin/media',
   permissions: '/admin/access-control',
   'system-settings': '/admin/settings',
   account: '/admin/account',
@@ -70,6 +70,7 @@ function getTabFromPath(pathname: string): ActiveTab {
   if (/^\/admin\/employees\/[^/]+\/edit$/.test(pathname)) return "edit-employee";
   if (pathname.startsWith("/admin/employees")) return "employees";
   if (pathname === "/admin/media/new") return "add-media";
+  if (/^\/admin\/media\/[^/]+\/edit$/.test(pathname)) return "edit-media";
   if (pathname.startsWith("/admin/media")) return "media";
   if (pathname.startsWith("/admin/access-control")) return "permissions";
   if (pathname.startsWith("/admin/settings")) return "system-settings";
@@ -138,6 +139,14 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
   const [isEditingEmployeeLoading, setIsEditingEmployeeLoading] = useState(false);
   const [editingEmployeeError, setEditingEmployeeError] = useState<string | null>(null);
   const [mediaPosts, setMediaPosts] = useState<MediaPost[]>([]);
+  const [mediaTotal, setMediaTotal] = useState(0);
+  const [mediaListParams, setMediaListParams] = useState<AdminMediaListParams>({ page: 1, limit: 12, sort: 'latest' });
+  const [mediaLoadError, setMediaLoadError] = useState<string | null>(null);
+  const [areMediaLoading, setAreMediaLoading] = useState(true);
+  const editingMediaId = pathname.match(/^\/admin\/media\/([^/]+)\/edit$/)?.[1];
+  const [editingMedia, setEditingMedia] = useState<MediaPost | null>(null);
+  const [isEditingMediaLoading, setIsEditingMediaLoading] = useState(Boolean(editingMediaId));
+  const [editingMediaError, setEditingMediaError] = useState<string | null>(null);
   const [users, setUsers] = useState<UserAccount[]>([]);
   const [trashItems, setTrashItems] = useState<TrashItem[]>([]);
   const [currentUser, setCurrentUserState] = useState<UserAccount | null>(null);
@@ -185,6 +194,21 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
   }, [editingEmployeeId]);
 
   useEffect(() => {
+    if (!editingMediaId) return;
+    const controller = new AbortController();
+    void getAdminMediaById(decodeURIComponent(editingMediaId), controller.signal)
+      .then(setEditingMedia)
+      .catch((error: unknown) => {
+        if (!controller.signal.aborted) {
+          setEditingMedia(null);
+          setEditingMediaError(error instanceof Error ? error.message : "Không thể tải bài viết.");
+        }
+      })
+      .finally(() => { if (!controller.signal.aborted) setIsEditingMediaLoading(false); });
+    return () => controller.abort();
+  }, [editingMediaId]);
+
+  useEffect(() => {
     const syncSession = () => setSessionAccount(getAdminSession());
     syncSession();
     window.addEventListener("asia-admin-session", syncSession);
@@ -213,6 +237,23 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
     }
   }, [employeeListParams]);
 
+  const loadMedia = useCallback(async (signal?: AbortSignal) => {
+    try {
+      const result = await getAdminMedia(mediaListParams, signal);
+      setMediaPosts(result.items);
+      setMediaTotal(result.pagination.total);
+      setMediaLoadError(null);
+    } catch (error) {
+      if (!signal?.aborted) {
+        setMediaPosts([]);
+        setMediaTotal(0);
+        setMediaLoadError(error instanceof Error ? error.message : "Không thể tải danh sách truyền thông.");
+      }
+    } finally {
+      if (!signal?.aborted) setAreMediaLoading(false);
+    }
+  }, [mediaListParams]);
+
   const refreshDashboardSummary = useCallback(async (signal?: AbortSignal) => {
     try {
       const summary = await getDashboardSummary(signal);
@@ -230,11 +271,26 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
     setEmployeeListParams((current) => ({ ...current, page }));
   }, []);
 
+  const handleMediaFiltersChange = useCallback((filters: AdminMediaListParams) => {
+    setAreMediaLoading(true);
+    setMediaListParams({ ...filters, page: 1, limit: 12 });
+  }, []);
+
+  const handleMediaPageChange = useCallback((page: number) => {
+    setAreMediaLoading(true);
+    setMediaListParams((current) => ({ ...current, page }));
+  }, []);
+
   useEffect(() => {
     const controller = new AbortController();
     void loadEmployees(controller.signal);
     return () => controller.abort();
   }, [loadEmployees]);
+  useEffect(() => {
+    const controller = new AbortController();
+    queueMicrotask(() => void loadMedia(controller.signal));
+    return () => controller.abort();
+  }, [loadMedia]);
   useEffect(() => {
     const controller = new AbortController();
     void refreshDashboardSummary(controller.signal);
@@ -262,11 +318,9 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
   const [selectedDossierEmployee, setSelectedDossierEmployee] = useState<Employee | null>(null);
   const [previewMediaPost, setPreviewMediaPost] = useState<MediaPost | null>(null);
 
-  // Initialize data from localStorage, then stay in step with any other tab
-  // that edits the same store (e.g. a second admin dashboard window).
+  // Account/access-control data still uses the legacy browser store.
   useEffect(() => {
     const load = () => {
-      setMediaPosts(getStoredMediaPosts());
       const storedUsers = getStoredUsers();
       const normalizedUsers = storedUsers.map((user) =>
         user.role === 'admin'
@@ -289,7 +343,7 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
       if (needsAdminNormalization) saveStoredUsers(normalizedUsers);
       setUsers(normalizedUsers);
       const storedTrashItems = getStoredTrashItems();
-      const realTrashItems = storedTrashItems.filter((item) => item.entityType !== 'employee');
+      const realTrashItems = storedTrashItems.filter((item) => item.entityType !== 'employee' && item.entityType !== 'media');
       if (realTrashItems.length !== storedTrashItems.length) saveStoredTrashItems(realTrashItems);
       setTrashItems(realTrashItems);
       setCurrentUserState(getCurrentUser());
@@ -400,38 +454,28 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
   };
 
   // --- MEDIA CRUD ---
-  const handleAddMedia = (newPostData: Omit<MediaPost, 'id'>) => {
-    const newPost: MediaPost = {
-      ...newPostData,
-      id: `media-${Date.now()}`,
-    };
-    const updated = [newPost, ...mediaPosts];
-    setMediaPosts(updated);
-    saveStoredMediaPosts(updated);
+  const handleAddMedia = (newPost: MediaPost) => {
+    setMediaPosts((items) => [newPost, ...items]);
+    setMediaTotal((total) => total + 1);
+    void refreshDashboardSummary();
     addToast(`Đã lưu bài viết truyền thông "${newPost.title.slice(0, 32)}..." thành công!`);
   };
 
   const handleUpdateMedia = (updatedPost: MediaPost) => {
-    const updated = mediaPosts.map((m) => (m.id === updatedPost.id ? updatedPost : m));
-    setMediaPosts(updated);
-    saveStoredMediaPosts(updated);
+    setMediaPosts((items) => items.map((post) => post.id === updatedPost.id ? updatedPost : post));
     if (previewMediaPost?.id === updatedPost.id) {
       setPreviewMediaPost(updatedPost);
     }
-    addToast(`Đã cập nhật bài viết truyền thông!`);
+    void refreshDashboardSummary();
   };
 
   const handleDeleteMedia = (id: string) => {
-    const postToDelete = mediaPosts.find((m) => m.id === id);
-    if (!postToDelete) return;
-    const updated = mediaPosts.filter((m) => m.id !== id);
-    setMediaPosts(updated);
-    saveStoredMediaPosts(updated);
+    setMediaPosts((items) => items.filter((post) => post.id !== id));
+    setMediaTotal((total) => Math.max(0, total - 1));
     if (previewMediaPost?.id === id) {
       setPreviewMediaPost(null);
     }
-    addTrashItem({ entityType: 'media', title: postToDelete.title, payload: postToDelete });
-    addToast(`Đã xóa bài viết "${postToDelete?.title.slice(0, 28) || ''}..."`, 'info');
+    void refreshDashboardSummary();
   };
 
   // --- ACCOUNT APPROVAL & PERMISSIONS ---
@@ -544,16 +588,6 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
   };
 
   const restoreExternalTrashItem = async (item: TrashItem) => {
-    if (item.entityType === 'media') {
-      const post = item.payload as MediaPost;
-      setMediaPosts((items) => {
-        const next = items.some((entry) => entry.id === post.id) ? items : [post, ...items];
-        saveStoredMediaPosts(next);
-        return next;
-      });
-      addToast(`Đã khôi phục bài truyền thông “${post.title}”.`);
-      return;
-    }
     if (item.entityType === 'account') {
       const account = item.payload as UserAccount;
       setUsers((items) => {
@@ -646,7 +680,7 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
             if (window.matchMedia('(max-width: 767px)').matches) setIsSidebarOpen(false);
           }}
           employeeCount={dashboardSummary?.totalEmployees ?? employeeTotal}
-          mediaCount={mediaPosts.length}
+          mediaCount={dashboardSummary?.totalMediaPosts ?? mediaTotal}
           pendingUsersCount={pendingUsersCount}
         />
       </div>
@@ -687,6 +721,7 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
               {activeTab === 'add-employee' && 'Thêm Nhân Viên Mới'}
               {activeTab === 'media' && 'Quản Lý Truyền Thông'}
               {activeTab === 'add-media' && 'Đăng Tin Truyền Thông'}
+              {activeTab === 'edit-media' && 'Chỉnh Sửa Tin Truyền Thông'}
               {activeTab === 'permissions' && 'Phân Quyền & Quản Lý Tài Khoản'}
               {activeTab === 'system-settings' && 'Cài Đặt Hệ Thống'}
               {activeTab === 'account' && 'Thông Tin Tài Khoản'}
@@ -782,12 +817,23 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
             {activeTab === 'media' && (
               <MediaManagement
                 mediaPosts={mediaPosts}
-                onAddMedia={handleAddMedia}
-                onUpdateMedia={handleUpdateMedia}
-                onDeleteMedia={handleDeleteMedia}
+                total={mediaTotal}
+                page={Number(mediaListParams.page) || 1}
+                pageSize={Number(mediaListParams.limit) || 12}
+                isLoading={areMediaLoading}
+                loadError={mediaLoadError}
+                onFiltersChange={handleMediaFiltersChange}
+                onPageChange={handleMediaPageChange}
+                onReload={() => {
+                  setAreMediaLoading(true);
+                  void loadMedia();
+                }}
+                onUpdated={handleUpdateMedia}
+                onDeleted={handleDeleteMedia}
                 previewPost={previewMediaPost}
                 onSelectPreview={(post) => setPreviewMediaPost(post)}
                 onNavigateToAdd={() => navigateToTab('add-media')}
+                onNavigateToEdit={(post) => router.push(`/admin/media/${encodeURIComponent(post.id)}/edit`)}
               />
             )}
 
@@ -800,6 +846,25 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
                   navigateToTab('media');
                 }}
               />
+            )}
+
+            {activeTab === 'edit-media' && (
+              isEditingMediaLoading ? (
+                <div className="rounded-3xl border border-slate-200 bg-white p-8 text-sm text-slate-500">Đang tải bài viết...</div>
+              ) : editingMedia ? (
+                <AddMediaPage
+                  key={editingMedia.id}
+                  mode="edit"
+                  initialPost={editingMedia}
+                  onBack={() => router.push('/admin/media')}
+                  onSave={(updatedPost) => {
+                    handleUpdateMedia(updatedPost);
+                    router.push('/admin/media');
+                  }}
+                />
+              ) : (
+                <div className="rounded-3xl border border-rose-200 bg-rose-50 p-6 text-sm text-rose-700">{editingMediaError ?? 'Không tìm thấy bài viết.'}</div>
+              )
             )}
 
             {/* 6. Trang Phân Quyền Quản Lý & Duyệt Tài Khoản Đăng Ký */}
@@ -831,7 +896,7 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
                   onNavigate={navigateToTab}
                   page={accessControlPage}
                   onNavigateToPage={(page) => router.push(ACCESS_CONTROL_PAGE_ROUTES[page])}
-                  trashItems={trashItems.filter((item) => item.entityType !== 'employee')}
+                  trashItems={trashItems.filter((item) => item.entityType !== 'employee' && item.entityType !== 'media')}
                   onAddTrashItem={addTrashItem}
                   onRemoveTrashItem={removeTrashItem}
                   onRestoreExternalTrashItem={restoreExternalTrashItem}

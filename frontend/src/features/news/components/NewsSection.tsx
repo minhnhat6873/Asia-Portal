@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { newsCategories, NewsItem } from "@/config/news";
-import { useNews } from "@/lib/usePortalContent";
+import { getPublicMedia } from "@/services/media.service";
 import { ArrowRight, Calendar, User, ChevronRight, Search, ArrowDownUp, LayoutGrid, Newspaper, Users, Megaphone, X, RotateCcw } from "lucide-react";
 import { hasRichTextContent, RichText } from "@/components/ui/RichText";
 
@@ -94,7 +94,7 @@ function NewsDetailPanel({ item, onClose }: { item: NewsItem; onClose: () => voi
           <div className="mt-3 flex items-center gap-2 text-slate-400"><User size={15} /> <span>{item.author}</span></div>
         </div>
         {hasRichTextContent(item.content) && (
-          <RichText html={item.content} className="mt-5 rounded-xl bg-[#eff9f1] p-3 text-xs leading-relaxed text-[#287348] [&_p]:my-0" />
+          <RichText html={item.content} className="rich-content mt-5 rounded-xl bg-[#eff9f1] p-3 text-xs leading-relaxed text-[#287348]" />
         )}
       </div>
     </aside>
@@ -117,13 +117,34 @@ const categoryBadgeClass: Record<string, string> = {
 };
 
 export default function NewsSection({ preview = false }: Props) {
-  // Live content: static config until the admin dashboard publishes, then the
-  // admin's published posts only (drafts stay admin-side).
-  const news = useNews();
+  const [news, setNews] = useState<NewsItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState("Tất cả");
   const [searchQuery, setSearchQuery] = useState("");
   const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
   const [selectedNews, setSelectedNews] = useState<NewsItem | null>(null);
+
+  const loadNews = useCallback(async (signal?: AbortSignal) => {
+    try {
+      const result = await getPublicMedia({ limit: 100, sort: "latest" }, signal);
+      setNews(result.items);
+      setLoadError(null);
+    } catch (error) {
+      if (!signal?.aborted) {
+        setNews([]);
+        setLoadError(error instanceof Error ? error.message : "Không thể tải tin tức.");
+      }
+    } finally {
+      if (!signal?.aborted) setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    queueMicrotask(() => void loadNews(controller.signal));
+    return () => controller.abort();
+  }, [loadNews]);
 
   const filtered = news.filter(
     (n) => activeCategory === "Tất cả" || n.category === activeCategory
@@ -172,7 +193,13 @@ export default function NewsSection({ preview = false }: Props) {
   // the grid and can open the detail panel on the right.
   const showFeatured = !preview && !isSearching && activeCategory === newsCategories[0];
   const featuredEvent = showFeatured
-    ? sortedItems.find((item) => categoryBadgeClass[item.category] === "badge-event") ?? null
+    ? [...sortedItems]
+        .filter((item) => categoryBadgeClass[item.category] === "badge-event")
+        .sort((first, second) => {
+          const firstCreatedAt = first.createdAt ? new Date(first.createdAt).getTime() : 0;
+          const secondCreatedAt = second.createdAt ? new Date(second.createdAt).getTime() : 0;
+          return secondCreatedAt - firstCreatedAt;
+        })[0] ?? null
     : null;
   const gridItems = featuredEvent ? sortedItems.filter((item) => item.id !== featuredEvent.id) : sortedItems;
   // The panel opens on click and stays closed until then. It used to be forced
@@ -188,9 +215,11 @@ export default function NewsSection({ preview = false }: Props) {
   return (
     <section className={preview ? "bg-white py-8 sm:py-12 xl:py-16" : "bg-white pb-8 sm:pb-12 xl:pb-16"}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
+        {isLoading && <div className="mb-8 grid gap-5 md:grid-cols-3">{[0, 1, 2].map((item) => <div key={item} className="h-64 animate-pulse rounded-2xl bg-slate-100" />)}</div>}
+        {!isLoading && loadError && <div className="mb-8 rounded-2xl border border-rose-200 bg-rose-50 p-8 text-center text-sm text-rose-700"><p>{loadError}</p><button type="button" onClick={() => { setIsLoading(true); void loadNews(); }} className="mt-3 rounded-xl bg-rose-600 px-4 py-2 font-bold text-white">Thử lại</button></div>}
         {/* Header */}
         {!preview && (
-          <div className="relative left-1/2 mb-8 h-[260px] w-screen -translate-x-1/2 overflow-hidden md:h-[340px]">
+          <div className="relative left-1/2 mb-8 h-56 w-screen -translate-x-1/2 overflow-hidden sm:h-64 xl:h-75">
             <Image
               src="/assets/images/truyenthong1.png"
               alt="Tin tức và truyền thông"
@@ -219,7 +248,7 @@ export default function NewsSection({ preview = false }: Props) {
         <div className={preview ? "mb-7 flex flex-col items-start gap-4 sm:mb-10 sm:flex-row sm:items-end sm:justify-between sm:gap-6" : "hidden"}>
           <div className="max-w-2xl">
             <p className="mb-2 text-[10px] font-extrabold uppercase tracking-[0.28em] text-[#16894a] sm:mb-3 sm:text-xs">
-              Wana Stories
+              Asia Stories
             </p>
             <h2 className="text-3xl font-black leading-[1.05] tracking-[-0.035em] text-[#073d37] sm:text-4xl xl:text-5xl">
               Tin tức &amp; Truyền thông

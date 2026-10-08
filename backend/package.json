@@ -19,7 +19,8 @@
     "mongoose-slug-updater": "^3.3.0",
     "multer": "^2.4.0",
     "multer-storage-cloudinary": "^4.0.0",
-    "nodemailer": "^10.0.13"
+    "nodemailer": "^10.0.13",
+    "sanitize-html": "2.13.1"
   },
   "scripts": {
     "dev": "nodemon --legacy-watch --exec ts-node index.ts",
@@ -27,7 +28,8 @@
     "start": "node dist/index.js",
     "test": "jest",
     "seed:admin": "ts-node scripts/create-admin.ts",
-    "seed:employees": "ts-node scripts/seed-employees.ts"
+    "seed:employees": "ts-node scripts/seed-employees.ts",
+    "seed:media": "ts-node scripts/seed-media.ts"
   },
   "devDependencies": {
     "@types/cookie-parser": "^1.4.10",
@@ -38,6 +40,7 @@
     "@types/multer": "^2.3.0",
     "@types/node": "^26.6.2",
     "@types/nodemailer": "^8.0.2",
+    "@types/sanitize-html": "^2.16.0",
     "jest": "^30.5.2",
     "nodemon": "^3.1.14",
     "ts-jest": "^29.4.12",

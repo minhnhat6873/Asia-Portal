@@ -8,7 +8,7 @@ import type {
 } from "../../interfaces/employee.interface";
 import { adminEmployeeRepository } from "../../repositories/admin/employee.repository";
 import { AppError } from "../../utils/errors/AppError";
-import { escapeRegex } from "../../utils/regex/escapeRegex";
+import { normalizeSearchText } from "../../utils/text/normalizeSearchText";
 
 function ensureValidId(id: string): void {
   if (!mongoose.isValidObjectId(id)) {
@@ -22,26 +22,30 @@ export const adminEmployeeService = {
     const limit = Math.min(Math.max(Number(query.limit) || 12, 1), 100);
     const filter: QueryFilter<Employee> = { isDeleted: { $ne: true } };
 
-    if (query.search?.trim()) {
-      const keyword = new RegExp(escapeRegex(query.search.trim()), "i");
-      filter.$or = [
-        { name: keyword },
-        { employeeCode: keyword },
-      ];
-    }
-
     if (query.department) filter.department = query.department;
     if (query.position) filter.position = query.position;
     if (query.rank) filter.rank = query.rank;
     if (query.status) filter.status = query.status;
 
-    const sortDirection = query.sort === "oldest" ? 1 : -1;
+    const sort: Record<string, 1 | -1> = query.sort
+      ? { joinDate: query.sort === "oldest" ? 1 : -1 }
+      : { employeeCode: 1 };
+    const normalizedSearch = normalizeSearchText(query.search);
+    if (normalizedSearch) {
+      const matchingItems = (await adminEmployeeRepository.findAllForSearch(filter, sort)).filter((employee) =>
+        normalizeSearchText(`${employee.employeeCode} ${employee.name}`).includes(normalizedSearch),
+      );
+      const total = matchingItems.length;
+      const items = matchingItems.slice((page - 1) * limit, page * limit);
+      return { items, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } };
+    }
+
     const [items, total] = await Promise.all([
       adminEmployeeRepository.findAll({
         filter,
         skip: (page - 1) * limit,
         limit,
-        sort: { joinDate: sortDirection },
+        sort,
       }),
       adminEmployeeRepository.count(filter),
     ]);
@@ -111,21 +115,27 @@ export const adminEmployeeService = {
     const limit = Math.min(Math.max(Number(query.limit) || 20, 1), 100);
     const filter: QueryFilter<Employee> = { isDeleted: true };
 
-    if (query.search?.trim()) {
-      const keyword = new RegExp(escapeRegex(query.search.trim()), "i");
-      filter.$or = [{ name: keyword }, { employeeCode: keyword }];
-    }
-
     if (query.department) filter.department = query.department;
     if (query.rank) filter.rank = query.rank;
     if (query.status) filter.status = query.status;
+
+    const sort = { deletedAt: -1 as const };
+    const normalizedSearch = normalizeSearchText(query.search);
+    if (normalizedSearch) {
+      const matchingItems = (await adminEmployeeRepository.findAllForSearch(filter, sort)).filter((employee) =>
+        normalizeSearchText(`${employee.employeeCode} ${employee.name}`).includes(normalizedSearch),
+      );
+      const total = matchingItems.length;
+      const items = matchingItems.slice((page - 1) * limit, page * limit);
+      return { items, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } };
+    }
 
     const [items, total] = await Promise.all([
       adminEmployeeRepository.findAll({
         filter,
         skip: (page - 1) * limit,
         limit,
-        sort: { deletedAt: -1 },
+        sort,
       }),
       adminEmployeeRepository.count(filter),
     ]);

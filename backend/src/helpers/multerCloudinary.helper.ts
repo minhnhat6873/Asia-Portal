@@ -26,6 +26,15 @@ const avatarStorage = new CloudinaryStorage({
   } as never,
 });
 
+const mediaCoverStorage = new CloudinaryStorage({
+  cloudinary,
+  params: {
+    folder: "asia-portal/media",
+    resource_type: "image",
+    allowed_formats: ["jpg", "jpeg", "png", "webp"],
+  } as never,
+});
+
 export function requireCloudinaryConfig(
   _request: Request,
   _response: Response,
@@ -43,6 +52,14 @@ export function requireCloudinaryConfig(
   }
 
   next();
+}
+
+function hasCloudinaryConfiguration(): boolean {
+  return [
+    process.env.CLOUDINARY_NAME,
+    process.env.CLOUDINARY_API_KEY,
+    process.env.CLOUDINARY_API_SECRET,
+  ].every((value) => value?.trim());
 }
 
 export async function deleteCloudinaryAsset(publicId?: string): Promise<void> {
@@ -76,6 +93,22 @@ export const uploadAvatar = multer({
       return;
     }
 
+    callback(null, true);
+  },
+});
+
+export const uploadMediaCover = multer({
+  storage: mediaCoverStorage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_request, file, callback) => {
+    if (!hasCloudinaryConfiguration()) {
+      callback(new AppError(503, "Cloudinary chưa được cấu hình trên máy chủ."));
+      return;
+    }
+    if (!allowedAvatarMimeTypes.has(file.mimetype)) {
+      callback(new AppError(400, "Chỉ chấp nhận ảnh JPEG, PNG hoặc WebP."));
+      return;
+    }
     callback(null, true);
   },
 });

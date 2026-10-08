@@ -6,6 +6,7 @@ jest.mock("../src/repositories/admin/employee.repository", () => ({
     softDeleteById: jest.fn(),
     restoreById: jest.fn(),
     permanentlyDeleteById: jest.fn(),
+    findAllForSearch: jest.fn(),
   },
 }));
 
@@ -43,5 +44,21 @@ describe("admin employee service delete flow", () => {
     await expect(adminEmployeeService.permanentlyDeleteEmployee(employeeId)).rejects.toMatchObject({
       statusCode: 404,
     });
+  });
+});
+
+describe("admin employee normalized search", () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it("chỉ tìm theo mã nhân viên và họ tên, không phân biệt dấu", async () => {
+    jest.mocked(adminEmployeeRepository.findAllForSearch).mockResolvedValue([
+      { employeeCode: "ACF001", name: "Đặng Nguyễn", department: "Kế toán" },
+      { employeeCode: "ACF002", name: "Lê Minh", department: "Đặng Nguyễn" },
+    ] as never);
+
+    const result = await adminEmployeeService.getEmployees({ search: "  dang   nguyen  " });
+
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0]?.employeeCode).toBe("ACF001");
   });
 });

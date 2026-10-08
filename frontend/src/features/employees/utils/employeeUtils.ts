@@ -1,7 +1,7 @@
 import type { Employee } from "@/types/employee";
 
 export function getEmployeeAvatar(employee: Employee) {
-  return employee.avatar || "/assets/images/default-avatar.png";
+  return employee.avatar || "";
 }
 
 export function getEmployeeCode(employee: Employee) {

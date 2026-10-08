@@ -28,6 +28,8 @@ interface AvatarUploaderProps {
   pickerAriaLabel?: string;
   removeAriaLabel?: string;
   changeLabel?: string;
+  inputId?: string;
+  inputName?: string;
 }
 
 export default function AvatarUploader({
@@ -42,6 +44,8 @@ export default function AvatarUploader({
   pickerAriaLabel = "Chọn ảnh đại diện",
   removeAriaLabel = "Bỏ ảnh đại diện",
   changeLabel = "Thay ảnh",
+  inputId = "employee-avatar-upload",
+  inputName = "avatar",
 }: AvatarUploaderProps) {
   const [message, setMessage] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -130,7 +134,7 @@ export default function AvatarUploader({
 
   return (
     <div>
-      <label htmlFor="employee-avatar-upload" className="mb-1.5 block text-sm font-bold text-slate-700">
+      <label htmlFor={inputId} className="mb-1.5 block text-sm font-bold text-slate-700">
         {label}
       </label>
 
@@ -182,8 +186,8 @@ export default function AvatarUploader({
           </div>
         ) : (
           <file-pond
-            id="employee-avatar-upload"
-            name="avatar"
+            id={inputId}
+            name={inputName}
             accept="image/jpeg,image/png,image/webp"
             multiple={false}
             maxFiles={1}

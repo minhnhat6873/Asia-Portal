@@ -1,32 +1,36 @@
-import { ArrowRight } from "lucide-react";
-import Link from "next/link";
+import { Leaf } from "lucide-react";
 
 export default function HeroBanner() {
   return (
     <section className="relative isolate min-h-[330px] overflow-hidden sm:min-h-[360px] xl:min-h-[500px]">
       <div
-        className="absolute inset-0 bg-cover bg-[position:60%_center] sm:bg-center"
+        className="absolute inset-0 bg-cover bg-left bg-no-repeat sm:bg-center"
         style={{ backgroundImage: "url('/assets/images/home-1.png')" }}
       />
-      <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/25 to-transparent" />
 
-      <div className="relative z-10 mx-auto flex min-h-[330px] max-w-7xl items-center px-4 sm:min-h-[360px] sm:px-6 xl:min-h-[500px]">
-        <div className="max-w-xl text-white">
-          <p className="mb-2 text-[10px] sm:mb-3 sm:text-xs font-bold uppercase tracking-[0.35em] text-[#f5c800]">
-            Asia Internal Portal
-          </p>
-          <h1 className="text-3xl font-black leading-tight drop-shadow-lg sm:text-4xl xl:text-6xl">
-            Asia Food &amp; Beverage
+      <div className="relative z-10 mx-auto flex min-h-[330px] w-full max-w-[1800px] items-start px-3 pt-4 sm:min-h-[360px] sm:px-8 sm:pt-6 lg:px-[4%] xl:min-h-[500px] xl:pt-8">
+        <div className="w-fit max-w-full">
+          <div className="mb-4 flex items-center justify-center gap-3 text-[#064d20] sm:mb-5">
+            <p className="text-[8px] font-bold uppercase tracking-[0.32em] sm:text-[10px] xl:text-sm">
+              Asia Internal Portal
+            </p>
+            <Leaf className="h-5 w-5 fill-[#279318] sm:h-7 sm:w-7" strokeWidth={1.5} />
+            <span className="hidden h-px w-14 bg-[#28742c] sm:block" aria-hidden="true" />
+          </div>
+
+          <h1 className="uppercase leading-[0.95] tracking-[-0.045em] drop-shadow-[0_2px_1px_rgba(255,255,255,0.9)]">
+            <span className="block text-[1.65rem] font-black text-[#08701c] sm:text-[clamp(2.25rem,4.3vw,4.8rem)]">
+              Asia Food &amp;
+            </span>
+            <span className="mt-1 block text-[1.65rem] font-black text-[#ff9d00] sm:mt-2 sm:text-[clamp(2.25rem,4.3vw,4.8rem)]">
+              Beverage
+            </span>
           </h1>
-          <p className="mt-3 max-w-xs text-xs leading-relaxed text-white/90 sm:mt-4 sm:max-w-md sm:text-sm xl:text-base">
-            Kết nối đội ngũ, cập nhật thông tin và cùng phát triển mỗi ngày.
+
+          <p className="mx-auto mt-4 w-[78%] max-w-[570px] text-center text-[11px] font-medium leading-[1.35] text-black drop-shadow-[0_1px_1px_rgba(255,255,255,0.9)] sm:text-base xl:mt-5 xl:text-xl">
+            Kết nối đội ngũ, cập nhật thông tin
+            <br className="hidden sm:block" /> và cùng phát triển mỗi ngày.
           </p>
-          <Link
-            href="/employees"
-            className="mt-5 inline-flex items-center gap-2 rounded-full bg-[#c8e63a] px-5 py-2.5 text-xs sm:mt-7 sm:px-7 sm:py-3 sm:text-sm font-semibold text-[#1a1a1a] shadow-md transition-colors hover:bg-[#b5d42a]"
-          >
-            Khám phá ngay <ArrowRight size={16} />
-          </Link>
         </div>
       </div>
     </section>

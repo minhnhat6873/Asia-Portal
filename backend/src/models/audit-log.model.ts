@@ -11,7 +11,7 @@ const auditLogSchema = new Schema<AuditLog>(
       _id: false,
     },
     action: { type: String, enum: AUDIT_ACTIONS, required: true, index: true },
-    entityType: { type: String, enum: ["employee"], required: true, index: true },
+    entityType: { type: String, enum: ["employee", "media"], required: true, index: true },
     entityId: { type: String, required: true, trim: true, index: true },
     description: { type: String, required: true, trim: true },
     metadata: { type: Schema.Types.Mixed, default: undefined },

@@ -1,31 +1,45 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowRight, ChevronLeft, ChevronRight, Leaf } from "lucide-react";
 
 const slides = [
   {
-    label: "Trà matcha thượng hạng",
-    title: "GOOD TEA",
-    subtitle: "GOOD DAY",
-    desc: "Trà sữa Matcha từ bột Matcha Nhật Bản cao cấp, kết hợp sữa tươi thanh trùng, mang đến hương vị thanh mát, ngọt dịu và tràn đầy năng lượng mỗi ngày.",
+    label: "Thức uống Wana",
+    title: "SUGARCANE JUICE",
+    subtitle: "TƯƠI MÁT TỰ NHIÊN",
+    desc: "Nước mía Wana mang vị ngọt thanh đặc trưng, sảng khoái và dễ uống trong mọi thời điểm.",
+    image: "/assets/images/SUGARCANE-JUICE.png",
+    background: "linear-gradient(135deg, #477f2b 0%, #75a936 34%, #508f32 68%, #2f702c 100%)",
   },
   {
-    label: "Nước dừa tự nhiên",
-    title: "GOOD DRINK",
-    subtitle: "GOOD LIFE",
-    desc: "Nước dừa tươi Calamansi nguyên chất kết hợp vị chanh thanh mát, bổ sung khoáng chất tự nhiên cho cơ thể khỏe mạnh mỗi ngày.",
+    label: "Thức uống Wana",
+    title: "MANGO JUICE",
+    subtitle: "ĐẬM VỊ XOÀI NHIỆT ĐỚI",
+    desc: "Hương xoài thơm ngọt, vị trái cây đậm đà, mang đến cảm giác tươi mới trong từng ngụm.",
+    image: "/assets/images/MANGO-JUICE.png",
+    background: "linear-gradient(135deg, #dc7914 0%, #f0a523 34%, #e58b16 68%, #bd6210 100%)",
   },
   {
-    label: "Sáng tạo không ngừng",
-    title: "FRESH &",
-    subtitle: "NATURAL",
-    desc: "Wana cam kết mang đến những sản phẩm đồ uống tự nhiên, không chất bảo quản, tốt cho sức khỏe và phù hợp với mọi lứa tuổi.",
+    label: "Thức uống Wana",
+    title: "ALOE VERA",
+    subtitle: "THANH MÁT & SẢNG KHOÁI",
+    desc: "Nước nha đam Wana kết hợp vị thanh mát cùng những miếng nha đam giòn nhẹ, dễ uống và refreshing.",
+    image: "/assets/images/ALOE-VERA-DRINK.png",
+    background: "linear-gradient(135deg, #087f46 0%, #1cab62 34%, #0d8d4d 68%, #066539 100%)",
   },
 ];
 
 export default function ProductHeroSlider() {
   const [current, setCurrent] = useState(0);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      setCurrent((index) => (index + 1) % slides.length);
+    }, 4000);
+
+    return () => window.clearTimeout(timeout);
+  }, [current]);
 
   const prev = () => setCurrent((c) => (c - 1 + slides.length) % slides.length);
   const next = () => setCurrent((c) => (c + 1) % slides.length);
@@ -38,11 +52,11 @@ export default function ProductHeroSlider() {
     const offset = isActive ? 0 : isNext ? 145 : -145;
 
     return {
-      bottom: isActive ? "-5px" : "22px",
+      bottom: isActive ? "-18px" : "10px",
       filter: isActive
         ? "drop-shadow(0 15px 35px rgba(0,0,0,0.3))"
         : "blur(1px) saturate(0.8) drop-shadow(0 10px 20px rgba(0,0,0,0.2))",
-      height: isActive ? "clamp(220px, 28vw, 340px)" : "clamp(170px, 21vw, 255px)",
+      height: isActive ? "clamp(260px, 34vw, 420px)" : "clamp(205px, 26vw, 320px)",
       opacity: isActive ? 1 : 0.5,
       transform: `translateX(calc(-50% + ${offset}px)) scale(${isActive ? 1 : 0.82})`,
       zIndex: isActive ? 30 : 20,
@@ -51,10 +65,8 @@ export default function ProductHeroSlider() {
 
   return (
     <section
-      className="relative h-[380px] overflow-hidden sm:h-[400px] xl:h-[380px]"
-      style={{
-        background: "linear-gradient(135deg, #1a8e8e 0%, #2aaeae 30%, #1a9696 60%, #0d7a7a 100%)",
-      }}
+      className="relative h-[420px] overflow-hidden sm:h-[440px] xl:h-[420px]"
+      style={{ background: slide.background, transition: "background 500ms ease" }}
     >
       {/* -- Watermark -- */}
       <div
@@ -65,7 +77,7 @@ export default function ProductHeroSlider() {
           className="font-black text-white/[0.06] leading-none tracking-tight whitespace-nowrap"
           style={{ fontSize: "clamp(100px, 18vw, 180px)", marginLeft: "24px" }}
         >
-          GOOD TEA
+          {slide.title}
         </span>
       </div>
 
@@ -100,13 +112,13 @@ export default function ProductHeroSlider() {
           </p>
           <h2
             className="text-white font-black leading-[1.05] mb-0.5"
-            style={{ fontSize: "clamp(1.75rem, 5vw, 3.2rem)" }}
+            style={{ fontSize: "clamp(1.55rem, 3.7vw, 2.65rem)" }}
           >
             {slide.title}
           </h2>
           <h2
             className="text-white/80 font-black leading-[1.05] mb-5 italic"
-            style={{ fontSize: "clamp(1.75rem, 5vw, 3.2rem)" }}
+            style={{ fontSize: "clamp(1.3rem, 3vw, 2.15rem)" }}
           >
             {slide.subtitle}
           </h2>
@@ -152,7 +164,7 @@ export default function ProductHeroSlider() {
           </div>
         </div>
 
-        {/* CENTER: coconut-water-cup.png — transparent product shot */}
+        {/* CENTER: transparent product shots */}
         <div className="absolute inset-y-0 right-[-24px] w-[58%] min-w-0 self-stretch sm:right-0 sm:w-[52%] xl:relative xl:inset-auto xl:w-auto xl:flex-1">
           {slides.map((product, index) => {
             const isActive = index === current;
@@ -160,12 +172,11 @@ export default function ProductHeroSlider() {
             return (
               <img
                 key={product.title}
-                src="/assets/images/coconut-water-cup.png"
+                src={product.image}
                 alt={isActive ? product.title : ""}
                 aria-hidden={!isActive}
-                className={`absolute left-1/2 object-contain transition-[transform,height,bottom,opacity,filter] duration-700 ease-in-out ${
-                  isActive ? "block" : "hidden md:block"
-                }`}
+                className={`absolute left-1/2 object-contain transition-[transform,height,bottom,opacity,filter] duration-700 ease-in-out ${isActive ? "block" : "hidden md:block"
+                  }`}
                 style={cupLayerStyle(index)}
               />
             );

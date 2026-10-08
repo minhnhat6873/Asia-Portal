@@ -1,750 +1,128 @@
-import React, { useState, useMemo } from 'react';
-import { 
-  Plus, 
-  Search, 
-  RotateCcw, 
-  Edit3, 
-  Trash2, 
-  Eye, 
-  Calendar, 
-  User, 
-  ArrowRight, 
-  X,
-  LayoutGrid,
-  List
-} from 'lucide-react';
-import { MediaPost, MediaCategory } from '../types';
-import { AdminSelect } from './AdminSelect';
-import { hasRichTextContent, RichText } from '@/components/ui/RichText';
+"use client";
 
-interface MediaManagementProps {
+import { useEffect, useState } from "react";
+import { Calendar, Edit3, Eye, LayoutGrid, List, Plus, RotateCcw, Search, Trash2, X } from "lucide-react";
+import { toast } from "sonner";
+
+import { RichText } from "@/components/ui/RichText";
+import { ApiError } from "@/services/api";
+import { permanentlyDeleteAdminMedia, updateAdminMedia, type AdminMediaListParams } from "@/services/admin-media.service";
+import { stripHtml } from "@/utils/stripHtml";
+import type { MediaCategory, MediaPost } from "../types";
+import { AdminSelect } from "./AdminSelect";
+
+interface Props {
   mediaPosts: MediaPost[];
-  onAddMedia: (post: Omit<MediaPost, 'id'>) => void;
-  onUpdateMedia: (post: MediaPost) => void;
-  onDeleteMedia: (id: string) => void;
+  total: number;
+  page: number;
+  pageSize: number;
+  isLoading: boolean;
+  loadError: string | null;
+  onFiltersChange: (params: AdminMediaListParams) => void;
+  onPageChange: (page: number) => void;
+  onReload: () => void;
+  onUpdated: (post: MediaPost) => void;
+  onDeleted: (id: string) => void;
   previewPost: MediaPost | null;
   onSelectPreview: (post: MediaPost | null) => void;
-  onNavigateToAdd?: () => void;
+  onNavigateToAdd: () => void;
+  onNavigateToEdit: (post: MediaPost) => void;
 }
 
-const CATEGORIES: MediaCategory[] = [
-  'Sự kiện',
-  'Tin tức',
-  'Nhân sự',
-  'Thông báo'
-];
+const CATEGORIES: MediaCategory[] = ["Sự kiện", "Tin tức", "Nhân sự", "Thông báo"];
 
-const MEDIA_STATUS_OPTIONS = [
-  { value: 'draft', label: 'Chưa xuất bản' },
-  { value: 'published', label: 'Đã xuất bản' },
-] as const;
+function formatCreatedAt(value?: string) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Intl.DateTimeFormat("vi-VN", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit", year: "numeric" }).format(date);
+}
 
-export const MediaManagement: React.FC<MediaManagementProps> = ({
-  mediaPosts,
-  onAddMedia,
-  onUpdateMedia,
-  onDeleteMedia,
-  previewPost,
-  onSelectPreview,
-  onNavigateToAdd,
-}) => {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [viewMode, setViewMode] = useState<'grid' | 'table'>('table');
+export function MediaManagement({ mediaPosts, total, page, pageSize, isLoading, loadError, onFiltersChange, onPageChange, onReload, onUpdated, onDeleted, previewPost, onSelectPreview, onNavigateToAdd, onNavigateToEdit }: Props) {
+  const [search, setSearch] = useState("");
+  const [category, setCategory] = useState<string>("");
+  const [status, setStatus] = useState<string>("");
+  const [viewMode, setViewMode] = useState<"grid" | "table">("table");
+  const [deleteTarget, setDeleteTarget] = useState<MediaPost | null>(null);
+  const [publishTarget, setPublishTarget] = useState<MediaPost | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isChangingStatus, setIsChangingStatus] = useState(false);
 
-  // Modals
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [editingPost, setEditingPost] = useState<MediaPost | null>(null);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [pendingStatusChange, setPendingStatusChange] = useState<{
-    post: MediaPost;
-    status: MediaPost['status'];
-  } | null>(null);
+  useEffect(() => {
+    const timer = window.setTimeout(() => onFiltersChange({
+      search: search.trim() || undefined,
+      category: category ? category as MediaCategory : undefined,
+      status: status ? status as MediaPost["status"] : undefined,
+      sort: "latest",
+    }), 300);
+    return () => window.clearTimeout(timer);
+  }, [search, category, status, onFiltersChange]);
 
-  // Form State - balanced and clean
-  const [formData, setFormData] = useState({
-    title: '',
-    category: 'Tin tức' as MediaCategory,
-    summary: '',
-    content: '',
-    coverImage: 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&w=1000&q=80',
-    authorDepartment: 'Phòng MKT',
-    publishDate: '22/09/2026',
-    status: 'draft' as 'published' | 'draft'
-  });
+  const reset = () => { setSearch(""); setCategory(""); setStatus(""); };
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
-  const filteredPosts = useMemo(() => {
-    return mediaPosts.filter((post) => {
-      const matchSearch =
-        post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        post.summary.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        post.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        post.authorDepartment.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        post.publishDate.includes(searchQuery);
-
-      const matchCategory =
-        selectedCategory === 'all' || post.category === selectedCategory;
-
-      return matchSearch && matchCategory;
-    });
-  }, [mediaPosts, searchQuery, selectedCategory]);
-
-  // Reset filter function requested by user
-  const handleResetFilters = () => {
-    setSearchQuery('');
-    setSelectedCategory('all');
+  const changeStatus = async (post: MediaPost, nextStatus: MediaPost["status"]) => {
+    if (post.status === nextStatus) return;
+    setIsChangingStatus(true);
+    try {
+      const updated = await updateAdminMedia(post.id, { status: nextStatus });
+      onUpdated(updated);
+      toast.success(nextStatus === "published" ? "Đã xuất bản bài viết." : "Đã chuyển bài viết về bản nháp.");
+      setPublishTarget(null);
+    } catch (error) {
+      toast.error(error instanceof ApiError ? error.errors[0] ?? error.message : "Không thể đổi trạng thái bài viết.");
+    } finally {
+      setIsChangingStatus(false);
+    }
   };
 
-  const handleOpenAdd = () => {
-    setFormData({
-      title: '',
-      category: 'Tin tức',
-      summary: '',
-      content: '',
-      coverImage: 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&w=1000&q=80',
-      authorDepartment: 'Phòng MKT',
-      publishDate: '22/09/2026',
-      status: 'draft'
-    });
-    setIsAddModalOpen(true);
+  const requestStatusChange = (post: MediaPost, nextStatus: MediaPost["status"]) => {
+    if (post.status === "draft" && nextStatus === "published") {
+      setPublishTarget(post);
+      return;
+    }
+    void changeStatus(post, nextStatus);
   };
 
-  const handleOpenEdit = (post: MediaPost) => {
-    setEditingPost(post);
-    setFormData({
-      title: post.title,
-      category: post.category,
-      summary: post.summary,
-      content: post.content,
-      coverImage: post.coverImage,
-      authorDepartment: post.authorDepartment,
-      publishDate: post.publishDate,
-      status: post.status
-    });
+  const remove = async () => {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
+    try {
+      await permanentlyDeleteAdminMedia(deleteTarget.id);
+      onDeleted(deleteTarget.id);
+      onSelectPreview(null);
+      setDeleteTarget(null);
+      toast.success("Đã xóa vĩnh viễn bài viết khỏi cơ sở dữ liệu.");
+    } catch (error) {
+      toast.error(error instanceof ApiError ? error.errors[0] ?? error.message : "Không thể xóa bài viết.");
+    } finally { setIsDeleting(false); }
   };
-
-  const handleSubmitAdd = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.title.trim()) return;
-
-    onAddMedia({
-      title: formData.title.trim(),
-      category: formData.category,
-      summary: formData.summary.trim(),
-      content: formData.content.trim(),
-      coverImage: formData.coverImage.trim() || 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&w=1000&q=80',
-      authorDepartment: formData.authorDepartment || 'Phòng MKT',
-      publishDate: formData.publishDate.trim() || '22/09/2026',
-      status: formData.status
-    });
-
-    setIsAddModalOpen(false);
-  };
-
-  const handleSubmitEdit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingPost || !formData.title.trim()) return;
-
-    onUpdateMedia({
-      ...editingPost,
-      title: formData.title.trim(),
-      category: formData.category,
-      summary: formData.summary.trim(),
-      content: formData.content.trim(),
-      coverImage: formData.coverImage.trim() || editingPost.coverImage,
-      authorDepartment: formData.authorDepartment.trim(),
-      publishDate: formData.publishDate.trim(),
-      status: formData.status
-    });
-
-    setEditingPost(null);
-  };
-
-  // The detail drawer stays closed until the user explicitly selects a post.
-  const activePost = previewPost;
-  const isTrashedPreview = !!activePost && !mediaPosts.some((post) => post.id === activePost.id);
 
   return (
-    <div className="space-y-6">
-      {/* Search, Filter & Action Toolbar */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-2xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
-        {/* Search */}
-        <div className="relative flex-1 max-w-md">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            placeholder="Tìm tin tức, bài viết, ngày đăng, phòng ban..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all placeholder:text-slate-400"
-          />
-        </div>
-
-        {/* Filters and Actions */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <AdminSelect value={selectedCategory} onChange={setSelectedCategory} options={[{ value: 'all', label: 'Tất cả chuyên mục' }, ...CATEGORIES.map((value) => ({ value, label: value }))]} className="min-w-52" searchable={false} showSelectionCheck={false} />
-
-          {/* Toggle View Mode (Image 5) */}
-          <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
-            <button
-              onClick={() => setViewMode('grid')}
-              className={`p-1.5 rounded-lg transition-colors ${
-                viewMode === 'grid' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-900'
-              }`}
-              title="Xem dạng thẻ"
-            >
-              <LayoutGrid className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => setViewMode('table')}
-              className={`p-1.5 rounded-lg transition-colors ${
-                viewMode === 'table' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-900'
-              }`}
-              title="Xem dạng bảng"
-            >
-              <List className="w-4 h-4" />
-            </button>
-          </div>
-
-          {/* Reset Filters Button */}
-          <button
-            onClick={handleResetFilters}
-            className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors border border-slate-200"
-            title="Đặt lại bộ lọc"
-          >
-            <RotateCcw className="w-3.5 h-3.5 text-slate-600" />
-            <span>Đặt lại</span>
-          </button>
-
-          {/* Add Media Button */}
-          <button
-            onClick={onNavigateToAdd || handleOpenAdd}
-            className="flex items-center gap-1.5 px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs rounded-xl shadow-sm transition-all"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Đăng Bài Mới</span>
-          </button>
-        </div>
+    <div className="space-y-5">
+      <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm lg:flex-row lg:items-center">
+        <div className="relative flex-1"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Tìm theo tiêu đề hoặc Sapo..." className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-sm outline-none focus:border-sky-500" /></div>
+        <AdminSelect value={category} onChange={setCategory} options={[{ value: "", label: "Tất cả chuyên mục" }, ...CATEGORIES.map((value) => ({ value, label: value }))]} className="min-w-48" searchable={false} showSelectionCheck={false} />
+        <AdminSelect value={status} onChange={setStatus} options={[{ value: "", label: "Tất cả trạng thái" }, { value: "published", label: "Đã xuất bản" }, { value: "draft", label: "Bản nháp" }]} className="min-w-44" searchable={false} showSelectionCheck={false} />
+        <button type="button" onClick={reset} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 py-2.5 text-xs font-semibold text-slate-600"><RotateCcw className="h-4 w-4" />Đặt lại</button>
+        <div className="flex rounded-xl border border-slate-200 bg-slate-100 p-1"><button type="button" onClick={() => setViewMode("grid")} className={`rounded-lg p-2 ${viewMode === "grid" ? "bg-white shadow-sm" : "text-slate-500"}`}><LayoutGrid className="h-4 w-4" /></button><button type="button" onClick={() => setViewMode("table")} className={`rounded-lg p-2 ${viewMode === "table" ? "bg-white shadow-sm" : "text-slate-500"}`}><List className="h-4 w-4" /></button></div>
+        <button type="button" onClick={onNavigateToAdd} className="inline-flex items-center justify-center gap-2 rounded-xl bg-sky-600 px-4 py-2.5 text-xs font-bold text-white"><Plus className="h-4 w-4" />Đăng bài mới</button>
       </div>
 
-      {/* Results Count Banner */}
-      <div className="flex items-center justify-between text-xs text-slate-500 px-1">
-        <span>
-          Đang hiển thị <strong>{filteredPosts.length}</strong> bài viết truyền thông & sự kiện Asia F&B
-        </span>
-      </div>
-
-      {/* VIEW: GRID (Cards + Side Drawer) */}
-      {viewMode === 'grid' ? (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          {/* Left Grid: Media Cards */}
-          <div
-            className={`${
-              activePost ? 'lg:col-span-7 sm:grid-cols-2' : 'lg:col-span-12 sm:grid-cols-2 lg:grid-cols-3'
-            } grid grid-cols-1 gap-5`}
-          >
-            {filteredPosts.length === 0 ? (
-              <div className="col-span-full py-16 text-center bg-white rounded-3xl border border-slate-200 text-slate-400">
-                Không tìm thấy bài viết nào phù hợp.
-              </div>
-            ) : (
-              filteredPosts.map((post) => {
-                const isSelected = activePost?.id === post.id;
-                return (
-                  <div
-                    key={post.id}
-                    onClick={() => onSelectPreview(post)}
-                    className={`group relative rounded-3xl overflow-hidden aspect-[4/3] cursor-pointer shadow-md transition-all duration-300 ${
-                      isSelected
-                        ? 'ring-4 ring-sky-500 shadow-xl scale-[1.01]'
-                        : 'hover:shadow-xl hover:scale-[1.005]'
-                    }`}
-                  >
-                    {/* Background Cover Image */}
-                    <img
-                      src={post.coverImage}
-                      alt={post.title}
-                      className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
-
-                    {/* Gradient Overlay for high text contrast */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/40 to-slate-900/20" />
-
-                    {/* Content Layer */}
-                    <div className="absolute inset-0 p-5 flex flex-col justify-between text-white">
-                      {/* Top Left Category Pill */}
-                      <div className="flex items-center justify-between">
-                        <span className="px-3.5 py-1 rounded-full text-xs font-semibold bg-white/25 backdrop-blur-md text-white border border-white/20">
-                          {post.category}
-                        </span>
-                        {post.status === 'draft' && (
-                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500 text-slate-950">
-                            Chưa xuất bản
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Bottom Details & Arrow Button */}
-                      <div className="flex items-end justify-between gap-3">
-                        <div className="flex-1 min-w-0 pr-2">
-                          <h3 className="font-bold text-base leading-snug line-clamp-2 text-white drop-shadow-sm group-hover:text-amber-300 transition-colors">
-                            {post.title}
-                          </h3>
-                          <p className="text-xs text-slate-300 mt-2 font-medium">
-                            {post.publishDate}
-                          </p>
-                        </div>
-
-                        {/* Yellow Circular Arrow Button */}
-                        <div className="w-10 h-10 rounded-full bg-amber-400 text-slate-950 flex items-center justify-center shrink-0 shadow-lg group-hover:bg-amber-300 group-hover:translate-x-1 transition-all">
-                          <ArrowRight className="w-4 h-4 stroke-[2.5]" />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
-
-          {/* Right Side: Detail Drawer */}
-          {activePost && (
-            <div className="lg:col-span-5 bg-white rounded-3xl border border-slate-200/90 shadow-md overflow-hidden sticky top-20 flex flex-col">
-              {/* Header Image with Category Pill and Close Button */}
-              <div className="relative w-full h-56 sm:h-64 overflow-hidden bg-slate-100">
-                <img
-                  src={activePost.coverImage}
-                  alt={activePost.title}
-                  className="w-full h-full object-cover"
-                />
-
-                {/* Red Category Pill at Bottom-Left */}
-                <div className="absolute bottom-4 left-4">
-                  <span className="px-3.5 py-1 rounded-full bg-[#991b1b] text-white text-xs font-bold shadow-sm">
-                    {activePost.category}
-                  </span>
-                </div>
-
-                {/* Circular Close X at Top-Right */}
-                <button
-                  onClick={() => onSelectPreview(null)}
-                  className="absolute top-4 right-4 w-8 h-8 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center shadow-sm transition-colors"
-                  title="Đóng chi tiết"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              {/* Drawer Content */}
-              <div className="p-6 space-y-3.5">
-                {/* Title */}
-                <h2 className="text-xl md:text-2xl font-black text-slate-900 leading-tight">
-                  {activePost.title}
-                </h2>
-
-                {/* Sapo Summary */}
-                <RichText
-                  html={activePost.summary}
-                  className="text-sm text-slate-500 leading-relaxed [&_p]:my-0"
-                />
-
-                {/* Subtle Divider */}
-                <div className="border-b border-slate-100 pt-1"></div>
-
-                {/* Metadata Row: Date & Department */}
-                <div className="space-y-2 text-sm text-slate-400 font-normal">
-                  <div className="flex items-center gap-2.5">
-                    <Calendar className="w-4 h-4 text-slate-400 stroke-[1.75]" />
-                    <span>{activePost.publishDate}</span>
-                  </div>
-                  <div className="flex items-center gap-2.5">
-                    <User className="w-4 h-4 text-slate-400 stroke-[1.75]" />
-                    <span>{activePost.authorDepartment}</span>
-                  </div>
-                </div>
-
-                {/* Characteristic Mint Content Box */}
-                {hasRichTextContent(activePost.content) && (
-                  <RichText
-                    html={activePost.content}
-                    className="bg-[#f0fdf4] border border-emerald-100/80 rounded-2xl p-4 text-xs md:text-sm text-emerald-900/90 leading-relaxed font-normal mt-2 [&_p]:my-0"
-                  />
-                )}
-
-                {/* Action Buttons */}
-                <div className="pt-2 flex items-center justify-between">
-                  <span className="text-[11px] text-slate-400">
-                    Trạng thái: <strong>{activePost.status === 'published' ? 'Đã xuất bản' : 'Chưa xuất bản'}</strong>
-                  </span>
-                  {!isTrashedPreview && <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => handleOpenEdit(activePost)}
-                      className="px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-sky-50 text-slate-700 hover:text-sky-700 text-xs font-semibold transition-colors flex items-center gap-1"
-                    >
-                      <Edit3 className="w-3.5 h-3.5" /> Chỉnh sửa
-                    </button>
-                    <button
-                      onClick={() => setDeletingId(activePost.id)}
-                      className="px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-700 hover:text-rose-600 text-xs font-semibold transition-colors flex items-center gap-1"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" /> Xóa
-                    </button>
-                  </div>}
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
+      <p className="px-1 text-xs text-slate-500">Tổng cộng <strong>{total}</strong> bài viết</p>
+      {isLoading ? <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center text-sm text-slate-500">Đang tải danh sách truyền thông...</div> : loadError ? <div className="rounded-2xl border border-rose-200 bg-rose-50 p-8 text-center text-sm text-rose-700"><p>{loadError}</p><button type="button" onClick={onReload} className="mt-3 rounded-xl bg-rose-600 px-4 py-2 font-semibold text-white">Thử lại</button></div> : mediaPosts.length === 0 ? <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center text-sm text-slate-400">Không có bài viết phù hợp.</div> : viewMode === "grid" ? (
+        <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">{mediaPosts.map((post) => <button type="button" key={post.id} onClick={() => onSelectPreview(post)} className="group overflow-hidden rounded-3xl bg-white text-left shadow-md"><div className="relative aspect-[4/3] bg-slate-100">{post.coverImage ? <img src={post.coverImage} alt={post.title} className="h-full w-full object-cover transition-transform group-hover:scale-105" /> : null}<div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-transparent" /><span className="absolute left-4 top-4 rounded-full bg-white/85 px-3 py-1 text-xs font-bold text-slate-800">{post.category}</span><span className={`absolute right-4 top-4 rounded-full px-3 py-1 text-xs font-bold ${post.status === "published" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>{post.status === "published" ? "Đã xuất bản" : "Bản nháp"}</span><div className="absolute inset-x-4 bottom-4 text-white"><h3 className="line-clamp-2 font-bold">{post.title}</h3><p className="mt-1 text-xs text-white/70">{post.publishDate}</p></div></div></button>)}</div>
       ) : (
-        /* VIEW: TABLE (Dạng bảng giống như bên nhân viên) */
-        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-2xs overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-slate-600">
-              <thead className="bg-slate-50 text-[11px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200">
-                <tr>
-                  <th className="py-3.5 px-4">Bài viết & Ảnh bìa</th>
-                  <th className="py-3.5 px-4">Chuyên mục</th>
-                  <th className="py-3.5 px-4">Ngày đăng</th>
-                  <th className="py-3.5 px-4">Người đăng / Phòng ban</th>
-                  <th className="py-3.5 px-4">Trạng thái</th>
-                  <th className="w-32 py-3.5 px-4 text-center">Thao tác</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {filteredPosts.map((post) => (
-                  <tr key={post.id} className="hover:bg-slate-50/70 transition-colors">
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-3">
-                        <img
-                          src={post.coverImage}
-                          alt={post.title}
-                          className="w-14 h-10 rounded-lg object-cover border border-slate-200 shrink-0"
-                        />
-                        <div className="min-w-0 max-w-sm">
-                          <span
-                            onClick={() => {
-                              onSelectPreview(post);
-                              setViewMode('grid');
-                            }}
-                            className="font-bold text-slate-900 block text-xs hover:text-sky-700 cursor-pointer truncate"
-                          >
-                            {post.title}
-                          </span>
-                          <RichText
-                            html={post.summary}
-                            className="text-[11px] text-slate-400 line-clamp-1 [&_p]:my-0"
-                          />
-                        </div>
-                      </div>
-                    </td>
-                    <td className="py-3 px-4">
-                      <span className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-sky-50 text-sky-700 border border-sky-200">
-                        {post.category}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 font-medium text-slate-700">{post.publishDate}</td>
-                    <td className="py-3 px-4 text-slate-600">{post.authorDepartment}</td>
-                    <td className="py-3 px-4">
-                      <AdminSelect
-                        value={post.status}
-                        onChange={(value) => {
-                          const status = value as MediaPost['status'];
-                          if (status !== post.status) setPendingStatusChange({ post, status });
-                        }}
-                        options={MEDIA_STATUS_OPTIONS}
-                        searchable={false}
-                        showSelectionCheck={false}
-                        className={`min-w-36 [&>button]:rounded-full [&>button]:px-3 [&>button]:py-1.5 [&>button]:text-[11px] ${
-                          post.status === 'published'
-                            ? '[&>button]:!border-emerald-100 [&>button]:!bg-emerald-50 [&>button]:!text-emerald-700'
-                            : '[&>button]:!border-amber-200 [&>button]:!bg-amber-50 [&>button]:!text-amber-700'
-                        }`}
-                      />
-                    </td>
-                    <td className="py-3 px-4 text-center">
-                      <div className="flex items-center justify-center gap-4">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            onSelectPreview(post);
-                            setViewMode('grid');
-                          }}
-                          className="rounded-md p-1 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800"
-                          title="Xem chi tiết"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleOpenEdit(post)}
-                          className="rounded-md p-1 text-emerald-600 transition-colors hover:bg-emerald-50"
-                          title="Chỉnh sửa"
-                        >
-                          <Edit3 className="h-4 w-4" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setDeletingId(post.id)}
-                          className="rounded-md p-1 text-rose-500 transition-colors hover:bg-rose-50"
-                          title="Xóa"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white"><table className="w-full text-left text-xs"><thead className="bg-slate-50 text-sm font-semibold text-slate-600"><tr><th className="px-4 py-3">Bài viết</th><th className="px-4 py-3">Chuyên mục</th><th className="px-4 py-3">Ngày đăng</th><th className="px-4 py-3">Trạng thái</th><th className="px-4 py-3">Người tạo</th><th className="px-4 py-3 text-center">Thao tác</th></tr></thead><tbody>{mediaPosts.map((post) => <tr key={post.id} className="border-t border-slate-100 hover:bg-slate-50"><td className="px-4 py-3"><div className="flex items-center gap-3">{post.coverImage ? <img src={post.coverImage} alt="" className="h-12 w-16 rounded-lg object-cover" /> : <div className="h-12 w-16 rounded-lg bg-slate-100" />}<div className="max-w-sm"><p className="truncate font-bold text-slate-900">{post.title}</p><p className="truncate text-slate-400">{stripHtml(post.summary)}</p></div></div></td><td className="px-4 py-3">{post.category}</td><td className="px-4 py-3">{post.publishDate}</td><td className="px-4 py-3"><AdminSelect value={post.status} onChange={(value) => requestStatusChange(post, value as MediaPost["status"])} options={[{ value: "published", label: "Đã xuất bản" }, { value: "draft", label: "Bản nháp" }]} className={`min-w-36 [&>button]:font-bold ${post.status === "published" ? "[&>button]:border-emerald-200 [&>button]:bg-emerald-50 [&>button]:text-emerald-700" : "[&>button]:border-amber-200 [&>button]:bg-amber-50 [&>button]:text-amber-700"}`} searchable={false} showSelectionCheck={false} disabled={isChangingStatus} /></td><td className="px-4 py-3"><div className="space-y-1 leading-5"><p className="font-semibold text-slate-800">{post.createdBy?.name ?? "Chưa có dữ liệu"}</p><p className="text-slate-500">{post.createdBy?.email ?? "—"}</p><p className="text-[11px] text-slate-400">{formatCreatedAt(post.createdAt)}</p></div></td><td className="px-4 py-3"><div className="flex justify-center gap-3"><button type="button" onClick={() => onSelectPreview(post)} title="Xem"><Eye className="h-4 w-4" /></button><button type="button" onClick={() => onNavigateToEdit(post)} title="Sửa" className="text-emerald-600"><Edit3 className="h-4 w-4" /></button><button type="button" onClick={() => setDeleteTarget(post)} title="Xóa vĩnh viễn" className="text-rose-600"><Trash2 className="h-4 w-4" /></button></div></td></tr>)}</tbody></table></div>
       )}
 
-      {/* MODAL: ADD / EDIT MEDIA POST */}
-      {/* Redesigned: 100% straight, balanced 50%-50% equal columns, ONE single frame, NO internal scrollbar */}
-      {(isAddModalOpen || editingPost) && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-2xl w-full p-6 shadow-2xl border border-slate-200">
-            {/* Modal Header */}
-            <div className="pb-4 mb-4 border-b border-slate-100 flex items-center justify-between">
-              <div>
-                <h3 className="text-base font-bold text-slate-900">
-                  {isAddModalOpen ? 'Đăng Bài Viết Truyền Thông / Sự Kiện Mới' : 'Chỉnh Sửa Bài Viết Truyền Thông'}
-                </h3>
-                <p className="text-xs text-slate-500">
-                  Asia Food & Beverage Media & Public Relations
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setIsAddModalOpen(false);
-                  setEditingPost(null);
-                }}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+      {totalPages > 1 && <div className="flex items-center justify-center gap-3"><button disabled={page <= 1} onClick={() => onPageChange(page - 1)} className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold disabled:opacity-40">Trước</button><span className="text-xs text-slate-500">Trang {page}/{totalPages}</span><button disabled={page >= totalPages} onClick={() => onPageChange(page + 1)} className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold disabled:opacity-40">Sau</button></div>}
 
-            <form
-              onSubmit={isAddModalOpen ? handleSubmitAdd : handleSubmitEdit}
-              className="space-y-3.5 text-xs"
-            >
-              {/* Row 1: Tiêu đề bài viết (50%) & Chuyên mục (50%) */}
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Tiêu đề bài viết / sự kiện *</label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.title}
-                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/20 font-bold text-slate-900"
-                    placeholder="Á Châu mở rộng dây chuyền sản xuất mới"
-                  />
-                </div>
-                <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Loại tin / Chuyên mục *</label>
-                  <select
-                    value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value as MediaCategory })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/20 font-medium"
-                  >
-                    {CATEGORIES.map((cat) => (
-                      <option key={cat} value={cat}>
-                        {cat}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
+      {previewPost && <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4"><div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-3xl bg-white"><div className="relative aspect-[16/8] bg-slate-100">{previewPost.coverImage ? <img src={previewPost.coverImage} alt={previewPost.title} className="h-full w-full object-cover" /> : null}<button type="button" onClick={() => onSelectPreview(null)} className="absolute right-4 top-4 rounded-full bg-black/60 p-2 text-white"><X className="h-4 w-4" /></button></div><div className="space-y-4 p-6"><h2 className="text-2xl font-black">{previewPost.title}</h2><RichText html={previewPost.summary} className="rich-content text-slate-500" /><p className="flex items-center gap-2 text-sm text-slate-400"><Calendar className="h-4 w-4" />{previewPost.publishDate}</p><RichText html={previewPost.content} className="rich-content rounded-2xl bg-emerald-50 p-4" /><div className="flex justify-end gap-2"><button type="button" onClick={() => onNavigateToEdit(previewPost)} className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white">Chỉnh sửa</button><button type="button" onClick={() => setDeleteTarget(previewPost)} className="rounded-xl bg-rose-600 px-4 py-2 text-sm font-bold text-white">Xóa vĩnh viễn</button></div></div></div></div>}
 
-              {/* Row 2: Ngày đăng (50%) & Người đăng / Phòng ban (50%) */}
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Ngày đăng (DD/MM/YYYY) *</label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.publishDate}
-                    onChange={(e) => setFormData({ ...formData, publishDate: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/20"
-                    placeholder="22/09/2026"
-                  />
-                </div>
-                <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Người đăng / Phòng ban phụ trách *</label>
-                  <select
-                    required
-                    value={formData.authorDepartment}
-                    onChange={(e) => setFormData({ ...formData, authorDepartment: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/20"
-                  >
-                    <option value="Phòng HR&AD">Phòng HR&AD</option>
-                    <option value="Phòng MKT">Phòng MKT</option>
-                  </select>
-                </div>
-              </div>
+      {publishTarget && <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/60 p-4"><div className="w-full max-w-sm rounded-3xl bg-white p-6 text-center shadow-2xl"><div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-700"><Eye className="h-6 w-6" /></div><h3 className="mt-4 text-lg font-bold text-slate-900">Xuất bản bài viết?</h3><p className="mt-2 text-sm leading-6 text-slate-500">“{publishTarget.title}” sẽ hiển thị trên trang tin tức công khai.</p><div className="mt-6 flex justify-center gap-2"><button type="button" onClick={() => setPublishTarget(null)} disabled={isChangingStatus} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700">Hủy</button><button type="button" onClick={() => void changeStatus(publishTarget, "published")} disabled={isChangingStatus} className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-60">{isChangingStatus ? "Đang xuất bản..." : "Xác nhận xuất bản"}</button></div></div></div>}
 
-              {/* Row 3: Link ảnh bìa (50%) & Trạng thái (50%) */}
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Link ảnh bìa bài viết *</label>
-                  <input
-                    type="url"
-                    required
-                    value={formData.coverImage}
-                    onChange={(e) => setFormData({ ...formData, coverImage: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/20"
-                    placeholder="https://images.unsplash.com/..."
-                  />
-                </div>
-                <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Trạng thái xuất bản *</label>
-                  <select
-                    value={formData.status}
-                    onChange={(e) => setFormData({ ...formData, status: e.target.value as 'published' | 'draft' })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/20 font-medium"
-                  >
-                    <option value="published">Đã xuất bản</option>
-                    <option value="draft">Chưa xuất bản</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Row 4: Tóm tắt ngắn (50%) & Nội dung chi tiết (50%) - Straight aligned side by side, same height! */}
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Tóm tắt ngắn (Sapo hiển thị dưới tiêu đề) *</label>
-                  <textarea
-                    required
-                    rows={4}
-                    value={formData.summary}
-                    onChange={(e) => setFormData({ ...formData, summary: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/20 resize-none leading-relaxed"
-                    placeholder="Á Châu vừa khánh thành nhà máy sản xuất mới tại Bình Dương..."
-                  />
-                </div>
-                <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Nội dung chi tiết (Hiển thị trong khung xanh) *</label>
-                  <textarea
-                    required
-                    rows={4}
-                    value={formData.content}
-                    onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500/20 resize-none leading-relaxed"
-                    placeholder="Ngày 05/09/2026, Asia Food & Beverage chính thức khánh thành..."
-                  />
-                </div>
-              </div>
-
-              {/* Form Buttons */}
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsAddModalOpen(false);
-                    setEditingPost(null);
-                  }}
-                  className="px-4 py-2 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 font-semibold"
-                >
-                  Hủy
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold shadow-sm"
-                >
-                  {isAddModalOpen ? 'Đăng Bài Viết' : 'Cập Nhật Bài Viết'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* CONFIRM STATUS CHANGE MODAL */}
-      {pendingStatusChange && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-200 text-center">
-            <div className={`mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full ${
-              pendingStatusChange.status === 'published'
-                ? 'bg-emerald-50 text-emerald-600'
-                : 'bg-amber-50 text-amber-600'
-            }`}>
-              <ArrowRight className="h-6 w-6" />
-            </div>
-            <h3 className="text-base font-bold text-slate-900">
-              {pendingStatusChange.status === 'published'
-                ? 'Xác nhận xuất bản bài viết?'
-                : 'Xác nhận ngừng xuất bản bài viết?'}
-            </h3>
-            <p className="mt-1 text-xs leading-relaxed text-slate-500">
-              {pendingStatusChange.status === 'published'
-                ? `Bài viết “${pendingStatusChange.post.title}” sẽ được hiển thị công khai.`
-                : `Bài viết “${pendingStatusChange.post.title}” sẽ chuyển về trạng thái chưa xuất bản.`}
-            </p>
-            <div className="mt-5 flex items-center justify-center gap-2">
-              <button
-                type="button"
-                onClick={() => setPendingStatusChange(null)}
-                className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-              >
-                Hủy bỏ
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  onUpdateMedia({
-                    ...pendingStatusChange.post,
-                    status: pendingStatusChange.status,
-                  });
-                  setPendingStatusChange(null);
-                }}
-                className={`rounded-xl px-4 py-2 text-xs font-bold text-white ${
-                  pendingStatusChange.status === 'published'
-                    ? 'bg-emerald-600 hover:bg-emerald-700'
-                    : 'bg-amber-500 hover:bg-amber-600'
-                }`}
-              >
-                Đồng ý
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* CONFIRM DELETE MODAL */}
-      {deletingId && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-200 text-center">
-            <div className="w-12 h-12 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center mx-auto mb-3">
-              <Trash2 className="w-6 h-6" />
-            </div>
-            <h3 className="font-bold text-slate-900 text-base">Xác Nhận Xóa Bài Viết?</h3>
-            <p className="text-xs text-slate-500 mt-1 mb-5">
-              Bài viết sẽ bị xóa khỏi trang web và danh sách quản trị. Bạn có chắc chắn muốn xóa?
-            </p>
-            <div className="flex items-center justify-center gap-2">
-              <button
-                onClick={() => setDeletingId(null)}
-                className="px-4 py-2 rounded-xl border border-slate-200 text-slate-700 text-xs font-semibold hover:bg-slate-50"
-              >
-                Hủy bỏ
-              </button>
-              <button
-                onClick={() => {
-                  onDeleteMedia(deletingId);
-                  setDeletingId(null);
-                }}
-                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold"
-              >
-                Đồng Ý
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {deleteTarget && <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/60 p-4"><div className="w-full max-w-sm rounded-3xl bg-white p-6 text-center"><Trash2 className="mx-auto h-10 w-10 text-rose-600" /><h3 className="mt-3 text-lg font-bold">Xóa vĩnh viễn bài viết?</h3><p className="mt-2 text-sm text-slate-500">“{deleteTarget.title}” sẽ bị xóa khỏi cơ sở dữ liệu và không thể khôi phục.</p><div className="mt-5 flex justify-center gap-2"><button type="button" onClick={() => setDeleteTarget(null)} disabled={isDeleting} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold">Hủy</button><button type="button" onClick={() => void remove()} disabled={isDeleting} className="rounded-xl bg-rose-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-60">{isDeleting ? "Đang xóa..." : "Xóa vĩnh viễn"}</button></div></div></div>}
     </div>
   );
-};
+}

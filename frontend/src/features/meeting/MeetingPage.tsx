@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowLeft, ArrowUpRight, CalendarDays, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Clock3, Inbox, List, Mail, MapPin, Plus, Printer, RotateCcw, Search, SlidersHorizontal, Sparkles, Trash2, UserRound, UsersRound, X } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, CalendarDays, CalendarClock, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Clock3, Inbox, List, Mail, MapPin, Plus, Printer, RotateCcw, Search, SlidersHorizontal, Sparkles, Trash2, UserRound, UsersRound, X } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Navbar from "@/components/layout/Navbar";
@@ -28,7 +28,14 @@ type Booking = {
 };
 
 const STORAGE_KEY = "asia-portal-meeting-bookings";
-const MEETING_TIME_OPTIONS = ["08:00", "08:30", "09:00", "09:30", "10:00", "10:30", "11:00", "11:30", "13:00", "13:30", "14:00", "14:30", "15:00", "15:30", "16:00", "16:30", "17:00"];
+const MEETING_TIME_OPTIONS = ["08:00", "08:15", "08:30", "08:45", "09:00", "09:15", "09:30", "09:45", "10:00", "10:15", "10:30", "10:45", "11:00", "11:15", "11:30", "11:45", "13:00", "13:15", "13:30", "13:45", "14:00", "14:15", "14:30", "14:45", "15:00", "15:15", "15:30", "15:45", "16:00", "16:15", "16:30", "16:45", "17:00"];
+
+function roundUpToMeetingTime(date: Date) {
+  const totalMinutes = date.getHours() * 60 + date.getMinutes();
+  const roundedMinutes = Math.ceil(totalMinutes / 15) * 15;
+  const rounded = `${String(Math.floor(roundedMinutes / 60)).padStart(2, "0")}:${String(roundedMinutes % 60).padStart(2, "0")}`;
+  return MEETING_TIME_OPTIONS.includes(rounded) ? rounded : MEETING_TIME_OPTIONS.find((time) => time > rounded) ?? "08:00";
+}
 const ASIA_FNB_EMAIL_PATTERN = /^[A-Z0-9._%+-]+@asiafnb\.com$/i;
 const NAME_PATTERN = /^[\p{L}\s]+$/u;
 const rooms = [
@@ -270,6 +277,8 @@ export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: b
   const [date, setDate] = useState(todayLocal);
   const [start, setStart] = useState("09:00");
   const [end, setEnd] = useState("10:00");
+  const [durationMinutes, setDurationMinutes] = useState(60);
+  const [durationInput, setDurationInput] = useState("60");
   const [attendees, setAttendees] = useState(1);
   const [organizer, setOrganizer] = useState("");
   const [email, setEmail] = useState("");
@@ -324,7 +333,17 @@ export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: b
   const otpDate = otpBooking?.date ?? date;
   const otpStart = otpBooking?.start ?? start;
   const otpEnd = otpBooking?.end ?? end;
-  const selectedTimeAvailable = start < end && !bookings.some((booking) => booking.roomId === roomId && booking.date === date && start < booking.end && end > booking.start);
+  const overlapsLunchBreak = start < "13:00" && end > "12:00";
+  const overlapsExistingBooking = bookings.some((booking) => booking.roomId === roomId && booking.date === date && start < addMinutes(booking.end, 15) && end > addMinutes(booking.start, -15));
+  const validDuration = Number.isInteger(durationMinutes) && durationMinutes >= 30 && (durationMinutes - 30) % 15 === 0;
+  const selectedTimeAvailable = validDuration && start < end && !overlapsLunchBreak && !overlapsExistingBooking;
+  const scheduleWarning = overlapsLunchBreak
+    ? "Khung giờ họp không được trùng giờ nghỉ trưa (12:00–13:00)."
+    : overlapsExistingBooking
+      ? "Phòng đã có lịch trùng hoặc chưa đủ 15 phút nghỉ giữa các cuộc họp. Vui lòng chọn giờ khác."
+      : !validDuration
+        ? "Thời lượng phải từ 30 phút và tăng theo từng 15 phút (30, 45, 60, 75, 90...)."
+        : `Khung giờ ${start} - ${end} (${formatDate(date)}) đang trống và sẵn sàng đặt.`;
   const bookedDepartments = Array.from(new Set(bookings.map((booking) => booking.department).filter(Boolean))).sort();
   const visibleBookings = bookings
     .filter((booking) => roomFilter === "all" || booking.roomId === roomFilter)
@@ -368,16 +387,24 @@ export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: b
       setFormError("Email liên hệ phải có dạng ten@asiafnb.com.");
       return;
     }
+    if (!validDuration) {
+      setFormError("Thời lượng chỉ được nhập từ 30 phút và theo bước 15 phút: 30, 45, 60, 75, 90...");
+      return;
+    }
     if (start >= end || date < todayLocal() || (date === todayLocal() && start <= currentTime)) {
       setFormError("Hãy chọn ngày và khoảng thời gian hợp lệ trong tương lai.");
+      return;
+    }
+    if (overlapsLunchBreak) {
+      setFormError("Không thể đặt cuộc họp trong giờ nghỉ trưa (12:00–13:00).");
       return;
     }
     if (!Number.isInteger(attendees) || attendees < 1 || attendees > selectedRoom.capacity) {
       setFormError(`Phòng này nhận từ 1 đến ${selectedRoom.capacity} người.`);
       return;
     }
-    if (bookings.some((booking) => booking.roomId === roomId && booking.date === date && start < booking.end && end > booking.start)) {
-      setFormError("Phòng đã có lịch trong khoảng thời gian này. Vui lòng chọn giờ khác.");
+    if (overlapsExistingBooking) {
+      setFormError("Phòng đã có lịch trùng hoặc chưa đủ 15 phút nghỉ giữa các cuộc họp. Vui lòng chọn giờ khác.");
       return;
     }
 
@@ -419,7 +446,15 @@ export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: b
   };
 
   const openRoomBooking = (nextRoomId: RoomId) => {
+    const now = new Date();
+    const suggestedStart = roundUpToMeetingTime(now);
+    const availableEnd = addMinutes(suggestedStart, 60);
     setRoomId(nextRoomId);
+    setDate(todayLocal());
+    setStart(suggestedStart);
+    setEnd(availableEnd);
+    setDurationMinutes(60);
+    setDurationInput("60");
     setFormStep("details");
     setOtpAction("create");
     setBookingToCancel(null);
@@ -468,7 +503,7 @@ export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: b
           <>
             <nav aria-label="Breadcrumb" className="mb-7 flex items-center gap-2 text-sm text-slate-500">
               <Link href="/" className="hover:text-[#1a7a1a]">Trang chủ</Link><ChevronRight size={15} />
-              <Link href="/about-wana#resources" className="hover:text-[#1a7a1a]">Công cụ & Tài nguyên</Link><ChevronRight size={15} />
+              <Link href="/about-asia#resources" className="hover:text-[#1a7a1a]">Công cụ & Tài nguyên</Link><ChevronRight size={15} />
               <span className="font-semibold text-slate-800">Đặt phòng họp</span>
             </nav>
 
@@ -556,13 +591,13 @@ export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: b
 
             <section className="rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50/80 to-slate-50 p-3.5 sm:p-4">
               <div className="flex flex-wrap items-center justify-between gap-2"><p className="inline-flex items-center gap-2 text-xs font-extrabold uppercase tracking-wide text-slate-700"><span className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-[#159447] shadow-sm"><Clock3 size={14} /></span> Khung giờ họp</p><span className="rounded-lg border border-emerald-200 bg-white px-2.5 py-1 text-[11px] font-bold text-[#08723d] shadow-sm">{start} → {end} ({Math.max((Number(end.slice(0, 2)) * 60 + Number(end.slice(3))) - (Number(start.slice(0, 2)) * 60 + Number(start.slice(3))), 0) / 60} giờ)</span></div>
-              <div className="mt-3 grid gap-2.5 sm:grid-cols-[1.1fr_1fr_1fr]">
+              <div className="mt-3 grid gap-2.5 sm:grid-cols-3">
                 <Field label="Ngày họp"><DatePicker value={date} minValue={todayLocal()} onChange={setDate} /></Field>
-                <Field label="Giờ bắt đầu"><select value={start} onChange={(event) => setStart(event.target.value)} className="form-input">{MEETING_TIME_OPTIONS.slice(0, -1).map((value) => <option key={value} value={value}>{value}</option>)}</select></Field>
-                <Field label="Giờ kết thúc"><select value={end} onChange={(event) => setEnd(event.target.value)} className="form-input">{MEETING_TIME_OPTIONS.slice(1).map((value) => <option key={value} value={value}>{value}</option>)}</select></Field>
+                <Field label="Giờ bắt đầu"><select value={start} onChange={(event) => { setStart(event.target.value); setEnd(addMinutes(event.target.value, durationMinutes)); }} className="form-input">{MEETING_TIME_OPTIONS.slice(0, -1).map((value) => <option key={value} value={value}>{value}</option>)}</select></Field>
+                <Field label="Phút họp"><div className="form-input flex items-center gap-2"><input type="text" inputMode="numeric" required value={durationInput} onChange={(event) => { const raw = event.target.value; if (!/^\d*$/.test(raw)) return; setDurationInput(raw); if (raw === "") return; const value = Number(raw); if (!Number.isFinite(value)) return; const nearest = Math.max(30, Math.round(value / 15) * 15); setDurationMinutes(nearest); setEnd(addMinutes(start, nearest)); }} onBlur={() => { if (durationInput === "") { setDurationMinutes(30); setDurationInput("30"); setEnd(addMinutes(start, 30)); } else { const nearest = Math.max(30, Math.round(Number(durationInput) / 15) * 15); setDurationMinutes(nearest); setDurationInput(String(nearest)); setEnd(addMinutes(start, nearest)); } }} className="min-w-0 flex-1 bg-transparent text-sm text-slate-800 outline-none" /><span className="shrink-0 text-xs text-slate-400">phút</span></div></Field>
               </div>
-              <div className="mt-3 flex flex-wrap gap-1.5">{[[30, "30 phút"], [60, "1 giờ"], [90, "1.5 giờ"], [120, "2 giờ"], [180, "3 giờ"]].map(([minutes, label]) => <button key={minutes} type="button" onClick={() => setEnd(addMinutes(start, minutes as number))} className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${end === addMinutes(start, minutes as number) ? "border-[#159447] bg-[#159447] text-white" : "border-slate-200 bg-white text-slate-600 hover:border-green-300"}`}>{label}</button>)}</div>
-              <p className={`mt-3 rounded-xl border px-3 py-2 text-xs ${selectedTimeAvailable ? "border-emerald-200 bg-emerald-50 text-[#08723d]" : "border-rose-200 bg-rose-50 text-rose-700"}`}>{selectedTimeAvailable ? <>Khung giờ <strong>{start} - {end}</strong> ({formatDate(date)}) đang trống và sẵn sàng đặt.</> : "Khung giờ này đã trùng lịch hoặc chưa hợp lệ. Vui lòng chọn lại."}</p>
+              <p className="mt-2 text-[11px] text-slate-500">Thời lượng tối thiểu 30 phút. Các cuộc họp cùng phòng cần cách nhau ít nhất 15 phút.</p>
+              <p role="status" className={`mt-3 rounded-xl border px-3 py-2 text-xs ${selectedTimeAvailable ? "border-emerald-200 bg-emerald-50 text-[#08723d]" : "border-rose-200 bg-rose-50 text-rose-700"}`}>{scheduleWarning}</p>
             </section>
 
             {formError ? <p role="alert" className="rounded-xl border border-rose-100 bg-rose-50 px-3 py-2.5 text-sm text-rose-700">{formError}</p> : null}
@@ -618,8 +653,9 @@ function BookedScheduleDashboard({
   onCancel: (booking: Booking) => void;
 }) {
   const [now, setNow] = useState(() => new Date());
-  const [viewMode, setViewMode] = useState<"calendar" | "table">("calendar");
+  const [viewMode, setViewMode] = useState<"calendar" | "classSchedule" | "table">("calendar");
   const [tableScope, setTableScope] = useState<"active" | "history">("active");
+  const [tableDateRange, setTableDateRange] = useState<{ start: string; end: string } | null>(null);
   const [printPreviewOpen, setPrintPreviewOpen] = useState(false);
   const [printScope, setPrintScope] = useState<PrintScope>("today");
   const [printOrientation, setPrintOrientation] = useState<PrintOrientation>("portrait");
@@ -645,7 +681,8 @@ function BookedScheduleDashboard({
   const calendarDays = Array.from({ length: 42 }, (_, index) => index - startOffset + 1);
   const statusFor = (booking: Booking) => isEnded(booking) ? "Đã kết thúc" : booking.date === today && booking.start <= currentTime ? "Đang họp" : "Sắp tới";
   const statusStyle = (status: string) => status === "Đang họp" ? "bg-emerald-100 text-emerald-600" : status === "Đã kết thúc" ? "bg-slate-100 text-slate-500" : "bg-sky-100 text-sky-600";
-  const tableBookings = tableScope === "history" ? historyBookings : activeBookings;
+  const scopedTableBookings = tableDateRange ? allBookings : tableScope === "history" ? historyBookings : activeBookings;
+  const tableBookings = tableDateRange ? scopedTableBookings.filter((booking) => booking.date >= tableDateRange.start && booking.date <= tableDateRange.end) : scopedTableBookings;
   const printDate = todayLocal();
   const printBookings = sortBookingsByStart(printScope === "today" ? allBookings.filter((booking) => booking.date === printDate) : allBookings.filter((booking) => booking.date >= printDate));
 
@@ -653,28 +690,29 @@ function BookedScheduleDashboard({
     <div className="mx-auto max-w-[1220px] px-5 py-4 pb-7">
       <nav aria-label="Breadcrumb" className="mb-4 flex flex-wrap items-center gap-2 text-sm text-slate-500">
         <Link href="/" className="transition hover:text-[#1a7a1a]">Trang chủ</Link><ChevronRight size={16} />
-        <Link href="/about-wana#resources" className="transition hover:text-[#1a7a1a]">Công cụ &amp; Tài nguyên</Link><ChevronRight size={16} />
+        <Link href="/about-asia#resources" className="transition hover:text-[#1a7a1a]">Công cụ &amp; Tài nguyên</Link><ChevronRight size={16} />
         <Link href="/meeting" className="font-semibold text-slate-700 transition hover:text-[#1a7a1a]">Đặt phòng họp</Link><ChevronRight size={16} />
         <span className="font-bold text-[#0d5c0d]">Xem lịch phòng họp</span>
       </nav>
       <section className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-[#159447]"><CalendarDays size={21} /></span><div><h1 className="text-[22px] font-extrabold leading-6 tracking-tight text-[#0d5c0d]">Xem lịch đã đặt</h1><p className="mt-0.5 text-[11px] text-slate-500">Theo dõi, tìm kiếm và quản lý lịch đặt phòng họp</p></div></div>
-        <button type="button" onClick={() => { setPrintScope("today"); setPrintOrientation("portrait"); setPrintPreviewOpen(true); }} className="inline-flex h-8 items-center gap-2 rounded-lg border border-[#159447] bg-white px-3 text-[11px] font-semibold text-[#08723d] shadow-sm hover:bg-emerald-50"><Printer size={14} />In lịch hôm nay</button>
+        <div className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-50 text-[#159447]"><CalendarDays size={24} /></span><div><h1 className="text-3xl font-extrabold leading-9 tracking-tight text-[#0d5c0d]">Xem lịch đã đặt</h1><p className="mt-1 text-sm text-slate-500">Theo dõi, tìm kiếm và quản lý lịch đặt phòng họp</p></div></div>
+        <button type="button" onClick={() => { setPrintScope("today"); setPrintOrientation("portrait"); setPrintPreviewOpen(true); }} className="inline-flex h-10 items-center gap-2 rounded-lg border border-[#159447] bg-white px-4 text-sm font-semibold text-[#08723d] shadow-sm hover:bg-emerald-50"><Printer size={16} />In lịch hôm nay</button>
       </section>
 
       {viewMode === "table" ? <section className="mt-3 rounded-2xl border border-emerald-100 bg-white px-4 py-3 shadow-[0_8px_22px_rgba(15,118,65,0.07)]">
         <div className="grid gap-3 md:grid-cols-[1.25fr_1fr_1fr_auto] md:items-end">
-          <DashboardFilter label="Tìm kiếm"><span className="flex h-8 items-center gap-2 rounded-lg border border-emerald-100 bg-emerald-50/40 px-2.5 text-emerald-700"><Search size={14} /><input value={search} onChange={(event) => onSearchChange(event.target.value)} placeholder="Tìm kiếm tên người đặt" className="min-w-0 flex-1 bg-transparent text-[11px] outline-none placeholder:text-slate-400" /></span></DashboardFilter>
-          <DashboardFilter label="Phòng họp"><select value={roomFilter} onChange={(event) => onRoomFilterChange(event.target.value as RoomId | "all")} className="h-8 w-full rounded-lg border border-emerald-100 bg-white px-2.5 text-[11px] font-semibold text-slate-700 outline-none"><option value="all">Tất cả phòng họp</option>{rooms.map((room) => <option key={room.id} value={room.id}>{room.name}</option>)}</select></DashboardFilter>
-          <DashboardFilter label="Phòng ban"><select value={departmentFilter} onChange={(event) => onDepartmentFilterChange(event.target.value)} className="h-8 w-full rounded-lg border border-emerald-100 bg-white px-2.5 text-[11px] font-semibold text-slate-700 outline-none"><option value="all">Tất cả phòng ban</option>{departments.map((department) => <option key={department} value={department}>{department}</option>)}</select></DashboardFilter>
-          <button type="button" onClick={() => { onSearchChange(""); onRoomFilterChange("all"); onDepartmentFilterChange("all"); }} className="mb-0.5 inline-flex h-8 items-center justify-center gap-2 rounded-lg px-2 text-[11px] font-semibold text-[#08723d] hover:bg-emerald-50"><RotateCcw size={14} />Đặt lại</button>
+          <DashboardFilter label="Tìm kiếm"><span className="flex h-10 items-center gap-2 rounded-lg border border-emerald-100 bg-emerald-50/40 px-3 text-emerald-700"><Search size={17} /><input value={search} onChange={(event) => onSearchChange(event.target.value)} placeholder="Tìm kiếm tên người đặt" className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-slate-400" /></span></DashboardFilter>
+          <DashboardFilter label="Phòng họp"><select value={roomFilter} onChange={(event) => onRoomFilterChange(event.target.value as RoomId | "all")} className="h-10 w-full rounded-lg border border-emerald-100 bg-white px-3 text-sm font-semibold text-slate-700 outline-none"><option value="all">Tất cả phòng họp</option>{rooms.map((room) => <option key={room.id} value={room.id}>{room.name}</option>)}</select></DashboardFilter>
+          <DashboardFilter label="Phòng ban"><select value={departmentFilter} onChange={(event) => onDepartmentFilterChange(event.target.value)} className="h-10 w-full rounded-lg border border-emerald-100 bg-white px-3 text-sm font-semibold text-slate-700 outline-none"><option value="all">Tất cả phòng ban</option>{departments.map((department) => <option key={department} value={department}>{department}</option>)}</select></DashboardFilter>
+          <button type="button" onClick={() => { onSearchChange(""); onRoomFilterChange("all"); onDepartmentFilterChange("all"); setTableDateRange(null); setTableScope("active"); setViewMode("table"); }} className="mb-0.5 inline-flex h-10 items-center justify-center gap-2 rounded-lg px-3 text-sm font-semibold text-[#08723d] hover:bg-emerald-50"><RotateCcw size={16} />Đặt lại</button>
         </div>
       </section> : null}
 
       <section className="mt-3 flex flex-wrap items-center gap-3">
-        <Metric icon={<CalendarDays size={20} />} label="Lịch đang hoạt động" value={activeBookings.length} active={tableScope === "active"} onClick={() => { setTableScope("active"); setViewMode("table"); }} />
-        <Metric icon={<List size={20} />} label="Lịch sử đã đặt phòng" value={historyBookings.length} active={tableScope === "history"} onClick={() => { setTableScope("history"); setViewMode("table"); }} />
-        <div className="ml-auto inline-flex overflow-hidden rounded-xl border border-emerald-100 bg-white shadow-sm"><button type="button" onClick={() => setViewMode("calendar")} className={`inline-flex h-8 items-center gap-2 px-3 text-[11px] font-semibold ${viewMode === "calendar" ? "bg-[#159447] text-white" : "text-slate-600 hover:bg-emerald-50"}`}><CalendarDays size={13} />Xem theo lịch</button><button type="button" onClick={() => { setTableScope("active"); setViewMode("table"); }} className={`inline-flex h-8 items-center gap-2 px-3 text-[11px] font-semibold ${viewMode === "table" && tableScope === "active" ? "bg-[#159447] text-white" : "text-slate-600 hover:bg-emerald-50"}`}><List size={13} />Xem theo bảng</button></div>
+        <Metric icon={<CalendarDays size={20} />} label="Lịch đang hoạt động" value={activeBookings.length} active={tableScope === "active"} onClick={() => { setTableDateRange(null); setTableScope("active"); setViewMode("table"); }} />
+        <Metric icon={<List size={20} />} label="Lịch đã đặt" value={allBookings.length} active={tableScope === "history"} onClick={() => { setTableDateRange(null); setTableScope("history"); setViewMode("table"); }} />
+        <Metric icon={<UsersRound size={20} />} label="Phòng họp" value={rooms.length} />
+        <div className="ml-auto inline-flex max-w-full overflow-x-auto rounded-xl border border-emerald-100 bg-white shadow-sm"><button type="button" onClick={() => { setTableDateRange(null); setViewMode("calendar"); }} className={`inline-flex h-8 shrink-0 items-center gap-2 px-3 text-[11px] font-semibold ${viewMode === "calendar" ? "bg-[#159447] text-white" : "text-slate-600 hover:bg-emerald-50"}`}><CalendarDays size={13} />Xem theo lịch</button><button type="button" onClick={() => { setTableDateRange(null); setViewMode("classSchedule"); }} className={`inline-flex h-8 shrink-0 items-center gap-2 px-3 text-[11px] font-semibold ${viewMode === "classSchedule" ? "bg-[#159447] text-white" : "text-slate-600 hover:bg-emerald-50"}`}><CalendarClock size={13} />Xem theo lịch học</button><button type="button" onClick={() => { setTableDateRange(null); setTableScope("active"); setViewMode("table"); }} className={`inline-flex h-8 shrink-0 items-center gap-2 px-3 text-[11px] font-semibold ${viewMode === "table" && tableScope === "active" ? "bg-[#159447] text-white" : "text-slate-600 hover:bg-emerald-50"}`}><List size={13} />Xem theo bảng</button></div>
       </section>
 
       {viewMode === "calendar" ? <section className="mt-3 grid min-h-[calc(100vh-286px)] items-stretch gap-4 lg:grid-cols-[minmax(0,1.05fr)_minmax(330px,0.75fr)]">
@@ -700,10 +738,111 @@ function BookedScheduleDashboard({
           )}</article>
       </section> : null}
 
-      {viewMode === "table" ? <section className="meeting-schedule-table mt-3 overflow-hidden rounded-2xl border border-emerald-100 bg-white px-4 py-3 shadow-[0_8px_22px_rgba(15,118,65,0.07)]"><div className="flex items-center justify-between pb-2"><h2 className="text-sm font-extrabold text-[#1d315a]">{tableScope === "history" ? "Lịch sử đặt phòng" : "Danh sách lịch đặt"}</h2>{tableScope === "history" ? <button type="button" onClick={() => setTableScope("active")} className="text-[10px] font-bold text-[#0869e8] hover:underline">Xem lịch đang hoạt động</button> : null}</div><div className="overflow-x-auto"><table className="w-full min-w-[920px] border-collapse text-center text-[10px]"><thead className="bg-[#f3f7fc] text-[#3d527a]"><tr>{["Tiêu đề", "Người đặt", "Phòng ban", "Ngày & giờ", "Email", "Phòng họp", "Số người", "Trạng thái", "Thao tác"].map((heading) => <th key={heading} className="border border-[#e0e9f4] px-3 py-1.5 font-bold">{heading}</th>)}</tr></thead><tbody>{tableBookings.length ? tableBookings.map((booking) => { const status = statusFor(booking); return <tr key={booking.id} className="text-[#36517c]"><td className="border border-[#e8eef6] px-3 py-1.5 font-bold text-[#253d67]">{booking.title}</td><td className="border border-[#e8eef6] px-3 py-1.5">{booking.organizer}</td><td className="border border-[#e8eef6] px-3 py-1.5">{booking.department}</td><td className="border border-[#e8eef6] px-3 py-1.5 leading-3.5">{formatDate(booking.date)}<br />{booking.start} - {booking.end}</td><td className="border border-[#e8eef6] px-3 py-1.5">{booking.email}</td><td className="border border-[#e8eef6] px-3 py-1.5">{booking.displayRoom ?? rooms.find((room) => room.id === booking.roomId)?.name}</td><td className="border border-[#e8eef6] px-3 py-1.5">{booking.attendees}</td><td className="border border-[#e8eef6] px-3 py-1.5"><span className={`inline-flex rounded px-2 py-1 font-bold ${statusStyle(status)}`}>{status}</span></td><td className="border border-[#e8eef6] px-3 py-1.5">{tableScope === "active" ? <button type="button" onClick={() => onCancel(booking)} className="rounded border border-[#ff8490] px-3 py-1 text-[9px] font-bold text-[#f04754] hover:bg-rose-50">Hủy lịch</button> : <span className="text-[#91a0b6]">—</span>}</td></tr>; }) : <tr><td colSpan={9} className="border border-[#e8eef6] px-3 py-10 text-center text-sm text-[#7a8ba6]">{tableScope === "history" ? "Chưa có lịch sử cuộc họp." : "Không có lịch họp đang hoạt động."}</td></tr>}</tbody></table></div></section> : null}
+      {viewMode === "classSchedule" ? <WeeklyScheduleView bookings={allBookings} onShowWeekDetails={(start, end) => { setTableScope("active"); setTableDateRange({ start, end }); setViewMode("table"); }} /> : null}
+
+      {viewMode === "table" ? <section className="meeting-schedule-table mt-4 overflow-hidden rounded-2xl border border-emerald-100 bg-white px-5 py-4 shadow-[0_8px_22px_rgba(15,118,65,0.07)]"><div className="flex items-center justify-between pb-3"><h2 className="text-lg font-extrabold text-[#1d315a]">{tableScope === "history" ? "Lịch sử đặt phòng" : "Danh sách lịch đặt"}</h2>{tableScope === "history" ? <button type="button" onClick={() => setTableScope("active")} className="text-xs font-bold text-[#0869e8] hover:underline">Xem lịch đang hoạt động</button> : null}</div><div className="overflow-x-auto"><table className="w-full min-w-[920px] border-collapse text-center text-sm"><thead className="bg-[#f3f7fc] text-[#3d527a]"><tr>{["Tiêu đề", "Người đặt", "Phòng ban", "Ngày & giờ", "Email", "Phòng họp", "Số người", "Trạng thái", "Thao tác"].map((heading) => <th key={heading} className="border border-[#e0e9f4] px-4 py-3 font-bold">{heading}</th>)}</tr></thead><tbody>{tableBookings.length ? tableBookings.map((booking) => { const status = statusFor(booking); return <tr key={booking.id} className="text-[#36517c]"><td className="border border-[#e8eef6] px-4 py-3 font-bold text-[#253d67]">{booking.title}</td><td className="border border-[#e8eef6] px-4 py-3">{booking.organizer}</td><td className="border border-[#e8eef6] px-4 py-3">{booking.department}</td><td className="border border-[#e8eef6] px-4 py-3 leading-5">{formatDate(booking.date)}<br />{booking.start} - {booking.end}</td><td className="border border-[#e8eef6] px-4 py-3">{booking.email}</td><td className="border border-[#e8eef6] px-4 py-3">{booking.displayRoom ?? rooms.find((room) => room.id === booking.roomId)?.name}</td><td className="border border-[#e8eef6] px-4 py-3">{booking.attendees}</td><td className="border border-[#e8eef6] px-4 py-3"><span className={`inline-flex rounded px-2.5 py-1 font-bold ${statusStyle(status)}`}>{status}</span></td><td className="border border-[#e8eef6] px-4 py-3">{tableScope === "active" ? <button type="button" onClick={() => onCancel(booking)} className="rounded border border-[#ff8490] px-3 py-1.5 text-xs font-bold text-[#f04754] hover:bg-rose-50">Hủy lịch</button> : <span className="text-[#91a0b6]">—</span>}</td></tr>; }) : <tr><td colSpan={9} className="border border-[#e8eef6] px-4 py-12 text-center text-base text-[#7a8ba6]">{tableScope === "history" ? "Chưa có lịch sử cuộc họp." : "Không có lịch họp đang hoạt động."}</td></tr>}</tbody></table></div></section> : null}
     </div>
     {printPreviewOpen ? <PrintPreviewModal bookings={printBookings} scope={printScope} orientation={printOrientation} onScopeChange={setPrintScope} onOrientationChange={setPrintOrientation} onClose={() => setPrintPreviewOpen(false)} onPrint={() => printBookingTable(printBookings, printScope, printOrientation)} /> : null}
   </div>;
+}
+
+function WeeklyScheduleView({ bookings, onShowWeekDetails }: { bookings: Booking[]; onShowWeekDetails: (start: string, end: string) => void }) {
+  const [now, setNow] = useState(() => new Date());
+  const [bookingPopup, setBookingPopup] = useState<{ booking: Booking; top: number; left: number } | null>(null);
+  const bookingPopupRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 30_000);
+    return () => window.clearInterval(timer);
+  }, []);
+  useEffect(() => {
+    if (!bookingPopup) return;
+    const closeOnOutsideClick = (event: MouseEvent) => {
+      if (!bookingPopupRef.current?.contains(event.target as Node)) setBookingPopup(null);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === "Escape") setBookingPopup(null); };
+    document.addEventListener("mousedown", closeOnOutsideClick);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("mousedown", closeOnOutsideClick);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [bookingPopup]);
+  const [weekStart, setWeekStart] = useState(() => {
+    const today = new Date();
+    const monday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+    return monday;
+  });
+  const [roomFilter, setRoomFilter] = useState<RoomId | "all">("all");
+  const [departmentFilter, setDepartmentFilter] = useState("all");
+  const [locationFilter, setLocationFilter] = useState("all");
+  const weekDays = Array.from({ length: 6 }, (_, index) => {
+    const date = new Date(weekStart);
+    date.setDate(date.getDate() + index);
+    return date;
+  });
+  const dayKey = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+  const departments = [...new Set(bookings.map((booking) => booking.department))].sort();
+  const filteredBookings = bookings.filter((booking) => (roomFilter === "all" || booking.roomId === roomFilter) && (departmentFilter === "all" || booking.department === departmentFilter));
+  const weekKeys = new Set(weekDays.map(dayKey));
+  const weekBookings = filteredBookings.filter((booking) => weekKeys.has(booking.date));
+  const timeSlots = ["07:00 - 08:30", "08:45 - 10:15", "10:30 - 12:00", "13:30 - 15:00", "15:15 - 16:45", "17:00 - 18:30"];
+  const miniMonth = weekStart.getMonth();
+  const miniYear = weekStart.getFullYear();
+  const monthStartOffset = (new Date(miniYear, miniMonth, 1).getDay() + 6) % 7;
+  const monthDays = new Date(miniYear, miniMonth + 1, 0).getDate();
+  const currentDate = dayKey(now);
+  const currentTime = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+  const bookingStatusClass = (booking: Booking) => {
+    if (booking.date < currentDate || (booking.date === currentDate && booking.end <= currentTime)) return "border-slate-300 bg-slate-50 text-slate-800";
+    if (booking.date === currentDate && booking.start <= currentTime && booking.end > currentTime) return "border-emerald-500 bg-emerald-50 text-emerald-950";
+    return "border-blue-400 bg-blue-50 text-blue-950";
+  };
+  const shiftWeek = (amount: number) => setWeekStart((current) => {
+    const next = new Date(current);
+    next.setDate(next.getDate() + amount * 7);
+    return next;
+  });
+  const weekLabel = `${String(weekDays[0].getDate()).padStart(2, "0")}/${String(weekDays[0].getMonth() + 1).padStart(2, "0")}/${weekDays[0].getFullYear()} - ${String(weekDays[5].getDate()).padStart(2, "0")}/${String(weekDays[5].getMonth() + 1).padStart(2, "0")}/${weekDays[5].getFullYear()}`;
+
+  return <section className="relative mt-3 grid gap-3 xl:grid-cols-[minmax(0,1fr)_232px]">
+    {bookingPopup ? (() => {
+      const room = rooms.find((item) => item.id === bookingPopup.booking.roomId) ?? rooms[0];
+      return <div ref={bookingPopupRef} role="dialog" aria-label="Thông tin cuộc họp" className="fixed h-[320px] w-[min(500px,calc(100vw-16px))] overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden z-[90] rounded-[20px] border-2 border-emerald-200 bg-white p-4 text-left shadow-[0_18px_44px_rgba(15,23,42,0.22)]" style={{ top: bookingPopup.top, left: bookingPopup.left }}>
+        <button type="button" onClick={() => setBookingPopup(null)} aria-label="Đóng chi tiết" className="absolute right-1.5 top-1.5 z-10 rounded-full bg-white/90 p-1 text-slate-500 shadow-sm transition hover:bg-slate-100 hover:text-slate-800"><X size={13} /></button>
+        <div className="grid h-full gap-4 sm:grid-cols-[184px_minmax(0,1fr)] sm:items-center">
+          <div className="relative h-36 overflow-hidden rounded-xl sm:h-[240px]"><Image src={room.image} alt={room.name} fill sizes="(max-width: 640px) 100vw, 184px" className="object-cover" /></div>
+          <div className="min-w-0 py-1 sm:pr-5"><h3 className="break-words pr-7 text-xl font-extrabold leading-tight text-[#17324f]">{bookingPopup.booking.title}</h3><div className="mt-3 flex flex-wrap gap-2"><span className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800"><Clock3 size={16} />{bookingPopup.booking.start} - {bookingPopup.booking.end}</span><span className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800"><MapPin size={16} />{room.name}</span></div><div className="my-3 border-t border-slate-200" /><div className="space-y-2.5 text-sm text-slate-600"><p className="grid grid-cols-[20px_82px_minmax(0,1fr)] items-start gap-2"><UserRound size={17} /><span>Người đặt:</span><strong className="break-words font-medium text-[#17324f]">{bookingPopup.booking.organizer}</strong></p><p className="grid grid-cols-[20px_82px_minmax(0,1fr)] items-start gap-2"><Mail size={17} /><span>Email:</span><strong className="break-all font-medium text-[#17324f]">{bookingPopup.booking.email || "—"}</strong></p><p className="grid grid-cols-[20px_82px_minmax(0,1fr)] items-start gap-2"><UsersRound size={17} /><span>Phòng ban:</span><strong className="break-words font-medium text-[#17324f]">{bookingPopup.booking.department || "—"}</strong></p><p className="grid grid-cols-[20px_82px_minmax(0,1fr)] items-start gap-2"><UsersRound size={17} /><span>Số người:</span><strong className="font-medium text-[#17324f]">{bookingPopup.booking.attendees}</strong></p></div></div>
+        </div>
+      </div>;
+    })() : null}
+    <article className="overflow-hidden rounded-xl border border-emerald-100 bg-white p-2.5 shadow-[0_8px_22px_rgba(15,118,65,0.07)]">
+      <div className="mb-2 flex flex-wrap items-center gap-2">
+        <div className="inline-flex overflow-hidden rounded-lg border border-[#dce7f4] bg-white">
+          <button type="button" onClick={() => shiftWeek(-1)} aria-label="Tuần trước" className="flex h-8 w-8 items-center justify-center text-[#34527e] hover:bg-emerald-50"><ChevronLeft size={17} /></button>
+          <span className="inline-flex h-8 items-center gap-1.5 border-x border-[#dce7f4] px-2.5 text-xs font-bold text-[#1d315a]"><CalendarDays size={14} />{weekLabel}</span>
+          <button type="button" onClick={() => shiftWeek(1)} aria-label="Tuần sau" className="flex h-8 w-8 items-center justify-center text-[#34527e] hover:bg-emerald-50"><ChevronRight size={17} /></button>
+        </div>
+        <select value={departmentFilter} onChange={(event) => setDepartmentFilter(event.target.value)} className="h-9 rounded-lg border border-[#dce7f4] bg-white px-2 text-xs font-semibold text-[#40577e] outline-none"><option value="all">Tất cả phòng ban</option>{departments.map((department) => <option key={department} value={department}>{department}</option>)}</select>
+        <select value={roomFilter} onChange={(event) => setRoomFilter(event.target.value as RoomId | "all")} className="h-9 rounded-lg border border-[#dce7f4] bg-white px-2 text-xs font-semibold text-[#40577e] outline-none"><option value="all">Tất cả phòng họp</option>{rooms.map((room) => <option key={room.id} value={room.id}>{room.name}</option>)}</select>
+      </div>
+      <div className="overflow-x-auto rounded-lg border border-[#dce7f4]"><div className="min-w-[820px]">
+        <div className="grid grid-cols-[96px_repeat(6,minmax(104px,1fr))] bg-[#f4f8fd] text-center text-xs font-extrabold text-[#334d78]"><div className="flex items-center justify-center border-r border-[#dce7f4] py-2">Thời gian</div>{weekDays.map((date, index) => <div key={dayKey(date)} className="border-r border-[#dce7f4] py-1.5 last:border-r-0"><p>Thứ {index + 2}</p><p className="mt-0.5 text-[#7182a1]">{String(date.getDate()).padStart(2, "0")}/{String(date.getMonth() + 1).padStart(2, "0")}</p></div>)}</div>
+        {timeSlots.map((slot, row) => <div key={slot} className="grid min-h-[112px] grid-cols-[96px_repeat(6,minmax(104px,1fr))] border-t border-[#e4edf7]"><div className="flex items-center justify-center border-r border-[#dce7f4] bg-[#f8fbff] px-2 text-center text-xs font-extrabold text-[#1d315a]">{slot}</div>{weekDays.map((date, column) => {
+          const dateBookings = weekBookings.filter((booking) => booking.date === dayKey(date) && booking.start >= slot.slice(0, 5) && booking.start <= slot.slice(8));
+          return <div key={dayKey(date)} className="border-r border-[#e4edf7] p-2 last:border-r-0">{dateBookings.map((booking) => <button key={booking.id} type="button" onClick={(event) => { const rect = event.currentTarget.getBoundingClientRect(); const popupHeight = 320; const popupWidth = Math.min(500, window.innerWidth - 16); const top = rect.bottom + popupHeight + 12 < window.innerHeight ? rect.bottom + 8 : Math.max(8, Math.min(rect.top - popupHeight - 8, window.innerHeight - popupHeight - 8)); const left = Math.max(8, Math.min(rect.left, window.innerWidth - popupWidth - 8)); setBookingPopup((current) => current?.booking.id === booking.id ? null : { booking, top, left }); }} aria-label={`Xem chi tiết cuộc họp ${booking.title}`} className={`mb-1 block min-h-[104px] w-full rounded-lg border-l-4 p-3.5 text-left shadow-sm transition duration-150 hover:-translate-y-1 hover:shadow-lg ${bookingStatusClass(booking)}`}><p className="line-clamp-2 text-base font-extrabold leading-5">{booking.title}</p><p className="mt-2 flex items-center gap-1.5 text-sm opacity-75"><Clock3 size={15} />{booking.start} - {booking.end}</p><p className="mt-1 flex items-center gap-1.5 text-sm opacity-75"><MapPin size={15} />{rooms.find((room) => room.id === booking.roomId)?.name}</p></button>)}</div>;
+        })}</div>)}</div></div>
+    </article>
+    <aside className="space-y-3">
+      <section className="rounded-xl border border-emerald-100 bg-white p-3 shadow-[0_8px_22px_rgba(15,118,65,0.07)]"><div className="flex items-center justify-between"><h2 className="text-base font-extrabold text-[#1d315a]">Tháng {miniMonth + 1}, {miniYear}</h2><div className="flex gap-1"><button type="button" onClick={() => shiftWeek(-4)} className="rounded p-1 text-[#34527e] hover:bg-emerald-50"><ChevronLeft size={16} /></button><button type="button" onClick={() => shiftWeek(4)} className="rounded p-1 text-[#34527e] hover:bg-emerald-50"><ChevronRight size={16} /></button></div></div><div className="mt-3 grid grid-cols-7 gap-y-2 text-center text-[11px]"><>{["T2", "T3", "T4", "T5", "T6", "T7", "CN"].map((day) => <span key={day} className="font-bold text-[#7182a1]">{day}</span>)}</>{Array.from({ length: monthStartOffset }, (_, index) => <span key={`empty-${index}`} />)}{Array.from({ length: monthDays }, (_, index) => { const date = new Date(miniYear, miniMonth, index + 1); const inWeek = weekKeys.has(dayKey(date)); return <button key={index} type="button" onClick={() => { const monday = new Date(date); monday.setDate(date.getDate() - ((date.getDay() + 6) % 7)); setWeekStart(monday); }} className={`mx-auto flex h-7 w-7 items-center justify-center rounded-full font-semibold ${inWeek ? "bg-[#159447] text-white" : "text-[#334d78] hover:bg-emerald-50"}`}>{index + 1}</button>; })}</div></section>
+      <section className="rounded-xl border border-emerald-100 bg-white p-3 shadow-[0_8px_22px_rgba(15,118,65,0.07)]"><div className="flex items-center justify-between"><div><h2 className="text-base font-extrabold text-[#1d315a]">Thống kê tuần này</h2><p className="mt-0.5 text-xs text-[#7182a1]">{weekLabel}</p></div><button type="button" onClick={() => onShowWeekDetails(dayKey(weekDays[0]), dayKey(weekDays[5]))} className="text-sm font-bold text-[#159447] hover:text-[#0d5c0d]">Chi tiết →</button></div><div className="mt-3 grid grid-cols-2 gap-2"><WeeklyStatCard icon={<CalendarDays size={16} />} label="Cuộc họp" value={weekBookings.length} /><WeeklyStatCard icon={<UsersRound size={16} />} label="Phòng ban đặt" value={new Set(weekBookings.map((booking) => booking.department)).size} /><WeeklyStatCard icon={<MapPin size={16} />} label="Phòng 1" value={weekBookings.filter((booking) => booking.roomId === "room-01").length} /><WeeklyStatCard icon={<MapPin size={16} />} label="Phòng 2" value={weekBookings.filter((booking) => booking.roomId === "room-02").length} /></div></section>
+      <section className="rounded-xl border border-emerald-100 bg-white p-3 shadow-[0_8px_22px_rgba(15,118,65,0.07)]"><h2 className="text-sm font-extrabold text-[#1d315a]">Trạng thái cuộc họp</h2><div className="mt-3 space-y-2 text-[11px] text-[#536681]"><p className="flex items-center gap-2"><i className="h-3 w-3 rounded-full bg-slate-300" />Đã qua giờ họp</p><p className="flex items-center gap-2"><i className="h-3 w-3 rounded-full bg-blue-400" />Chưa tới giờ họp</p><p className="flex items-center gap-2"><i className="h-3 w-3 rounded-full bg-emerald-500" />Đang họp</p></div></section>
+    </aside>
+  </section>;
+}
+
+function WeeklyStatCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: number }) {
+  return <div className="flex flex-col items-center rounded-lg bg-[#f5f8ff] p-2 text-center"><span className="flex h-8 w-8 items-center justify-center rounded-md bg-white text-[#159447] shadow-sm">{icon}</span><p className="mt-1 text-lg font-extrabold text-black">{value}</p><p className="text-xs font-medium text-[#7182a1]">{label}</p></div>;
 }
 
 function PrintPreviewModal({ bookings, scope, orientation, onScopeChange, onOrientationChange, onClose, onPrint }: { bookings: Booking[]; scope: PrintScope; orientation: PrintOrientation; onScopeChange: (scope: PrintScope) => void; onOrientationChange: (orientation: PrintOrientation) => void; onClose: () => void; onPrint: () => void }) {
@@ -745,11 +884,11 @@ function PrintPreviewModal({ bookings, scope, orientation, onScopeChange, onOrie
 }
 
 function DashboardFilter({ label, children }: { label: string; children: React.ReactNode }) {
-  return <label className="block"><span className="mb-1 block text-[10px] font-bold text-[#40577e]">{label}</span>{children}</label>;
+  return <label className="block"><span className="mb-1 block text-xs font-bold text-[#40577e]">{label}</span>{children}</label>;
 }
 
 function Metric({ icon, label, value, active = false, onClick }: { icon: React.ReactNode; label: string; value: number; active?: boolean; onClick?: () => void }) {
-  return <button type="button" onClick={onClick} className={`flex h-[64px] min-w-[230px] items-center gap-3 rounded-2xl border bg-white px-4 text-left shadow-[0_8px_22px_rgba(15,118,65,0.07)] transition hover:-translate-y-0.5 hover:border-emerald-300 ${active ? "border-[#159447]" : "border-emerald-100"}`}><span className={`flex h-10 w-10 items-center justify-center rounded-xl ${active ? "bg-emerald-100 text-[#159447]" : "bg-lime-50 text-[#08723d]"}`}>{icon}</span><span><span className="block text-[11px] font-semibold text-[#08723d]">{label}</span><span className="block text-[24px] font-extrabold leading-5 text-[#0d5c0d]">{value}</span></span></button>;
+  return <button type="button" onClick={onClick} className={`flex h-[72px] min-w-[240px] items-center gap-3 rounded-2xl border bg-white px-4 text-left shadow-[0_8px_22px_rgba(15,118,65,0.07)] transition hover:-translate-y-0.5 hover:border-emerald-300 ${active ? "border-[#159447]" : "border-emerald-100"}`}><span className={`flex h-11 w-11 items-center justify-center rounded-xl ${active ? "bg-emerald-100 text-[#159447]" : "bg-lime-50 text-[#08723d]"}`}>{icon}</span><span><span className="block text-xs font-semibold text-[#08723d]">{label}</span><span className="block text-[28px] font-extrabold leading-7 text-[#0d5c0d]">{value}</span></span></button>;
 }
 
 function CancelOtpModal({ otp, otpInputRefs, onClose, onSubmit, onUpdateOtp, onResend }: { otp: string[]; otpInputRefs: { current: Array<HTMLInputElement | null> }; onClose: () => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void; onUpdateOtp: (index: number, value: string) => void; onResend: () => void }) {

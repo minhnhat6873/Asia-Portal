@@ -11,7 +11,7 @@ export default function DiagramPage() {
     <main className="min-h-screen bg-white text-slate-800">
       <Navbar />
 
-      <section className="relative min-h-[290px] overflow-hidden border-b border-slate-100 bg-white">
+      <section className="relative h-56 overflow-hidden border-b border-slate-100 bg-white sm:h-64 xl:h-75">
         <Image
           src="/assets/images/banner-diagram.png"
           alt=""
@@ -20,14 +20,15 @@ export default function DiagramPage() {
           className="object-cover object-center"
           sizes="100vw"
         />
-        <div className="relative mx-auto flex min-h-[290px] max-w-7xl flex-col justify-center px-5 py-10 sm:px-8 lg:px-10">
-          <p className="w-full max-w-[480px] self-start rounded-t-2xl bg-[#073b20]/82 px-5 pt-5 text-[10px] font-extrabold uppercase tracking-[0.08em] text-emerald-200 backdrop-blur-sm">Sơ đồ tổ chức</p>
-          <div className="mt-0 max-w-[480px] rounded-b-2xl bg-[#073b20]/82 px-5 pb-5 shadow-xl shadow-emerald-950/20 backdrop-blur-sm">
+        <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-r from-white/35 via-white/15 to-transparent [background-size:35%_100%] [background-repeat:no-repeat]" />
+        <div className="relative mx-auto flex h-full max-w-7xl flex-col justify-center px-5 py-10 sm:px-8 lg:px-10">
+          <p className="w-full max-w-[560px] self-start text-xs font-extrabold uppercase tracking-[0.08em] text-[#0d5c0d] sm:text-sm">Sơ đồ tổ chức</p>
+          <div className="mt-2 max-w-[480px]">
             <div>
-              <h1 className="max-w-[430px] text-[24px] font-black leading-[1.12] tracking-tight text-white sm:text-[28px]">
-                Cùng nhìn tổng thể <span className="block text-[#9cf5a8]">tổ chức Á Châu</span>
+              <h1 className="max-w-[560px] text-[30px] font-black leading-[1.12] tracking-tight text-[#0d5c0d] sm:text-[38px] lg:text-[44px]">
+                Cùng nhìn tổng thể <span className="block text-[#f28c00]">tổ chức Á Châu</span>
               </h1>
-              <p className="mt-3 max-w-[430px] text-[13px] leading-5 text-white/90">
+              <p className="mt-4 max-w-[560px] text-base font-semibold leading-6 text-black sm:text-lg sm:leading-7">
                 Kết nối con người, vận hành hiệu quả và xây dựng một tổ chức vững mạnh hôm nay.
               </p>
             </div>

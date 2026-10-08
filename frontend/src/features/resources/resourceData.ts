@@ -5,7 +5,6 @@ import {
   MapPin,
   MessagesSquare,
 } from "lucide-react";
-import { buildDemoHref } from "@/config/demoFeatures";
 
 /* ------------------------------------------------------------------------- *
  * Resources — feeds the "Công cụ & Tài nguyên" grid
@@ -23,8 +22,8 @@ export type ResourceItem = {
   /** Colour of the footer call-to-action text. */
   linkTone: string;
   linkText: string;
-  /** Where the card navigates. */
-  href: string;
+  /** Where the card navigates. Omit for informational cards. */
+  href?: string;
   /** Anchor consumed by the navbar "FAQ" shortcut. */
   anchor?: string;
   /** The handbook card shows a download glyph instead of an arrow. */
@@ -39,7 +38,6 @@ export const RESOURCE_ITEMS: ResourceItem[] = [
     chipTone: "bg-[#f0fdf4] text-[#15803d]",
     linkTone: "text-[#15803d]",
     linkText: "Truy cập ngay",
-    href: buildDemoHref("hr-portal"),
     anchor: "hr-portal",
   },
   {
@@ -49,7 +47,6 @@ export const RESOURCE_ITEMS: ResourceItem[] = [
     chipTone: "bg-amber-50 text-amber-600",
     linkTone: "text-amber-600",
     linkText: "Tải về PDF",
-    href: buildDemoHref("handbook-pdf"),
     showDownloadIcon: true,
   },
   {
@@ -68,7 +65,6 @@ export const RESOURCE_ITEMS: ResourceItem[] = [
     chipTone: "bg-purple-50 text-purple-600",
     linkTone: "text-purple-600",
     linkText: "Xem sơ đồ",
-    href: buildDemoHref("office-map"),
   },
   {
     title: "FAQ dành cho Tân Binh",
@@ -77,7 +73,6 @@ export const RESOURCE_ITEMS: ResourceItem[] = [
     chipTone: "bg-emerald-50 text-emerald-600",
     linkTone: "text-emerald-600",
     linkText: "Đọc giải đáp",
-    href: buildDemoHref("newbie-faq"),
     anchor: "faq",
   },
 ];
