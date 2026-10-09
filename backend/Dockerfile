@@ -1,4 +1,4 @@
-FROM node:20-alpine AS development
+FROM node:22-alpine AS development
 
 WORKDIR /app
 
@@ -18,7 +18,7 @@ FROM development AS builder
 RUN yarn build
 
 
-FROM node:20-alpine AS production
+FROM node:22-alpine AS production
 
 WORKDIR /app
 
@@ -28,7 +28,9 @@ COPY package.json yarn.lock ./
 
 RUN yarn install --frozen-lockfile --production=true
 
-COPY --from=builder /app/dist ./dist
+COPY --from=builder --chown=node:node /app/dist ./dist
+
+USER node
 
 EXPOSE 4000
 
