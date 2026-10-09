@@ -21,6 +21,7 @@ const mediaSchema = new Schema<Media>(
     category: { type: String, enum: MEDIA_CATEGORIES, required: true, index: true },
     summary: { type: String, required: true, trim: true },
     content: { type: String, default: "", trim: true },
+    contentAssetPublicIds: { type: [String], default: [] },
     coverImage: { type: String, default: "", trim: true },
     coverImagePublicId: { type: String, default: "", trim: true },
     authorDepartment: { type: String, required: true, trim: true },
@@ -37,6 +38,8 @@ const mediaSchema = new Schema<Media>(
     collection: "media_posts",
   },
 );
+
+mediaSchema.index({ contentAssetPublicIds: 1 });
 
 const MediaModel = models.Media || model<Media>("Media", mediaSchema);
 

@@ -8,7 +8,7 @@ import DatePicker from "@/components/ui/DatePicker";
 import { hasRichTextContent, RichText } from "@/components/ui/RichText";
 import RichTextEditor from "@/components/ui/RichTextEditor";
 import { ApiError } from "@/services/api";
-import { createAdminMedia, updateAdminMedia } from "@/services/admin-media.service";
+import { createAdminMedia, updateAdminMedia, uploadAdminMediaContentImage } from "@/services/admin-media.service";
 import type { MediaCategory, MediaPost } from "../types";
 import { AdminSelect } from "./AdminSelect";
 
@@ -126,8 +126,8 @@ export function AddMediaPage({ mode = "create", initialPost, onBack, onSave }: A
             <label className="text-sm font-bold text-slate-700">Đơn vị / Phòng ban<select value={formData.authorDepartment} onChange={(e) => setFormData({ ...formData, authorDepartment: e.target.value })} className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 font-medium"><option>Phòng HR&amp;AD</option><option>Phòng MKT</option></select></label>
           </div>
           <AvatarUploader key={uploaderKey} inputId="media-cover-upload" inputName="coverImage" initialAvatarUrl={coverRemoved ? "" : formData.coverImage} onFileChange={(file) => { setCoverFile(file); if (file) setCoverRemoved(false); }} onExistingAvatarRemove={() => setCoverRemoved(true)} label="Ảnh bìa" emptyHelperText="Thả tệp vào đây hoặc duyệt. JPEG, PNG, WebP tối đa 5 MB; khung 4:3." selectedHelperText="Ảnh bìa mới đã sẵn sàng." existingHelperText="Đang giữ ảnh bìa hiện tại." imageAlt="Xem trước ảnh bìa" changeLabel="Thay ảnh bìa" />
-          <div><label className="mb-1.5 block text-sm font-bold text-slate-700">Tóm tắt ngắn (Sapo) *</label><RichTextEditor value={formData.summary} onChange={(summary) => setFormData({ ...formData, summary })} placeholder="Nhập tóm tắt bài viết..." /></div>
-          <div><label className="mb-1.5 block text-sm font-bold text-slate-700">Nội dung chi tiết</label><RichTextEditor value={formData.content} onChange={(content) => setFormData({ ...formData, content })} placeholder="Nhập nội dung chi tiết..." /></div>
+          <div><label className="mb-1.5 block text-sm font-bold text-slate-700">Tóm tắt ngắn (Sapo) *</label><RichTextEditor value={formData.summary} onChange={(summary) => setFormData({ ...formData, summary })} placeholder="Nhập tóm tắt bài viết..." enableImageInsert uploadImage={uploadAdminMediaContentImage} /></div>
+          <div><label className="mb-1.5 block text-sm font-bold text-slate-700">Nội dung chi tiết</label><RichTextEditor value={formData.content} onChange={(content) => setFormData({ ...formData, content })} placeholder="Nhập nội dung chi tiết..." enableImageInsert uploadImage={uploadAdminMediaContentImage} /></div>
         </form>
 
         <aside className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm 2xl:col-span-5">
