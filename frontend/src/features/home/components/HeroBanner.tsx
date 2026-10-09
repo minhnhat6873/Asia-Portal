@@ -8,10 +8,10 @@ export default function HeroBanner() {
         style={{ backgroundImage: "url('/assets/images/home-1.png')" }}
       />
 
-      <div className="relative z-10 mx-auto flex min-h-[330px] w-full max-w-[1800px] items-start px-3 pt-4 sm:min-h-[360px] sm:px-8 sm:pt-6 lg:px-[4%] xl:min-h-[500px] xl:pt-8">
+      <div className="relative z-10 mx-auto flex min-h-[330px] w-full max-w-[1800px] items-center justify-center px-3 sm:min-h-[360px] sm:items-start sm:justify-start sm:px-8 sm:pt-6 lg:px-[4%] xl:min-h-[500px] xl:pt-8">
         <div className="w-full max-w-full sm:w-fit">
           <div className="mb-4 flex items-center justify-center gap-3 text-[#064d20] sm:mb-5">
-            <p className="text-[8px] font-bold uppercase tracking-[0.32em] sm:text-[10px] xl:text-sm">
+            <p className="text-[11px] font-bold uppercase tracking-[0.32em] sm:text-[10px] xl:text-sm">
               Asia Internal Portal
             </p>
             <Leaf className="h-5 w-5 fill-[#279318] sm:h-7 sm:w-7" strokeWidth={1.5} />
@@ -19,18 +19,14 @@ export default function HeroBanner() {
           </div>
 
           <h1 className="text-center uppercase leading-[0.95] tracking-[-0.045em] drop-shadow-[0_2px_1px_rgba(255,255,255,0.9)] sm:text-left">
-            <span className="block text-[1.65rem] font-black text-[#08701c] sm:text-[clamp(2.25rem,4.3vw,4.8rem)]">
+            <span className="block text-[2.2rem] font-black text-[#08701c] sm:text-[clamp(2.25rem,4.3vw,4.8rem)]">
               Asia Food &amp;
             </span>
-            <span className="mt-1 block text-[1.65rem] font-black text-[#ff9d00] sm:mt-2 sm:text-[clamp(2.25rem,4.3vw,4.8rem)]">
+            <span className="mt-1 block text-[2.2rem] font-black text-[#ff9d00] sm:mt-2 sm:text-[clamp(2.25rem,4.3vw,4.8rem)]">
               Beverage
             </span>
           </h1>
 
-          <p className="mx-auto mt-4 w-[78%] max-w-[570px] text-center text-[11px] font-medium leading-[1.35] text-black drop-shadow-[0_1px_1px_rgba(255,255,255,0.9)] sm:text-base xl:mt-5 xl:text-xl">
-            Kết nối đội ngũ, cập nhật thông tin
-            <br className="hidden sm:block" /> và cùng phát triển mỗi ngày.
-          </p>
         </div>
       </div>
     </section>

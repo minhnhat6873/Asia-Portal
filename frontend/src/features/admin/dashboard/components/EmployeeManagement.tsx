@@ -283,6 +283,33 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
     );
   };
 
+  const pagination = totalPages > 1 && (
+    <div className={`flex flex-col items-center justify-between gap-3 bg-slate-50/70 px-4 py-3 sm:flex-row ${viewMode === 'grid' ? 'rounded-2xl border border-slate-200' : 'border-t border-slate-200'}`}>
+      <p className="text-xs font-medium text-slate-600">
+        Trang <strong className="text-emerald-700">{page}</strong> / {totalPages}
+      </p>
+      <nav aria-label="Chuyển trang nhân viên" className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
+        <button
+          type="button"
+          disabled={page <= 1 || isLoading}
+          onClick={() => onPageChange(page - 1)}
+          className="inline-flex min-h-9 items-center gap-1 rounded-lg px-3 text-xs font-semibold text-slate-700 transition-colors hover:bg-emerald-50 hover:text-emerald-700 disabled:cursor-not-allowed disabled:text-slate-400 disabled:hover:bg-transparent"
+        >
+          <ChevronLeft className="h-4 w-4" /> Trước
+        </button>
+        <span className="flex h-9 min-w-9 items-center justify-center rounded-lg bg-emerald-50 px-2 text-xs font-bold text-emerald-700" aria-current="page">{page}</span>
+        <button
+          type="button"
+          disabled={page >= totalPages || isLoading}
+          onClick={() => onPageChange(page + 1)}
+          className="inline-flex min-h-9 items-center gap-1 rounded-lg px-3 text-xs font-semibold text-slate-700 transition-colors hover:bg-emerald-50 hover:text-emerald-700 disabled:cursor-not-allowed disabled:text-slate-400 disabled:hover:bg-transparent"
+        >
+          Sau <ChevronRight className="h-4 w-4" />
+        </button>
+      </nav>
+    </div>
+  );
+
   return (
     <div className="space-y-6">
       {isLoading && employees.length === 0 && typeof document !== 'undefined' && createPortal(
@@ -602,7 +629,7 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
             <table className="w-full min-w-[1020px] table-auto text-xs text-slate-600">
               <thead className="border-b border-slate-200 bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-500">
                 <tr>
-                  <th className="whitespace-nowrap px-2.5 py-2 text-left">Mã nhân viên</th>
+                  <th className="whitespace-nowrap px-2.5 py-2 text-center">Mã nhân viên</th>
                   <th className="px-2.5 py-2 text-left">Họ và tên</th>
                   <th className="px-2.5 py-2 text-left">Phòng ban</th>
                   <th className="px-2.5 py-2 text-left">Chức vụ</th>
@@ -623,7 +650,7 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
                 ) : (
                   filteredEmployees.map((emp) => (
                     <tr key={emp.id} className="transition-colors hover:bg-emerald-50/35">
-                      <td className="whitespace-nowrap px-2.5 py-2 text-left font-mono text-xs font-bold text-emerald-700">
+                      <td className="whitespace-nowrap px-2.5 py-2 text-center font-mono text-xs font-bold text-emerald-700">
                         {emp.code}
                       </td>
                       <td className="break-words px-2.5 py-2 text-left">
@@ -700,34 +727,11 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
               </tbody>
             </table>
           </div>
+          {pagination}
         </div>
       )}
 
-      {totalPages > 1 && (
-        <div className="flex flex-col items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 sm:flex-row">
-          <p className="text-xs text-slate-500">
-            Trang <strong className="text-slate-800">{page}</strong> / {totalPages}
-          </p>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              disabled={page <= 1 || isLoading}
-              onClick={() => onPageChange(page - 1)}
-              className="inline-flex items-center gap-1 rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              <ChevronLeft className="h-4 w-4" /> Trang trước
-            </button>
-            <button
-              type="button"
-              disabled={page >= totalPages || isLoading}
-              onClick={() => onPageChange(page + 1)}
-              className="inline-flex items-center gap-1 rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              Trang sau <ChevronRight className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-      )}
+      {viewMode === 'grid' && pagination}
 
       {/* CONFIRM DELETE MODAL */}
       {deletingId && (

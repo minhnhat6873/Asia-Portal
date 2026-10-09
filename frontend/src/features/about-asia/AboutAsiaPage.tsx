@@ -26,14 +26,14 @@ const milestones = [
   },
   {
     year: "2015",
-    event: "Ra mắt thương hiệu Wana",
-    desc: "Đánh dấu bước ngoặt quan trọng khi thương hiệu Wana chính thức hiện diện trên thị trường, mang đến các dòng đồ uống giải khát chất lượng.",
+    event: "Ra mắt thương hiệu Asia",
+    desc: "Đánh dấu bước ngoặt quan trọng khi thương hiệu Asia chính thức hiện diện trên thị trường, mang đến các dòng đồ uống giải khát chất lượng.",
     image: "/assets/images/coconut-calamansi.png",
   },
   {
     year: "2020",
     event: "Mở rộng thị trường quốc tế",
-    desc: "Wana đưa sản phẩm đến nhiều thị trường mới, xây dựng nền tảng vững chắc cho hành trình vươn xa.",
+    desc: "Asia đưa sản phẩm đến nhiều thị trường mới, xây dựng nền tảng vững chắc cho hành trình vươn xa.",
     image: "/assets/images/employees-banner.png",
   },
   {
@@ -44,7 +44,7 @@ const milestones = [
   },
   {
     year: "Tương lai",
-    event: "Wana và hành trình cùng cộng đồng",
+    event: "Asia và hành trình cùng cộng đồng",
     desc: "Tiếp tục đổi mới mỗi ngày, lan tỏa những giá trị tích cực và đồng hành cùng cộng đồng.",
     image: "/assets/images/company-overview.png",
   },
@@ -142,7 +142,7 @@ function AboutJourneyHero() {
       </div>
 
       <div className="relative mx-auto px-6 pb-12 pt-12 sm:px-10 lg:absolute lg:inset-x-0 lg:top-[41.1%] lg:max-w-[1370px] lg:px-7 lg:pb-0 lg:pt-0 xl:px-0">
-        <header className="text-center">
+        <header className="mt-36 text-center sm:mt-0">
           <div className="flex items-center justify-center gap-4 font-sans text-[10px] font-black uppercase tracking-[0.3em] text-[#125d4d] sm:text-[12px]">
             <span className="h-px w-12 bg-[#c58a32]" />
             Giá trị chúng tôi theo đuổi
@@ -325,7 +325,7 @@ export default function VeWanaPage() {
                 <span className="text-[#1a7a1a]">tương lai</span>
               </h2>
               <p className="mt-4 text-sm leading-relaxed text-gray-500 sm:mt-6">
-                Mỗi cột mốc là một bước tiến, đánh dấu sự nỗ lực không ngừng của Wana trong hành trình mang những sản phẩm tốt hơn đến với cộng đồng.
+                Mỗi cột mốc là một bước tiến, đánh dấu sự nỗ lực không ngừng của Asia trong hành trình mang những sản phẩm tốt hơn đến với cộng đồng.
               </p>
               <Link
                 href="#"

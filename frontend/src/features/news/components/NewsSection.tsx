@@ -71,7 +71,7 @@ function FeaturedEvent({ item, onSelect }: { item: NewsItem; onSelect: () => voi
   );
 }
 
-function NewsDetailPanel({ item, onClose, onOpenReader }: { item: NewsItem; onClose: () => void; onOpenReader: () => void }) {
+function NewsDetailPanel({ item, onClose, onOpenReader, panelRef }: { item: NewsItem; onClose: () => void; onOpenReader: () => void; panelRef: React.RefObject<HTMLElement | null> }) {
   const contentBoxRef = useRef<HTMLDivElement>(null);
   const [isContentTruncated, setIsContentTruncated] = useState(false);
 
@@ -97,7 +97,7 @@ function NewsDetailPanel({ item, onClose, onOpenReader }: { item: NewsItem; onCl
   }, [item.id, item.content]);
 
   return (
-    <aside className="flex h-[620px] max-h-[calc(100vh-2rem)] min-h-0 flex-col self-start overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm xl:sticky xl:top-6">
+    <aside ref={panelRef} className="flex h-[620px] max-h-[calc(100vh-2rem)] min-h-0 scroll-mt-20 flex-col self-start overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm xl:sticky xl:top-6">
       <div className="relative h-44 shrink-0">
         <Image src={item.image} alt={item.title} fill sizes="360px" className="object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/45 to-transparent" />
@@ -155,6 +155,7 @@ const categoryBadgeClass: Record<string, string> = {
 };
 
 export default function NewsSection({ preview = false }: Props) {
+  const detailPanelRef = useRef<HTMLElement>(null);
   const [news, setNews] = useState<NewsItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -250,6 +251,17 @@ export default function NewsSection({ preview = false }: Props) {
       ? selectedNews
       : null;
   const showDetailPanel = selectedItem !== null;
+
+  useEffect(() => {
+    if (!showDetailPanel || preview || window.matchMedia("(min-width: 1280px)").matches) return;
+    const frame = requestAnimationFrame(() => {
+      detailPanelRef.current?.scrollIntoView({
+        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+        block: "start",
+      });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [selectedItem, showDetailPanel, preview]);
 
   return (
     <section className={preview ? "overflow-x-clip bg-white py-8 sm:py-12 xl:py-16" : "overflow-x-clip bg-white pb-8 sm:pb-12 xl:pb-16"}>
@@ -427,7 +439,7 @@ export default function NewsSection({ preview = false }: Props) {
             ))}
           </div>
           {showDetailPanel && selectedItem && (
-            <NewsDetailPanel item={selectedItem} onClose={() => setSelectedNews(null)} onOpenReader={() => setReaderNews(selectedItem)} />
+            <NewsDetailPanel item={selectedItem} panelRef={detailPanelRef} onClose={() => setSelectedNews(null)} onOpenReader={() => setReaderNews(selectedItem)} />
           )}
         </div>
 

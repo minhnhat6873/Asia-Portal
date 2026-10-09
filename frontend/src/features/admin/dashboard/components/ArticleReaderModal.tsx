@@ -26,7 +26,17 @@ function tooltip(label: string) {
   return { title: label, "aria-label": label };
 }
 
-async function printArticleFrame(source: HTMLElement, title: string, paperSize: "A4" | "Letter") {
+async function exitReaderFullscreen(panel: HTMLElement | null): Promise<void> {
+  if (!panel || document.fullscreenElement !== panel || typeof document.exitFullscreen !== "function") return;
+  try {
+    await document.exitFullscreen();
+  } catch {
+    // WebViews can reject exiting fullscreen after the element is detached.
+  }
+}
+
+async function printArticleFrame(source: HTMLElement, title: string, paperSize: "A4" | "Letter", signal: AbortSignal) {
+  if (signal.aborted) return;
   const frame = document.createElement("iframe");
   frame.setAttribute("title", "Bản in bài viết");
   frame.setAttribute("aria-hidden", "true");
@@ -39,6 +49,19 @@ async function printArticleFrame(source: HTMLElement, title: string, paperSize: 
     frame.remove();
     return;
   }
+
+  let cleanupTimer = 0;
+  const disposers: (() => void)[] = [];
+  const cleanup = () => {
+    window.clearTimeout(cleanupTimer);
+    signal.removeEventListener("abort", cleanup);
+    frameWindow.removeEventListener("afterprint", cleanup);
+    disposers.splice(0).forEach((dispose) => dispose());
+    frame.remove();
+  };
+  signal.addEventListener("abort", cleanup, { once: true });
+  frameWindow.addEventListener("afterprint", cleanup, { once: true });
+  cleanupTimer = window.setTimeout(cleanup, 60_000);
 
   frameDocument.open();
   frameDocument.write("<!doctype html><html><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"></head><body></body></html>");
@@ -53,6 +76,7 @@ async function printArticleFrame(source: HTMLElement, title: string, paperSize: 
     link.media = sourceLink.media || "all";
     link.onload = () => resolve();
     link.onerror = () => resolve();
+    disposers.push(() => { link.onload = null; link.onerror = null; resolve(); });
     frameDocument.head.appendChild(link);
   }));
   document.querySelectorAll("style").forEach((sourceStyle) => {
@@ -74,25 +98,29 @@ async function printArticleFrame(source: HTMLElement, title: string, paperSize: 
   frameDocument.body.appendChild(printContent);
 
   const imageLoads = Array.from(frameDocument.images).map((image) => image.complete ? Promise.resolve() : new Promise<void>((resolve) => {
-    image.addEventListener("load", () => resolve(), { once: true });
-    image.addEventListener("error", () => resolve(), { once: true });
+    const done = () => resolve();
+    image.addEventListener("load", done, { once: true });
+    image.addEventListener("error", done, { once: true });
+    disposers.push(() => { image.removeEventListener("load", done); image.removeEventListener("error", done); resolve(); });
   }));
-  await Promise.all([
+  const aborted = new Promise<void>((resolve) => {
+    const done = () => resolve();
+    signal.addEventListener("abort", done, { once: true });
+    disposers.push(() => { signal.removeEventListener("abort", done); resolve(); });
+  });
+  await Promise.race([aborted, Promise.all([
     Promise.all(cssLoads),
     Promise.all(imageLoads),
     frameDocument.fonts?.ready.then(() => undefined).catch(() => undefined) ?? Promise.resolve(),
-  ]);
-
-  let cleanupTimer = 0;
-  const cleanup = () => {
-    window.clearTimeout(cleanupTimer);
-    frameWindow.removeEventListener("afterprint", cleanup);
-    frame.remove();
-  };
-  frameWindow.addEventListener("afterprint", cleanup, { once: true });
-  cleanupTimer = window.setTimeout(cleanup, 60_000);
-  frameWindow.focus();
-  frameWindow.print();
+  ])]);
+  if (signal.aborted || !frame.isConnected) return;
+  try {
+    frameWindow.focus();
+    if (typeof frameWindow.print === "function") frameWindow.print();
+    else cleanup();
+  } catch {
+    cleanup();
+  }
 }
 
 export function ArticleReaderModal({ post, onClose, onEdit, onDelete, showAdminActions = true }: Props) {
@@ -102,6 +130,8 @@ export function ArticleReaderModal({ post, onClose, onEdit, onDelete, showAdminA
   const frameRef = useRef<number | null>(null);
   const lastFrameRef = useRef<number | null>(null);
   const closeRef = useRef(onClose);
+  const aliveRef = useRef(false);
+  const printControllerRef = useRef<AbortController | null>(null);
 
   const [zoom, setZoom] = useState<number>(100);
   const [isAutoScrolling, setIsAutoScrolling] = useState(false);
@@ -116,7 +146,31 @@ export function ArticleReaderModal({ post, onClose, onEdit, onDelete, showAdminA
   const [isReducedMotion, setIsReducedMotion] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
 
-  useEffect(() => setIsMounted(true), []);
+  useEffect(() => {
+    aliveRef.current = true;
+    setIsMounted(true);
+    return () => {
+      aliveRef.current = false;
+      if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
+      frameRef.current = null;
+      lastFrameRef.current = null;
+      printControllerRef.current?.abort();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isMounted) return;
+    const panel = panelRef.current;
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    scrollRef.current?.focus({ preventScroll: true });
+    return () => {
+      void exitReaderFullscreen(panel);
+      document.body.style.overflow = previousOverflow;
+      if (previousFocus?.isConnected) previousFocus.focus({ preventScroll: true });
+    };
+  }, [isMounted]);
 
   closeRef.current = onClose;
   const stopAutoScroll = useCallback(() => {
@@ -134,12 +188,23 @@ export function ArticleReaderModal({ post, onClose, onEdit, onDelete, showAdminA
   }, [isReducedMotion]);
 
   useEffect(() => {
+    if (typeof window.matchMedia !== "function") return;
     const media = window.matchMedia("(prefers-reduced-motion: reduce)");
     const update = () => setIsReducedMotion(media.matches);
     update();
-    media.addEventListener("change", update);
-    return () => media.removeEventListener("change", update);
+    if (typeof media.addEventListener === "function") {
+      media.addEventListener("change", update);
+      return () => media.removeEventListener("change", update);
+    }
+    if (typeof media.addListener === "function") {
+      media.addListener(update);
+      return () => media.removeListener(update);
+    }
   }, []);
+
+  useEffect(() => {
+    if (!isPrintPreview) printControllerRef.current?.abort();
+  }, [isPrintPreview]);
 
   useEffect(() => {
     const container = scrollRef.current;
@@ -150,14 +215,14 @@ export function ArticleReaderModal({ post, onClose, onEdit, onDelete, showAdminA
     };
     update();
     container.addEventListener("scroll", update, { passive: true });
-    const resize = new ResizeObserver(update);
-    resize.observe(container);
-    if (articleRef.current) resize.observe(articleRef.current);
+    const resize = typeof ResizeObserver === "function" ? new ResizeObserver(update) : null;
+    resize?.observe(container);
+    if (articleRef.current) resize?.observe(articleRef.current);
     return () => {
       container.removeEventListener("scroll", update);
-      resize.disconnect();
+      resize?.disconnect();
     };
-  }, []);
+  }, [isMounted, isPrintPreview]);
 
   useEffect(() => {
     if (!isAutoScrolling || isReducedMotion) {
@@ -168,6 +233,7 @@ export function ArticleReaderModal({ post, onClose, onEdit, onDelete, showAdminA
       return;
     }
     const tick = (now: number) => {
+      if (!aliveRef.current) return;
       const container = scrollRef.current;
       if (!container) return;
       if (lastFrameRef.current !== null) {
@@ -193,19 +259,20 @@ export function ArticleReaderModal({ post, onClose, onEdit, onDelete, showAdminA
   }, [isAutoScrolling, isReducedMotion, speedIndex]);
 
   useEffect(() => {
-    const syncFullscreen = () => setIsFullscreen(document.fullscreenElement === panelRef.current);
+    const syncFullscreen = () => setIsFullscreen(Boolean(panelRef.current && document.fullscreenElement === panelRef.current));
     const keydown = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
       if (isPrintPreview) {
         event.preventDefault();
         setIsPrintPreview(false);
-      } else if (document.fullscreenElement === panelRef.current) {
+      } else if (panelRef.current && document.fullscreenElement === panelRef.current) {
         event.preventDefault();
-        void document.exitFullscreen();
+        void exitReaderFullscreen(panelRef.current);
       } else if (isCssFullscreen) {
         event.preventDefault();
         setIsCssFullscreen(false);
       } else {
+        stopAutoScroll();
         closeRef.current();
       }
     };
@@ -214,15 +281,14 @@ export function ArticleReaderModal({ post, onClose, onEdit, onDelete, showAdminA
     return () => {
       document.removeEventListener("fullscreenchange", syncFullscreen);
       document.removeEventListener("keydown", keydown);
-      if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
-      if (document.fullscreenElement === panelRef.current) void document.exitFullscreen().catch(() => undefined);
-      document.body.classList.remove("article-reader-printing");
     };
-  }, [isCssFullscreen, isPrintPreview]);
+  }, [isCssFullscreen, isPrintPreview, stopAutoScroll]);
 
   const toggleFullscreen = async () => {
-    if (document.fullscreenElement === panelRef.current) {
-      await document.exitFullscreen().catch(() => undefined);
+    const panel = panelRef.current;
+    if (!panel) return;
+    if (document.fullscreenElement === panel) {
+      await exitReaderFullscreen(panel);
       return;
     }
     if (isCssFullscreen) {
@@ -230,10 +296,11 @@ export function ArticleReaderModal({ post, onClose, onEdit, onDelete, showAdminA
       return;
     }
     try {
-      if (!panelRef.current?.requestFullscreen) throw new Error("Fullscreen API unavailable");
-      await panelRef.current.requestFullscreen();
+      if (!document.fullscreenEnabled || typeof panel.requestFullscreen !== "function") throw new Error("Fullscreen API unavailable");
+      await panel.requestFullscreen();
+      if (!aliveRef.current) await exitReaderFullscreen(panel);
     } catch {
-      setIsCssFullscreen(true);
+      if (aliveRef.current) setIsCssFullscreen(true);
     }
   };
 
@@ -248,7 +315,19 @@ export function ArticleReaderModal({ post, onClose, onEdit, onDelete, showAdminA
 
   const openPrintDialog = () => {
     const printContent = document.querySelector<HTMLElement>("[data-reader-print-root]");
-    if (printContent) void printArticleFrame(printContent, post.title, paperSize);
+    if (printContent) {
+      printControllerRef.current?.abort();
+      const controller = new AbortController();
+      printControllerRef.current = controller;
+      void printArticleFrame(printContent, post.title, paperSize, controller.signal).catch(() => controller.abort());
+    }
+  };
+
+  const closeReader = () => {
+    stopAutoScroll();
+    printControllerRef.current?.abort();
+    void exitReaderFullscreen(panelRef.current);
+    closeRef.current();
   };
 
   return isMounted ? createPortal(
@@ -340,9 +419,9 @@ export function ArticleReaderModal({ post, onClose, onEdit, onDelete, showAdminA
               <p className={`text-xs font-bold uppercase tracking-wider ${isDark ? "text-emerald-300" : "text-emerald-700"}`}>Trình đọc bài viết</p>
               <h2 className="truncate text-base font-black sm:text-lg">{post.title}</h2>
             </div>
-            <button type="button" data-reader-close onClick={onClose} {...tooltip("Đóng bài viết")} className="shrink-0 rounded-full p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900"><X className="h-5 w-5" /></button>
+            <button type="button" data-reader-close onClick={closeReader} {...tooltip("Đóng bài viết")} className="shrink-0 rounded-full p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900"><X className="h-5 w-5" /></button>
           </div>
-          <div data-reader-toolbar className="flex flex-wrap items-center gap-1.5 border-t border-slate-100 px-3 py-2 sm:px-5">
+          <div data-reader-toolbar className="hidden flex-wrap items-center gap-1.5 border-t border-slate-100 px-3 py-2 sm:flex sm:px-5">
             <div className="flex items-center gap-1 rounded-xl bg-slate-100 p-1" aria-label="Điều chỉnh kích thước chữ">
               <button type="button" onClick={() => setZoom((current) => ZOOM_LEVELS[Math.max(0, ZOOM_LEVELS.indexOf(current as (typeof ZOOM_LEVELS)[number]) - 1)])} disabled={zoom === ZOOM_LEVELS[0]} {...tooltip("Thu nhỏ toàn bộ bài viết")} className="rounded-lg p-1.5 hover:bg-white disabled:opacity-40"><ZoomOut className="h-4 w-4" /></button>
               <span className="min-w-11 text-center text-xs font-semibold">{zoom}%</span>
@@ -367,7 +446,7 @@ export function ArticleReaderModal({ post, onClose, onEdit, onDelete, showAdminA
             <img src="/assets/images/asia-logo.png" alt="Asia F&B" />
             <div><strong>Asia Food &amp; Beverage</strong><span>BẢN TIN TRUYỀN THÔNG NỘI BỘ</span></div>
           </div>
-          <article data-reader-page style={{ zoom: zoom / 100, width: `${10000 / zoom}%`, maxWidth: `${89600 / zoom}px` }} className={`mx-auto max-w-4xl ${showAdminActions ? "px-4 py-5 sm:px-8 sm:py-8" : "px-4 py-4 sm:px-6 sm:py-5"} ${isFocus ? "reader-focus" : ""}`}>
+          <article ref={articleRef} data-reader-page style={{ zoom: zoom / 100, width: `${10000 / zoom}%`, maxWidth: `${89600 / zoom}px` }} className={`mx-auto max-w-4xl ${showAdminActions ? "px-4 py-5 sm:px-8 sm:py-8" : "px-4 py-4 sm:px-6 sm:py-5"} ${isFocus ? "reader-focus" : ""}`}>
             {post.coverImage && <img data-reader-cover src={post.coverImage} alt={post.title} className={`reader-cover mb-5 ${showAdminActions ? "max-h-[420px]" : "max-h-[280px]"} w-full rounded-2xl object-cover ${isFocus ? "hidden" : ""}`} />}
             <h1 className="mb-4 text-2xl font-black leading-tight sm:text-3xl">{post.title}</h1>
             <div className={isFocus ? "hidden" : ""}>
