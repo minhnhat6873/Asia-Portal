@@ -1,13 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { newsCategories, NewsItem } from "@/config/news";
 import { getPublicMedia } from "@/services/media.service";
-import { ArrowRight, Calendar, User, ChevronRight, Search, ArrowDownUp, LayoutGrid, Newspaper, Users, Megaphone, X, RotateCcw } from "lucide-react";
+import { ArrowRight, Calendar, User, ChevronRight, Search, ArrowDownUp, LayoutGrid, Newspaper, Users, Megaphone, X, RotateCcw, Eye } from "lucide-react";
 import { hasRichTextContent, RichText } from "@/components/ui/RichText";
 import { normalizeSearchText } from "@/utils/normalizeSearchText";
+import { ArticleReaderModal } from "@/features/admin/dashboard/components/ArticleReaderModal";
+import type { MediaPost } from "@/features/admin/dashboard/types";
 
 interface Props {
   preview?: boolean;
@@ -69,10 +71,34 @@ function FeaturedEvent({ item, onSelect }: { item: NewsItem; onSelect: () => voi
   );
 }
 
-function NewsDetailPanel({ item, onClose }: { item: NewsItem; onClose: () => void }) {
+function NewsDetailPanel({ item, onClose, onOpenReader }: { item: NewsItem; onClose: () => void; onOpenReader: () => void }) {
+  const contentBoxRef = useRef<HTMLDivElement>(null);
+  const [isContentTruncated, setIsContentTruncated] = useState(false);
+
+  useEffect(() => {
+    const box = contentBoxRef.current;
+    if (!box) return;
+    const update = () => {
+      const content = box.firstElementChild as HTMLElement | null;
+      setIsContentTruncated(Boolean(content && content.scrollHeight > box.clientHeight + 1));
+    };
+    const resizeObserver = new ResizeObserver(update);
+    resizeObserver.observe(box);
+    const content = box.firstElementChild;
+    if (content) resizeObserver.observe(content);
+    const mutationObserver = new MutationObserver(update);
+    mutationObserver.observe(box, { childList: true, subtree: true, characterData: true });
+    const frame = requestAnimationFrame(update);
+    return () => {
+      cancelAnimationFrame(frame);
+      resizeObserver.disconnect();
+      mutationObserver.disconnect();
+    };
+  }, [item.id, item.content]);
+
   return (
-    <aside className="self-start overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm xl:sticky xl:top-6">
-      <div className="relative h-44">
+    <aside className="flex h-[620px] max-h-[calc(100vh-2rem)] min-h-0 flex-col self-start overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm xl:sticky xl:top-6">
+      <div className="relative h-44 shrink-0">
         <Image src={item.image} alt={item.title} fill sizes="360px" className="object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/45 to-transparent" />
         <span className={`absolute bottom-3 left-4 text-xs px-2.5 py-1 rounded-full font-semibold ${categoryBadgeClass[item.category]}`}>
@@ -87,16 +113,27 @@ function NewsDetailPanel({ item, onClose }: { item: NewsItem; onClose: () => voi
           <X size={16} />
         </button>
       </div>
-      <div className="p-5">
-        <h3 className="text-xl font-black leading-snug text-[#16241a]">{item.title}</h3>
-        <RichText html={item.excerpt} className="mt-3 text-sm leading-relaxed text-slate-500 [&_p]:my-0" />
-        <div className="mt-5 border-t border-slate-100 pt-4 text-sm">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-5">
+        <h3 className="line-clamp-2 shrink-0 text-xl font-black leading-snug text-[#16241a]" title={item.title}>{item.title}</h3>
+        <RichText html={item.excerpt} className="mt-3 line-clamp-3 shrink-0 text-sm leading-relaxed text-slate-500 [&_p]:my-0 [&_p]:line-clamp-3" />
+        <div className="mt-5 shrink-0 border-t border-slate-100 pt-4 text-sm">
           <div className="flex items-center gap-2 text-slate-400"><Calendar size={15} /> <span>{item.date}</span></div>
           <div className="mt-3 flex items-center gap-2 text-slate-400"><User size={15} /> <span>{item.author}</span></div>
         </div>
         {hasRichTextContent(item.content) && (
-          <RichText html={item.content} className="rich-content mt-5 rounded-xl bg-[#eff9f1] p-3 text-xs leading-relaxed text-[#287348]" />
+          <div ref={contentBoxRef} className="relative mt-4 min-h-0 flex-1 overflow-hidden rounded-xl bg-[#eff9f1]">
+            <RichText html={item.content} className="rich-content p-3 text-xs leading-relaxed text-[#287348]" />
+            {isContentTruncated && <span className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#eff9f1] via-[#eff9f1] to-transparent px-3 pb-2 pt-4 text-right text-lg font-bold text-[#287348]" aria-label="Nội dung còn tiếp">…</span>}
+          </div>
         )}
+        <button
+          type="button"
+          onClick={onOpenReader}
+          className="mt-4 inline-flex min-h-11 w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-[#087a43] px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-[#066838] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#087a43]"
+        >
+          <Eye size={17} aria-hidden="true" />
+          Xem chi tiết bài viết
+        </button>
       </div>
     </aside>
   );
@@ -125,6 +162,7 @@ export default function NewsSection({ preview = false }: Props) {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
   const [selectedNews, setSelectedNews] = useState<NewsItem | null>(null);
+  const [readerNews, setReaderNews] = useState<NewsItem | null>(null);
 
   const loadNews = useCallback(async (signal?: AbortSignal) => {
     try {
@@ -214,7 +252,7 @@ export default function NewsSection({ preview = false }: Props) {
   const showDetailPanel = selectedItem !== null;
 
   return (
-    <section className={preview ? "bg-white py-8 sm:py-12 xl:py-16" : "bg-white pb-8 sm:pb-12 xl:pb-16"}>
+    <section className={preview ? "overflow-x-clip bg-white py-8 sm:py-12 xl:py-16" : "overflow-x-clip bg-white pb-8 sm:pb-12 xl:pb-16"}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         {isLoading && <div className="mb-8 grid gap-5 md:grid-cols-3">{[0, 1, 2].map((item) => <div key={item} className="h-64 animate-pulse rounded-2xl bg-slate-100" />)}</div>}
         {!isLoading && loadError && <div className="mb-8 rounded-2xl border border-rose-200 bg-rose-50 p-8 text-center text-sm text-rose-700"><p>{loadError}</p><button type="button" onClick={() => { setIsLoading(true); void loadNews(); }} className="mt-3 rounded-xl bg-rose-600 px-4 py-2 font-bold text-white">Thử lại</button></div>}
@@ -389,9 +427,25 @@ export default function NewsSection({ preview = false }: Props) {
             ))}
           </div>
           {showDetailPanel && selectedItem && (
-            <NewsDetailPanel item={selectedItem} onClose={() => setSelectedNews(null)} />
+            <NewsDetailPanel item={selectedItem} onClose={() => setSelectedNews(null)} onOpenReader={() => setReaderNews(selectedItem)} />
           )}
         </div>
+
+        {readerNews && <ArticleReaderModal
+          post={{
+            id: String(readerNews.id),
+            title: readerNews.title,
+            category: readerNews.category,
+            summary: readerNews.summaryHtml ?? readerNews.excerpt,
+            content: readerNews.content,
+            coverImage: readerNews.image,
+            authorDepartment: readerNews.author,
+            publishDate: readerNews.date,
+            status: "published",
+          } satisfies MediaPost}
+          onClose={() => setReaderNews(null)}
+          showAdminActions={false}
+        />}
 
         {/* No results */}
         {searched.length === 0 && (

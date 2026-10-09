@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   Calendar, Download, FileText, Focus, Maximize2, Minimize2, Moon,
   Pause, Play, Printer, RotateCcw, Sun, X, ZoomIn, ZoomOut,
@@ -12,8 +13,9 @@ import type { MediaPost } from "../types";
 interface Props {
   post: MediaPost;
   onClose: () => void;
-  onEdit: () => void;
-  onDelete: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
+  showAdminActions?: boolean;
 }
 
 const ZOOM_LEVELS = [80, 90, 100, 110, 125, 150, 175, 200] as const;
@@ -61,9 +63,9 @@ async function printArticleFrame(source: HTMLElement, title: string, paperSize: 
 
   const printStyle = frameDocument.createElement("style");
   printStyle.textContent = `
-    @page { size: ${paperSize}; margin: 5mm; }
+    @page { size: ${paperSize}; margin: 5mm 5mm 3mm; }
     html, body { margin: 0; padding: 0; background: #fff; color: #111827; font-family: Arial, sans-serif; }
-    [data-reader-print-root] { display: block; width: 100%; max-width: none; min-height: 0; margin: 0; padding: 3mm 0 0; overflow: visible; box-shadow: none; background: #fff; }
+    [data-reader-print-root] { display: block; width: 100%; max-width: none; min-height: 0; margin: 0; padding: 5mm 0 0; overflow: visible; box-shadow: none; background: #fff; }
     img { max-width: 100%; height: auto; break-inside: avoid; }
     p, blockquote, table { break-inside: avoid; }
   `;
@@ -93,7 +95,7 @@ async function printArticleFrame(source: HTMLElement, title: string, paperSize: 
   frameWindow.print();
 }
 
-export function ArticleReaderModal({ post, onClose, onEdit, onDelete }: Props) {
+export function ArticleReaderModal({ post, onClose, onEdit, onDelete, showAdminActions = true }: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const articleRef = useRef<HTMLDivElement>(null);
@@ -112,6 +114,9 @@ export function ArticleReaderModal({ post, onClose, onEdit, onDelete }: Props) {
   const [paperSize, setPaperSize] = useState<"A4" | "Letter">("A4");
   const [progress, setProgress] = useState(0);
   const [isReducedMotion, setIsReducedMotion] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => setIsMounted(true), []);
 
   closeRef.current = onClose;
   const stopAutoScroll = useCallback(() => {
@@ -246,8 +251,8 @@ export function ArticleReaderModal({ post, onClose, onEdit, onDelete }: Props) {
     if (printContent) void printArticleFrame(printContent, post.title, paperSize);
   };
 
-  return (
-    <div className={`fixed inset-0 z-50 flex items-center justify-center p-2 transition-colors sm:p-4 ${isDark ? "bg-slate-950/90" : "bg-slate-950/60"}`} data-reader-overlay>
+  return isMounted ? createPortal(
+    <div className={`fixed inset-0 z-[100] flex items-center justify-center p-2 transition-colors sm:p-4 ${isDark ? "bg-slate-950/90" : "bg-slate-950/60"}`} data-reader-overlay>
       <style>{`
         .reader-dark .reader-copy, .reader-dark .reader-copy *:not(img):not(svg) { color: #e2e8f0 !important; }
         .reader-dark .reader-copy *:not(img):not(svg) { background-color: transparent !important; border-color: #475569 !important; }
@@ -256,7 +261,7 @@ export function ArticleReaderModal({ post, onClose, onEdit, onDelete }: Props) {
         .reader-copy img { max-width: 100%; height: auto; }
         [data-reader-print-header] { display: none; }
         @media print {
-          @page { size: ${paperSize}; margin: 5mm; }
+          @page { size: ${paperSize}; margin: 5mm 5mm 3mm; }
           body.article-reader-printing { background: #fff !important; }
           body.article-reader-printing * { visibility: hidden !important; }
           body.article-reader-printing [data-reader-print-root], body.article-reader-printing [data-reader-print-root] * { visibility: visible !important; }
@@ -304,7 +309,7 @@ export function ArticleReaderModal({ post, onClose, onEdit, onDelete }: Props) {
               </div>
               <div data-reader-print-stage className="min-h-0 flex-1 overflow-auto px-3 py-5 sm:px-8 sm:py-8">
                 <div data-reader-print-root className="mx-auto min-h-[297mm] w-full max-w-[210mm] bg-white px-[17mm] py-[14mm] shadow-xl print:shadow-none">
-                  <div className="relative mx-[5mm] flex items-center justify-center border-b-2 border-emerald-700 pb-3">
+                  <div className="relative mx-[5mm] flex items-center justify-center border-b-2 border-emerald-700 pb-[calc(0.75rem+3mm)]">
                     <img src="/assets/images/asia-logo.png" alt="Asia F&B" className="absolute left-0 h-[20mm] w-[20mm] object-contain" />
                     <div className="px-[22mm] text-center" style={{ fontFamily: '"Times New Roman", Times, serif' }}>
                       <h1 className="text-base font-black uppercase tracking-wide text-emerald-950 sm:text-lg">Công ty Cổ phần Thực phẩm và Đồ uống Á Châu</h1>
@@ -327,7 +332,7 @@ export function ArticleReaderModal({ post, onClose, onEdit, onDelete }: Props) {
         role="dialog"
         aria-modal="true"
         aria-label={`Bài viết: ${post.title}`}
-        className={`flex h-[92vh] max-h-[100vh] w-full flex-col overflow-hidden rounded-3xl border shadow-2xl transition-colors ${isCssFullscreen ? "fixed inset-0 z-[100] h-screen max-h-none w-screen max-w-none rounded-none" : "max-w-5xl"} bg-white text-slate-900`}
+        className={`flex ${isCssFullscreen ? "fixed inset-0 z-[100] h-screen max-h-none w-screen max-w-none rounded-none" : showAdminActions ? "h-[92vh] max-h-[100vh] max-w-5xl" : "h-auto max-h-[86vh] max-w-4xl translate-y-[4vh]"} w-full flex-col overflow-hidden rounded-3xl border shadow-2xl transition-colors bg-white text-slate-900`}
       >
         <header data-reader-header className="shrink-0 border-b border-slate-200/80 bg-inherit">
           <div className="flex items-center justify-between gap-3 px-4 py-3 sm:px-6">
@@ -350,20 +355,20 @@ export function ArticleReaderModal({ post, onClose, onEdit, onDelete }: Props) {
             <button type="button" onClick={() => setIsDark((value) => !value)} {...tooltip(isDark ? "Chế độ sáng" : "Chế độ tối")} className="rounded-xl bg-slate-100 p-2 hover:bg-emerald-50">{isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}</button>
             <button type="button" onClick={() => setIsFocus((value) => !value)} {...tooltip(isFocus ? "Thoát chế độ tập trung" : "Chế độ tập trung")} className={`rounded-xl p-2 ${isFocus ? "bg-emerald-600 text-white" : "bg-slate-100 hover:bg-emerald-50"}`}><Focus className="h-4 w-4" /></button>
             <button type="button" onClick={printArticle} {...tooltip("In bài viết")} className="rounded-xl bg-slate-100 p-2 hover:bg-emerald-50"><Printer className="h-4 w-4" /></button>
-            <div className="ml-auto flex items-center gap-2" data-reader-actions>
+            {showAdminActions && onEdit && onDelete && <div className="ml-auto flex items-center gap-2" data-reader-actions>
               <button type="button" onClick={onEdit} className="rounded-xl bg-emerald-600 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-700">Chỉnh sửa</button>
               <button type="button" onClick={onDelete} className="rounded-xl border border-rose-200 px-3 py-2 text-xs font-bold text-rose-700 hover:bg-rose-50">Xóa</button>
-            </div>
+            </div>}
           </div>
         </header>
         <div data-reader-progress className="h-1 shrink-0 bg-slate-100"><div className="h-full bg-emerald-500 transition-[width]" style={{ width: `${progress}%` }} /></div>
-        <div ref={scrollRef} data-reader-scroll data-reader-print-root onWheel={pauseForManualScroll} onTouchStart={pauseForManualScroll} onPointerDown={(event) => { if (event.clientX >= event.currentTarget.getBoundingClientRect().right - 16) pauseForManualScroll(); }} onKeyDown={(event) => { if (["ArrowDown", "ArrowUp", "PageDown", "PageUp", "Home", "End", " "].includes(event.key)) pauseForManualScroll(); }} tabIndex={0} className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-white">
+        <div ref={scrollRef} data-reader-scroll data-reader-print-root onWheel={pauseForManualScroll} onTouchStart={pauseForManualScroll} onPointerDown={(event) => { if (event.clientX >= event.currentTarget.getBoundingClientRect().right - 16) pauseForManualScroll(); }} onKeyDown={(event) => { if (["ArrowDown", "ArrowUp", "PageDown", "PageUp", "Home", "End", " "].includes(event.key)) pauseForManualScroll(); }} tabIndex={0} className={`min-h-0 overflow-y-auto overscroll-contain bg-white ${showAdminActions ? "flex-1" : "max-h-[calc(86vh-140px)] flex-none"}`}>
           <div data-reader-print-header className="mx-auto w-full max-w-4xl px-4 pt-5 sm:px-8">
             <img src="/assets/images/asia-logo.png" alt="Asia F&B" />
             <div><strong>Asia Food &amp; Beverage</strong><span>BẢN TIN TRUYỀN THÔNG NỘI BỘ</span></div>
           </div>
-          <article data-reader-page style={{ zoom: zoom / 100, width: `${10000 / zoom}%`, maxWidth: `${89600 / zoom}px` }} className={`mx-auto max-w-4xl px-4 py-5 sm:px-8 sm:py-8 ${isFocus ? "reader-focus" : ""}`}>
-            {post.coverImage && <img data-reader-cover src={post.coverImage} alt={post.title} className={`reader-cover mb-6 max-h-[420px] w-full rounded-2xl object-cover ${isFocus ? "hidden" : ""}`} />}
+          <article data-reader-page style={{ zoom: zoom / 100, width: `${10000 / zoom}%`, maxWidth: `${89600 / zoom}px` }} className={`mx-auto max-w-4xl ${showAdminActions ? "px-4 py-5 sm:px-8 sm:py-8" : "px-4 py-4 sm:px-6 sm:py-5"} ${isFocus ? "reader-focus" : ""}`}>
+            {post.coverImage && <img data-reader-cover src={post.coverImage} alt={post.title} className={`reader-cover mb-5 ${showAdminActions ? "max-h-[420px]" : "max-h-[280px]"} w-full rounded-2xl object-cover ${isFocus ? "hidden" : ""}`} />}
             <h1 className="mb-4 text-2xl font-black leading-tight sm:text-3xl">{post.title}</h1>
             <div className={isFocus ? "hidden" : ""}>
               <RichText html={post.summary} className="reader-copy reader-summary rich-content mb-4 text-base leading-7 text-slate-600" />
@@ -374,5 +379,5 @@ export function ArticleReaderModal({ post, onClose, onEdit, onDelete }: Props) {
         </div>
           </section>}
     </div>
-  );
+  , document.body) : null;
 }

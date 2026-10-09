@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronLeft, ChevronRight, LayoutDashboard, Menu, X } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import InternalSystemsMenu from "./InternalSystemsMenu";
 
@@ -16,22 +16,13 @@ const navLinks = [
   { href: "/about-asia", label: "Về Á Châu" },
 ];
 
-const internalSystems = [
-  { label: "CRM", description: "Quản lý khách hàng", href: "https://wana.vn/crm" },
-  { label: "Wiki", description: "Kho kiến thức nội bộ", href: "https://wiki.wana.vn" },
-  { label: "LMS", description: "Đào tạo & học tập", href: "https://wana.vn/lms" },
-  { label: "ERP", description: "Quản lý doanh nghiệp", href: "https://wana.vn/app/home" },
-];
-
 export default function Navbar() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [mobileView, setMobileView] = useState<"main" | "systems">("main");
 
   const isActive = (href: string) => pathname === href;
   const closeMobileMenu = () => {
     setMobileOpen(false);
-    setMobileView("main");
   };
 
   useEffect(() => {
@@ -86,7 +77,6 @@ export default function Navbar() {
               aria-label="Mở menu"
               aria-expanded={mobileOpen}
               onClick={() => {
-                setMobileView("main");
                 setMobileOpen(true);
               }}
               className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-wana-green-dark transition-colors hover:bg-wana-green-50 xl:hidden"
@@ -107,20 +97,7 @@ export default function Navbar() {
           />
           <aside className="relative flex h-full w-[min(88vw,360px)] flex-col bg-white shadow-[12px_0_32px_rgba(15,23,42,0.2)]">
             <div className="flex h-16 shrink-0 items-center justify-between border-b border-slate-100 px-4">
-              {mobileView === "systems" ? (
-                <button
-                  type="button"
-                  onClick={() => setMobileView("main")}
-                  className="inline-flex items-center gap-1 text-sm font-semibold text-slate-600 hover:text-wana-green-dark"
-                >
-                  <ChevronLeft size={19} /> Quay lại
-                </button>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <Image src="/assets/images/asia-logo.png" alt="Asia Food & Beverage JSC" width={40} height={40} className="h-10 w-10 object-contain" />
-                  <span className="font-bold text-lg text-wana-green-dark">asiafnbbeverage</span>
-                </div>
-              )}
+              <Image src="/assets/images/asia-logo.png" alt="Asia Food & Beverage JSC" width={40} height={40} className="h-10 w-10 object-contain" />
               <button
                 type="button"
                 aria-label="Đóng menu"
@@ -131,8 +108,7 @@ export default function Navbar() {
               </button>
             </div>
 
-            {mobileView === "main" ? (
-              <nav className="flex flex-1 flex-col px-3 py-3">
+            <nav className="flex flex-1 flex-col px-3 py-3">
                 {navLinks.map((link) => (
                   <Link
                     key={link.href}
@@ -145,44 +121,7 @@ export default function Navbar() {
                     {link.label}
                   </Link>
                 ))}
-                <div className="my-3 border-t border-slate-100" />
-                <button
-                  type="button"
-                  onClick={() => setMobileView("systems")}
-                  className="flex min-h-14 items-center justify-between rounded-xl px-3 text-left text-base font-bold text-wana-green-dark transition-colors hover:bg-wana-green-50"
-                >
-                  Hệ thống nội bộ Wana
-                  <ChevronRight size={20} />
-                </button>
-                <Link
-                  href="/admin"
-                  onClick={closeMobileMenu}
-                  className="flex min-h-14 items-center justify-between rounded-xl px-3 text-left text-base font-bold text-wana-green-dark transition-colors hover:bg-wana-green-50"
-                >
-                  Trang quản trị hệ thống
-                  <LayoutDashboard size={20} />
-                </Link>
-              </nav>
-            ) : (
-              <div className="flex flex-1 flex-col px-3 py-3">
-                <p className="px-3 pb-2 pt-1 text-xs font-bold uppercase tracking-[0.16em] text-wana-green">Hệ thống nội bộ</p>
-                {internalSystems.map((system) => (
-                  <a
-                    key={system.label}
-                    href={system.href}
-                    target="_blank"
-                    rel="noreferrer"
-                    onClick={closeMobileMenu}
-                    className="flex min-h-16 items-center rounded-xl px-3 transition-colors hover:bg-wana-green-50"
-                  >
-                    <span>
-                      <span className="block text-base font-bold text-slate-800">{system.label}</span>
-                      <span className="mt-0.5 block text-xs text-slate-500">{system.description}</span>
-                    </span>
-                  </a>
-                ))}
-              </div>
-            )}
+            </nav>
           </aside>
         </div>
       )}
