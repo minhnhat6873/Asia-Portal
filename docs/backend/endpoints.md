@@ -1,6 +1,6 @@
 # Danh sách endpoint backend
 
-Cập nhật lần cuối: 2026-10-07. File nguồn đã đọc: `backend/src/routes/**`, `backend/src/controllers/**`, `backend/src/services/**`, `backend/src/middlewares/**`, `backend/src/validates/**`.
+Cập nhật lần cuối: 2026-10-09. File nguồn đã đọc: `backend/src/routes/**`, `backend/src/controllers/**`, `backend/src/services/**`, `backend/src/middlewares/**`, `backend/src/validates/**`.
 
 Tất cả endpoint đi qua middleware toàn cục tại `backend/index.ts`: Helmet, CORS, limiter public (trừ health/admin), parser, cookie parser và sanitize. `ADMIN GATE` bên dưới nghĩa là `requireAdminAuth` + limiter theo account do [index.route.ts](/D:/Vscode/Asia-Portal/backend/src/routes/index.route.ts:36) mount sẵn. Response đều bọc `success`; chi tiết tại `api-response.md`.
 
@@ -11,6 +11,13 @@ Tất cả endpoint đi qua middleware toàn cục tại `backend/index.ts`: Hel
 | GET | `/user/employees/:id` | — | user `getEmployeeById` | `userEmployeeService.getEmployeeById` | nhân viên public |
 | GET | `/user/media` | validate query | user `getMedia` | `userMediaService.getMedia` | bài viết published + pagination |
 | GET | `/user/media/:id` | — | user `getMediaById` | `userMediaService.getMediaById` | bài viết published |
+| GET | `/user/meetings` | validate query | `getBookings` | `meetingService.getBookings` | `{ items, pagination }`, email được che |
+| POST | `/user/meetings/booking-requests` | meeting OTP limiter, validate body | `startBookingRequest` | `meetingBookingOtpService.start` | 202; requestId, email, thời gian OTP/cooldown |
+| POST | `/user/meetings/booking-requests/verify-otp` | meeting verify limiter, validate body | `verifyBookingRequest` | `meetingBookingOtpService.verify` | 201; booking mới, email được che |
+| POST | `/user/meetings/booking-requests/resend-otp` | meeting OTP limiter, validate body | `resendBookingRequestOtp` | `meetingBookingOtpService.resend` | 200; thời gian OTP/cooldown |
+| POST | `/user/meetings/cancel-requests` | meeting OTP limiter, validate body | `startCancellationRequest` | `meetingCancelOtpService.start` | 202; email đã che, thời gian OTP/cooldown |
+| POST | `/user/meetings/cancel-requests/verify-otp` | meeting verify limiter, validate body | `verifyCancellationRequest` | `meetingCancelOtpService.verify` | 200; booking vừa xóa, email được che |
+| POST | `/user/meetings/cancel-requests/resend-otp` | meeting OTP limiter, validate body | `resendCancellationRequestOtp` | `meetingCancelOtpService.resend` | 200; thời gian OTP/cooldown |
 | POST | `/admin/auth/login` | login limiter, body login | `login` | `adminAuthService.login` | admin; set cookie |
 | POST | `/admin/auth/register` | register limiter, body register | `register` | `registrationOtpService.start` | email, `expiresInSeconds` (202) |
 | POST | `/admin/auth/register/verify-otp` | register limiter, body OTP | `verifyRegistrationOtp` | `registrationOtpService.verify` | account pending (201) |
@@ -46,6 +53,8 @@ Tất cả endpoint đi qua middleware toàn cục tại `backend/index.ts`: Hel
 | PATCH | `/admin/permission-groups/:id` | ADMIN GATE, role `admin`, validate body | `updateGroup` | `permissionGroupService.updateGroup` | group |
 
 Media không có thùng rác: `DELETE /admin/media/:id` xóa document khỏi MongoDB ngay và cố gắng dọn ảnh Cloudinary. Nguồn route trực tiếp: [admin auth](/D:/Vscode/Asia-Portal/backend/src/routes/admin/auth.route.ts:78), [admin employee](/D:/Vscode/Asia-Portal/backend/src/routes/admin/employee.route.ts:30), [admin media](/D:/Vscode/Asia-Portal/backend/src/routes/admin/media.route.ts), [account](/D:/Vscode/Asia-Portal/backend/src/routes/admin/account.route.ts:18), [permission group](/D:/Vscode/Asia-Portal/backend/src/routes/admin/permission-group.route.ts:16), [user employee](/D:/Vscode/Asia-Portal/backend/src/routes/user/employee.route.ts:12), [user media](/D:/Vscode/Asia-Portal/backend/src/routes/user/media.route.ts).
+
+Meeting là API public, không yêu cầu đăng nhập. Booking start/verify/resend nhận JSON body; cancel start/resend nhận `{ bookingId }`, cancel verify nhận `{ bookingId, code }`. GET hỗ trợ `dateFrom`, `dateTo`, `roomId`, `department`, `search`, `page`, `limit`. Payload chi tiết ở `api-response.md`.
 
 Tham số `search` của hai danh sách quản trị được trim, gộp khoảng trắng, chuyển về chữ thường và bỏ dấu tiếng Việt (`đ` thành `d`) trước khi partial match. `/admin/employees` chỉ áp dụng trên mã và tên nhân viên; `/admin/media` chỉ áp dụng trên tiêu đề và `summary` (Sapo). API public giữ cơ chế tìm kiếm hiện tại.
 

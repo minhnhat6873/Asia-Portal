@@ -28,7 +28,7 @@ export default function DiagramPage() {
               <h1 className="max-w-[560px] text-[30px] font-black leading-[1.12] tracking-tight text-[#0d5c0d] sm:text-[38px] lg:text-[44px]">
                 Cùng nhìn tổng thể <span className="block text-[#f28c00]">tổ chức Á Châu</span>
               </h1>
-              <p className="mt-4 max-w-[560px] text-base font-semibold leading-6 text-black sm:text-lg sm:leading-7">
+              <p className="mt-3 box-border w-full min-w-0 max-w-[min(560px,100%)] break-words text-[clamp(12px,3.2vw,16px)] font-semibold leading-relaxed text-black min-[769px]:mt-4 min-[769px]:text-base min-[769px]:leading-6 sm:text-lg sm:leading-7">
                 Kết nối con người, vận hành hiệu quả và xây dựng một tổ chức vững mạnh hôm nay.
               </p>
             </div>

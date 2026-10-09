@@ -1,6 +1,6 @@
 # Điểm bất thường và rủi ro đã quan sát
 
-Cập nhật lần cuối: 2026-10-07. File nguồn đã đọc: `backend/index.ts`, `backend/.env.example`, `backend/src/routes/**`, `backend/src/controllers/**`, `backend/src/services/**`, `backend/src/middlewares/**`, `backend/src/interfaces/**`, `backend/src/validates/**`.
+Cập nhật lần cuối: 2026-10-09. File nguồn đã đọc: `backend/index.ts`, `backend/.env.example`, `backend/src/routes/**`, `backend/src/controllers/**`, `backend/src/services/**`, `backend/src/middlewares/**`, `backend/src/interfaces/**`, `backend/src/validates/**`.
 
 Chỉ liệt kê hiện trạng thấy trong backend; mức độ là đánh giá tác động kỹ thuật, không phải kết luận về sự cố đang xảy ra.
 
@@ -20,5 +20,10 @@ Chỉ liệt kê hiện trạng thấy trong backend; mức độ là đánh gi�
 | Thấp | [user/account.service.ts:8](/D:/Vscode/Asia-Portal/backend/src/services/user/account.service.ts:8) | `userAccountService.register` tồn tại nhưng không thấy route/controller import hoặc gọi trong toàn bộ `backend/`; luồng đăng ký hiện dùng `registrationOtpService`. |
 | Thấp | [password-reset-otp.service.ts:68](/D:/Vscode/Asia-Portal/backend/src/services/user/password-reset-otp.service.ts:68) | Quên mật khẩu trả 404 khi email không có account; điều này phân biệt email tồn tại/không tồn tại. |
 | Thấp | [backend/.env.example:32](/D:/Vscode/Asia-Portal/backend/.env.example:32) | Comment Cloudinary bị lỗi mã hóa ký tự (`ch? c?u...`), khác với các comment tiếng Việt còn lại. |
+| Trung bình | [error.middleware.ts:43](/D:/Vscode/Asia-Portal/backend/src/middlewares/error.middleware.ts:43), [error.middleware.ts:51](/D:/Vscode/Asia-Portal/backend/src/middlewares/error.middleware.ts:51) | Global handler vẫn trả “Dữ liệu nhân viên không hợp lệ” cho mọi Mongoose ValidationError và lỗi duplicate key không được bắt riêng có thể bị mô tả là trùng email/mã nhân viên, kể cả từ meeting. |
+| Trung bình | [meeting-booking.repository.ts](/D:/Vscode/Asia-Portal/backend/src/repositories/user/meeting-booking.repository.ts) | Race booking được chặn bởi unique multikey index `roomId + reservationSlots`, không phụ thuộc unique `start` và không cần transaction. Repository tạo index/backfill khi có lần tạo booking đầu tiên; dữ liệu lịch cũ chồng lấn có thể làm việc tạo index thất bại cho tới khi được xử lý. Cần xác nhận index sẵn sàng sau triển khai. |
+| Thấp | [meeting-cancel-otp.service.ts](/D:/Vscode/Asia-Portal/backend/src/services/user/meeting-cancel-otp.service.ts) | OTP hủy được consume và booking hard-delete bằng hai thao tác MongoDB riêng. Nếu hạ tầng lỗi giữa hai thao tác, booking có thể còn nhưng OTP đã mất; chưa dùng transaction. |
+| Thấp | [meeting-cancel-otp.service.ts](/D:/Vscode/Asia-Portal/backend/src/services/user/meeting-cancel-otp.service.ts) | Với OTP hủy còn hạn, gọi lại start dùng luồng resend nên giữ cooldown/resendCount. Sau khi OTP hết hạn hoặc TTL đã xóa document, start bắt đầu chu kỳ mới với resendCount = 0; giới hạn resend hiện là theo từng OTP cycle, không phải hạn mức dài hạn theo booking. |
+| Thấp | [pending-meeting-booking.model.ts](/D:/Vscode/Asia-Portal/backend/src/models/pending-meeting-booking.model.ts), [meeting-cancel-otp.model.ts](/D:/Vscode/Asia-Portal/backend/src/models/meeting-cancel-otp.model.ts) | TTL cleanup chạy bất đồng bộ; service có kiểm tra hạn trong request. Chưa xác nhận index/TTL thực tế nếu không kết nối MongoDB triển khai. |
 
 Không tìm thấy `statusFilter` trong phạm vi `backend/`; vì vậy không thể xác nhận rủi ro liên quan `statusFilter` từ mã backend. Không kiểm tra frontend theo phạm vi yêu cầu nên không kết luận việc frontend có/không gửi `gender`.

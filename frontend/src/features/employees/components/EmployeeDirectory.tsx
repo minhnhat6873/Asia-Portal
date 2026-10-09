@@ -21,7 +21,7 @@ export default function EmployeeDirectory({ employees, selectedId, total, page, 
   };
 
   return (
-    <section>
+    <section className="w-full min-w-0 max-w-full">
       <div className="mb-3 sm:mb-4">
         <p className="text-sm font-medium text-slate-500">
           Hiển thị <span className="font-semibold text-slate-600">{from} - {to}</span> trong <span className="font-semibold text-slate-600">{total}</span> nhân viên

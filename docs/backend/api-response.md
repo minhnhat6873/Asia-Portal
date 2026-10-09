@@ -1,6 +1,6 @@
 # Hợp đồng response API
 
-Cập nhật lần cuối: 2026-10-07. File nguồn đã đọc: `backend/index.ts`, `backend/src/controllers/**`, `backend/src/middlewares/auth.middleware.ts`, `backend/src/middlewares/validate.middleware.ts`, `backend/src/middlewares/error.middleware.ts`, `backend/src/services/**`, `backend/src/repositories/user/employee.repository.ts`.
+Cập nhật lần cuối: 2026-10-09. File nguồn đã đọc: `backend/index.ts`, `backend/src/controllers/**`, `backend/src/middlewares/auth.middleware.ts`, `backend/src/middlewares/validate.middleware.ts`, `backend/src/middlewares/error.middleware.ts`, `backend/src/services/**`, `backend/src/repositories/user/employee.repository.ts`.
 
 ## Dạng trả về
 
@@ -41,6 +41,22 @@ Thứ tự map ở [error.middleware.ts](/D:/Vscode/Asia-Portal/backend/src/midd
 - Danh sách media dùng cùng contract pagination. API media trả `_id`; frontend map `_id` thành `id` và đổi `publishDate` ISO thành `dd/MM/yyyy`.
 - Xóa media là xóa vĩnh viễn, response thành công vẫn có `{ success: true, message, data }`; không có API trash/restore cho media.
 - Account và permission group được map `_id` sang `id` trong `toAccountResponse` và `toResponse` ([account.service.ts](/D:/Vscode/Asia-Portal/backend/src/services/admin/account.service.ts:16), [permission-group.service.ts](/D:/Vscode/Asia-Portal/backend/src/services/admin/permission-group.service.ts:14)). Audit log, employee và dashboard không map tương tự; đây là không nhất quán quan sát được.
+
+## Meeting public API
+
+Các endpoint meeting trả wrapper `{ success, message, data }`; không trả OTP/hash. Email trong dữ liệu lịch public được che. OTP sống 180 giây, cooldown resend 60 giây, tối đa 5 lần nhập sai và 3 lần resend.
+
+| Method/path | Request body/query | Thành công |
+| --- | --- | --- |
+| `GET /user/meetings` | Query: `dateFrom`, `dateTo`, `roomId`, `department`, `search`, `page`, `limit` | 200; `data: { items, pagination }`, sort ngày/giờ tăng dần |
+| `POST /user/meetings/booking-requests` | `{ title, roomId, date, start, durationMinutes, attendees, organizer, email, department }` | 202; `Mã OTP đã được gửi đến email của bạn.`; data: `requestId`, `email`, `expiresInSeconds`, `resendAfterSeconds` |
+| `POST /user/meetings/booking-requests/verify-otp` | `{ requestId, code }` | 201; `Đặt phòng họp thành công.`; `data` là booking mới, email được che |
+| `POST /user/meetings/booking-requests/resend-otp` | `{ requestId }` | 200; data có thời gian OTP/cooldown |
+| `POST /user/meetings/cancel-requests` | `{ bookingId }` | 202; OTP gửi tới email trong MongoDB; data có email đã che và thời gian OTP/cooldown |
+| `POST /user/meetings/cancel-requests/verify-otp` | `{ bookingId, code }` | 200; `Đã hủy lịch họp.`; `data` là booking vừa hard-delete, email được che |
+| `POST /user/meetings/cancel-requests/resend-otp` | `{ bookingId }` | 200; data có thời gian OTP/cooldown |
+
+Meeting rate limit mặc định 10 start/resend và 30 verify mỗi IP trong 15 phút; cấu hình qua `MEETING_OTP_RATE_LIMIT_MAX`, `MEETING_VERIFY_RATE_LIMIT_MAX`. OTP cần `OTP_SECRET`; email cần `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`.
 
 ## Cookie phiên
 

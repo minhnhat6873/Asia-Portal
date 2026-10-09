@@ -9,7 +9,7 @@ export default function HeroBanner() {
       />
 
       <div className="relative z-10 mx-auto flex min-h-[330px] w-full max-w-[1800px] items-start px-3 pt-4 sm:min-h-[360px] sm:px-8 sm:pt-6 lg:px-[4%] xl:min-h-[500px] xl:pt-8">
-        <div className="w-fit max-w-full">
+        <div className="w-full max-w-full sm:w-fit">
           <div className="mb-4 flex items-center justify-center gap-3 text-[#064d20] sm:mb-5">
             <p className="text-[8px] font-bold uppercase tracking-[0.32em] sm:text-[10px] xl:text-sm">
               Asia Internal Portal
@@ -18,7 +18,7 @@ export default function HeroBanner() {
             <span className="hidden h-px w-14 bg-[#28742c] sm:block" aria-hidden="true" />
           </div>
 
-          <h1 className="uppercase leading-[0.95] tracking-[-0.045em] drop-shadow-[0_2px_1px_rgba(255,255,255,0.9)]">
+          <h1 className="text-center uppercase leading-[0.95] tracking-[-0.045em] drop-shadow-[0_2px_1px_rgba(255,255,255,0.9)] sm:text-left">
             <span className="block text-[1.65rem] font-black text-[#08701c] sm:text-[clamp(2.25rem,4.3vw,4.8rem)]">
               Asia Food &amp;
             </span>

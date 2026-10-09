@@ -10,8 +10,35 @@ interface EmployeeListProps {
 
 export default function EmployeeList({ employees, selectedId, onSelect }: EmployeeListProps) {
   return (
-    <div className="overflow-x-auto rounded-xl border border-slate-100 bg-white shadow-sm">
-      <table className="min-w-[720px] w-full text-left">
+    <>
+      <div className="w-full min-w-0 max-w-full space-y-2 sm:hidden">
+        {employees.map((employee, index) => {
+          const selected = employee.id === selectedId;
+          return (
+            <button
+              key={employee.id}
+              type="button"
+              onClick={() => onSelect(employee)}
+              className={`box-border w-full min-w-0 max-w-full rounded-xl border bg-white p-3 text-left shadow-sm transition-colors ${selected ? "border-[#20a461] bg-green-50/70" : "border-slate-100"}`}
+            >
+              <div className="flex min-w-0 items-start gap-2.5">
+                <span className="pt-0.5 text-xs font-semibold text-slate-400">{index + 1}</span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex min-w-0 items-center gap-1.5">
+                    <p className="truncate text-sm font-bold text-slate-800">{employee.name}</p>
+                    <span className="h-2 w-2 shrink-0 rounded-full bg-[#16b85c]" />
+                  </div>
+                  <p className="mt-0.5 text-xs text-slate-400">{getEmployeeCode(employee)}</p>
+                  <p className="mt-2 break-words text-xs font-medium leading-snug text-slate-600">{employee.position} · {getEmployeeDepartmentLabel(employee.department)}</p>
+                  <span className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-green-50 px-2.5 py-1 text-[10px] font-semibold text-[#159447]"><span className="h-1.5 w-1.5 rounded-full bg-[#16b85c]" />Đang làm việc</span>
+                </div>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+      <div className="hidden overflow-x-auto rounded-xl border border-slate-100 bg-white shadow-sm sm:block">
+      <table className="w-full min-w-[720px] text-left">
         <thead className="border-b border-slate-100 bg-slate-50/70 text-xs font-semibold text-slate-400">
           <tr>
             <th className="w-14 px-5 py-4">#</th>
@@ -47,6 +74,7 @@ export default function EmployeeList({ employees, selectedId, onSelect }: Employ
           })}
         </tbody>
       </table>
-    </div>
+      </div>
+    </>
   );
 }

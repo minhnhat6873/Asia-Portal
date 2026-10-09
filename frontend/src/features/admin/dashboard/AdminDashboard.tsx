@@ -161,6 +161,20 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
   const accountMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    const syncSidebarWithViewport = () => {
+      if (window.matchMedia('(min-width: 1024px)').matches) {
+        setIsSidebarOpen(true);
+      } else if (window.matchMedia('(max-width: 767px)').matches) {
+        setIsSidebarOpen(false);
+      }
+    };
+
+    syncSidebarWithViewport();
+    window.addEventListener('resize', syncSidebarWithViewport);
+    return () => window.removeEventListener('resize', syncSidebarWithViewport);
+  }, []);
+
+  useEffect(() => {
     if (!editingEmployeeId) {
       setEditingEmployee(null);
       setEditingEmployeeError(null);

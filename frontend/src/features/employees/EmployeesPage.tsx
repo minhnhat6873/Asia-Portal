@@ -12,15 +12,9 @@ import EmployeeFilters from "./components/EmployeeFilters";
 import EmployeeProfile from "./components/EmployeeProfile";
 import EmployeeStats from "./components/EmployeeStats";
 import EmployeesHero from "./components/EmployeesHero";
+import { normalizeSearchText } from "@/utils/normalizeSearchText";
 
 const PAGE_LIMIT = 12;
-const emptyPagination: EmployeePagination = {
-  page: 1,
-  limit: PAGE_LIMIT,
-  total: 0,
-  totalPages: 0,
-};
-
 function EmployeesContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -29,14 +23,35 @@ function EmployeesContent() {
   const [position, setPosition] = useState(() => searchParams.get("position") ?? "Tất cả chức vụ");
   const [newestFirst, setNewestFirst] = useState(() => searchParams.get("sort") !== "oldest");
   const [page, setPage] = useState(() => Math.max(Number(searchParams.get("page")) || 1, 1));
-  const [employees, setEmployees] = useState<Employee[]>([]);
   const [allEmployees, setAllEmployees] = useState<Employee[]>([]);
-  const [pagination, setPagination] = useState<EmployeePagination>(emptyPagination);
   const [selected, setSelected] = useState<Employee | null>(null);
   const [profileOpen, setProfileOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
-  const [reloadKey, setReloadKey] = useState(0);
+
+  const filteredEmployees = useMemo(() => {
+    const query = normalizeSearchText(search);
+    return allEmployees
+      .filter((employee) => {
+        const matchesSearch = !query || normalizeSearchText(`${employee.employeeCode} ${employee.name}`).includes(query);
+        const matchesDepartment = department === "Tất cả phòng ban" || employee.department === department;
+        const matchesPosition = position === "Tất cả chức vụ" || employee.position === position;
+        return matchesSearch && matchesDepartment && matchesPosition;
+      })
+      .sort((left, right) => {
+        const dateDifference = new Date(left.joinDate).getTime() - new Date(right.joinDate).getTime();
+        return newestFirst ? -dateDifference : dateDifference;
+      });
+  }, [allEmployees, department, newestFirst, position, search]);
+
+  const pageCount = Math.ceil(filteredEmployees.length / PAGE_LIMIT);
+  const visibleEmployees = filteredEmployees.slice((page - 1) * PAGE_LIMIT, page * PAGE_LIMIT);
+  const visiblePagination: EmployeePagination = {
+    page,
+    limit: PAGE_LIMIT,
+    total: filteredEmployees.length,
+    totalPages: pageCount,
+  };
 
   const departments = useMemo(
     () => ["Tất cả phòng ban", ...Array.from(new Set(allEmployees.map((employee) => employee.department))).sort()],
@@ -51,43 +66,17 @@ function EmployeesContent() {
     const controller = new AbortController();
     getPublicEmployees({ limit: 100, sort: "latest" }, controller.signal)
       .then((result) => setAllEmployees(result.items))
-      .catch(() => setAllEmployees([]));
+      .catch((requestError: unknown) => {
+        if (requestError instanceof DOMException && requestError.name === "AbortError") return;
+        setError(requestError instanceof Error ? requestError.message : "Không thể tải danh sách nhân viên");
+      })
+      .finally(() => setIsLoading(false));
     return () => controller.abort();
   }, []);
 
   useEffect(() => {
-    const controller = new AbortController();
-    const timer = window.setTimeout(() => {
-      setIsLoading(true);
-      setError("");
-      getPublicEmployees({
-        search: search.trim() || undefined,
-        department: department === "Tất cả phòng ban" ? undefined : department,
-        position: position === "Tất cả chức vụ" ? undefined : position,
-        sort: newestFirst ? "latest" : "oldest",
-        page,
-        limit: PAGE_LIMIT,
-      }, controller.signal)
-        .then((result) => {
-          setEmployees(result.items);
-          setPagination(result.pagination);
-          setSelected((current) => result.items.find((employee) => employee.id === current?.id) ?? result.items[0] ?? null);
-        })
-        .catch((requestError: unknown) => {
-          if (requestError instanceof DOMException && requestError.name === "AbortError") return;
-          setEmployees([]);
-          setPagination(emptyPagination);
-          setSelected(null);
-          setError(requestError instanceof Error ? requestError.message : "Không thể tải danh sách nhân viên");
-        })
-        .finally(() => setIsLoading(false));
-    }, search ? 300 : 0);
-
-    return () => {
-      window.clearTimeout(timer);
-      controller.abort();
-    };
-  }, [search, department, position, newestFirst, page, reloadKey]);
+    setSelected((current) => visibleEmployees.find((employee) => employee.id === current?.id) ?? visibleEmployees[0] ?? null);
+  }, [visibleEmployees]);
 
   useEffect(() => {
     const params = new URLSearchParams();
@@ -114,7 +103,7 @@ function EmployeesContent() {
   return (
     <>
       <EmployeesHero />
-      <div className="mx-auto max-w-[1440px] px-4 py-4 sm:px-6 sm:py-5 md:px-8 md:py-7">
+      <div className="mx-auto box-border w-full min-w-0 max-w-[1440px] px-3 py-3 sm:px-6 sm:py-5 md:px-8 md:py-7">
         <EmployeeFilters
           search={search}
           department={department}
@@ -137,32 +126,32 @@ function EmployeesContent() {
             setPage(1);
           }}
         />
-        <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="mt-4 grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
           <div className="space-y-4 sm:space-y-5">
-            <EmployeeStats total={pagination.total} departments={Math.max(departments.length - 1, 0)} positions={Math.max(positions.length - 1, 0)} />
+            <EmployeeStats total={visiblePagination.total} departments={Math.max(departments.length - 1, 0)} positions={Math.max(positions.length - 1, 0)} />
             {error ? (
               <div className="rounded-xl border border-rose-100 bg-rose-50 px-5 py-12 text-center text-sm text-rose-700">
                 <p>{error}</p>
-                <button type="button" onClick={() => setReloadKey((current) => current + 1)} className="mt-3 font-bold underline">Thử lại</button>
+                <button type="button" onClick={() => window.location.reload()} className="mt-3 font-bold underline">Thử lại</button>
               </div>
-            ) : isLoading ? (
+            ) : isLoading && allEmployees.length === 0 ? (
               <div className="rounded-xl border border-slate-100 bg-white py-20 text-center text-sm text-slate-400">Đang tải danh sách nhân viên...</div>
             ) : (
               <>
                 <EmployeeDirectory
-                  employees={employees}
+                  employees={visibleEmployees}
                   selectedId={selected?.id}
-                  total={pagination.total}
-                  page={pagination.page}
-                  limit={pagination.limit}
+                  total={visiblePagination.total}
+                  page={visiblePagination.page}
+                  limit={visiblePagination.limit}
                   onSelect={setSelected}
                   onOpenProfile={openMobileProfile}
                 />
-                {pagination.totalPages > 1 && (
+                {visiblePagination.totalPages > 1 && (
                   <div className="flex items-center justify-center gap-3">
                     <button type="button" disabled={page <= 1} onClick={() => setPage((current) => current - 1)} className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 disabled:cursor-not-allowed disabled:opacity-40">Trước</button>
-                    <span className="text-sm text-slate-500">Trang {pagination.page} / {pagination.totalPages}</span>
-                    <button type="button" disabled={page >= pagination.totalPages} onClick={() => setPage((current) => current + 1)} className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 disabled:cursor-not-allowed disabled:opacity-40">Sau</button>
+                    <span className="text-sm text-slate-500">Trang {visiblePagination.page} / {visiblePagination.totalPages}</span>
+                    <button type="button" disabled={page >= visiblePagination.totalPages} onClick={() => setPage((current) => current + 1)} className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 disabled:cursor-not-allowed disabled:opacity-40">Sau</button>
                   </div>
                 )}
               </>
@@ -194,7 +183,7 @@ function EmptyProfile() {
 
 export default function EmployeesPage() {
   return (
-    <main className="min-h-screen bg-[#f7faf8]">
+    <main className="min-h-screen w-full overflow-x-hidden bg-[#f7faf8]">
       <Navbar />
       <Suspense fallback={<div className="flex min-h-screen items-center justify-center">Đang tải...</div>}><EmployeesContent /></Suspense>
       <Footer />

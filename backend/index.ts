@@ -14,6 +14,7 @@ import {
 } from "./src/config/security.config";
 import { globalErrorHandler } from "./src/middlewares/error.middleware";
 import routes from "./src/routes/index.route";
+import { startMeetingBookingArchiveJob } from "./src/jobs/meeting-booking-archive.job";
 
 const app = express();
 const port = Number(process.env.PORT) || 4000;
@@ -80,6 +81,7 @@ app.use(globalErrorHandler);
 
 async function startServer(): Promise<void> {
   await connectDatabase();
+  startMeetingBookingArchiveJob();
 
   app.listen(port, () => {
     console.log(`Asia API đang chạy tại http://localhost:${port}`);

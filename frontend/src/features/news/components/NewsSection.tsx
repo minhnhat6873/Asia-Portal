@@ -7,6 +7,7 @@ import { newsCategories, NewsItem } from "@/config/news";
 import { getPublicMedia } from "@/services/media.service";
 import { ArrowRight, Calendar, User, ChevronRight, Search, ArrowDownUp, LayoutGrid, Newspaper, Users, Megaphone, X, RotateCcw } from "lucide-react";
 import { hasRichTextContent, RichText } from "@/components/ui/RichText";
+import { normalizeSearchText } from "@/utils/normalizeSearchText";
 
 interface Props {
   preview?: boolean;
@@ -157,8 +158,8 @@ export default function NewsSection({ preview = false }: Props) {
     ? (featuredPosts.length ? featuredPosts : filtered).slice(0, 3)
     : filtered;
   const searched = displayed.filter((item) => {
-    const query = searchQuery.trim().toLocaleLowerCase();
-    return !query || item.title.toLocaleLowerCase().includes(query) || item.excerpt.toLocaleLowerCase().includes(query);
+    const query = normalizeSearchText(searchQuery);
+    return !query || normalizeSearchText(item.title).includes(query) || normalizeSearchText(item.excerpt).includes(query);
   });
   const sortedItems = [...searched].sort((first, second) => {
     const toTimestamp = (value: string) => {

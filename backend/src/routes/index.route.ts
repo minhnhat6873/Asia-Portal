@@ -15,6 +15,7 @@ import healthRouter from "./health.route";
 import userEmployeeRouter from "./user/employee.route";
 import adminMediaRouter from "./admin/media.route";
 import userMediaRouter from "./user/media.route";
+import userMeetingRouter from "./user/meeting.route";
 import { securityConfig } from "../config/security.config";
 
 const router = Router();
@@ -34,6 +35,7 @@ const authenticatedAdminLimiter = rateLimit({
 router.use("/health", healthRouter);
 router.use("/user/employees", userEmployeeRouter);
 router.use("/user/media", userMediaRouter);
+router.use("/user/meetings", userMeetingRouter);
 router.use("/admin/auth", adminAuthRouter);
 // Tất cả API /admin còn lại đều phải đi qua một cổng xác thực chung.
 router.use("/admin", requireAdminAuth, authenticatedAdminLimiter);

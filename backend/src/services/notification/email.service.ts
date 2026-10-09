@@ -2,9 +2,143 @@ import { existsSync } from "fs";
 import path from "path";
 import nodemailer from "nodemailer";
 
+import { OTP_EXPIRY_MS } from "../../config/otp.config";
 import { AppError } from "../../utils/errors/AppError";
+import { escapeHtml } from "../../utils/html/escapeHtml";
 
 const OTP_EXPIRY_MINUTES = 3;
+
+export interface MeetingOtpEmailDetails {
+  title: string;
+  roomName: string;
+  floor: string;
+  date: string;
+  start: string;
+  end: string;
+  organizer: string;
+}
+
+type MeetingOtpAction = "đặt" | "hủy";
+
+function getMeetingOtpEmailHtml(code: string, details: MeetingOtpEmailDetails, action: MeetingOtpAction): string {
+  const safe = {
+    code: escapeHtml(code),
+    title: escapeHtml(details.title),
+    roomName: escapeHtml(details.roomName),
+    floor: escapeHtml(details.floor),
+    date: escapeHtml(details.date),
+    start: escapeHtml(details.start),
+    end: escapeHtml(details.end),
+    organizer: escapeHtml(details.organizer),
+    action: escapeHtml(action),
+  };
+
+  return `
+    <div style="margin:0;padding:24px 12px;background:#ffffff;font-family:Arial,Helvetica,sans-serif;color:#173b35;">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:16px;border:1px solid #e4efe9;overflow:hidden;">
+        <tr>
+          <td style="padding:30px 34px 14px;">
+            <table role="presentation" cellspacing="0" cellpadding="0" border="0">
+              <tr>
+                <td style="width:56px;height:56px;text-align:center;vertical-align:middle;"><img src="cid:asia-fnb-logo" width="56" height="56" alt="Asia Food &amp; Beverage" style="display:block;width:56px;height:56px;border:0;outline:none;" /></td>
+                <td style="padding-left:14px;vertical-align:middle;">
+                  <div style="font-size:25px;line-height:30px;font-weight:700;color:#123d37;">Mã xác thực <span style="color:#08744d;">(OTP)</span></div>
+                  <div style="margin-top:3px;font-size:14px;line-height:20px;color:#71817d;">${safe.action === "hủy" ? "Xác nhận hủy lịch phòng họp" : "Xác nhận đặt phòng họp"} · Asia Food &amp; Beverage</div>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:14px 34px 8px;font-size:14px;line-height:21px;color:#2f4540;">
+            <p style="margin:0 0 10px;font-weight:700;">Xin chào ${safe.organizer},</p>
+            <p style="margin:0 0 7px;">${safe.action === "hủy" ? "Mã này dùng để xác nhận HỦY lịch phòng họp sau:" : "Mã này dùng để xác nhận đặt lịch phòng họp sau:"}</p>
+            <p style="margin:0;"><strong>${safe.title}</strong></p>
+            <p style="margin:4px 0 0;">${safe.roomName} · ${safe.floor}</p>
+            <p style="margin:4px 0 0;">${safe.date}, ${safe.start}–${safe.end}</p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:12px 34px 12px;">
+            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#edf9f1;border-radius:12px;">
+              <tr><td style="padding:18px;text-align:center;font-family:Arial,sans-serif;font-size:30px;line-height:38px;font-weight:700;letter-spacing:8px;color:#08744d;">${safe.code}</td></tr>
+            </table>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:0 34px 18px;">
+            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#edf9f1;border-radius:10px;">
+              <tr>
+                <td style="padding:13px 16px;width:26px;vertical-align:top;font-size:20px;color:#0b9a64;">◷</td>
+                <td style="padding:12px 14px 12px 0;font-size:12px;line-height:18px;color:#526560;">
+                  <strong style="font-size:13px;color:#173b35;">Mã có hiệu lực trong <span style="color:#08744d;">${OTP_EXPIRY_MS / 60_000} phút</span></strong><br />
+                  Vì lý do bảo mật, vui lòng không chia sẻ mã OTP này với bất kỳ ai.
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:14px 34px 28px;border-top:1px solid #edf1ef;text-align:center;font-size:11px;line-height:17px;color:#82918d;">
+            Nếu bạn không thực hiện yêu cầu này, vui lòng bỏ qua email.
+          </td>
+        </tr>
+      </table>
+    </div>`;
+}
+
+function getLogoAttachment() {
+  const logoPath = path.resolve(process.cwd(), "..", "frontend", "public", "assets", "images", "asia-logo.png");
+  return existsSync(logoPath)
+    ? [{ filename: "asia-logo.png", path: logoPath, cid: "asia-fnb-logo" }]
+    : [];
+}
+
+async function sendMeetingOtp(
+  email: string,
+  code: string,
+  details: MeetingOtpEmailDetails,
+  action: MeetingOtpAction,
+): Promise<void> {
+  const { host, port, secure, user, pass, from } = getMailConfig();
+  const transporter = nodemailer.createTransport({
+    host,
+    port,
+    secure,
+    auth: { user, pass },
+  });
+
+  try {
+    const info = await transporter.sendMail({
+      from,
+      to: email,
+      subject: action === "hủy"
+        ? "Mã xác thực (OTP) hủy lịch phòng họp Asia F&B"
+        : "Mã xác thực (OTP) đặt phòng họp Asia F&B",
+      text: [
+        `Mã OTP xác nhận ${action} lịch phòng họp của bạn là ${code}.`,
+        `Cuộc họp: ${details.title}.`,
+        `Phòng: ${details.roomName} - ${details.floor}.`,
+        `Thời gian: ${details.date}, ${details.start}-${details.end}.`,
+        `Người đặt: ${details.organizer}.`,
+        `Mã có hiệu lực trong ${OTP_EXPIRY_MS / 60_000} phút. Không chia sẻ mã OTP này với bất kỳ ai.`,
+      ].join(" "),
+      attachments: getLogoAttachment(),
+      html: getMeetingOtpEmailHtml(code, details, action),
+    });
+
+    const acceptedRecipient = info.accepted.some(
+      (address) => address.toLowerCase() === email.toLowerCase(),
+    );
+
+    if (!acceptedRecipient || info.rejected.length > 0) {
+      throw new Error("SMTP did not accept the recipient.");
+    }
+  } catch {
+    console.error("Không thể gửi email OTP lịch phòng họp.");
+    throw new AppError(503, "Không thể gửi mã OTP. Vui lòng thử lại sau.");
+  }
+}
 
 function getMailConfig() {
   const host = process.env.SMTP_HOST?.trim();
@@ -22,6 +156,14 @@ function getMailConfig() {
 }
 
 export const emailService = {
+  async sendMeetingBookingOtp(email: string, code: string, details: MeetingOtpEmailDetails): Promise<void> {
+    await sendMeetingOtp(email, code, details, "đặt");
+  },
+
+  async sendMeetingCancelOtp(email: string, code: string, details: MeetingOtpEmailDetails): Promise<void> {
+    await sendMeetingOtp(email, code, details, "hủy");
+  },
+
   async sendRegistrationOtp(email: string, code: string): Promise<void> {
     const { host, port, secure, user, pass, from } = getMailConfig();
     const transporter = nodemailer.createTransport({

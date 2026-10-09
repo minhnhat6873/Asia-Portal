@@ -13,6 +13,13 @@ interface FindMediaOptions {
 const publicSelection = "-createdBy -coverImagePublicId -deletedBy -deletedAt -isDeleted";
 
 export const userMediaRepository = {
+  findAllForSearch(filter: QueryFilter<Media>, sort: Record<string, SortOrder>) {
+    return MediaModel.find({ ...filter, status: "published", isDeleted: { $ne: true } })
+      .select(publicSelection)
+      .sort(sort)
+      .lean();
+  },
+
   findAll({ filter, skip, limit, sort }: FindMediaOptions) {
     return MediaModel.find({ ...filter, status: "published", isDeleted: { $ne: true } })
       .select(publicSelection)
