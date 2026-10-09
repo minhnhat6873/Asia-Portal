@@ -1,10 +1,31 @@
 import {
+  Coins,
+  FlaskConical,
   Landmark,
   Megaphone,
+  Monitor,
+  Palette,
+  ShieldCheck,
   ShoppingCart,
   Target,
+  Truck,
+  UsersRound,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+
+/** Ten specialist departments shown directly below senior management. */
+export const ORGANIZATION_DEPARTMENTS = [
+  { id: "HR_AD", slug: "phong-nhan-su-hanh-chinh", name: "HR&AD", description: "Hành chính & Nhân sự", icon: UsersRound, tone: "bg-rose-50 text-rose-500" },
+  { id: "F_AND_A", slug: "phong-tai-chinh-ke-toan", name: "F&A", description: "Tài chính & Kế toán", icon: Coins, tone: "bg-emerald-50 text-emerald-600" },
+  { id: "MKT", slug: "phong-marketing", name: "MKT", description: "Marketing", icon: Target, tone: "bg-violet-50 text-violet-600" },
+  { id: "DESIGN", slug: "phong-design", name: "Design", description: "Thiết kế", icon: Palette, tone: "bg-pink-50 text-pink-500" },
+  { id: "LEGAL", slug: "phong-phap-che", name: "Legal", description: "Pháp chế", icon: ShieldCheck, tone: "bg-sky-50 text-sky-500" },
+  { id: "IT", slug: "phong-it", name: "IT", description: "Công nghệ thông tin", icon: Monitor, tone: "bg-blue-50 text-blue-600" },
+  { id: "LOGISTICS", slug: "phong-logistics", name: "Logistics", description: "Vận chuyển & Logistics", icon: Truck, tone: "bg-orange-50 text-orange-500" },
+  { id: "R_AND_D", slug: "phong-nghien-cuu-phat-trien", name: "R&D", description: "Nghiên cứu & Phát triển", icon: FlaskConical, tone: "bg-teal-50 text-teal-600" },
+  { id: "PURCHASING", slug: "phong-mua-hang", name: "Purchasing", description: "Mua hàng", icon: ShoppingCart, tone: "bg-amber-50 text-amber-600" },
+  { id: "SALES", slug: "phong-kinh-doanh", name: "Sales", description: "Kinh doanh", icon: Landmark, tone: "bg-indigo-50 text-indigo-600" },
+] as const;
 
 export type DiagramDepartment = {
   slug: string;
@@ -77,6 +98,26 @@ export const DIAGRAM_DEPARTMENTS: DiagramDepartment[] = [
     ],
   },
 ];
+
+// Keep existing URLs and connect every department page to its employee API code.
+for (const department of ORGANIZATION_DEPARTMENTS) {
+  const existing = DIAGRAM_DEPARTMENTS.find((item) => item.slug === department.slug);
+  if (existing) {
+    existing.name = `Phòng ${department.name}`;
+    existing.employeeDepartments = [department.id];
+  } else {
+    DIAGRAM_DEPARTMENTS.push({
+      slug: department.slug,
+      name: `Phòng ${department.name}`,
+      employeeDepartments: [department.id],
+      icon: department.icon,
+      tone: department.tone,
+      surface: "bg-slate-50",
+      staff: 0,
+      roles: [],
+    });
+  }
+}
 
 export function findDiagramDepartment(slug: string | undefined): DiagramDepartment | undefined {
   if (!slug) return undefined;

@@ -51,6 +51,14 @@ export const adminEmployeeRepository = {
     }).lean();
   },
 
+  findActiveByRank(rank: Employee["rank"]) {
+    return EmployeeModel.findOne({ rank, isDeleted: { $ne: true } }).lean();
+  },
+
+  findDeletedById(id: string) {
+    return EmployeeModel.findOne({ _id: id, isDeleted: true }).lean();
+  },
+
   updateById(id: string, data: UpdateEmployeeInput) {
     return EmployeeModel.findOneAndUpdate({ _id: id, isDeleted: { $ne: true } }, data, {
       new: true,

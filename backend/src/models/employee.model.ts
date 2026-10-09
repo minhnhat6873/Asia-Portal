@@ -2,6 +2,7 @@ import { model, models, Schema } from "mongoose";
 
 import {
   EMPLOYEE_GENDERS,
+  EMPLOYEE_RANKS,
   EMPLOYEE_STATUSES,
   type Employee,
 } from "../interfaces/employee.interface";
@@ -19,7 +20,7 @@ const employeeSchema = new Schema<Employee>(
     name: { type: String, required: true, trim: true, index: true },
     position: { type: String, required: true, trim: true, index: true },
     department: { type: String, required: true, trim: true, index: true },
-    rank: { type: String, trim: true, default: "", index: true },
+    rank: { type: String, enum: EMPLOYEE_RANKS, trim: true, default: "" },
     email: {
       type: String,
       required: true,
@@ -66,6 +67,14 @@ const employeeSchema = new Schema<Employee>(
 );
 
 employeeSchema.index({ name: "text", employeeCode: "text", email: "text" });
+employeeSchema.index(
+  { rank: 1 },
+  {
+    name: "unique_active_employee_ceo",
+    unique: true,
+    partialFilterExpression: { rank: "CEO", isDeleted: false },
+  },
+);
 
 const EmployeeModel =
   models.Employee || model<Employee>("Employee", employeeSchema);

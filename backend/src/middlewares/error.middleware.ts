@@ -6,6 +6,7 @@ import { AppError } from "../utils/errors/AppError";
 
 interface MongoDuplicateError extends Error {
   code?: number;
+  keyPattern?: Record<string, number>;
 }
 
 export function globalErrorHandler(
@@ -49,9 +50,12 @@ export function globalErrorHandler(
   }
 
   if ((error as MongoDuplicateError)?.code === 11000) {
+    const duplicateError = error as MongoDuplicateError;
     response.status(409).json({
       success: false,
-      message: "Email hoặc mã nhân viên đã tồn tại",
+      message: duplicateError.keyPattern?.rank
+        ? "Công ty chỉ được có duy nhất một CEO"
+        : "Email hoặc mã nhân viên đã tồn tại",
     });
     return;
   }

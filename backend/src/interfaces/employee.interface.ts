@@ -1,15 +1,23 @@
 export const EMPLOYEE_STATUSES = ["active", "probation", "inactive"] as const;
 export const EMPLOYEE_GENDERS = ["male", "female", "other"] as const;
+export const EMPLOYEE_RANKS = [
+  "CEO",
+  "Senior Management",
+  "Middle Management",
+  "Intermediate Personnel",
+  "Staff",
+] as const;
 
 export type EmployeeStatus = (typeof EMPLOYEE_STATUSES)[number];
 export type EmployeeGender = (typeof EMPLOYEE_GENDERS)[number];
+export type EmployeeRank = (typeof EMPLOYEE_RANKS)[number];
 
 export interface Employee {
   employeeCode: string;
   name: string;
   position: string;
   department: string;
-  rank?: string;
+  rank?: EmployeeRank;
   email: string;
   phone: string;
   location: string;
@@ -48,7 +56,7 @@ export interface EmployeeListQuery {
   search?: string;
   department?: string;
   position?: string;
-  rank?: string;
+  rank?: EmployeeRank;
   status?: EmployeeStatus;
   page?: string;
   limit?: string;

@@ -1,13 +1,13 @@
 import Joi from "joi";
 
-import { EMPLOYEE_GENDERS, EMPLOYEE_STATUSES } from "../../interfaces/employee.interface";
+import { EMPLOYEE_GENDERS, EMPLOYEE_RANKS, EMPLOYEE_STATUSES } from "../../interfaces/employee.interface";
 
 const employeeFields = {
   employeeCode: Joi.string().trim().uppercase().max(20),
   name: Joi.string().trim().min(2).max(100),
   position: Joi.string().trim().min(2).max(100),
   department: Joi.string().trim().min(2).max(100),
-  rank: Joi.string().trim().valid("BOD", "Executive", "Manager", "Team Leader", "Staff", "Intern"),
+  rank: Joi.string().trim().valid(...EMPLOYEE_RANKS),
   email: Joi.string()
     .trim()
     .lowercase()

@@ -31,12 +31,12 @@ const employeeRows = [
   ["00012", "Phan Mai Phương", "Admin Executive", "HR_AD", "Staff", "22/10/2024", "28/03/1998", "admin01@asiafnb.com", "0853197624", "Quản lý hành chính và văn phòng phẩm."],
   ["00013", "Nguyễn Thành Đạt", "Finance Analyst", "F_AND_A", "Staff", "16/01/2023", "09/06/1994", "fa02@asiafnb.com", "0946271835", "Phân tích chi phí, ngân sách và tài chính."],
   ["00014", "Hồ Mỹ Duyên", "Content Marketing", "MKT", "Staff", "05/05/2026", "23/02/2001", "mkt02@asiafnb.com", "0837159426", "Viết nội dung social và chiến dịch truyền thông."],
-  ["00015", "Trương Minh Khoa", "Trưởng phòng Design", "DESIGN", "Manager", "14/09/2022", "15/07/1993", "design02@asiafnb.com", "0926483157", "Quản lý thiết kế và kiểm soát hình ảnh thương hiệu."],
-  ["00016", "Nguyễn Nhật Quang", "Trưởng phòng R&D", "R_AND_D", "Manager", "19/04/2022", "04/12/1991", "rnd02@asiafnb.com", "0972146853", "Quản lý nghiên cứu và phát triển sản phẩm."],
-  ["00017", "Võ Anh Tuấn", "Trưởng phòng Purchasing", "PURCHASING", "Manager", "07/03/2023", "26/10/1992", "purchasing02@asiafnb.com", "0915284637", "Quản lý mua hàng và nhà cung cấp."],
-  ["00018", "Đỗ Ngọc Trâm", "Trưởng phòng Sales", "SALES", "Manager", "11/01/2021", "18/01/1989", "sales02@asiafnb.com", "0907362518", "Quản lý đội sales và mục tiêu doanh số."],
-  ["00019", "Nguyễn Hoàng Sơn", "Trưởng phòng Logistics", "LOGISTICS", "Manager", "02/08/2020", "06/04/1988", "logistics02@asiafnb.com", "0935178246", "Quản lý vận chuyển, kho và giao nhận."],
-  ["00020", "Trần Hải Yến", "Executive Manager", "BOD", "Manager", "15/06/2022", "29/09/1993", "bod01@asiafnb.com", "0884267315", "Hỗ trợ BOD và điều phối công việc quản trị."],
+  ["00015", "Trương Minh Khoa", "Trưởng phòng Design", "DESIGN", "Middle Management", "14/09/2022", "15/07/1993", "design02@asiafnb.com", "0926483157", "Quản lý thiết kế và kiểm soát hình ảnh thương hiệu."],
+  ["00016", "Nguyễn Nhật Quang", "Trưởng phòng R&D", "R_AND_D", "Middle Management", "19/04/2022", "04/12/1991", "rnd02@asiafnb.com", "0972146853", "Quản lý nghiên cứu và phát triển sản phẩm."],
+  ["00017", "Võ Anh Tuấn", "Trưởng phòng Purchasing", "PURCHASING", "Middle Management", "07/03/2023", "26/10/1992", "purchasing02@asiafnb.com", "0915284637", "Quản lý mua hàng và nhà cung cấp."],
+  ["00018", "Đỗ Ngọc Trâm", "Trưởng phòng Sales", "SALES", "Middle Management", "11/01/2021", "18/01/1989", "sales02@asiafnb.com", "0907362518", "Quản lý đội sales và mục tiêu doanh số."],
+  ["00019", "Nguyễn Hoàng Sơn", "Trưởng phòng Logistics", "LOGISTICS", "Middle Management", "02/08/2020", "06/04/1988", "logistics02@asiafnb.com", "0935178246", "Quản lý vận chuyển, kho và giao nhận."],
+  ["00020", "Trần Hải Yến", "Executive Manager", "BOD", "Senior Management", "15/06/2022", "29/09/1993", "bod01@asiafnb.com", "0884267315", "Hỗ trợ BOD và điều phối công việc quản trị."],
 ] as const;
 
 const employees = employeeRows.map(([

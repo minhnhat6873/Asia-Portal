@@ -23,6 +23,13 @@ describe("employee validation", () => {
     expect(result.error).toBeUndefined();
   });
 
+  it.each(["CEO", "Senior Management", "Middle Management", "Intermediate Personnel", "Staff"])(
+    "chấp nhận cấp bậc tổ chức: %s",
+    (rank) => {
+      expect(createEmployeeSchema.validate({ ...validEmployee, rank }).error).toBeUndefined();
+    },
+  );
+
   it("từ chối email không thuộc asiafnb.com", () => {
     const result = createEmployeeSchema.validate(
       { ...validEmployee, email: "vana@gmail.com" },

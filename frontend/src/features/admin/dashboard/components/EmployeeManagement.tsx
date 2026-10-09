@@ -649,7 +649,7 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
                         </div>
                       </td>
                       <td className="px-2.5 py-2 text-center">
-                        {['BOD', 'Executive'].includes(emp.rank ?? '') ? (
+                        {['CEO', 'Senior Management'].includes(emp.rank ?? '') ? (
                           <button
                             type="button"
                             onClick={() => {

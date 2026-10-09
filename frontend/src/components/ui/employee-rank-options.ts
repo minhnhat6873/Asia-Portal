@@ -6,12 +6,11 @@
  * Chưa nối vào form và bộ lọc cho đến khi mapping được duyệt.
  */
 export const EMPLOYEE_RANK_OPTIONS_UI = [
-  { value: "BOD", label: "Ban lãnh đạo" },
-  { value: "Executive", label: "Ban điều hành" },
-  { value: "Manager", label: "Quản lý" },
-  { value: "Team Leader", label: "Trưởng nhóm" },
-  { value: "Staff", label: "Nhân viên" },
-  { value: "Intern", label: "Thực tập sinh" },
+  { value: "CEO", label: "CEO" },
+  { value: "Senior Management", label: "Quản lý cấp cao" },
+  { value: "Middle Management", label: "Quản lý cấp trung" },
+  { value: "Intermediate Personnel", label: "Nhân sự cấp trung" },
+  { value: "Staff", label: "Chuyên viên/Nhân viên" },
 ] as const;
 
 export type EmployeeRankValue =

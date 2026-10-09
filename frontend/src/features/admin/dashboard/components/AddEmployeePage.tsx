@@ -25,7 +25,7 @@ import { EMPLOYEE_DEPARTMENT_OPTIONS, getEmployeeDepartmentLabel, normalizeEmplo
 import { EMPLOYEE_RANK_OPTIONS_UI, getEmployeeRankLabel } from '@/components/ui/employee-rank-options';
 import { EMPLOYEE_STATUS_OPTIONS_UI } from '@/components/ui/employee-status-options';
 import { EMPLOYEE_GENDER_OPTIONS, getEmployeeGenderLabel } from '@/components/ui/employee-gender-options';
-import { createAdminEmployee, updateAdminEmployee } from '@/services/admin-employee.service';
+import { createAdminEmployee, getAdminEmployees, updateAdminEmployee } from '@/services/admin-employee.service';
 import { ApiError } from '@/services/api';
 
 type FormField = "code" | "fullName" | "position" | "department" | "rank" | "joinDate" | "birthDate" | "gender" | "location" | "status" | "email" | "phone" | "bio";
@@ -113,11 +113,29 @@ export const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isDraftRestored, setIsDraftRestored] = useState(false);
+  const [ceoEmployeeId, setCeoEmployeeId] = useState<string | null | undefined>(undefined);
+
+  const rankOptions = useMemo(() => {
+    const isCurrentEmployeeCeo = initialEmployee?.rank === 'CEO';
+    return ceoEmployeeId === null || isCurrentEmployeeCeo
+      ? EMPLOYEE_RANK_OPTIONS_UI
+      : EMPLOYEE_RANK_OPTIONS_UI.filter((option) => option.value !== 'CEO');
+  }, [ceoEmployeeId, initialEmployee]);
 
   const avatarPreview = useMemo(
     () => (avatarFile ? URL.createObjectURL(avatarFile) : formData.avatar),
     [avatarFile, formData.avatar],
   );
+
+  useEffect(() => {
+    const controller = new AbortController();
+    getAdminEmployees({ rank: 'CEO', limit: 1 }, controller.signal)
+      .then((result) => setCeoEmployeeId(result.items[0]?._id ?? null))
+      .catch((error) => {
+        if (!(error instanceof DOMException && error.name === 'AbortError')) setCeoEmployeeId(undefined);
+      });
+    return () => controller.abort();
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -253,6 +271,9 @@ export const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({
       setErrorMsg(message);
       if (error instanceof ApiError && error.status === 409 && message.toLocaleLowerCase('vi').includes('email')) {
         setFieldErrors((current) => ({ ...current, email: message }));
+      }
+      if (error instanceof ApiError && error.status === 409 && message.includes('CEO')) {
+        setFieldErrors((current) => ({ ...current, rank: message }));
       }
     } finally {
       setIsSaving(false);
@@ -430,8 +451,11 @@ export const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({
                 </label>
                 <AdminSelect
                   value={formData.rank}
-                  onChange={(rank) => setFormData({ ...formData, rank })}
-                  options={EMPLOYEE_RANK_OPTIONS_UI}
+                  onChange={(rank) => {
+                    setFormData({ ...formData, rank });
+                    if (fieldErrors.rank) setFieldErrors((current) => ({ ...current, rank: undefined }));
+                  }}
+                  options={rankOptions}
                   placeholder="Chọn cấp bậc"
                   className="w-full"
                   searchable={false}

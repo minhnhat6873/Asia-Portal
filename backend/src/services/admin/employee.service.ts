@@ -69,13 +69,16 @@ export const adminEmployeeService = {
   },
 
   async createEmployee(data: CreateEmployeeInput) {
-    const [emailExists, codeExists] = await Promise.all([
+    const [emailExists, codeExists, ceoExists] = await Promise.all([
       adminEmployeeRepository.findByEmail(data.email),
       adminEmployeeRepository.findByEmployeeCode(data.employeeCode),
+      data.rank === "CEO" ? adminEmployeeRepository.findActiveByRank("CEO") : null,
     ]);
 
     if (emailExists) throw new AppError(409, "Email nhân viên đã tồn tại");
     if (codeExists) throw new AppError(409, "Mã nhân viên đã tồn tại");
+
+    if (ceoExists) throw new AppError(409, "Công ty chỉ được có duy nhất một CEO");
 
     return adminEmployeeRepository.create(data);
   },
@@ -94,6 +97,13 @@ export const adminEmployeeService = {
       const employee = await adminEmployeeRepository.findByEmployeeCode(data.employeeCode);
       if (employee && employee._id.toString() !== id) {
         throw new AppError(409, "Mã nhân viên đã tồn tại");
+      }
+    }
+
+    if (data.rank === "CEO") {
+      const ceo = await adminEmployeeRepository.findActiveByRank("CEO");
+      if (ceo && ceo._id.toString() !== id) {
+        throw new AppError(409, "Công ty chỉ được có duy nhất một CEO");
       }
     }
 
@@ -147,6 +157,12 @@ export const adminEmployeeService = {
   },
   async restoreEmployee(id: string) {
     ensureValidId(id);
+    const deletedEmployee = await adminEmployeeRepository.findDeletedById(id);
+    if (!deletedEmployee) throw new AppError(404, "Không tìm thấy nhân viên trong thùng rác");
+    if (deletedEmployee.rank === "CEO") {
+      const ceo = await adminEmployeeRepository.findActiveByRank("CEO");
+      if (ceo) throw new AppError(409, "Không thể khôi phục vì công ty đã có CEO");
+    }
     const employee = await adminEmployeeRepository.restoreById(id);
     if (!employee) throw new AppError(404, "Không tìm thấy nhân viên trong thùng rác");
     return employee;

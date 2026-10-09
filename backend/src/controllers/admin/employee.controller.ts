@@ -174,9 +174,9 @@ export async function updateEmployeeChartAvatar(
   let uploadPersisted = false;
   try {
     const previousEmployee = await adminEmployeeService.getEmployeeById(request.params.id);
-    if (!["BOD", "Executive"].includes(previousEmployee.rank ?? "")) {
+    if (!["CEO", "Senior Management"].includes(previousEmployee.rank ?? "")) {
       try { await deleteCloudinaryAsset(uploadedFile.filename); } catch {}
-      response.status(400).json({ success: false, message: "Ch\u1ec9 nh\u00e2n vi\u00ean Ban l\u00e3nh \u0111\u1ea1o ho\u1eb7c Ban \u0111i\u1ec1u h\u00e0nh m\u1edbi c\u00f3 \u1ea3nh s\u01a1 \u0111\u1ed3." });
+      response.status(400).json({ success: false, message: "Chỉ CEO hoặc Quản lý cấp cao mới có ảnh sơ đồ." });
       return;
     }
 

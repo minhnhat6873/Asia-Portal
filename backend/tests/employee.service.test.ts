@@ -2,6 +2,8 @@ jest.mock("../src/repositories/admin/employee.repository", () => ({
   adminEmployeeRepository: {
     findByEmail: jest.fn(),
     findByEmployeeCode: jest.fn(),
+    findActiveByRank: jest.fn(),
+    findDeletedById: jest.fn(),
     create: jest.fn(),
     softDeleteById: jest.fn(),
     restoreById: jest.fn(),
@@ -18,10 +20,14 @@ const employee = {
   _id: employeeId,
   employeeCode: "NV-001",
   name: "Nguyễn Văn A",
+  rank: "Staff",
 };
 
 describe("admin employee service delete flow", () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.mocked(adminEmployeeRepository.findDeletedById).mockResolvedValue(employee as never);
+  });
 
   it("chỉ xóa mềm thông qua repository soft delete", async () => {
     jest.mocked(adminEmployeeRepository.softDeleteById).mockResolvedValue(employee as never);
@@ -44,6 +50,30 @@ describe("admin employee service delete flow", () => {
     await expect(adminEmployeeService.permanentlyDeleteEmployee(employeeId)).rejects.toMatchObject({
       statusCode: 404,
     });
+  });
+});
+
+describe("admin employee CEO constraint", () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it("từ chối tạo CEO thứ hai", async () => {
+    jest.mocked(adminEmployeeRepository.findByEmail).mockResolvedValue(null);
+    jest.mocked(adminEmployeeRepository.findByEmployeeCode).mockResolvedValue(null);
+    jest.mocked(adminEmployeeRepository.findActiveByRank).mockResolvedValue(employee as never);
+
+    await expect(adminEmployeeService.createEmployee({ rank: "CEO" } as never)).rejects.toMatchObject({
+      statusCode: 409,
+      message: "Công ty chỉ được có duy nhất một CEO",
+    });
+  });
+
+  it("cho phép tạo cấp bậc khác khi đã có CEO", async () => {
+    jest.mocked(adminEmployeeRepository.findByEmail).mockResolvedValue(null);
+    jest.mocked(adminEmployeeRepository.findByEmployeeCode).mockResolvedValue(null);
+    jest.mocked(adminEmployeeRepository.create).mockResolvedValue(employee as never);
+
+    await expect(adminEmployeeService.createEmployee({ rank: "Senior Management" } as never)).resolves.toEqual(employee);
+    expect(adminEmployeeRepository.findActiveByRank).not.toHaveBeenCalled();
   });
 });
 
