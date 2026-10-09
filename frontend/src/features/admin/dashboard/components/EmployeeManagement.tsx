@@ -859,7 +859,6 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
             </button>
             <EmployeeProfileCard
               avatar={selectedEmployeeForDossier.avatar}
-              fallbackAvatar="/assets/images/default-avatar.png"
               name={selectedEmployeeForDossier.fullName}
               position={selectedEmployeeForDossier.position}
               status={selectedEmployeeForDossier.status}

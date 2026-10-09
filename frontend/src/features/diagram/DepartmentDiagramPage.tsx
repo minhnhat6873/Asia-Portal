@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Building2, ChevronLeft, Circle, MapPin, RefreshCw, UsersRound } from "lucide-react";
+import { Building2, ChevronLeft, Circle, CircleUserRound, MapPin, RefreshCw, UsersRound } from "lucide-react";
 import { useEffect, useState } from "react";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
@@ -10,7 +10,7 @@ import DiagramBreadcrumb from "./components/DiagramBreadcrumb";
 import { getPublicEmployees } from "@/services/employee.service";
 import type { Employee, EmployeePagination } from "@/types/employee";
 import { getEmployeeAvatar } from "@/features/employees/utils/employeeUtils";
-import { sortEmployeesByRank } from "@/config/employeeRanks";
+import { getEmployeeRankLabel, sortEmployeesByRank } from "@/config/employeeRanks";
 import { getEmployeeDepartmentLabel } from "@/components/ui/employee-department-options";
 
 const PAGE_LIMIT = 12;
@@ -30,16 +30,22 @@ type DepartmentDiagramPageProps = {
 };
 
 function EmployeeCard({ employee }: { employee: Employee }) {
+  const avatar = getEmployeeAvatar(employee).trim();
   return (
     <article className="group overflow-hidden rounded-2xl border border-emerald-100 bg-white shadow-[0_10px_28px_rgba(15,118,65,0.08)]">
       <div className="relative aspect-[4/3] bg-emerald-50">
-        <Image
-          src={getEmployeeAvatar(employee)}
+        {avatar ? <Image
+          src={avatar}
           alt={`Chân dung ${employee.name}`}
           fill
           sizes="(min-width: 1024px) 30vw, (min-width: 640px) 45vw, 100vw"
           className="object-cover object-top transition-transform duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] will-change-transform group-hover:-translate-y-2 group-hover:scale-105"
-        />
+        /> : (
+          <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-emerald-300">
+            <CircleUserRound size={80} strokeWidth={1.5} />
+            <span className="text-sm text-slate-400">Chưa có ảnh đại diện</span>
+          </div>
+        )}
       </div>
       <div className="flex min-h-[144px] gap-3 bg-emerald-50 px-4 py-3.5">
         <div className="min-w-0 flex-1">
@@ -47,6 +53,7 @@ function EmployeeCard({ employee }: { employee: Employee }) {
             <div className="min-w-0 flex-1">
               <h2 className="text-base font-extrabold leading-tight text-[#0d5c0d]">{employee.name}</h2>
               <p className="mt-1 text-sm leading-6 text-slate-700">{employee.position}</p>
+              <p className="mt-1 text-xs font-semibold text-emerald-700">{getEmployeeRankLabel(employee.rank)}</p>
             </div>
           </div>
           <div className="mt-3 space-y-1 text-xs font-medium text-slate-600">
@@ -120,7 +127,9 @@ export default function DepartmentDiagramPage({ department, employeeDepartments 
           ),
         );
         const allEmployees = sortEmployeesByRank(
-          [...firstPages, ...remainingPages].flatMap((result) => result.items),
+          // Company leaders appear on the main chart, not in the department hierarchy.
+          [...firstPages, ...remainingPages].flatMap((result) => result.items)
+            .filter((employee) => employee.rank !== "CEO" && employee.rank !== "Senior Management"),
         );
         const total = allEmployees.length;
         const totalPages = Math.ceil(total / PAGE_LIMIT);

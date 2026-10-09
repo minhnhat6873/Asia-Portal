@@ -35,6 +35,8 @@ Thứ tự map ở [error.middleware.ts](/D:/Vscode/Asia-Portal/backend/src/midd
 
 ## Phạm vi dữ liệu và ID
 
+`GET /user/employees/departments` trả `{ success: true, data: string[] }`: danh sách phòng ban riêng biệt có ít nhất một nhân viên `status: "active"`, `isDeleted != true`. Không phân trang, không trả hồ sơ nhân viên. Phòng không có nhân viên phù hợp sẽ không xuất hiện; không có dữ liệu trả `data: []`.
+
 - Public employee chỉ đọc bản ghi `status: "active"` và chưa xóa; repository loại `birthDate`, `gender`, `createdBy`, `avatarPublicId` ([user/employee.repository.ts](/D:/Vscode/Asia-Portal/backend/src/repositories/user/employee.repository.ts:14)). Admin nhận raw employee từ `.lean()`, nên có `_id`.
 - Public media chỉ đọc bản ghi `status: "published"`, `isDeleted != true`; repository loại `createdBy`, `coverImagePublicId`, `deletedBy`, `deletedAt`, `isDeleted`. Nội dung `summary` và `content` được sanitize ở service trước khi lưu.
 - Media mới mặc định có `status: "draft"`; chỉ xuất hiện ở API public sau khi được chuyển sang `published` bằng quyền `media:publish`.

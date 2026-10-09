@@ -3,6 +3,19 @@ import type { NextFunction, Request, Response } from "express";
 import type { EmployeeListQuery } from "../../interfaces/employee.interface";
 import { userEmployeeService } from "../../services/user/employee.service";
 
+export async function getDepartments(
+  _request: Request,
+  response: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const departments = await userEmployeeService.getDepartments();
+    response.status(200).json({ success: true, data: departments });
+  } catch (error) {
+    next(error);
+  }
+}
+
 export async function getEmployees(
   request: Request<unknown, unknown, unknown, EmployeeListQuery>,
   response: Response,

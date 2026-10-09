@@ -9,6 +9,10 @@ interface ApiEmployee extends Omit<Employee, "id"> {
   _id: string;
 }
 
+export async function getPublicEmployeeDepartments(signal?: AbortSignal): Promise<string[]> {
+  return apiGet<string[]>("/user/employees/departments", signal);
+}
+
 interface ApiEmployeeListResult {
   items: ApiEmployee[];
   pagination: EmployeeListResult["pagination"];

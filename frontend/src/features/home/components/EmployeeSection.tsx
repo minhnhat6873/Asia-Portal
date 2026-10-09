@@ -89,9 +89,14 @@ export default function EmployeeSection() {
 }
 
 function EmployeeCard({ employee }: { employee: Employee }) {
+  const avatar = employee.avatar?.trim();
   return (
     <Link href={`/employees?search=${encodeURIComponent(employee.name)}`} className="group overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm transition-all hover:-translate-y-1 hover:shadow-lg">
-      <div className="relative aspect-[4/3] overflow-hidden bg-green-50 sm:aspect-square"><Image src={employee.avatar || "/assets/images/default-avatar.png"} alt={`Chân dung ${employee.name}`} fill sizes="(min-width: 1280px) 220px, (min-width: 640px) 45vw, 100vw" className="object-cover object-center transition-transform duration-500 group-hover:scale-105" /></div>
+      <div className="relative aspect-[4/3] overflow-hidden bg-green-50 sm:aspect-square">
+        {avatar ? <Image src={avatar} alt={`Chân dung ${employee.name}`} fill sizes="(min-width: 1280px) 220px, (min-width: 640px) 45vw, 100vw" className="object-cover object-center transition-transform duration-500 group-hover:scale-105" /> : (
+          <div className="flex h-full items-center justify-center text-sm text-gray-400">Chưa có ảnh đại diện</div>
+        )}
+      </div>
       <div className="p-3 sm:p-4">
         <p className="text-xs font-bold leading-tight text-gray-900 sm:text-sm">{employee.name}</p>
         <p className="mt-1 min-h-0 text-[11px] leading-snug text-gray-500 sm:min-h-10 sm:text-xs">{employee.position}</p>

@@ -11,6 +11,10 @@ interface FindEmployeesOptions {
 }
 
 export const userEmployeeRepository = {
+  findDepartments(filter: QueryFilter<Employee>) {
+    return EmployeeModel.distinct("department", filter);
+  },
+
   findAllForSearch(filter: QueryFilter<Employee>, sort: Record<string, SortOrder>) {
     return EmployeeModel.find(filter)
       .select("-birthDate -gender -createdBy -avatarPublicId -chartAvatarPublicId")

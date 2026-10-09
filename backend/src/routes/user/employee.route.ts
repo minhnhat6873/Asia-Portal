@@ -1,6 +1,7 @@
 import { Router } from "express";
 
 import {
+  getDepartments,
   getEmployeeById,
   getEmployees,
 } from "../../controllers/user/employee.controller";
@@ -11,6 +12,7 @@ const router = Router();
 
 // GET /user/employees - Chỉ trả nhân viên active cho website public.
 router.get("/", validateQuery(employeeListQuerySchema), getEmployees);
+router.get("/departments", getDepartments);
 router.get("/:id", getEmployeeById);
 
 export default router;

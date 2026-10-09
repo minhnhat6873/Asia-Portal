@@ -15,6 +15,15 @@ function ensureValidId(id: string): void {
 }
 
 export const userEmployeeService = {
+  async getDepartments(): Promise<string[]> {
+    const departments = await userEmployeeRepository.findDepartments({
+      status: "active",
+      isDeleted: { $ne: true },
+    });
+    return [...new Set(departments.filter((value): value is string => typeof value === "string")
+      .map((value) => value.trim()).filter(Boolean))].sort();
+  },
+
   async getEmployees(query: EmployeeListQuery) {
     const page = Math.max(Number(query.page) || 1, 1);
     const limit = Math.min(Math.max(Number(query.limit) || 12, 1), 100);

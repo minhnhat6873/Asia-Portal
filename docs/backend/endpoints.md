@@ -8,6 +8,7 @@ Tất cả endpoint đi qua middleware toàn cục tại `backend/index.ts`: Hel
 | --- | --- | --- | --- | --- | --- |
 | GET | `/health` | — | inline | — | message trạng thái |
 | GET | `/user/employees` | validate query | user `getEmployees` | `userEmployeeService.getEmployees` | danh sách public + pagination |
+| GET | `/user/employees/departments` | — | user `getDepartments` | `userEmployeeService.getDepartments` | `string[]` mã phòng có nhân viên active, chưa xóa; không phân trang |
 | GET | `/user/employees/:id` | — | user `getEmployeeById` | `userEmployeeService.getEmployeeById` | nhân viên public |
 | GET | `/user/media` | validate query | user `getMedia` | `userMediaService.getMedia` | bài viết published + pagination |
 | GET | `/user/media/:id` | — | user `getMediaById` | `userMediaService.getMediaById` | bài viết published |

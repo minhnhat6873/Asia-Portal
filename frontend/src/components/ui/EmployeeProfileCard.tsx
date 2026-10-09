@@ -24,7 +24,6 @@ export type EmployeeProfileDetail = {
 
 type EmployeeProfileCardProps = {
   avatar?: string;
-  fallbackAvatar?: string;
   name: string;
   position: string;
   status?: EmployeeProfileStatus;
@@ -49,7 +48,6 @@ const statusDotClass: Record<EmployeeProfileStatus, string> = {
 
 export default function EmployeeProfileCard({
   avatar = "",
-  fallbackAvatar = "",
   name,
   position,
   status,
@@ -60,7 +58,7 @@ export default function EmployeeProfileCard({
   footer,
 }: EmployeeProfileCardProps) {
   const [activeTab, setActiveTab] = useState<"general" | "description">("general");
-  const portrait = avatar || fallbackAvatar;
+  const portrait = avatar.trim();
 
   return (
     <aside className={"overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm " + className}>
@@ -116,7 +114,7 @@ export default function EmployeeProfileCard({
               <div key={label} className="grid grid-cols-[18px_110px_minmax(0,1fr)] items-center gap-2 text-xs">
                 <Icon size={14} className="text-slate-400" />
                 <dt className="text-slate-400">{label}</dt>
-                <dd className="truncate font-semibold text-slate-600">{value}</dd>
+                <dd className="truncate font-semibold text-slate-600">{value?.trim() || "Không có"}</dd>
               </div>
             ))}
           </dl>

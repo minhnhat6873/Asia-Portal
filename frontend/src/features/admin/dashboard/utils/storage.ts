@@ -1,10 +1,12 @@
 import { Employee, TrashItem, UserAccount } from '../types';
-import { INITIAL_USERS } from '../data/initialData';
 import { notifyPortalContentChanged } from '@/lib/portalContent';
 
 const USERS_STORAGE_KEY = 'asia_fnb_users_v2';
 const CURRENT_USER_KEY = 'asia_fnb_current_user_v2';
 const TRASH_STORAGE_KEY = 'asia_fnb_trash_v1';
+
+// Ignore legacy demo accounts already cached by older frontend versions.
+const DEMO_USER_IDS = new Set(['user-admin', 'user-pending-1', 'user-pending-2', 'user-approved-1', 'user-rejected-1']);
 
 export function getStoredTrashItems(): TrashItem[] {
   try {
@@ -52,11 +54,8 @@ export function saveStoredTrashItems(items: TrashItem[]): void {
 export function getStoredUsers(): UserAccount[] {
   try {
     const item = localStorage.getItem(USERS_STORAGE_KEY);
-    if (!item) {
-      localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(INITIAL_USERS));
-      return INITIAL_USERS;
-    }
-    const users = JSON.parse(item) as UserAccount[];
+    if (!item) return [];
+    const users = (JSON.parse(item) as UserAccount[]).filter((user) => !DEMO_USER_IDS.has(user.id));
     let changed = false;
     const next = users.map((user) => {
       if (
@@ -72,7 +71,7 @@ export function getStoredUsers(): UserAccount[] {
     return next;
   } catch (error) {
     console.error('Error reading users from localStorage', error);
-    return INITIAL_USERS;
+    return [];
   }
 }
 
@@ -125,15 +124,16 @@ export function registerPendingUser(account: {
   saveStoredUsers(nextUsers);
 }
 
-/** The signed-in dashboard account; falls back to the seeded admin. */
+/** The signed-in dashboard account; never substitute a demo admin. */
 export function getCurrentUser(): UserAccount | null {
   try {
     const item = localStorage.getItem(CURRENT_USER_KEY);
-    if (!item) return INITIAL_USERS[0];
-    return JSON.parse(item);
+    if (!item) return null;
+    const user = JSON.parse(item) as UserAccount | null;
+    return user && !DEMO_USER_IDS.has(user.id) ? user : null;
   } catch (error) {
     console.error('Error reading current user from localStorage', error);
-    return INITIAL_USERS[0];
+    return null;
   }
 }
 

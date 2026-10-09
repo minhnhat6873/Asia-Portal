@@ -8,7 +8,8 @@ import {
 } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ORGANIZATION_DEPARTMENTS } from "@/config/diagramDepartments";
-import { getPublicEmployees } from "@/services/employee.service";
+import { getPublicEmployeeDepartments, getPublicEmployees } from "@/services/employee.service";
+import { normalizeEmployeeDepartment } from "@/components/ui/employee-department-options";
 
 type Executive = {
   role: string;
@@ -17,7 +18,6 @@ type Executive = {
 };
 
 type Division = (typeof ORGANIZATION_DEPARTMENTS)[number];
-const divisions = ORGANIZATION_DEPARTMENTS;
 
 function ExecutiveCard({ executive, primary = false }: { executive: Executive; primary?: boolean }) {
   return (
@@ -27,7 +27,7 @@ function ExecutiveCard({ executive, primary = false }: { executive: Executive; p
           {executive.avatar ? (
             <Image src={executive.avatar} alt={executive.name} fill sizes={primary ? "92px" : "78px"} className="object-cover object-center" />
           ) : (
-            <span className="flex h-full w-full items-center justify-center bg-emerald-100 text-emerald-700"><CircleUserRound size={primary ? 42 : 34} /></span>
+            <span className="flex h-full w-full flex-col items-center justify-center gap-1 bg-emerald-100 text-emerald-700"><CircleUserRound size={primary ? 32 : 26} /><span className="text-[9px]">Chưa có ảnh</span></span>
           )}
         </div>
       </div>
@@ -66,6 +66,16 @@ export default function OrganizationChart() {
   const chartContentRef = useRef<HTMLDivElement>(null);
   const [ceo, setCeo] = useState<Executive | null>(null);
   const [seniorManagers, setSeniorManagers] = useState<Executive[]>([]);
+  const [departments, setDepartments] = useState<string[]>([]);
+  const [departmentsLoading, setDepartmentsLoading] = useState(true);
+  const [departmentsError, setDepartmentsError] = useState("");
+  const divisions = ORGANIZATION_DEPARTMENTS.filter((division) => departments.includes(division.id));
+  const managerCount = Math.max(seniorManagers.length, 1);
+  const chartMinWidth = Math.max(
+    470,
+    managerCount * 330 + (managerCount - 1) * 64,
+    divisions.length * 168 + Math.max(divisions.length - 1, 0) * 12,
+  ) + 48;
 
   useLayoutEffect(() => {
     const container = scrollContainerRef.current;
@@ -93,6 +103,15 @@ export default function OrganizationChart() {
 
   useEffect(() => {
     const controller = new AbortController();
+    getPublicEmployeeDepartments(controller.signal).then((result) => {
+      if (!controller.signal.aborted) setDepartments(result.map(normalizeEmployeeDepartment));
+    }).catch((error: unknown) => {
+      if (!controller.signal.aborted) {
+        setDepartmentsError(error instanceof Error ? error.message : "Không thể tải phòng ban");
+      }
+    }).finally(() => {
+      if (!controller.signal.aborted) setDepartmentsLoading(false);
+    });
     Promise.all([
       getPublicEmployees({ rank: "CEO", limit: 1 }, controller.signal),
       getPublicEmployees({ rank: "Senior Management", limit: 100 }, controller.signal),
@@ -116,7 +135,7 @@ export default function OrganizationChart() {
   return (
     <div className="pb-6">
       <div ref={scrollContainerRef} className="overflow-x-auto">
-        <div ref={chartContentRef} className="min-w-[1800px] px-6 pt-3">
+        <div ref={chartContentRef} className="w-full px-6 pt-3" style={{ minWidth: chartMinWidth }}>
         <div className="mx-auto w-fit">
           {ceo ? <ExecutiveCard executive={ceo} primary /> : (
             <div className="flex h-[102px] w-[470px] items-center justify-center rounded-2xl border border-dashed border-emerald-300 bg-emerald-50 text-sm font-semibold text-emerald-700">Chưa có CEO</div>
@@ -140,12 +159,12 @@ export default function OrganizationChart() {
           </div>
         </div>
 
-        <div className="relative mx-auto h-10 w-[2px] bg-[#24934d]">
-        </div>
+        {divisions.length > 0 ? <>
+        <div className="relative mx-auto h-10 w-[2px] bg-[#24934d]" />
 
-        <div className="relative pt-8">
-          <div className="absolute top-0 h-[2px] bg-[#24934d]" style={{ left: "calc((100% - 108px) / 20)", right: "calc((100% - 108px) / 20)" }} />
-          <div className="grid grid-cols-10 gap-3">
+        <div className="relative mx-auto w-fit pt-8">
+          {divisions.length > 1 ? <div className="absolute top-0 h-[2px] bg-[#24934d]" style={{ left: "84px", right: "84px" }} /> : null}
+          <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${divisions.length}, 168px)` }}>
             {divisions.map((division) => (
               <div key={division.name} className="relative">
                 <div className="absolute -top-8 left-1/2 h-8 w-[2px] -translate-x-1/2 bg-[#24934d]">
@@ -155,6 +174,10 @@ export default function OrganizationChart() {
             ))}
           </div>
         </div>
+        </> : null}
+        <p role="status" className={`mt-6 text-center text-sm ${departmentsError ? "text-rose-600" : "text-slate-500"}`}>
+          {departmentsLoading ? "Đang tải phòng ban..." : departmentsError || (divisions.length === 0 ? "Chưa có phòng ban có nhân viên đang làm việc." : "")}
+        </p>
         </div>
       </div>
     </div>
