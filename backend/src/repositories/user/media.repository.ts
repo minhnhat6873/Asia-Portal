@@ -10,7 +10,7 @@ interface FindMediaOptions {
   sort: Record<string, SortOrder>;
 }
 
-const publicSelection = "-createdBy -coverImagePublicId -deletedBy -deletedAt -isDeleted";
+const publicSelection = "-createdBy -coverImagePublicId -contentAssetPublicIds -deletedBy -deletedAt -isDeleted";
 
 export const userMediaRepository = {
   findAllForSearch(filter: QueryFilter<Media>, sort: Record<string, SortOrder>) {

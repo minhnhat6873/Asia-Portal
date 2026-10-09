@@ -1,13 +1,48 @@
 import type { NextFunction, Request, Response } from "express";
 
-import { deleteCloudinaryAsset, getCloudinaryPublicIdFromUrl } from "../../helpers/multerCloudinary.helper";
+import { deleteCloudinaryAsset, getCloudinaryPublicIdFromUrl, uploadTinyMceImageToCloudinary } from "../../helpers/multerCloudinary.helper";
+import { AppError } from "../../utils/errors/AppError";
 import type { AuditAction } from "../../interfaces/audit-log.interface";
 import type { CreateMediaInput, MediaListQuery, UpdateMediaInput } from "../../interfaces/media.interface";
 import { auditLogService } from "../../services/admin/audit-log.service";
+import { mediaAssetService } from "../../services/admin/media-asset.service";
 import { adminMediaService } from "../../services/admin/media.service";
 
 type CloudinaryUploadedFile = Express.Multer.File & { secure_url?: string };
 type AuditedMedia = { _id?: unknown; title: string };
+
+function getVerifiedImageFormat(file: Express.Multer.File): "jpg" | "png" | "webp" | "gif" {
+  const buffer = file.buffer;
+  const signatures: Record<string, { format: "jpg" | "png" | "webp" | "gif"; matches: (data: Buffer) => boolean }> = {
+    "image/jpeg": { format: "jpg", matches: (data) => data.length >= 3 && data[0] === 0xff && data[1] === 0xd8 && data[2] === 0xff },
+    "image/png": { format: "png", matches: (data) => data.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) },
+    "image/webp": { format: "webp", matches: (data) => data.length >= 12 && data.toString("ascii", 0, 4) === "RIFF" && data.toString("ascii", 8, 12) === "WEBP" },
+    "image/gif": { format: "gif", matches: (data) => data.toString("ascii", 0, 6) === "GIF87a" || data.toString("ascii", 0, 6) === "GIF89a" },
+  };
+  const signature = signatures[file.mimetype];
+  if (!signature || !signature.matches(buffer)) {
+    throw new AppError(400, "Định dạng hình ảnh không được hỗ trợ.");
+  }
+  return signature.format;
+}
+
+export async function uploadMediaContentImage(request: Request, response: Response, next: NextFunction): Promise<void> {
+  try {
+    const file = request.file;
+    if (!file) throw new AppError(400, "Vui lòng chọn hình ảnh cần tải lên.");
+    if (file.size > 5 * 1024 * 1024) throw new AppError(400, "Hình ảnh vượt quá dung lượng 5 MB.");
+    const result = await uploadTinyMceImageToCloudinary(file.buffer, getVerifiedImageFormat(file));
+    try {
+      await mediaAssetService.registerTemporary({ publicId: result.public_id, secureUrl: result.secure_url });
+    } catch (error) {
+      try { await deleteCloudinaryAsset(result.public_id); } catch { /* preserve the asset registration error */ }
+      throw error;
+    }
+    response.status(201).json({ success: true, message: "Tải hình ảnh thành công.", data: { secureUrl: result.secure_url } });
+  } catch (error) {
+    next(error);
+  }
+}
 
 async function recordMediaAudit(
   admin: Request["admin"],

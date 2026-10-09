@@ -7,6 +7,7 @@ import type {
   UpdateMediaInput,
 } from "../../interfaces/media.interface";
 import { adminMediaRepository } from "../../repositories/admin/media.repository";
+import { mediaAssetService } from "./media-asset.service";
 import { AppError } from "../../utils/errors/AppError";
 import { sanitizeRichText, richTextToPlainText } from "../../utils/html/sanitizeRichText";
 import { normalizeSearchText } from "../../utils/text/normalizeSearchText";
@@ -29,6 +30,20 @@ function sanitizeContent<T extends CreateMediaInput | UpdateMediaInput>(data: T)
   return next;
 }
 
+function withoutInternalAssetReferences<T extends { contentAssetPublicIds?: string[] }>(media: T): T {
+  const result = { ...media };
+  delete (result as Partial<Media>).contentAssetPublicIds;
+  return result;
+}
+
+async function getContentAssetIds(summary: string, content: string): Promise<string[]> {
+  return mediaAssetService.findManagedPublicIds([summary, content]);
+}
+
+function storedAssetIds(media: Pick<Media, "contentAssetPublicIds" | "summary" | "content">): string[] {
+  return media.contentAssetPublicIds ?? [];
+}
+
 export const adminMediaService = {
   async getMedia(query: MediaListQuery) {
     const page = Math.max(Number(query.page) || 1, 1);
@@ -46,7 +61,7 @@ export const adminMediaService = {
       );
       const total = matchingItems.length;
       const items = matchingItems.slice((page - 1) * limit, page * limit);
-      return { items, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } };
+      return { items: items.map(withoutInternalAssetReferences), pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } };
     }
 
     const [items, total] = await Promise.all([
@@ -54,31 +69,64 @@ export const adminMediaService = {
       adminMediaRepository.count(filter),
     ]);
 
-    return { items, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } };
+    return { items: items.map(withoutInternalAssetReferences), pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } };
   },
 
   async getMediaById(id: string) {
     ensureValidId(id);
     const post = await adminMediaRepository.findById(id);
     if (!post) throw new AppError(404, "Không tìm thấy bài viết");
-    return post;
+    return withoutInternalAssetReferences(post);
   },
 
-  createMedia(data: CreateMediaInput) {
-    return adminMediaRepository.create(sanitizeContent(data));
+  async createMedia(data: CreateMediaInput) {
+    const sanitized = sanitizeContent(data);
+    const contentAssetPublicIds = await getContentAssetIds(sanitized.summary, sanitized.content);
+    await mediaAssetService.prepareForReference(contentAssetPublicIds);
+    const post = await adminMediaRepository.create({ ...sanitized, contentAssetPublicIds });
+    await mediaAssetService.synchronizeReferenceStatuses(contentAssetPublicIds);
+    return withoutInternalAssetReferences(post);
   },
 
   async updateMedia(id: string, data: UpdateMediaInput) {
     ensureValidId(id);
-    const post = await adminMediaRepository.updateById(id, sanitizeContent(data));
-    if (!post) throw new AppError(404, "Không tìm thấy bài viết");
-    return post;
+    const sanitized = sanitizeContent(data);
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const previous = await adminMediaRepository.findById(id);
+      if (!previous) throw new AppError(404, "Không tìm thấy bài viết");
+
+      const summary = sanitized.summary ?? previous.summary;
+      const content = sanitized.content ?? previous.content;
+      const [contentAssetPublicIds, legacyPreviousIds] = await Promise.all([
+        getContentAssetIds(summary, content),
+        getContentAssetIds(previous.summary, previous.content),
+      ]);
+      const previousAssetIds = [...new Set([...storedAssetIds(previous), ...legacyPreviousIds])];
+      await mediaAssetService.prepareForReference(contentAssetPublicIds);
+      const post = await adminMediaRepository.updateById(
+        id,
+        { ...sanitized, contentAssetPublicIds },
+        previous.updatedAt,
+      );
+      if (!post) continue;
+      await mediaAssetService.synchronizeReferenceStatuses([...previousAssetIds, ...contentAssetPublicIds]);
+      return withoutInternalAssetReferences(post);
+    }
+
+    const current = await adminMediaRepository.findById(id);
+    if (!current) throw new AppError(404, "Không tìm thấy bài viết");
+    throw new AppError(409, "Bài viết vừa được cập nhật ở nơi khác. Vui lòng tải lại rồi thử lại.");
   },
 
   async permanentlyDeleteMedia(id: string) {
     ensureValidId(id);
+    const previous = await adminMediaRepository.findById(id);
     const post = await adminMediaRepository.permanentlyDeleteById(id);
     if (!post) throw new AppError(404, "Không tìm thấy bài viết");
-    return post;
+    const legacyIds = previous
+      ? await getContentAssetIds(previous.summary, previous.content)
+      : [];
+    await mediaAssetService.synchronizeReferenceStatuses([...storedAssetIds(post), ...legacyIds]);
+    return withoutInternalAssetReferences(post);
   },
 };

@@ -23,6 +23,7 @@ export const securityConfig = {
   authRateLimitMax: parsePositiveInteger(process.env.AUTH_RATE_LIMIT_MAX, 5),
   meetingOtpRateLimitMax: parsePositiveInteger(process.env.MEETING_OTP_RATE_LIMIT_MAX, 10),
   meetingVerifyRateLimitMax: parsePositiveInteger(process.env.MEETING_VERIFY_RATE_LIMIT_MAX, 30),
+  mediaContentImageUploadRateLimitMax: parsePositiveInteger(process.env.MEDIA_CONTENT_IMAGE_UPLOAD_RATE_LIMIT_MAX, 30),
   authenticatedRateLimitMax: parsePositiveInteger(process.env.AUTHENTICATED_RATE_LIMIT_MAX, 600),
   refreshRateLimitMax: parsePositiveInteger(process.env.REFRESH_RATE_LIMIT_MAX, 60),
   trustProxyHops: Number(process.env.TRUST_PROXY_HOPS) || 0,

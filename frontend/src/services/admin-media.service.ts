@@ -32,6 +32,13 @@ export interface AdminMediaListResult {
   pagination: { page: number; limit: number; total: number; totalPages: number };
 }
 
+export async function uploadAdminMediaContentImage(file: File): Promise<string> {
+  const body = new FormData();
+  body.append("image", file);
+  const result = await apiPostFormData<{ secureUrl: string }>("/admin/media/content-images", body);
+  return result.secureUrl;
+}
+
 function formatDisplayDate(value: string): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;

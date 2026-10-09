@@ -11,8 +11,9 @@ interface FindMediaOptions {
 }
 
 export const adminMediaRepository = {
-  create(data: CreateMediaInput) {
-    return MediaModel.create(data);
+  async create(data: CreateMediaInput & Pick<Media, "contentAssetPublicIds">) {
+    const media = await MediaModel.create(data);
+    return media.toObject();
   },
 
   findAll({ filter, skip, limit, sort }: FindMediaOptions) {
@@ -31,14 +32,28 @@ export const adminMediaRepository = {
     return MediaModel.findOne({ _id: id, isDeleted: { $ne: true } }).lean();
   },
 
-  updateById(id: string, data: UpdateMediaInput) {
-    return MediaModel.findOneAndUpdate({ _id: id, isDeleted: { $ne: true } }, data, {
+  updateById(id: string, data: UpdateMediaInput & Pick<Media, "contentAssetPublicIds">, expectedUpdatedAt?: Date) {
+    return MediaModel.findOneAndUpdate(
+      { _id: id, isDeleted: { $ne: true }, ...(expectedUpdatedAt ? { updatedAt: expectedUpdatedAt } : {}) },
+      data,
+      {
       new: true,
       runValidators: true,
-    }).lean();
+      },
+    ).lean();
   },
 
   permanentlyDeleteById(id: string) {
     return MediaModel.findOneAndDelete({ _id: id }).lean();
+  },
+
+  hasContentAssetReference(publicId: string, secureUrl?: string) {
+    const filters: QueryFilter<Media>[] = [{ contentAssetPublicIds: publicId }];
+    if (secureUrl) {
+      const escapedUrl = secureUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const imageUrlPattern = new RegExp(escapedUrl.replace(/&/g, "(?:&|&amp;)"));
+      filters.push({ summary: imageUrlPattern }, { content: imageUrlPattern });
+    }
+    return MediaModel.exists({ $or: filters });
   },
 };

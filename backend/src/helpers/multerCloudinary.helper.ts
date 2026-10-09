@@ -2,10 +2,12 @@ import { v2 as cloudinary } from "cloudinary";
 import multer from "multer";
 import type { NextFunction, Request, Response } from "express";
 import { CloudinaryStorage } from "multer-storage-cloudinary";
+import type { UploadApiResponse } from "cloudinary";
 
 import { AppError } from "../utils/errors/AppError";
 
 const allowedAvatarMimeTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
+const allowedContentImageMimeTypes = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_NAME,
@@ -92,3 +94,53 @@ function createImageUploader(storage: CloudinaryStorage, checkConfiguration = fa
 export const uploadAvatar = createImageUploader(avatarStorage);
 export const uploadMediaCover = createImageUploader(mediaCoverStorage, true);
 export const uploadChartAvatar = createImageUploader(chartAvatarStorage);
+
+export const uploadTinyMceImage = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024, files: 1 },
+  fileFilter: (_request, file, callback) => {
+    if (!allowedContentImageMimeTypes.has(file.mimetype)) {
+      callback(new AppError(400, "Định dạng hình ảnh không được hỗ trợ."));
+      return;
+    }
+    callback(null, true);
+  },
+});
+
+export function uploadTinyMceImageToCloudinary(
+  buffer: Buffer,
+  format: "jpg" | "png" | "webp" | "gif",
+): Promise<UploadApiResponse> {
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      {
+        folder: TINYMCE_CLOUDINARY_FOLDER,
+        resource_type: "image",
+        format,
+      },
+      (error, result) => {
+        if (error || !result) {
+          reject(new AppError(503, "Không thể tải hình ảnh lên Cloudinary. Vui lòng thử lại."));
+          return;
+        }
+        resolve(result);
+      },
+    );
+    stream.end(buffer);
+  });
+}
+
+const TINYMCE_CLOUDINARY_FOLDER = "asia-portal/tinymce";
+
+export function isManagedTinyMcePublicId(publicId: string): boolean {
+  const prefix = `${TINYMCE_CLOUDINARY_FOLDER}/`;
+  const suffix = publicId.startsWith(prefix) ? publicId.slice(prefix.length) : "";
+  return suffix.length > 0 && !suffix.includes("..") && !/[\\\u0000-\u001f]/.test(publicId);
+}
+
+export async function destroyTinyMceCloudinaryAsset(publicId: string): Promise<{ result?: string }> {
+  if (!isManagedTinyMcePublicId(publicId)) {
+    throw new Error("Refusing to delete Cloudinary asset outside the TinyMCE folder.");
+  }
+  return cloudinary.uploader.destroy(publicId, { resource_type: "image" });
+}

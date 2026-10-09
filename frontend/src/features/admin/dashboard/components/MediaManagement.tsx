@@ -1,15 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Calendar, Edit3, Eye, LayoutGrid, List, Plus, RotateCcw, Search, Trash2, X } from "lucide-react";
+import { Edit3, Eye, LayoutGrid, List, Plus, RotateCcw, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
-import { RichText } from "@/components/ui/RichText";
 import { ApiError } from "@/services/api";
 import { permanentlyDeleteAdminMedia, updateAdminMedia, type AdminMediaListParams } from "@/services/admin-media.service";
 import { stripHtml } from "@/utils/stripHtml";
 import type { MediaCategory, MediaPost } from "../types";
 import { AdminSelect } from "./AdminSelect";
+import { ArticleReaderModal } from "./ArticleReaderModal";
 
 interface Props {
   mediaPosts: MediaPost[];
@@ -118,7 +118,7 @@ export function MediaManagement({ mediaPosts, total, page, pageSize, isLoading, 
 
       {totalPages > 1 && <div className="flex items-center justify-center gap-3"><button disabled={page <= 1} onClick={() => onPageChange(page - 1)} className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold disabled:opacity-40">Trước</button><span className="text-xs text-slate-500">Trang {page}/{totalPages}</span><button disabled={page >= totalPages} onClick={() => onPageChange(page + 1)} className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold disabled:opacity-40">Sau</button></div>}
 
-      {previewPost && <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4"><div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-3xl bg-white"><div className="relative aspect-[16/8] bg-slate-100">{previewPost.coverImage ? <img src={previewPost.coverImage} alt={previewPost.title} className="h-full w-full object-cover" /> : null}<button type="button" onClick={() => onSelectPreview(null)} className="absolute right-4 top-4 rounded-full bg-black/60 p-2 text-white"><X className="h-4 w-4" /></button></div><div className="space-y-4 p-6"><h2 className="text-2xl font-black">{previewPost.title}</h2><RichText html={previewPost.summary} className="rich-content text-slate-500" /><p className="flex items-center gap-2 text-sm text-slate-400"><Calendar className="h-4 w-4" />{previewPost.publishDate}</p><RichText html={previewPost.content} className="rich-content rounded-2xl bg-emerald-50 p-4" /><div className="flex justify-end gap-2"><button type="button" onClick={() => onNavigateToEdit(previewPost)} className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white">Chỉnh sửa</button><button type="button" onClick={() => setDeleteTarget(previewPost)} className="rounded-xl bg-rose-600 px-4 py-2 text-sm font-bold text-white">Xóa vĩnh viễn</button></div></div></div></div>}
+      {previewPost && <ArticleReaderModal key={previewPost.id} post={previewPost} onClose={() => onSelectPreview(null)} onEdit={() => onNavigateToEdit(previewPost)} onDelete={() => setDeleteTarget(previewPost)} />}
 
       {publishTarget && <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/60 p-4"><div className="w-full max-w-sm rounded-3xl bg-white p-6 text-center shadow-2xl"><div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-700"><Eye className="h-6 w-6" /></div><h3 className="mt-4 text-lg font-bold text-slate-900">Xuất bản bài viết?</h3><p className="mt-2 text-sm leading-6 text-slate-500">“{publishTarget.title}” sẽ hiển thị trên trang tin tức công khai.</p><div className="mt-6 flex justify-center gap-2"><button type="button" onClick={() => setPublishTarget(null)} disabled={isChangingStatus} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700">Hủy</button><button type="button" onClick={() => void changeStatus(publishTarget, "published")} disabled={isChangingStatus} className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-60">{isChangingStatus ? "Đang xuất bản..." : "Xác nhận xuất bản"}</button></div></div></div>}
 
