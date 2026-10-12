@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ArrowRight, Building2, CalendarDays, Megaphone, Toolbox } from "lucide-react";
 
 const links = [
-  { href: "#resources", icon: CalendarDays, title: "Đặt phòng họp", desc: "Đặt phòng và theo dõi lịch họp" },
+  { href: "/meeting", icon: CalendarDays, title: "Đặt phòng họp", desc: "Đặt phòng và theo dõi lịch họp" },
   { href: "/news", icon: Megaphone, title: "Truyền thông nội bộ", desc: "Tin tức, sự kiện, hoạt động" },
   { href: "#resources", icon: Toolbox, title: "Công cụ & tài nguyên", desc: "Các tiện ích nội bộ dành cho nhân viên" },
   { href: "/about-asia", icon: Building2, title: "Về Á Châu", desc: "Văn hóa, giá trị, tầm nhìn" },

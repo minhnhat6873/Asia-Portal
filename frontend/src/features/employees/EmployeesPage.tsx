@@ -178,7 +178,7 @@ function EmployeesContent() {
           }}
         />
         <div className="mt-4 grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
-          <div className="space-y-4 sm:space-y-5">
+          <div className="min-w-0 space-y-4 sm:space-y-5">
             <EmployeeStats total={visiblePagination.total} departments={Math.max(departments.length - 1, 0)} positions={Math.max(positions.length - 1, 0)} />
             {error ? (
               <div className="rounded-xl border border-rose-100 bg-rose-50 px-5 py-12 text-center text-sm text-rose-700">

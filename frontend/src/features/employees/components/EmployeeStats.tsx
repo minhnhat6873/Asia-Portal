@@ -15,7 +15,7 @@ export default function EmployeeStats({
     { label: "Chức vụ", value: positions, icon: ChartNoAxesColumnIncreasing },
   ];
   return (
-    <section className="grid grid-cols-3 gap-2 sm:gap-3">
+    <section className="grid w-full min-w-0 grid-cols-3 gap-2 sm:gap-3">
       {stats.map(({ label, value, icon: Icon }) => (
         <article key={label} className="flex min-w-0 flex-col items-center gap-1 rounded-xl border border-slate-100 bg-white p-2 text-center shadow-sm sm:flex-row sm:gap-3 sm:p-3 sm:text-left">
           <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-green-50 text-[#16894a] sm:h-11 sm:w-11 sm:rounded-xl">
