@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type { Employee } from "@/types/employee";
 import EmployeeList from "./EmployeeList";
 
@@ -7,11 +8,12 @@ interface EmployeeDirectoryProps {
   total: number;
   page: number;
   limit: number;
+  pagination?: ReactNode;
   onSelect: (employee: Employee) => void;
   onOpenProfile: () => void;
 }
 
-export default function EmployeeDirectory({ employees, selectedId, total, page, limit, onSelect, onOpenProfile }: EmployeeDirectoryProps) {
+export default function EmployeeDirectory({ employees, selectedId, total, page, limit, pagination, onSelect, onOpenProfile }: EmployeeDirectoryProps) {
   const displayedEmployees = employees;
   const from = total ? (page - 1) * limit + 1 : 0;
   const to = total ? from + displayedEmployees.length - 1 : 0;
@@ -21,18 +23,17 @@ export default function EmployeeDirectory({ employees, selectedId, total, page, 
   };
 
   return (
-    <section className="w-full min-w-0 max-w-full">
+    <section id="employee-directory-results" className="w-full min-w-0 max-w-full scroll-mt-6">
       <div className="mb-3 sm:mb-4">
         <p className="text-sm font-medium text-slate-500">
           Hiển thị <span className="font-semibold text-slate-600">{from} - {to}</span> trong <span className="font-semibold text-slate-600">{total}</span> nhân viên
         </p>
       </div>
 
-      {displayedEmployees.length ? (
-        <EmployeeList employees={displayedEmployees} selectedId={selectedId} onSelect={selectEmployee} />
-      ) : (
-        <EmptyState />
-      )}
+      <div className="overflow-hidden rounded-xl border border-slate-100 bg-white shadow-sm">
+        {displayedEmployees.length ? <EmployeeList employees={displayedEmployees} selectedId={selectedId} onSelect={selectEmployee} /> : <EmptyState />}
+        {pagination ? <div className="border-t border-slate-100">{pagination}</div> : null}
+      </div>
     </section>
   );
 }

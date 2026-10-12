@@ -40,9 +40,11 @@ import { getDashboardSummary, type DashboardSummary } from './dashboard.service'
 import { getAdminEmployee, getAdminEmployees, softDeleteAdminEmployee, type AdminEmployeeListParams, type AdminEmployeeResult } from '@/services/admin-employee.service';
 import { toast } from 'sonner';
 import { getAdminMedia, getAdminMediaById, type AdminMediaListParams } from '@/services/admin-media.service';
+import { MeetingManagement } from './components/MeetingManagement';
 
 export const ADMIN_TAB_ROUTES: Record<ActiveTab, string> = {
   overview: '/admin/dashboard',
+  meetings: '/admin/meetings',
   employees: '/admin/employees',
   'add-employee': '/admin/employees/new',
   'edit-employee': '/admin/employees',
@@ -72,6 +74,7 @@ function getTabFromPath(pathname: string): ActiveTab {
   if (pathname === "/admin/media/new") return "add-media";
   if (/^\/admin\/media\/[^/]+\/edit$/.test(pathname)) return "edit-media";
   if (pathname.startsWith("/admin/media")) return "media";
+  if (pathname.startsWith("/admin/meetings")) return "meetings";
   if (pathname.startsWith("/admin/access-control")) return "permissions";
   if (pathname.startsWith("/admin/settings")) return "system-settings";
   if (pathname.startsWith("/admin/account")) return "account";
@@ -132,7 +135,7 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
   const isEmployeeTrashPage = pathname === '/admin/employees/trash';
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [employeeTotal, setEmployeeTotal] = useState(0);
-  const [employeeListParams, setEmployeeListParams] = useState<AdminEmployeeListParams>({ page: 1, limit: 12 });
+  const [employeeListParams, setEmployeeListParams] = useState<AdminEmployeeListParams>({ page: 1, limit: 10 });
   const [employeesLoadError, setEmployeesLoadError] = useState<string | null>(null);
   const [areEmployeesLoading, setAreEmployeesLoading] = useState(true);
   const editingEmployeeId = pathname.match(/^\/admin\/employees\/([^/]+)\/edit$/)?.[1];
@@ -141,7 +144,7 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
   const [editingEmployeeError, setEditingEmployeeError] = useState<string | null>(null);
   const [mediaPosts, setMediaPosts] = useState<MediaPost[]>([]);
   const [mediaTotal, setMediaTotal] = useState(0);
-  const [mediaListParams, setMediaListParams] = useState<AdminMediaListParams>({ page: 1, limit: 12, sort: 'latest' });
+  const [mediaListParams, setMediaListParams] = useState<AdminMediaListParams>({ page: 1, limit: 10, sort: 'latest' });
   const [mediaLoadError, setMediaLoadError] = useState<string | null>(null);
   const [areMediaLoading, setAreMediaLoading] = useState(true);
   const editingMediaId = pathname.match(/^\/admin\/media\/([^/]+)\/edit$/)?.[1];
@@ -279,7 +282,7 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
   }, []);
 
   const handleEmployeeFiltersChange = useCallback((filters: AdminEmployeeListParams) => {
-    setEmployeeListParams({ ...filters, page: 1, limit: 12 });
+    setEmployeeListParams({ ...filters, page: 1, limit: 10 });
   }, []);
 
   const handleEmployeePageChange = useCallback((page: number) => {
@@ -288,7 +291,7 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
 
   const handleMediaFiltersChange = useCallback((filters: AdminMediaListParams) => {
     setAreMediaLoading(true);
-    setMediaListParams({ ...filters, page: 1, limit: 12 });
+    setMediaListParams({ ...filters, page: 1, limit: 10 });
   }, []);
 
   const handleMediaPageChange = useCallback((page: number) => {
@@ -619,7 +622,7 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
   return (
     <div className={`relative flex h-screen flex-col overflow-hidden bg-[#f8fafc] font-sans text-slate-800`}>
       {/* Toast notifications */}
-      <header className="flex h-[76px] shrink-0 items-center justify-between bg-white px-4 sm:px-6 lg:px-8">
+      <header className={`flex shrink-0 items-center justify-between bg-white px-4 sm:px-6 lg:px-8 ${activeTab === 'meetings' ? 'h-[60px]' : 'h-[76px]'}`}>
           <Link href="/admin/dashboard" className="flex min-w-0 items-center gap-3 rounded-xl outline-none transition-opacity hover:opacity-80 focus-visible:ring-2 focus-visible:ring-emerald-500">
           <span className="flex h-12 w-12 shrink-0 items-center justify-center">
             <Image src="/assets/images/asia-logo.png" alt="Asia Food & Beverage" width={48} height={48} className="h-12 w-12 object-contain" />
@@ -685,7 +688,7 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
         className={`h-full shrink-0 transition-[width] duration-300 ease-in-out ${
           isSidebarOpen ? 'overflow-visible' : 'overflow-hidden'
         } ${
-          isSidebarOpen ? 'w-64 max-md:absolute max-md:inset-y-0 max-md:left-0 max-md:z-40 max-md:shadow-2xl' : 'w-0'
+        isSidebarOpen ? 'w-64 max-md:absolute max-md:inset-y-0 max-md:left-0 max-md:z-40 max-md:shadow-2xl' : 'w-0'
         }`}
       >
         <Sidebar
@@ -697,6 +700,8 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
           employeeCount={dashboardSummary?.totalEmployees ?? employeeTotal}
           mediaCount={dashboardSummary?.totalMediaPosts ?? mediaTotal}
           pendingUsersCount={pendingUsersCount}
+          canViewMeetings={sessionAccount?.role === "Toàn quyền Admin" || sessionAccount?.permissions.includes("meetings:view") === true}
+          compact={false}
         />
       </div>
 
@@ -712,7 +717,7 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
         {/* Topbar — back to the public portal + account dropdown */}
-        <header className="flex h-16 shrink-0 items-center justify-between gap-3 bg-transparent px-4 md:px-6">
+        <header className={`shrink-0 items-center justify-between gap-3 bg-transparent px-4 md:px-6 ${activeTab === 'meetings' ? 'flex h-14 lg:hidden' : 'flex h-16'}`}>
           <div className="flex items-center gap-3">
             <button
               type="button"
@@ -735,6 +740,7 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
               {activeTab === 'employees' && (isEmployeeTrashPage ? 'Thùng Rác Nhân Viên' : 'Quản Lý Nhân Sự')}
               {activeTab === 'add-employee' && 'Thêm Nhân Viên Mới'}
               {activeTab === 'media' && 'Quản Lý Truyền Thông'}
+              {activeTab === 'meetings' && 'Quản Lý Đặt Phòng Họp'}
               {activeTab === 'add-media' && 'Đăng Tin Truyền Thông'}
               {activeTab === 'edit-media' && 'Chỉnh Sửa Tin Truyền Thông'}
               {activeTab === 'permissions' && 'Phân Quyền & Quản Lý Tài Khoản'}
@@ -746,8 +752,8 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
 
           <span className="hidden" aria-hidden="true" />
         </header>
-        <main className="flex-1 overflow-y-auto bg-[#f4f6f8] p-3 sm:p-4 md:p-6 lg:p-8">
-          <div className="max-w-7xl mx-auto">
+        <main className={`flex-1 overflow-y-auto ${activeTab === 'meetings' ? 'bg-[#f4faf7] p-3 sm:p-4 lg:p-[18px]' : 'bg-[#f4f6f8] p-3 sm:p-4 md:p-6 lg:p-8'}`}>
+          <div className={activeTab === 'meetings' ? 'mx-0 w-full max-w-none' : 'mx-auto max-w-7xl'}>
             {/* 1. Tổng quan Dashboard */}
             {activeTab === 'overview' && (
               <DashboardOverview
@@ -770,7 +776,7 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
                 employees={employees}
                 total={employeeTotal}
                 page={Number(employeeListParams.page) || 1}
-                pageSize={Number(employeeListParams.limit) || 12}
+                pageSize={Number(employeeListParams.limit) || 10}
                 loadError={employeesLoadError}
                 isLoading={areEmployeesLoading}
                 onDeleteEmployee={handleDeleteEmployee}
@@ -835,7 +841,7 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
                 mediaPosts={mediaPosts}
                 total={mediaTotal}
                 page={Number(mediaListParams.page) || 1}
-                pageSize={Number(mediaListParams.limit) || 12}
+                pageSize={Number(mediaListParams.limit) || 10}
                 isLoading={areMediaLoading}
                 loadError={mediaLoadError}
                 onFiltersChange={handleMediaFiltersChange}
@@ -851,6 +857,14 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
                 onNavigateToAdd={() => navigateToTab('add-media')}
                 onNavigateToEdit={(post) => router.push(`/admin/media/${encodeURIComponent(post.id)}/edit`)}
               />
+            )}
+
+            {activeTab === 'meetings' && (
+              sessionAccount?.role === "Toàn quyền Admin" || sessionAccount?.permissions.includes("meetings:view") ? (
+                <MeetingManagement permissions={sessionAccount.role === "Toàn quyền Admin" ? ["meetings:view", "meetings:create", "meetings:update", "meetings:delete"] : sessionAccount.permissions} />
+              ) : (
+                <div role="alert" className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-sm font-medium text-amber-800">Tài khoản chưa được cấp quyền xem lịch họp.</div>
+              )
             )}
 
             {/* 5. Trang Đăng Bài Viết Truyền Thông Mới (Có bản Xem Trước dạng thẻ / toàn bài) */}

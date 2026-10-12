@@ -255,6 +255,7 @@ function LoginScreen({
         email: admin.email,
         fullName: admin.name,
         role: getAdminRoleLabel(admin.role),
+        permissions: admin.permissions,
       });
       showToast("Đăng nhập thành công!", "Chào mừng bạn quay lại cổng thông tin nội bộ Asia F&B.", "success");
       router.replace("/admin/dashboard");

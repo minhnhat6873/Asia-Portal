@@ -16,6 +16,7 @@ import {
   Copy,
   Users,
   Newspaper,
+  CalendarDays,
   ChevronRight,
   Info,
   Clock,
@@ -719,6 +720,8 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                           ? Users
                           : mod.id === 'media'
                             ? Newspaper
+                            : mod.id === 'meetings'
+                              ? CalendarDays
                             : ShieldCheck;
 
                   return (

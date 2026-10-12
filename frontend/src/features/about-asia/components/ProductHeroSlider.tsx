@@ -36,7 +36,7 @@ export default function ProductHeroSlider() {
   useEffect(() => {
     const timeout = window.setTimeout(() => {
       setCurrent((index) => (index + 1) % slides.length);
-    }, 4000);
+    }, 3000);
 
     return () => window.clearTimeout(timeout);
   }, [current]);

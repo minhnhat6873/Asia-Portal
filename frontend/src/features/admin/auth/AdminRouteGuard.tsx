@@ -21,6 +21,7 @@ function storeSession(admin: AuthenticatedAdmin): void {
     email: admin.email,
     fullName: admin.name,
     role: getAdminRoleLabel(admin.role),
+    permissions: admin.permissions,
   });
 }
 

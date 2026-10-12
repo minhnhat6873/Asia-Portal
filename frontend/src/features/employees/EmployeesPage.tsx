@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useMemo, useState } from "react";
-import { X } from "lucide-react";
+import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
@@ -14,7 +14,7 @@ import EmployeeStats from "./components/EmployeeStats";
 import EmployeesHero from "./components/EmployeesHero";
 import { normalizeSearchText } from "@/utils/normalizeSearchText";
 
-const PAGE_LIMIT = 12;
+const PAGE_LIMIT = 10;
 function EmployeesContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -46,6 +46,15 @@ function EmployeesContent() {
 
   const pageCount = Math.ceil(filteredEmployees.length / PAGE_LIMIT);
   const visibleEmployees = filteredEmployees.slice((page - 1) * PAGE_LIMIT, page * PAGE_LIMIT);
+  const paginationItems: (number | "ellipsis")[] = pageCount <= 5
+    ? Array.from({ length: pageCount }, (_, index) => index + 1)
+    : page <= 2
+      ? [1, 2, 3, 4, "ellipsis", pageCount]
+      : page === 3
+        ? [1, 2, 3, 4, 5, "ellipsis", pageCount]
+        : page >= pageCount - 2
+          ? [1, "ellipsis", pageCount - 3, pageCount - 2, pageCount - 1, pageCount]
+          : [1, 2, "ellipsis", page, page + 1];
   const visiblePagination: EmployeePagination = {
     page,
     limit: PAGE_LIMIT,
@@ -64,15 +73,40 @@ function EmployeesContent() {
 
   useEffect(() => {
     const controller = new AbortController();
-    getPublicEmployees({ limit: 100, sort: "latest" }, controller.signal)
-      .then((result) => setAllEmployees(result.items))
-      .catch((requestError: unknown) => {
-        if (requestError instanceof DOMException && requestError.name === "AbortError") return;
+    let isRefreshing = false;
+    const refreshEmployees = async () => {
+      if (isRefreshing || controller.signal.aborted || document.visibilityState === "hidden") return;
+      isRefreshing = true;
+      try {
+        const firstPage = await getPublicEmployees({ limit: 100, page: 1, sort: "latest" }, controller.signal);
+        const remainingPages = await Promise.all(Array.from(
+          { length: Math.max(firstPage.pagination.totalPages - 1, 0) },
+          (_, index) => getPublicEmployees({ limit: 100, page: index + 2, sort: "latest" }, controller.signal),
+        ));
+        if (controller.signal.aborted) return;
+        setAllEmployees([...firstPage.items, ...remainingPages.flatMap((result) => result.items)]);
+        setError("");
+      } catch (requestError: unknown) {
+        if (controller.signal.aborted) return;
         setError(requestError instanceof Error ? requestError.message : "Không thể tải danh sách nhân viên");
-      })
-      .finally(() => setIsLoading(false));
-    return () => controller.abort();
+      } finally {
+        isRefreshing = false;
+        if (!controller.signal.aborted) setIsLoading(false);
+      }
+    };
+    void refreshEmployees();
+    window.addEventListener("focus", refreshEmployees);
+    document.addEventListener("visibilitychange", refreshEmployees);
+    return () => {
+      controller.abort();
+      window.removeEventListener("focus", refreshEmployees);
+      document.removeEventListener("visibilitychange", refreshEmployees);
+    };
   }, []);
+
+  useEffect(() => {
+    if (pageCount > 0 && page > pageCount) setPage(pageCount);
+  }, [page, pageCount]);
 
   useEffect(() => {
     setSelected((current) => visibleEmployees.find((employee) => employee.id === current?.id) ?? visibleEmployees[0] ?? null);
@@ -98,7 +132,24 @@ function EmployeesContent() {
     setPage(1);
   };
 
+  const goToPage = (nextPage: number) => {
+    setPage(nextPage);
+    requestAnimationFrame(() => document.getElementById("employee-directory-results")?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  };
+
   const hasActiveFilters = Boolean(search.trim()) || department !== "Tất cả phòng ban" || position !== "Tất cả chức vụ";
+  const employeePagination = visiblePagination.total > 0 ? (
+    <div className="flex flex-wrap items-center justify-between gap-3 bg-white px-4 py-3">
+      <p className="text-xs font-medium text-slate-600">Trang <strong className="text-emerald-700">{visiblePagination.page}</strong> / {visiblePagination.totalPages}</p>
+      <nav aria-label="Chuyển trang nhân viên" className="flex items-center gap-1.5">
+        <button type="button" aria-label="Trang trước" disabled={page <= 1} onClick={() => goToPage(page - 1)} className="grid h-9 w-9 place-items-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:border-emerald-300 hover:text-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"><ChevronLeft className="h-4 w-4" /></button>
+        {paginationItems.map((item, index) => item === "ellipsis"
+          ? <span key={`ellipsis-${index}`} aria-hidden="true" className="min-w-5 text-center text-sm text-slate-400">…</span>
+          : <button key={item} type="button" aria-current={page === item ? "page" : undefined} onClick={() => goToPage(item)} className={`grid h-9 min-w-9 place-items-center rounded-full border px-2 text-sm font-semibold shadow-sm transition ${page === item ? "border-emerald-700 bg-emerald-700 text-white" : "border-slate-200 bg-white text-slate-700 hover:border-emerald-300 hover:bg-emerald-50"}`}>{item}</button>)}
+        <button type="button" aria-label="Trang sau" disabled={page >= visiblePagination.totalPages} onClick={() => goToPage(page + 1)} className="grid h-9 w-9 place-items-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:border-emerald-300 hover:text-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"><ChevronRight className="h-4 w-4" /></button>
+      </nav>
+    </div>
+  ) : null;
 
   return (
     <>
@@ -144,16 +195,10 @@ function EmployeesContent() {
                   total={visiblePagination.total}
                   page={visiblePagination.page}
                   limit={visiblePagination.limit}
+                  pagination={employeePagination}
                   onSelect={setSelected}
                   onOpenProfile={openMobileProfile}
                 />
-                {visiblePagination.totalPages > 1 && (
-                  <div className="flex items-center justify-center gap-3">
-                    <button type="button" disabled={page <= 1} onClick={() => setPage((current) => current - 1)} className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 disabled:cursor-not-allowed disabled:opacity-40">Trước</button>
-                    <span className="text-sm text-slate-500">Trang {visiblePagination.page} / {visiblePagination.totalPages}</span>
-                    <button type="button" disabled={page >= visiblePagination.totalPages} onClick={() => setPage((current) => current + 1)} className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 disabled:cursor-not-allowed disabled:opacity-40">Sau</button>
-                  </div>
-                )}
               </>
             )}
           </div>

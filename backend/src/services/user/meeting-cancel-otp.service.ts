@@ -200,6 +200,10 @@ export const meetingCancelOtpService = {
     }
 
     try {
+      const current = await meetingBookingRepository.findById(bookingId);
+      if (!current || current.email !== booking.email || String(current.updatedAt) !== String(booking.updatedAt)) {
+        throw new AppError(409, "Lịch họp đã thay đổi hoặc bị xóa. Vui lòng tải lại.");
+      }
       await emailService.sendMeetingCancelOtp(email, code, getEmailDetails(booking));
     } catch (error) {
       await meetingCancelOtpRepository.deleteIfOtpHash(bookingId, otpHash);
@@ -214,6 +218,7 @@ export const meetingCancelOtpService = {
     const otp = await meetingCancelOtpRepository.findByBookingIdWithOtpHash(bookingId);
 
     if (!otp) throw new AppError(400, "Yêu cầu OTP hủy lịch không tồn tại.");
+    if (otp.email !== booking.email) throw new AppError(409, "Email lịch họp đã thay đổi. Vui lòng yêu cầu mã mới.");
     if (otp.otpExpiresAt <= new Date()) {
       await meetingCancelOtpRepository.deleteIfOtpHash(bookingId, otp.otpHash);
       throw new AppError(400, "Mã OTP đã hết hạn. Vui lòng yêu cầu mã mới.");
@@ -252,10 +257,10 @@ export const meetingCancelOtpService = {
     }
 
     assertBookingCanBeCancelled(booking);
-    const deletedBooking = await meetingBookingRepository.deleteById(bookingId);
+    const deletedBooking = await meetingBookingRepository.deleteById(bookingId, undefined, booking);
     if (!deletedBooking) {
       await meetingCancelOtpRepository.deleteByBookingId(bookingId);
-      throw new AppError(404, "Không tìm thấy lịch họp.");
+      throw new AppError(409, "Lịch họp đã thay đổi hoặc bị xóa. Vui lòng tải lại.");
     }
     await meetingCancelOtpRepository.deleteByBookingId(bookingId);
 

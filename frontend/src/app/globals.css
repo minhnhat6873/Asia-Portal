@@ -41,8 +41,18 @@ body {
 }
 
 /* Custom scrollbar */
+ .meeting-form-scroll {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.meeting-form-scroll::-webkit-scrollbar {
+  display: none;
+}
+
 ::-webkit-scrollbar {
   width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
   background: #f1f1f1;

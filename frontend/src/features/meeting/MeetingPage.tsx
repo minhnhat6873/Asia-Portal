@@ -276,16 +276,28 @@ export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: b
   const otpInputRefs = useRef<Array<HTMLInputElement | null>>([]);
 
   useEffect(() => {
-    const controller = new AbortController();
-    getMeetingBookings(controller.signal)
-      .then((items) => setBookings(items))
-      .catch((error: unknown) => {
-        if (!controller.signal.aborted) {
-          setLoadError(error instanceof Error ? error.message : "Không thể tải lịch họp.");
-        }
-      })
-      .finally(() => { if (!controller.signal.aborted) setLoaded(true); });
-    return () => controller.abort();
+    let controller: AbortController | null = null;
+    let disposed = false;
+    let inFlight = false;
+    const refresh = () => {
+      if (disposed || inFlight || document.visibilityState === "hidden") return;
+      controller?.abort();
+      controller = new AbortController();
+      const requestController = controller;
+      inFlight = true;
+      getMeetingBookings(requestController.signal)
+        .then((items) => { if (!disposed) { setBookings(items); setLoadError(""); } })
+        .catch((error: unknown) => {
+          if (!disposed && !requestController.signal.aborted) setLoadError(error instanceof Error ? error.message : "Không thể tải lịch họp.");
+        })
+        .finally(() => { inFlight = false; if (!disposed) setLoaded(true); });
+    };
+    const refreshWhenVisible = () => { if (document.visibilityState === "visible") refresh(); };
+    refresh();
+    const timer = window.setInterval(refresh, 60_000);
+    window.addEventListener("focus", refreshWhenVisible);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => { disposed = true; window.clearInterval(timer); window.removeEventListener("focus", refreshWhenVisible); document.removeEventListener("visibilitychange", refreshWhenVisible); controller?.abort(); };
   }, []);
 
   useEffect(() => {

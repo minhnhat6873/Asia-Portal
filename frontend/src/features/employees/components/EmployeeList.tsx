@@ -11,7 +11,7 @@ interface EmployeeListProps {
 export default function EmployeeList({ employees, selectedId, onSelect }: EmployeeListProps) {
   return (
     <>
-      <div className="w-full min-w-0 max-w-full space-y-2 sm:hidden">
+      <div className="w-full min-w-0 max-w-full space-y-2 p-2 sm:hidden">
         {employees.map((employee, index) => {
           const selected = employee.id === selectedId;
           return (
@@ -37,7 +37,7 @@ export default function EmployeeList({ employees, selectedId, onSelect }: Employ
           );
         })}
       </div>
-      <div className="hidden overflow-x-auto rounded-xl border border-slate-100 bg-white shadow-sm sm:block">
+      <div className="hidden overflow-x-auto sm:block">
       <table className="w-full min-w-[720px] text-left">
         <thead className="border-b border-slate-100 bg-slate-50/70 text-xs font-semibold text-slate-400">
           <tr>

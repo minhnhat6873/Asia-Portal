@@ -63,3 +63,5 @@ Meeting rate limit mặc định 10 start/resend và 30 verify mỗi IP trong 15
 ## Cookie phiên
 
 Login set access `asia_admin_token`; khi có `rememberMe`, set refresh `asia_admin_refresh_token`, nếu không thì clear refresh. Refresh đọc refresh cookie và set lại access cookie; logout clear cả hai ([auth.controller.ts](/D:/Vscode/Asia-Portal/backend/src/controllers/admin/auth.controller.ts:29)). Cookie có `httpOnly`, `sameSite: "lax"`, `path: "/"`, `secure` theo `AUTH_COOKIE_SECURE`; access persistent 10 giờ, refresh 3 ngày ([auth.config.ts](/D:/Vscode/Asia-Portal/backend/src/config/auth.config.ts:3)).
+
+Hợp đồng Admin Meeting (ID gốc, source/status, thống kê và OTP metadata): [admin-meetings.md](admin-meetings.md).

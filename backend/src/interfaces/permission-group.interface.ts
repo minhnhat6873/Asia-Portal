@@ -1,5 +1,9 @@
 export const PERMISSION_ACTIONS = [
   "dashboard:view",
+  "meetings:view",
+  "meetings:create",
+  "meetings:update",
+  "meetings:delete",
   "employees:view",
   "employees:create",
   "employees:update",

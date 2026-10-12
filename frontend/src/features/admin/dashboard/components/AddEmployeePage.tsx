@@ -117,10 +117,19 @@ export const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({
 
   const rankOptions = useMemo(() => {
     const isCurrentEmployeeCeo = initialEmployee?.rank === 'CEO';
-    return ceoEmployeeId === null || isCurrentEmployeeCeo
-      ? EMPLOYEE_RANK_OPTIONS_UI
-      : EMPLOYEE_RANK_OPTIONS_UI.filter((option) => option.value !== 'CEO');
-  }, [ceoEmployeeId, initialEmployee]);
+    const isBod = normalizeEmployeeDepartment(formData.department) === 'BOD';
+    return EMPLOYEE_RANK_OPTIONS_UI.filter((option) => {
+      if (option.value === 'Senior Management') return isBod;
+      if (option.value === 'CEO') return ceoEmployeeId === null || isCurrentEmployeeCeo;
+      return true;
+    });
+  }, [ceoEmployeeId, initialEmployee, formData.department]);
+
+  useEffect(() => {
+    if (formData.rank === 'Senior Management' && normalizeEmployeeDepartment(formData.department) !== 'BOD') {
+      setFormData((current) => ({ ...current, rank: '' }));
+    }
+  }, [formData.department, formData.rank]);
 
   const avatarPreview = useMemo(
     () => (avatarFile ? URL.createObjectURL(avatarFile) : formData.avatar),
@@ -183,6 +192,9 @@ export const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({
     else if (position.length < 2 || position.length > 100) errors.position = "Chức vụ phải từ 2 đến 100 ký tự.";
     if (!formData.department) errors.department = "Vui lòng chọn phòng ban.";
     if (!formData.rank) errors.rank = "Vui lòng chọn cấp bậc.";
+    else if (formData.rank === 'Senior Management' && normalizeEmployeeDepartment(formData.department) !== 'BOD') {
+      errors.rank = "Chỉ phòng BOD được chọn Quản lý cấp cao.";
+    }
     if (!formData.joinDate || !toDatePickerValue(formData.joinDate)) errors.joinDate = "Vui lòng chọn ngày gia nhập hợp lệ.";
     if (formData.birthDate && !toDatePickerValue(formData.birthDate)) errors.birthDate = "Ngày sinh không hợp lệ.";
     if (!formData.gender) errors.gender = "Vui lòng chọn giới tính.";

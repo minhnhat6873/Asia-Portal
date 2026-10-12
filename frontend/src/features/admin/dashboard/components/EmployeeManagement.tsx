@@ -228,6 +228,10 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
   );
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const deletingEmployee = deletingId ? employees.find((employee) => employee.id === deletingId) : null;
+  const goToPage = (nextPage: number) => {
+    onPageChange(nextPage);
+    requestAnimationFrame(() => document.getElementById("admin-employee-results")?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  };
 
   // Reset filter function requested by user
   const handleResetFilters = () => {
@@ -283,29 +287,24 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
     );
   };
 
-  const pagination = totalPages > 1 && (
+  const paginationItems: (number | 'ellipsis')[] = totalPages <= 5
+    ? Array.from({ length: totalPages }, (_, index) => index + 1)
+    : page <= 2
+      ? [1, 2, 3, 4, 'ellipsis', totalPages]
+      : page === 3
+        ? [1, 2, 3, 4, 5, 'ellipsis', totalPages]
+        : page >= totalPages - 2
+          ? [1, 'ellipsis', totalPages - 3, totalPages - 2, totalPages - 1, totalPages]
+          : [1, 2, 'ellipsis', page, page + 1];
+  const pagination = total > 0 && (
     <div className={`flex flex-col items-center justify-between gap-3 bg-slate-50/70 px-4 py-3 sm:flex-row ${viewMode === 'grid' ? 'rounded-2xl border border-slate-200' : 'border-t border-slate-200'}`}>
-      <p className="text-xs font-medium text-slate-600">
-        Trang <strong className="text-emerald-700">{page}</strong> / {totalPages}
-      </p>
-      <nav aria-label="Chuyển trang nhân viên" className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
-        <button
-          type="button"
-          disabled={page <= 1 || isLoading}
-          onClick={() => onPageChange(page - 1)}
-          className="inline-flex min-h-9 items-center gap-1 rounded-lg px-3 text-xs font-semibold text-slate-700 transition-colors hover:bg-emerald-50 hover:text-emerald-700 disabled:cursor-not-allowed disabled:text-slate-400 disabled:hover:bg-transparent"
-        >
-          <ChevronLeft className="h-4 w-4" /> Trước
-        </button>
-        <span className="flex h-9 min-w-9 items-center justify-center rounded-lg bg-emerald-50 px-2 text-xs font-bold text-emerald-700" aria-current="page">{page}</span>
-        <button
-          type="button"
-          disabled={page >= totalPages || isLoading}
-          onClick={() => onPageChange(page + 1)}
-          className="inline-flex min-h-9 items-center gap-1 rounded-lg px-3 text-xs font-semibold text-slate-700 transition-colors hover:bg-emerald-50 hover:text-emerald-700 disabled:cursor-not-allowed disabled:text-slate-400 disabled:hover:bg-transparent"
-        >
-          Sau <ChevronRight className="h-4 w-4" />
-        </button>
+      <p className="text-xs font-medium text-slate-600">Trang <strong className="text-emerald-700">{page}</strong> / {totalPages}</p>
+      <nav aria-label="Chuyển trang nhân viên" className="inline-flex items-center gap-1.5">
+        <button type="button" aria-label="Trang trước" disabled={page <= 1 || isLoading} onClick={() => goToPage(page - 1)} className="grid h-9 w-9 place-items-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:border-emerald-300 hover:text-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"><ChevronLeft className="h-4 w-4" /></button>
+        {paginationItems.map((item, index) => item === 'ellipsis'
+          ? <span key={`ellipsis-${index}`} aria-hidden="true" className="min-w-5 text-center text-sm text-slate-400">…</span>
+          : <button key={item} type="button" aria-current={page === item ? 'page' : undefined} disabled={isLoading} onClick={() => goToPage(item)} className={`grid h-9 min-w-9 place-items-center rounded-full border px-2 text-xs font-semibold shadow-sm transition disabled:cursor-not-allowed ${page === item ? 'border-emerald-700 bg-emerald-700 text-white' : 'border-slate-200 bg-white text-slate-700 hover:border-emerald-300 hover:bg-emerald-50'}`}>{item}</button>)}
+        <button type="button" aria-label="Trang sau" disabled={page >= totalPages || isLoading} onClick={() => goToPage(page + 1)} className="grid h-9 w-9 place-items-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:border-emerald-300 hover:text-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"><ChevronRight className="h-4 w-4" /></button>
       </nav>
     </div>
   );
@@ -412,7 +411,7 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
       )}
 
       {/* Results Count Banner */}
-      <div className="flex items-center justify-between text-xs text-slate-500 px-1">
+      <div id="admin-employee-results" className="scroll-mt-6 flex items-center justify-between text-xs text-slate-500 px-1">
         <span>
           Đang hiển thị <strong>{total}</strong> nhân sự trong hệ thống Asia F&B Beverage
         </span>
@@ -868,6 +867,7 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
               status={selectedEmployeeForDossier.status}
               details={[
                 { icon: User, label: 'Mã nhân viên', value: selectedEmployeeForDossier.code },
+                { icon: User, label: 'Giới tính', value: getEmployeeGenderLabel(selectedEmployeeForDossier.gender) },
                 { icon: Calendar, label: 'Ngày gia nhập', value: selectedEmployeeForDossier.joinDate },
                 { icon: Briefcase, label: 'Chức vụ', value: selectedEmployeeForDossier.position },
                 { icon: Building, label: 'Phòng ban', value: getEmployeeDepartmentLabel(selectedEmployeeForDossier.department) },

@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   LayoutDashboard,
+  CalendarDays,
   User,
   Users,
   Newspaper,
@@ -24,6 +25,8 @@ interface SidebarProps {
   mediaCount: number;
   /** Registrations awaiting approval — drives the badge on "Phân quyền quản lý". */
   pendingUsersCount?: number;
+  canViewMeetings?: boolean;
+  compact?: boolean;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -32,6 +35,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   employeeCount,
   mediaCount,
   pendingUsersCount = 0,
+  canViewMeetings = false,
+  compact = false,
 }) => {
   const router = useRouter();
   const [account, setAccount] = useState<AdminUser | null>(null);
@@ -98,6 +103,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
       badge: mediaCount,
       isPendingBadge: false,
     },
+    ...(canViewMeetings ? [{
+      id: 'meetings' as ActiveTab,
+      label: 'Quản lý đặt phòng',
+      icon: CalendarDays,
+      badge: null,
+      isPendingBadge: false,
+    }] : []),
     {
       id: 'permissions' as ActiveTab,
       label: 'Phân quyền quản lý',
@@ -108,7 +120,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   ];
 
   return (
-    <aside className="h-full w-64 bg-white text-slate-700 flex flex-col shrink-0 border-r border-slate-200 select-none">
+    <aside className={`h-full ${compact ? 'w-48' : 'w-64'} bg-white text-slate-700 flex flex-col shrink-0 border-r border-slate-200 select-none`}>
       {/* Brand Header — Asia F&B logo on the black canvas, gold-ringed */}
       <div className="hidden border-b border-white/[0.08] px-5 py-5">
         <div className="flex items-center gap-3.5">

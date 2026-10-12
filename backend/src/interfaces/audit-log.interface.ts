@@ -1,4 +1,9 @@
 export const AUDIT_ACTIONS = [
+  "meeting.created",
+  "meeting.updated",
+  "meeting.deleted",
+  "meeting.pending_revoked",
+  "meeting.cancel_request_revoked",
   "employee.created",
   "employee.updated",
   "employee.soft_deleted",
@@ -20,7 +25,7 @@ export interface AuditActor {
 export interface AuditLog {
   actor: AuditActor;
   action: AuditAction;
-  entityType: "employee" | "media";
+  entityType: "employee" | "media" | "meeting";
   entityId: string;
   description: string;
   metadata?: Record<string, unknown>;

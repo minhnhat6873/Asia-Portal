@@ -59,6 +59,11 @@ async function ensurePendingEmailIndex(): Promise<void> {
 }
 
 export const pendingMeetingBookingRepository = {
+  consumeOtp(id: string, otpHash: string, maxAttempts: number) {
+    return PendingMeetingBookingModel.findOneAndDelete({
+      _id: id, otpHash, otpExpiresAt: { $gt: new Date() }, otpAttempts: { $lt: maxAttempts },
+    }).select("_id").lean();
+  },
   async create(
     data: PendingMeetingBooking,
     requestId: string,

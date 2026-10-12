@@ -32,3 +32,5 @@ Tập quyền hiện gồm `dashboard:view`, `employees:view/create/update/deact
 ## Bảo mật/rate limit liên quan
 
 Whitelist CORS bỏ `*`, cho request không có `Origin`; Helmet, body limit 1 MB và mongo sanitize `body`/`params` nằm ở [index.ts](/D:/Vscode/Asia-Portal/backend/index.ts:26). Login/register dùng 5 lần/15 phút theo IP (theo cấu hình), refresh 60; API public 300, admin đã xác thực 600 theo account ([security.config.ts](/D:/Vscode/Asia-Portal/backend/src/config/security.config.ts:20)).
+
+Meeting admin bổ sung meetings:view/create/update/delete. Mọi route qua cổng requireAdminAuth; thu hồi OTP dùng meetings:delete, không xác thực OTP thay người dùng. Chi tiết tại [admin-meetings.md](admin-meetings.md).

@@ -4,6 +4,13 @@ import { ModuleCategory, SystemPermission } from "./types";
 // permission here: the API is the source of truth for every granted action.
 export const ACCESS_MODULES: ModuleCategory[] = [
   {
+    id: "meetings",
+    name: "Quản lý đặt phòng họp",
+    code: "MEETINGS",
+    description: "Xem và quản lý lịch đặt phòng, lịch sử và yêu cầu xác thực.",
+    iconName: "CalendarDays",
+  },
+  {
     id: "employees",
     name: "Quản lý nhân sự",
     code: "EMPLOYEES",
@@ -27,6 +34,10 @@ export const ACCESS_PERMISSIONS: SystemPermission[] = [
   { id: "employees:deactivate", code: "EMPLOYEES_DEACTIVATE", name: "Ngừng hiển thị nhân viên", description: "Chuyển trạng thái hồ sơ nhân viên sang inactive.", module: "employees", riskLevel: "high" },
   { id: "employees:delete", code: "EMPLOYEES_DELETE", name: "Quản lý thùng rác nhân viên", description: "Khôi phục hoặc chuyển hồ sơ nhân viên vào thùng rác.", module: "employees", riskLevel: "high" },
   { id: "media:view", code: "MEDIA_VIEW", name: "Xem truyền thông", description: "Xem danh sách bài viết quản trị.", module: "media", riskLevel: "low" },
+  { id: "meetings:view", code: "MEETINGS_VIEW", name: "Xem lịch họp", description: "Xem lịch, lịch sử, thống kê và yêu cầu OTP.", module: "meetings", riskLevel: "low" },
+  { id: "meetings:create", code: "MEETINGS_CREATE", name: "Thêm lịch họp", description: "Tạo cuộc họp trực tiếp theo quy tắc đặt phòng.", module: "meetings", riskLevel: "medium" },
+  { id: "meetings:update", code: "MEETINGS_UPDATE", name: "Cập nhật lịch họp", description: "Cập nhật lịch họp theo trạng thái cuộc họp.", module: "meetings", riskLevel: "medium" },
+  { id: "meetings:delete", code: "MEETINGS_DELETE", name: "Xóa lịch và thu hồi yêu cầu", description: "Xóa lịch hoặc thu hồi yêu cầu OTP.", module: "meetings", riskLevel: "high" },
   { id: "media:create", code: "MEDIA_CREATE", name: "Tạo bài viết", description: "Tạo bài viết truyền thông mới.", module: "media", riskLevel: "medium" },
   { id: "media:update", code: "MEDIA_UPDATE", name: "Cập nhật bài viết", description: "Chỉnh sửa nội dung bài viết.", module: "media", riskLevel: "medium" },
   { id: "media:publish", code: "MEDIA_PUBLISH", name: "Xuất bản bài viết", description: "Đổi trạng thái xuất bản hoặc bản nháp.", module: "media", riskLevel: "high" },

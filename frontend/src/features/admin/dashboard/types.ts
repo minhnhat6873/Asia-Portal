@@ -52,7 +52,7 @@ export interface TrashItem {
   payload: unknown;
 }
 
-export type ActiveTab = 'overview' | 'employees' | 'media' | 'add-employee' | 'edit-employee' | 'add-media' | 'edit-media' | 'permissions' | 'system-settings' | 'account';
+export type ActiveTab = 'overview' | 'employees' | 'media' | 'meetings' | 'add-employee' | 'edit-employee' | 'add-media' | 'edit-media' | 'permissions' | 'system-settings' | 'account';
 
 /* -------------------------------------------------------------------------- *
  * Account roles & permissions Ã¢â‚¬â€ the "PhÃƒÂ¢n quyÃ¡Â»Ân quÃ¡ÂºÂ£n lÃƒÂ½" tab

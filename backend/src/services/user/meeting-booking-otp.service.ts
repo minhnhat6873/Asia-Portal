@@ -1,3 +1,4 @@
+import { validateBookingInput, validateDate } from "../../utils/meeting/validateBooking";
 import { Types } from "mongoose";
 
 import {
@@ -19,7 +20,7 @@ import { emailService } from "../notification/email.service";
 import { AppError } from "../../utils/errors/AppError";
 import { maskEmail } from "../../utils/email/maskEmail";
 import { hashOtp, createOtpCode, isOtpMatch } from "../../utils/otp/otp.util";
-import { addMinutes, compareTimes, getVietnamNow } from "../../utils/time/vietnamTime";
+import { compareTimes, getVietnamNow } from "../../utils/time/vietnamTime";
 
 const BOOKING_CONFLICT_MESSAGE =
   "Phòng đã có lịch trùng hoặc chưa đủ 15 phút nghỉ giữa các cuộc họp. Vui lòng chọn giờ khác.";
@@ -46,68 +47,6 @@ function toPublicBooking(booking: MeetingBooking & { _id: unknown }): PublicMeet
     email: maskEmail(booking.email),
     department: booking.department,
   };
-}
-
-function validateDate(date: string): boolean {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return false;
-  const [year, month, day] = date.split("-").map(Number);
-  const parsed = new Date(Date.UTC(year, month - 1, day));
-  return parsed.getUTCFullYear() === year && parsed.getUTCMonth() === month - 1 && parsed.getUTCDate() === day;
-}
-
-function validateBookingInput(input: StartMeetingBookingInput): {
-  email: string;
-  end: string;
-  room: (typeof MEETING_ROOMS)[number];
-  organizer: string;
-} {
-  if (input.title.trim().length < 3 || input.title.trim().length > 200) {
-    throw new AppError(400, "Tiêu đề cuộc họp phải từ 3 đến 200 ký tự.");
-  }
-  const organizer = input.organizer.trim().normalize("NFC");
-  if (organizer.length < 2 || organizer.length > 100 || !/^[\p{L}\s]+$/u.test(organizer)) {
-    throw new AppError(400, "Tên người chủ trì không hợp lệ.");
-  }
-  const email = input.email.trim().toLowerCase();
-  if (email.length > 150 || !/^[a-z0-9._%+-]+@asiafnb\.com$/.test(email)) {
-    throw new AppError(400, "Email phải có đuôi @asiafnb.com.");
-  }
-  if (input.department.trim().length < 2 || input.department.trim().length > 100) {
-    throw new AppError(400, "Phòng ban phải từ 2 đến 100 ký tự.");
-  }
-
-  const room = MEETING_ROOMS.find(({ id }) => id === input.roomId);
-  if (!room) throw new AppError(400, "Phòng họp không hợp lệ.");
-  if (!Number.isInteger(input.attendees) || input.attendees < 1 || input.attendees > room.capacity) {
-    throw new AppError(400, `Phòng này nhận từ 1 đến ${room.capacity} người.`);
-  }
-  if (!validateDate(input.date)) throw new AppError(400, "Ngày họp không hợp lệ.");
-  if (!MEETING_TIME_OPTIONS.includes(input.start as (typeof MEETING_TIME_OPTIONS)[number])) {
-    throw new AppError(400, "Giờ bắt đầu không hợp lệ.");
-  }
-  if (
-    !Number.isInteger(input.durationMinutes) ||
-    input.durationMinutes < 30 ||
-    (input.durationMinutes - 30) % 15 !== 0
-  ) {
-    throw new AppError(400, "Thời lượng họp tối thiểu là 30 phút và phải tăng theo bước 15 phút.");
-  }
-
-  const now = getVietnamNow();
-  if (input.date < now.date || (input.date === now.date && compareTimes(input.start, now.time) <= 0)) {
-    throw new AppError(400, "Ngày và giờ họp phải ở trong tương lai theo giờ Việt Nam.");
-  }
-
-  const end = addMinutes(input.start, input.durationMinutes);
-  const startMinutes = Number(input.start.slice(0, 2)) * 60 + Number(input.start.slice(3));
-  if (startMinutes + input.durationMinutes >= 24 * 60) {
-    throw new AppError(400, "Cuộc họp phải kết thúc trong cùng ngày.");
-  }
-  if (input.start < "13:00" && end > "12:00") {
-    throw new AppError(400, "Khung giờ họp không được trùng giờ nghỉ trưa (12:00–13:00).");
-  }
-
-  return { email, end, room, organizer };
 }
 
 async function requireActivePending(
@@ -253,6 +192,9 @@ export const meetingBookingOtpService = {
     if (conflict) throw new AppError(409, BOOKING_CONFLICT_MESSAGE);
 
     let booking;
+    // Atomic consumption races safely with admin revocation and concurrent verification.
+    const consumed = await pendingMeetingBookingRepository.consumeOtp(requestId, pending.otpHash, MAX_OTP_ATTEMPTS);
+    if (!consumed) throw new AppError(409, "Yêu cầu đã được xử lý, thu hồi hoặc OTP không còn hiệu lực.");
     try {
       booking = await meetingBookingRepository.create({
         title: pending.title,

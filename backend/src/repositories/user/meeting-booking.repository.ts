@@ -1,5 +1,6 @@
 import type { ClientSession, QueryFilter, SortOrder } from "mongoose";
 import { Types } from "mongoose";
+import { MIN_MEETING_GAP_MINUTES, MEETING_DURATION_STEP_MINUTES } from "../../config/meeting.config";
 
 import type { MeetingBooking, MeetingBookingTrash } from "../../interfaces/meeting.interface";
 import MeetingBookingModel from "../../models/meeting-booking.model";
@@ -21,15 +22,15 @@ interface MeetingBookingDocument extends MeetingBooking {
 
 let reservationIndexReady: Promise<void> | undefined;
 
-function getReservationSlots(date: string, start: string, end: string): string[] {
+export function getReservationSlots(date: string, start: string, end: string): string[] {
   const [year, month, day] = date.split("-").map(Number);
   const [startHour, startMinute] = start.split(":").map(Number);
   const [endHour, endMinute] = end.split(":").map(Number);
   const startMinuteOfDay = startHour * 60 + startMinute;
-  const endWithGap = endHour * 60 + endMinute + 15;
+  const endWithGap = endHour * 60 + endMinute + MIN_MEETING_GAP_MINUTES;
   const slots: string[] = [];
 
-  for (let minute = startMinuteOfDay; minute < endWithGap; minute += 15) {
+  for (let minute = startMinuteOfDay; minute < endWithGap; minute += MEETING_DURATION_STEP_MINUTES) {
     const dayOffset = Math.floor(minute / 1440);
     const dayDate = new Date(Date.UTC(year, month - 1, day + dayOffset));
     const slotMinute = ((minute % 1440) + 1440) % 1440;
@@ -45,7 +46,7 @@ function getReservationSlots(date: string, start: string, end: string): string[]
   return slots;
 }
 
-async function ensureReservationIndex(): Promise<void> {
+export async function ensureReservationIndex(): Promise<void> {
   if (!reservationIndexReady) {
     reservationIndexReady = (async () => {
       const collection = MeetingBookingModel.collection;
@@ -123,10 +124,12 @@ export const meetingBookingRepository = {
     date: string,
     start: string,
     end: string,
-    minimumGapMinutes = 15,
+    minimumGapMinutes = MIN_MEETING_GAP_MINUTES,
     session?: ClientSession,
+    excludeId?: string,
   ) {
     return MeetingBookingModel.findOne({
+      ...(excludeId ? { _id: { $ne: excludeId } } : {}),
       roomId,
       date,
       start: { $lt: addMinutes(end, minimumGapMinutes) },
@@ -149,8 +152,12 @@ export const meetingBookingRepository = {
       .session(session ?? null);
   },
 
-  deleteById(id: string, session?: ClientSession) {
-    return MeetingBookingModel.findOneAndDelete({ _id: id, archiveClaimedAt: { $exists: false } })
+  deleteById(id: string, session?: ClientSession, expected?: MeetingBooking) {
+    return MeetingBookingModel.findOneAndDelete({
+      _id: id, archiveClaimedAt: { $exists: false },
+      ...(expected ? { updatedAt: expected.updatedAt, email: expected.email, roomId: expected.roomId,
+        date: expected.date, start: expected.start, end: expected.end } : {}),
+    })
       .select("-reservationSlots")
       .session(session ?? null)
       .lean();

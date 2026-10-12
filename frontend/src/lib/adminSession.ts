@@ -4,6 +4,7 @@ export interface AdminUser {
   email: string;
   role: string;
   initials: string;
+  permissions: string[];
 }
 
 export const SESSION_KEY = "asia.admin.session";
@@ -20,14 +21,15 @@ export function getAdminSession(): AdminUser | null {
       fullName: parsed.fullName,
       role: parsed.role ?? "Quản lý",
       initials: deriveInitials(parsed.fullName),
+      permissions: Array.isArray(parsed.permissions) ? parsed.permissions.filter((permission): permission is string => typeof permission === "string") : [],
     };
   } catch {
     return null;
   }
 }
 
-export function setAdminSession(user: Omit<AdminUser, "initials">): AdminUser {
-  const session: AdminUser = { ...user, initials: deriveInitials(user.fullName) };
+export function setAdminSession(user: Omit<AdminUser, "initials" | "permissions"> & { permissions?: string[] }): AdminUser {
+  const session: AdminUser = { ...user, permissions: user.permissions ?? [], initials: deriveInitials(user.fullName) };
   if (typeof window !== "undefined") {
     window.localStorage.setItem(SESSION_KEY, JSON.stringify(session));
     window.dispatchEvent(new Event("asia-admin-session"));

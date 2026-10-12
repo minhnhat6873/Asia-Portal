@@ -16,6 +16,7 @@ import userEmployeeRouter from "./user/employee.route";
 import adminMediaRouter from "./admin/media.route";
 import userMediaRouter from "./user/media.route";
 import userMeetingRouter from "./user/meeting.route";
+import adminMeetingRouter from "./admin/meeting.route";
 import { securityConfig } from "../config/security.config";
 
 const router = Router();
@@ -42,6 +43,7 @@ router.use("/admin", requireAdminAuth, authenticatedAdminLimiter);
 router.use("/admin/dashboard", adminDashboardRouter);
 router.use("/admin/employees", adminEmployeeRouter);
 router.use("/admin/media", adminMediaRouter);
+router.use("/admin/meetings", adminMeetingRouter);
 router.use("/admin/audit-logs", requireAdminRole("admin"), adminAuditLogRouter);
 router.use(
   "/admin/accounts",
