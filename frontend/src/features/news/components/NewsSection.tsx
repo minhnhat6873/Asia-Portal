@@ -154,6 +154,13 @@ const categoryBadgeClass: Record<string, string> = {
   "Thông báo": "badge-announce",
 };
 
+function parsePublishDate(value: string): number {
+  const match = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(value.trim());
+  if (!match) return 0;
+  const [, day, month, year] = match;
+  return new Date(Number(year), Number(month) - 1, Number(day)).getTime();
+}
+
 export default function NewsSection({ preview = false }: Props) {
   const detailPanelRef = useRef<HTMLElement>(null);
   const [news, setNews] = useState<NewsItem[]>([]);
@@ -201,11 +208,7 @@ export default function NewsSection({ preview = false }: Props) {
     return !query || normalizeSearchText(item.title).includes(query) || normalizeSearchText(item.excerpt).includes(query);
   });
   const sortedItems = [...searched].sort((first, second) => {
-    const toTimestamp = (value: string) => {
-      const [day, month, year] = value.split("/");
-      return new Date(`${year}-${month}-${day}`).getTime();
-    };
-    const difference = toTimestamp(second.date) - toTimestamp(first.date);
+    const difference = parsePublishDate(second.date) - parsePublishDate(first.date);
     return sortOrder === "newest" ? difference : -difference;
   });
   const isSearching = searchQuery.trim() !== "";
@@ -235,11 +238,7 @@ export default function NewsSection({ preview = false }: Props) {
   const featuredEvent = showFeatured
     ? [...sortedItems]
         .filter((item) => categoryBadgeClass[item.category] === "badge-event")
-        .sort((first, second) => {
-          const firstCreatedAt = first.createdAt ? new Date(first.createdAt).getTime() : 0;
-          const secondCreatedAt = second.createdAt ? new Date(second.createdAt).getTime() : 0;
-          return secondCreatedAt - firstCreatedAt;
-        })[0] ?? null
+        .sort((first, second) => parsePublishDate(second.date) - parsePublishDate(first.date))[0] ?? null
     : null;
   const gridItems = featuredEvent ? sortedItems.filter((item) => item.id !== featuredEvent.id) : sortedItems;
   // The panel opens on click and stays closed until then. It used to be forced

@@ -4,6 +4,7 @@ import QuickLinks from "./components/QuickLinks";
 import EmployeeSection from "./components/EmployeeSection";
 import NewsSection from "@/features/news/components/NewsSection";
 import Footer from "@/components/layout/Footer";
+import ResourcesSection from "@/features/resources/ResourcesSection";
 
 export default function HomePage() {
   return (
@@ -13,6 +14,7 @@ export default function HomePage() {
       <QuickLinks />
       <EmployeeSection />
       <NewsSection preview={true} />
+      <ResourcesSection />
       <Footer />
     </main>
   );
