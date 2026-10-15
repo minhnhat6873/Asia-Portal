@@ -42,7 +42,7 @@ export default function Navbar() {
           <Link href="/" className="flex shrink-0 items-center gap-2" onClick={closeMobileMenu}>
             <Image
               src="/assets/images/asia-logo.png"
-              alt="Asia Food & Beverage JSC"
+              alt="Asia Food & Beverage co.ltd"
               width={56}
               height={56}
               className="h-11 w-11 object-contain sm:h-14 sm:w-14"
@@ -97,7 +97,7 @@ export default function Navbar() {
           />
           <aside className="relative flex h-full w-[min(88vw,360px)] flex-col bg-white shadow-[12px_0_32px_rgba(15,23,42,0.2)]">
             <div className="flex h-16 shrink-0 items-center justify-between border-b border-slate-100 px-4">
-              <Image src="/assets/images/asia-logo.png" alt="Asia Food & Beverage JSC" width={40} height={40} className="h-10 w-10 object-contain" />
+              <Image src="/assets/images/asia-logo.png" alt="Asia Food & Beverage co.ltd" width={40} height={40} className="h-10 w-10 object-contain" />
               <button
                 type="button"
                 aria-label="Đóng menu"

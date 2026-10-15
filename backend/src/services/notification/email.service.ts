@@ -18,6 +18,11 @@ export interface MeetingOtpEmailDetails {
   organizer: string;
 }
 
+export interface MeetingReminderEmailDetails extends MeetingOtpEmailDetails {
+  attendees: number;
+  department: string;
+}
+
 type MeetingOtpAction = "đặt" | "hủy";
 
 function getMeetingOtpEmailHtml(code: string, details: MeetingOtpEmailDetails, action: MeetingOtpAction): string {
@@ -140,6 +145,68 @@ async function sendMeetingOtp(
   }
 }
 
+function getMeetingReminderEmailHtml(details: MeetingReminderEmailDetails): string {
+  const safe = {
+    title: escapeHtml(details.title),
+    roomName: escapeHtml(details.roomName),
+    floor: escapeHtml(details.floor),
+    date: escapeHtml(details.date.split("-").reverse().join("/")),
+    start: escapeHtml(details.start),
+    end: escapeHtml(details.end),
+    organizer: escapeHtml(details.organizer),
+    department: escapeHtml(details.department),
+    attendees: escapeHtml(String(details.attendees)),
+  };
+
+  return `
+    <div style="margin:0;padding:24px 12px;background:#f4faf6;font-family:Arial,Helvetica,sans-serif;color:#173b35;">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:16px;border:1px solid #e4efe9;overflow:hidden;">
+        <tr><td style="padding:28px 32px 18px;background:#08744d;color:#ffffff;">
+          <div style="font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#d5f5df;">Asia Food &amp; Beverage co.ltd</div>
+          <h1 style="margin:8px 0 0;font-size:23px;line-height:30px;">Nhắc lịch họp</h1>
+          <p style="margin:5px 0 0;font-size:14px;color:#e5f5ea;">Cuộc họp của bạn sẽ bắt đầu sau khoảng 30 phút.</p>
+        </td></tr>
+        <tr><td style="padding:24px 32px 10px;font-size:14px;line-height:22px;color:#2f4540;">
+          <p style="margin:0 0 14px;font-weight:700;">Xin chào ${safe.organizer},</p>
+          <p style="margin:0 0 6px;">Đây là email nhắc lịch cuộc họp đã đặt:</p>
+          <p style="margin:0;font-size:18px;font-weight:700;color:#123d37;">${safe.title}</p>
+          <p style="margin:12px 0 0;"><strong>Phòng:</strong> ${safe.roomName} · ${safe.floor}</p>
+          <p style="margin:4px 0 0;"><strong>Thời gian:</strong> ${safe.date}, ${safe.start}–${safe.end}</p>
+          <p style="margin:4px 0 0;"><strong>Phòng ban:</strong> ${safe.department}</p>
+          <p style="margin:4px 0 0;"><strong>Số người tham dự:</strong> ${safe.attendees}</p>
+        </td></tr>
+        <tr><td style="padding:18px 32px 26px;font-size:12px;line-height:18px;color:#71817d;">Vui lòng đến phòng họp đúng giờ. Nếu lịch đã thay đổi, hãy liên hệ người quản lý để cập nhật.</td></tr>
+      </table>
+    </div>`;
+}
+
+async function deliverMeetingReminder(email: string, details: MeetingReminderEmailDetails): Promise<void> {
+  const { host, port, secure, user, pass, from } = getMailConfig();
+  const transporter = nodemailer.createTransport({ host, port, secure, auth: { user, pass } });
+  const text = [
+    `Xin chào ${details.organizer},`,
+    "Cuộc họp của bạn sẽ bắt đầu sau khoảng 30 phút.",
+    `Cuộc họp: ${details.title}.`,
+    `Phòng: ${details.roomName} - ${details.floor}.`,
+    `Thời gian: ${details.date.split("-").reverse().join("/")}, ${details.start}-${details.end}.`,
+    `Phòng ban: ${details.department}.`,
+    `Số người tham dự: ${details.attendees}.`,
+  ].join(" ");
+
+  const info = await transporter.sendMail({
+    from,
+    to: email,
+    subject: `Nhắc lịch họp còn 30 phút - ${details.title}`,
+    text,
+    attachments: getLogoAttachment(),
+    html: getMeetingReminderEmailHtml(details),
+  });
+
+  if (!info.accepted.some((address) => address.toLowerCase() === email.toLowerCase()) || info.rejected.length > 0) {
+    throw new Error("SMTP did not accept the meeting reminder recipient.");
+  }
+}
+
 function getMailConfig() {
   const host = process.env.SMTP_HOST?.trim();
   const port = Number(process.env.SMTP_PORT);
@@ -162,6 +229,10 @@ export const emailService = {
 
   async sendMeetingCancelOtp(email: string, code: string, details: MeetingOtpEmailDetails): Promise<void> {
     await sendMeetingOtp(email, code, details, "hủy");
+  },
+
+  async sendMeetingReminder(email: string, details: MeetingReminderEmailDetails): Promise<void> {
+    await deliverMeetingReminder(email, details);
   },
 
   async sendRegistrationOtp(email: string, code: string): Promise<void> {

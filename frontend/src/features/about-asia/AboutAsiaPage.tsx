@@ -18,34 +18,46 @@ const stats = [
 
 const milestones = [
   {
-    year: "2010",
-    event: "Thành lập Công ty Á Châu",
-    desc: "Đặt nền móng cho hành trình phát triển với định hướng mang đến những sản phẩm chất lượng cho người tiêu dùng.",
+    year: "2016",
+    date: "Tháng 02 năm 2016",
+    event: "Thành lập công ty, xuất khẩu thành công sang Mỹ",
+    desc: "Thành lập công ty và hoàn tất thành công đơn hàng xuất khẩu đầu tiên tại thị trường Mỹ, mở đầu hành trình đưa sản phẩm Việt ra quốc tế.",
     image: "/assets/images/company-overview.png",
   },
   {
-    year: "2015",
-    event: "Ra mắt thương hiệu Asia",
-    desc: "Đánh dấu bước ngoặt quan trọng khi thương hiệu Asia chính thức hiện diện trên thị trường, mang đến các dòng đồ uống giải khát chất lượng.",
+    year: "2017 – 2018",
+    date: "Năm 2017 – 2018",
+    event: "Mở rộng thị trường xuất khẩu",
+    desc: "Asia F&B mở rộng hoạt động xuất khẩu sang các thị trường châu Âu, châu Phi và Trung Đông.",
     image: "/assets/images/coconut-calamansi.png",
   },
   {
-    year: "2020",
-    event: "Mở rộng thị trường quốc tế",
-    desc: "Asia đưa sản phẩm đến nhiều thị trường mới, xây dựng nền tảng vững chắc cho hành trình vươn xa.",
+    year: "2021 – 2022",
+    date: "Năm 2021 – 2022",
+    event: "Tăng trưởng và mở rộng danh mục sản phẩm",
+    desc: "Doanh thu tăng trưởng 200%; danh mục sản phẩm được mở rộng để phục vụ nhiều thị trường và nhu cầu khác nhau.",
     image: "/assets/images/employees-banner.png",
   },
   {
-    year: "2024",
-    event: "Nâng cao năng lực sản xuất",
-    desc: "Đầu tư vào công nghệ, quy trình và nguồn lực để đáp ứng những tiêu chuẩn chất lượng ngày càng cao.",
+    year: "2023",
+    date: "Năm 2023",
+    event: "Kết nối B2B và hội chợ quốc tế",
+    desc: "Asia F&B tăng cường kết nối B2B trực tiếp và tham gia các hội chợ chuyên ngành tại Mỹ, Pháp, Trung Quốc, Thái Lan cùng nhiều thị trường khác.",
     image: "/assets/images/workplace.png",
   },
   {
-    year: "Tương lai",
-    event: "Asia và hành trình cùng cộng đồng",
-    desc: "Tiếp tục đổi mới mỗi ngày, lan tỏa những giá trị tích cực và đồng hành cùng cộng đồng.",
+    year: "2024",
+    date: "Tháng 09 năm 2024",
+    event: "Hợp tác cùng nhà máy WANA",
+    desc: "Asia F&B hợp tác với nhà máy WANA để mở rộng năng lực cung ứng, đáp ứng nhu cầu ngày càng tăng của thị trường.",
     image: "/assets/images/company-overview.png",
+  },
+  {
+    year: "2026",
+    date: "Tháng 01 năm 2026",
+    event: "Mở rộng nhà máy và phát triển thương hiệu",
+    desc: "Tiếp tục mở rộng nhà máy, đồng hành cùng các thương hiệu có sản phẩm tại những chuỗi bán lẻ lớn như Costco, Walmart, Woolworths và Emart; phát triển Wana, Solavie, M-Coffee, Wizer và Zizi-pop.",
+    image: "/assets/images/coconut-calamansi.png",
   },
 ];
 
@@ -58,7 +70,7 @@ function AboutJourneyHero() {
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src="/assets/images/bannersumenhtamnhin.png"
-        alt="Trụ sở Asia Food & Beverage và phong cảnh Việt Nam"
+        alt="Trụ sở Asia Food & Beverage co.ltd và phong cảnh Việt Nam"
         className="absolute inset-x-0 top-0 -z-20 h-full w-full object-cover object-top lg:h-auto"
       />
       <div className="relative mx-auto flex min-h-[440px] max-w-[1318px] items-start justify-between gap-10 px-6 pt-12 sm:px-10 lg:absolute lg:inset-x-0 lg:top-0 lg:min-h-0 lg:px-8 lg:pt-[4.1%] xl:px-0">
@@ -84,9 +96,9 @@ function AboutJourneyHero() {
         <div className="hidden w-[210px] rounded-[20px] border border-[#f2e7c6]/70 bg-[#26391f]/45 px-5 py-4 text-center text-white shadow-[0_10px_28px_rgba(0,0,0,0.2)] backdrop-blur-[5px] md:block lg:mr-[1.2%]">
           <span className="mx-auto flex h-[68px] w-[68px] items-center justify-center rounded-full">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/assets/images/asia-logo.png" alt="Asia Food & Beverage" className="h-[66px] w-[66px] object-contain" />
+            <img src="/assets/images/asia-logo.png" alt="Asia Food & Beverage co.ltd" className="h-[66px] w-[66px] object-contain" />
           </span>
-          <p className="mt-2.5 font-sans text-[15px] font-extrabold leading-[1.35]">Asia Food &amp; Beverage<br />JSC</p>
+          <p className="mt-2.5 font-sans text-[15px] font-extrabold leading-[1.35]">Asia Food &amp; Beverage<br />co.ltd</p>
           <div className="mx-auto mt-3 h-px w-full bg-white/35" />
           <p className="mt-3 font-sans text-[13px] font-medium leading-[1.35] text-white/85">Sức khỏe của bạn<br />là mục tiêu tốt đẹp hơn</p>
         </div>
@@ -160,7 +172,7 @@ function AboutJourneyHero() {
 }
 /* ── PAGE ── */
 export default function VeWanaPage() {
-  const [activeMilestone, setActiveMilestone] = useState(1);
+  const [activeMilestone, setActiveMilestone] = useState(0);
   const [isCompanyVideoPlaying, setIsCompanyVideoPlaying] = useState(false);
   const selectedMilestone = milestones[activeMilestone];
 
@@ -210,7 +222,7 @@ export default function VeWanaPage() {
                   {isCompanyVideoPlaying ? (
                     <iframe
                       src="https://www.youtube-nocookie.com/embed/WhKFjee7F5A?autoplay=1&rel=0"
-                      title="Giới thiệu Asia Food & Beverage"
+                      title="Giới thiệu Asia Food & Beverage co.ltd"
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                       allowFullScreen
                       className="absolute inset-0 h-full w-full border-0"
@@ -219,7 +231,7 @@ export default function VeWanaPage() {
                     <button
                       type="button"
                       onClick={() => setIsCompanyVideoPlaying(true)}
-                      aria-label="Phát video giới thiệu Asia Food & Beverage"
+                      aria-label="Phát video giới thiệu Asia Food & Beverage co.ltd"
                       className="group absolute inset-0 h-full w-full bg-cover bg-center"
                       style={{ backgroundImage: "url('https://img.youtube.com/vi/WhKFjee7F5A/maxresdefault.jpg')" }}
                     >
@@ -228,7 +240,7 @@ export default function VeWanaPage() {
                         <Play className="ml-1 h-7 w-7 fill-current" />
                       </span>
                       <span className="absolute inset-x-5 bottom-4 text-left text-sm font-bold text-white drop-shadow-md sm:text-base">
-                        Asia Food &amp; Beverage – From Vietnam to Global
+                        Asia Food &amp; Beverage co.ltd – From Vietnam to Global
                       </span>
                     </button>
                   )}
@@ -289,7 +301,7 @@ export default function VeWanaPage() {
             <div className="min-w-0">
               <div className="relative overflow-x-auto pt-1 pb-2">
                 <div className="absolute left-5 right-5 top-6 h-0.5 bg-[#d9e5dc]" />
-                <div className="relative grid min-w-[560px] grid-cols-5 gap-2">
+                <div className="relative grid min-w-[780px] grid-cols-6 gap-2">
                   {milestones.map((milestone, index) => {
                     const isActive = index === activeMilestone;
 
@@ -327,7 +339,7 @@ export default function VeWanaPage() {
                   />
                 </div>
                 <div className="p-4 sm:p-6 md:p-7">
-                  <p className="text-xl font-black text-[#16812a]">{selectedMilestone.year}</p>
+                  <p className="text-sm font-bold text-[#16812a]">{selectedMilestone.date}</p>
                   <h3 className="mt-1 text-xl font-black text-gray-900">{selectedMilestone.event}</h3>
                   <p className="mt-4 text-sm leading-relaxed text-gray-500">{selectedMilestone.desc}</p>
                 </div>

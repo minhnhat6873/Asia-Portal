@@ -21,6 +21,7 @@ import { AppError } from "../../utils/errors/AppError";
 import { maskEmail } from "../../utils/email/maskEmail";
 import { hashOtp, createOtpCode, isOtpMatch } from "../../utils/otp/otp.util";
 import { compareTimes, getVietnamNow } from "../../utils/time/vietnamTime";
+import { remindMeetingBookingIfDue } from "../../jobs/meeting-booking-reminder.job";
 
 const BOOKING_CONFLICT_MESSAGE =
   "Phòng đã có lịch trùng hoặc chưa đủ 15 phút nghỉ giữa các cuộc họp. Vui lòng chọn giờ khác.";
@@ -214,6 +215,7 @@ export const meetingBookingOtpService = {
 
     if (!booking) throw new AppError(500, "Không thể hoàn tất đặt phòng họp.");
     await pendingMeetingBookingRepository.deleteById(requestId);
+    await remindMeetingBookingIfDue(String(booking._id));
 
     return { message: "Đặt phòng họp thành công.", booking: toPublicBooking(booking as MeetingBooking & { _id: unknown }) };
   },

@@ -13,7 +13,7 @@ import {
 } from "@/features/admin/login/auth.service";
 import { ApiError } from "@/services/api";
 
-const PUBLIC_ADMIN_PATHS = new Set(["/admin/login", "/admin/register", "/admin/forgot-password"]);
+const PUBLIC_ADMIN_PATHS = new Set(["/admin/login", "/admin/forgot-password"]);
 
 function storeSession(admin: AuthenticatedAdmin): void {
   setAdminSession({

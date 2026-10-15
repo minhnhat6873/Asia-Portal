@@ -18,6 +18,8 @@ import {
   Newspaper,
   CalendarDays,
   ChevronRight,
+  ChevronLeft,
+  MoreVertical,
   Info,
   Clock,
   ArrowRight,
@@ -28,6 +30,11 @@ import {
   X,
   RotateCcw,
   Eye,
+  Image as ImageIcon,
+  Files,
+  BriefcaseBusiness,
+  Settings,
+  Cloud,
 } from 'lucide-react';
 
 interface SystemSettingsViewProps {
@@ -51,6 +58,7 @@ interface SystemSettingsViewProps {
   onAssignUsersToRole: (roleId: string, userIds: string[]) => void;
   onNavigateToUserTab: () => void;
   onNavigateToRoles?: () => void;
+  onNavigateToCreateRole?: () => void;
   onRestoreTrashItem: (item: TrashItem) => void | Promise<void>;
   onPermanentlyDeleteTrashItem: (trashId: string) => void;
 }
@@ -70,6 +78,7 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
   onAssignUsersToRole,
   onNavigateToUserTab,
   onNavigateToRoles,
+  onNavigateToCreateRole,
   onRestoreTrashItem,
   onPermanentlyDeleteTrashItem,
 }) => {
@@ -91,8 +100,12 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
 
   // Search filter for created roles list
   const [roleSearchQuery, setRoleSearchQuery] = useState('');
+  const [roleStatusFilter, setRoleStatusFilter] = useState<'all' | 'active' | 'unused' | 'inactive'>('all');
+  const [rolePage, setRolePage] = useState(1);
+  const [rolePageSize, setRolePageSize] = useState(10);
   const [trashSearchQuery, setTrashSearchQuery] = useState('');
   const [trashTypeFilter, setTrashTypeFilter] = useState<'all' | TrashItem['entityType']>('all');
+  const [trashEntityTab, setTrashEntityTab] = useState<'accounts' | 'roles'>('accounts');
   const [selectedTrashIds, setSelectedTrashIds] = useState<string[]>([]);
   const [trashDeleteTarget, setTrashDeleteTarget] = useState<TrashItem | 'all' | null>(null);
   const [trashEmployeeDetail, setTrashEmployeeDetail] = useState<Employee | null>(null);
@@ -102,9 +115,11 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
   // STATE FOR "TẠO QUYỀN" (User specifies Name + picks available permissions)
   // -------------------------------------------------------------
   const [newRoleName, setNewRoleName] = useState('');
+  const [newRoleDescription, setNewRoleDescription] = useState('');
   const [newRoleColor, setNewRoleColor] = useState('emerald');
+  const [newRoleIcon, setNewRoleIcon] = useState('shield');
   const [selectedPermissionIds, setSelectedPermissionIds] = useState<string[]>([]);
-  const [expandedModuleIds, setExpandedModuleIds] = useState<string[]>(() => modules.slice(0, 2).map((module) => module.id));
+  const [expandedModuleIds, setExpandedModuleIds] = useState<string[]>(() => modules.slice(0, 1).map((module) => module.id));
   const [formError, setFormError] = useState('');
 
   // Auto-generate code from name (trường Code đã bị xóa khỏi form)
@@ -149,7 +164,7 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
     onCreateRole({
       name: newRoleName.trim(),
       code: generateCode(newRoleName.trim()) || 'ROLE_' + Date.now().toString().slice(-4),
-      description: `Nhóm quyền ${newRoleName.trim()} vận hành hệ thống`,
+      description: newRoleDescription.trim() || `Nhóm quyền ${newRoleName.trim()} vận hành hệ thống`,
       color: newRoleColor,
       permissionIds: selectedPermissionIds,
     });
@@ -157,6 +172,7 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
     // Reset form and switch to Manage Roles tab to see the created role
     const createdName = newRoleName;
     setNewRoleName('');
+    setNewRoleDescription('');
     setSelectedPermissionIds([]);
     if (onNavigateToRoles) {
       onNavigateToRoles();
@@ -168,7 +184,20 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
   // -------------------------------------------------------------
   // INSPECTION & EDITING OF EXISTING CREATED ROLES
   // -------------------------------------------------------------
-  const selectedRole = roles.find((r) => r.id === selectedRoleId);
+  const inactiveRoleItems = trashItems.filter((item) => item.entityType === 'role');
+  const inactiveRoles = inactiveRoleItems.map((item) => item.payload as Role);
+  const allRoleRows = [...roles, ...inactiveRoles.filter((inactiveRole) => !roles.some((role) => role.id === inactiveRole.id))];
+  const selectedRole = allRoleRows.find((role) => role.id === selectedRoleId);
+  const filteredRoleRows = allRoleRows.filter((role) => {
+    const search = roleSearchQuery.trim().toLowerCase();
+    const userCount = users.filter((user) => user.roleId === role.id).length;
+    const isInactive = inactiveRoles.some((inactiveRole) => inactiveRole.id === role.id);
+    const status = isInactive ? 'inactive' : userCount > 0 ? 'active' : 'unused';
+    return (!search || role.name.toLowerCase().includes(search) || role.code.toLowerCase().includes(search)) && (roleStatusFilter === 'all' || status === roleStatusFilter);
+  });
+  const rolePageCount = Math.max(1, Math.ceil(filteredRoleRows.length / rolePageSize));
+  const safeRolePage = Math.min(rolePage, rolePageCount);
+  const pageRoles = filteredRoleRows.slice((safeRolePage - 1) * rolePageSize, safeRolePage * rolePageSize);
   const usersWithSelectedRole = users.filter((u) => u.roleId === selectedRole?.id);
 
   const startEditingRole = (role: Role) => {
@@ -195,11 +224,12 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
   };
 
   const filteredTrashItems = trashItems.filter((item) => {
+    const isAccount = item.entityType === 'account' || item.entityType === 'access_user';
+    const matchesTab = trashEntityTab === 'accounts' ? isAccount : item.entityType === 'role';
     const matchesType = trashTypeFilter === 'all' || item.entityType === trashTypeFilter;
     const keyword = trashSearchQuery.trim().toLowerCase();
-    return matchesType && (!keyword || item.title.toLowerCase().includes(keyword));
+    return matchesTab && matchesType && (!keyword || item.title.toLowerCase().includes(keyword));
   });
-  const isAllVisibleTrashSelected = filteredTrashItems.length > 0 && filteredTrashItems.every((item) => selectedTrashIds.includes(item.id));
 
   return (
     <div className="asia-access-control asia-system-settings space-y-6">
@@ -251,124 +281,51 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
       {/* "khi bấm vào sẽ thấy có những quyền nào tôi đã gán vào cho nó"           */}
       {/* ========================================================================= */}
       {activeSubTab === 'manage_roles' && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          {/* Left Column: List of Created Roles */}
-          <div className="lg:col-span-5 space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-base font-bold text-white">Danh sách quyền đã tạo</h2>
-                <p className="text-xs text-slate-400">
-                  Chọn một nhóm quyền để xem chi tiết các quyền đã gán
-                </p>
-              </div>
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+            {[
+              { label: 'Tổng nhóm quyền', value: allRoleRows.length, tone: 'bg-emerald-50 text-emerald-700', Icon: Layers },
+              { label: 'Đang sử dụng', value: roles.filter((role) => users.some((user) => user.roleId === role.id)).length, tone: 'bg-emerald-50 text-emerald-700', Icon: ShieldCheck },
+              { label: 'Chưa sử dụng', value: roles.filter((role) => !users.some((user) => user.roleId === role.id)).length, tone: 'bg-amber-50 text-amber-700', Icon: Clock },
+              { label: 'Đã vô hiệu hóa', value: inactiveRoles.length, tone: 'bg-rose-50 text-rose-700', Icon: Lock },
+            ].map(({ label, value, tone, Icon }) => <div key={label} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm"><span className={`flex h-9 w-9 items-center justify-center rounded-full ${tone}`}><Icon className="h-4 w-4" /></span><div><p className="text-[10px] text-slate-500">{label}</p><p className="text-xl font-bold text-slate-900">{value}</p></div></div>)}
+          </div>
+
+          <div className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-white p-2 shadow-sm md:flex-row md:items-center">
+            <div className="relative flex-1"><Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" /><input value={roleSearchQuery} onChange={(event) => { setRoleSearchQuery(event.target.value); setRolePage(1); }} placeholder="Tìm theo tên nhóm quyền, mô tả..." className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-3 text-xs text-slate-700 outline-none focus:border-emerald-500" /></div>
+            <select value={roleStatusFilter} onChange={(event) => { setRoleStatusFilter(event.target.value as typeof roleStatusFilter); setRolePage(1); }} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700"><option value="all">Tất cả trạng thái</option><option value="active">Đang sử dụng</option><option value="unused">Chưa sử dụng</option><option value="inactive">Đã vô hiệu hóa</option></select>
+            <button type="button" onClick={() => { setRoleSearchQuery(''); setRoleStatusFilter('all'); setRolePage(1); }} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50"><RotateCcw className="h-3.5 w-3.5" />Đặt lại</button>
+            <button type="button" onClick={() => onNavigateToCreateRole ? onNavigateToCreateRole() : setActiveSubTab('create_role')} className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg bg-emerald-700 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-800"><PlusCircle className="h-4 w-4" />Tạo nhóm quyền</button>
+            <button type="button" onClick={() => setRoleStatusFilter('inactive')} title="Xem nhóm quyền đã vô hiệu hóa" className="rounded-lg border border-slate-200 p-2 text-slate-600 hover:bg-slate-50"><MoreVertical className="h-4 w-4" /></button>
+          </div>
+
+          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[900px] text-left text-xs">
+                <thead className="border-b border-slate-200 bg-slate-50 text-[10px] font-bold uppercase tracking-wide text-slate-500"><tr><th className="px-3 py-3">Tên nhóm quyền</th><th className="px-3 py-3">Mô tả</th><th className="px-3 py-3">Số tài khoản</th><th className="px-3 py-3">Số quyền</th><th className="px-3 py-3">Trạng thái</th><th className="px-3 py-3">Ngày tạo</th><th className="px-3 py-3 text-center">Thao tác</th></tr></thead>
+                <tbody className="divide-y divide-slate-100">
+                  {pageRoles.length === 0 ? <tr><td colSpan={7} className="py-12 text-center text-slate-400">Không tìm thấy nhóm quyền phù hợp.</td></tr> : pageRoles.map((role) => {
+                    const userCount = users.filter((user) => user.roleId === role.id).length;
+                    const inactiveItem = inactiveRoleItems.find((item) => (item.payload as Role).id === role.id);
+                    const status = inactiveItem ? 'inactive' : userCount > 0 ? 'active' : 'unused';
+                    const statusLabel = status === 'inactive' ? 'Đã vô hiệu hóa' : status === 'active' ? 'Đang sử dụng' : 'Chưa sử dụng';
+                    return <tr key={role.id} className="hover:bg-emerald-50/40">
+                      <td className="px-3 py-2.5"><button type="button" onClick={() => { setSelectedRoleId(role.id); setIsEditingRolePermissions(false); }} className="flex items-center gap-2 text-left font-semibold text-slate-800 hover:text-emerald-800"><span className="flex h-6 w-6 items-center justify-center rounded-md bg-rose-50 text-rose-600"><ShieldCheck className="h-3.5 w-3.5" /></span>{role.name}</button></td>
+                      <td className="max-w-48 truncate px-3 py-2.5 text-slate-500">{role.description}</td><td className="px-3 py-2.5 text-slate-600">{userCount}</td><td className="px-3 py-2.5 text-slate-600">{role.permissionIds.length}</td>
+                      <td className="px-3 py-2.5"><span className={`rounded-full px-2 py-1 text-[10px] font-semibold ${status === 'active' ? 'bg-emerald-100 text-emerald-800' : status === 'unused' ? 'bg-slate-100 text-slate-600' : 'bg-rose-100 text-rose-700'}`}>{statusLabel}</span></td>
+                      <td className="px-3 py-2.5 text-slate-500">{role.createdAt ? new Date(role.createdAt).toLocaleDateString('vi-VN') : '—'}</td>
+                      <td className="px-3 py-2.5"><div className="flex items-center justify-center gap-1"><button type="button" title="Xem quyền" aria-label={`Xem ${role.name}`} onClick={() => { setSelectedRoleId(role.id); setIsEditingRolePermissions(false); }} className="rounded p-1 text-slate-500 hover:bg-slate-100 hover:text-emerald-700"><Edit3 className="h-3.5 w-3.5" /></button><button type="button" title="Chỉnh sửa quyền" aria-label={`Chỉnh sửa ${role.name}`} onClick={() => { setSelectedRoleId(role.id); startEditingRole(role); }} className="rounded p-1 text-slate-500 hover:bg-slate-100 hover:text-emerald-700"><Edit3 className="h-3.5 w-3.5" /></button>{inactiveItem ? <button type="button" title="Xóa vĩnh viễn" aria-label={`Xóa vĩnh viễn ${role.name}`} onClick={() => setTrashDeleteTarget(inactiveItem)} className="rounded p-1 text-rose-600 hover:bg-rose-50"><Trash2 className="h-3.5 w-3.5" /></button> : !role.isSystemDefault && <button type="button" title="Chuyển vào thùng rác" aria-label={`Xóa ${role.name}`} onClick={() => { if (confirm(`Chuyển nhóm quyền “${role.name}” vào thùng rác?`)) onDeleteRole(role.id); }} className="rounded p-1 text-rose-600 hover:bg-rose-50"><Trash2 className="h-3.5 w-3.5" /></button>}</div></td>
+                    </tr>;
+                  })}
+                </tbody>
+              </table>
             </div>
-
-            {/* Quick search roles */}
-            <div className="relative">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-              <input
-                type="text"
-                placeholder="Tìm tên quyền đã tạo..."
-                value={roleSearchQuery}
-                onChange={(e) => setRoleSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 bg-slate-900/80 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-400 focus:outline-none focus:border-emerald-500"
-              />
-            </div>
-
-            {/* Roles list */}
-            <div className="space-y-2.5">
-              {roles
-                .filter(
-                  (r) =>
-                    r.name.toLowerCase().includes(roleSearchQuery.toLowerCase()) ||
-                    r.code.toLowerCase().includes(roleSearchQuery.toLowerCase())
-                )
-                .map((role) => {
-                  const isSelected = role.id === selectedRole?.id;
-                  const assignedCount = role.permissionIds.length;
-                  const userCount = users.filter((u) => u.roleId === role.id).length;
-
-                  return (
-                    <div
-                      key={role.id}
-                      onClick={() => {
-                        setSelectedRoleId(role.id);
-                        setIsEditingRolePermissions(false);
-                      }}
-                      className={`p-4 rounded-2xl border text-left cursor-pointer transition-all duration-200 ${
-                        isSelected
-                          ? 'bg-emerald-50 border-emerald-400 shadow-md ring-1 ring-emerald-200'
-                          : 'bg-slate-900/40 border-slate-800/80 hover:border-emerald-300 hover:bg-emerald-50/40 hover:shadow-sm'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex items-center gap-2.5">
-                          <div
-                            className={`w-3.5 h-3.5 rounded-full shrink-0 ${
-                              role.color === 'emerald'
-                                ? 'bg-emerald-400 ring-2 ring-emerald-950'
-                                : role.color === 'blue'
-                                ? 'bg-blue-400 ring-2 ring-blue-950'
-                                : role.color === 'amber'
-                                ? 'bg-amber-400 ring-2 ring-amber-950'
-                                : role.color === 'rose'
-                                ? 'bg-rose-400 ring-2 ring-rose-950'
-                                : 'bg-purple-400 ring-2 ring-purple-950'
-                            }`}
-                          />
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <h3 className="font-bold text-white text-base leading-tight">{role.name}</h3>
-                              {role.isSystemDefault && (
-                                <span className="text-[11px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded-md font-semibold">
-                                  Hệ thống
-                                </span>
-                              )}
-                            </div>
-                            <span className="mt-1 inline-flex text-xs font-mono text-slate-400">
-                              {role.code}
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="min-w-[66px] rounded-xl border border-emerald-200 bg-emerald-50 px-2 py-1.5 text-center shrink-0">
-                          <span className="text-xs font-bold text-emerald-700 font-mono tabular-nums">
-                            {assignedCount}/{permissions.length}
-                          </span>
-                          <span className="text-[11px] font-medium text-slate-500 block">quyền đã gán</span>
-                        </div>
-                      </div>
-
-                      <p className="text-xs text-slate-500 mt-3 line-clamp-2 leading-relaxed">
-                        {role.description}
-                      </p>
-
-                      <div className="mt-3 pt-3 border-t border-slate-800/60 flex items-center justify-between text-xs text-slate-500">
-                        <span className="flex items-center gap-2">
-                          <Users className="w-3.5 h-3.5 text-emerald-600" />
-                          <span>
-                            <strong className="text-slate-700">{userCount}</strong> nhân sự đang gán
-                          </span>
-                        </span>
-
-                        <span
-                          className={`rounded-lg px-2.5 py-1.5 text-xs font-bold flex items-center gap-1 transition-colors ${
-                            isSelected ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600 group-hover:bg-emerald-100 group-hover:text-emerald-800'
-                          }`}
-                        >
-                          {isSelected ? 'Đang xem' : 'Bấm để xem'}
-                          <ChevronRight className="w-3 h-3" />
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-            </div>
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 px-4 py-2.5 text-[10px] text-slate-500"><span>Hiển thị {filteredRoleRows.length ? (safeRolePage - 1) * rolePageSize + 1 : 0} - {Math.min(safeRolePage * rolePageSize, filteredRoleRows.length)} trong tổng số {filteredRoleRows.length} nhóm quyền</span><div className="flex items-center gap-1.5"><button type="button" disabled={safeRolePage <= 1} onClick={() => setRolePage((page) => Math.max(1, page - 1))} className="rounded-md border border-slate-200 p-1 disabled:opacity-40"><ChevronLeft className="h-3.5 w-3.5" /></button><span className="rounded-md bg-emerald-700 px-2.5 py-1.5 font-bold text-white">{safeRolePage}</span><button type="button" disabled={safeRolePage >= rolePageCount} onClick={() => setRolePage((page) => Math.min(rolePageCount, page + 1))} className="rounded-md border border-slate-200 p-1 disabled:opacity-40"><ChevronRight className="h-3.5 w-3.5" /></button><select value={rolePageSize} onChange={(event) => { setRolePageSize(Number(event.target.value)); setRolePage(1); }} className="ml-2 rounded-md border border-slate-200 bg-white px-2 py-1.5"><option value={10}>10 / trang</option><option value={20}>20 / trang</option></select></div></div>
           </div>
 
           {/* Right Column: fixed detailed view */}
           {/* This is the core requirement: "khi bấm vào sẽ thấy có những quyền nào tôi đã gán vào cho nó" */}
-          <div className="min-h-[36rem] space-y-6 rounded-2xl border border-slate-200 bg-white p-6 lg:col-span-7">
+          <div className={`min-h-[28rem] space-y-6 rounded-2xl border border-slate-200 bg-white p-6 lg:col-span-12 ${selectedRole ? '' : 'hidden'}`}>
             {selectedRole ? (
               <>
                 {/* Detail Header */}
@@ -625,18 +582,10 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
       {/* những quyền có sẵn"                                                      */}
       {/* ========================================================================= */}
       {activeSubTab === 'create_role' && (
-        <form onSubmit={handleCreateRoleSubmit} className="space-y-5 rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs sm:p-5">
+        <form onSubmit={handleCreateRoleSubmit} className="grid grid-cols-1 items-stretch gap-3 lg:grid-cols-2">
           {/* Top description card */}
-          <div className="space-y-4">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h2 className="flex items-center gap-2 text-2xl font-bold text-slate-900">
-                  T&#x1EA1;o nh&#x00F3;m quy&#x1EC1;n m&#x1EDB;i
-                </h2>
-
-              </div>
-
-            </div>
+          <div className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <h2 className="text-base font-bold text-slate-900">Thông tin nhóm quyền</h2>
 
             {formError && (
               <div className="mt-4 p-3 rounded-xl bg-rose-950/50 border border-rose-800/60 text-xs text-rose-300 flex items-center gap-2">
@@ -646,61 +595,51 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
             )}
 
             {/* Inputs: Tên quyền & Thông tin cơ bản */}
-            <div className="mt-4 max-w-2xl">
+            <div className="space-y-3">
               <div>
-                <label className="mb-1.5 block text-sm font-semibold uppercase tracking-wider text-slate-700">
-                  Tên quyền <span className="text-rose-400">*</span>
+                <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+                  Tên nhóm quyền <span className="text-rose-400">*</span>
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="VD: Quản lý Kho & Thu mua"
+                  placeholder="Nhập tên nhóm quyền..."
                   value={newRoleName}
                   onChange={(e) => setNewRoleName(e.target.value)}
-                  className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-base text-slate-800 outline-none transition-colors focus:border-emerald-500"
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 outline-none transition-colors focus:border-emerald-500"
                 />
-                <span className="mt-1 block text-xs text-slate-500">
-                  Tên hiển thị khi phân quyền cho nhân sự
-                </span>
               </div>
-
+              <div>
+                <label className="mb-1.5 block text-xs font-semibold text-slate-700">Mô tả</label>
+                <textarea value={newRoleDescription} onChange={(event) => setNewRoleDescription(event.target.value)} rows={3} placeholder="Nhập mô tả về nhóm quyền..." className="w-full resize-none rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 outline-none focus:border-emerald-500" />
+              </div>
+              <div>
+                <p className="mb-2 text-xs font-semibold text-slate-700">Màu sắc hiển thị <span className="text-rose-500">*</span></p>
+                <div className="flex flex-wrap items-center gap-3">{([{ name: 'emerald', className: 'bg-emerald-500' }, { name: 'blue', className: 'bg-blue-500' }, { name: 'purple', className: 'bg-purple-500' }, { name: 'orange', className: 'bg-orange-500' }, { name: 'red', className: 'bg-rose-500' }, { name: 'pink', className: 'bg-pink-500' }, { name: 'slate', className: 'bg-slate-400' }] as const).map(({ name, className }) => <button key={name} type="button" aria-label={`Chọn màu ${name}`} aria-pressed={newRoleColor === name} onClick={() => setNewRoleColor(name)} className={`h-6 w-6 rounded-full ${className} ${newRoleColor === name ? 'ring-2 ring-white ring-offset-2 ring-offset-emerald-600' : ''}`} />)}</div>
+              </div>
+              <div>
+                <p className="mb-2 text-xs font-semibold text-slate-700">Icon</p>
+                <div className="flex flex-wrap gap-1.5">{[{ id: 'shield', Icon: Shield }, { id: 'users', Icon: Users }, { id: 'calendar', Icon: CalendarDays }, { id: 'image', Icon: ImageIcon }, { id: 'files', Icon: Files }, { id: 'briefcase', Icon: BriefcaseBusiness }, { id: 'settings', Icon: Settings }, { id: 'cloud', Icon: Cloud }].map(({ id, Icon }) => <button key={id} type="button" aria-label={`Chọn biểu tượng ${id}`} aria-pressed={newRoleIcon === id} onClick={() => setNewRoleIcon(id)} className={`flex h-9 w-9 items-center justify-center rounded-lg border ${newRoleIcon === id ? 'border-emerald-600 bg-emerald-50 text-emerald-700' : 'border-slate-200 text-slate-500 hover:bg-slate-50'}`}><Icon className="h-4 w-4" /></button>)}</div>
+              </div>
             </div>
 
 
           </div>
 
           {/* Section: "NHỮNG QUYỀN TÔI ĐƯA RA SẴN ĐỂ GÁN" */}
-          <div className="space-y-4 border-t border-slate-200 pt-5">
-            <div className="flex flex-col gap-3 border-b border-slate-200 pb-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="flex items-center justify-between gap-3 border-b border-slate-200 pb-3">
               <div>
-                <h3 className="text-xl font-bold text-slate-900">Danh s&#x00E1;ch quy&#x1EC1;n c&#x00F3; s&#x1EB5;n trong h&#x1EC7; th&#x1ED1;ng</h3>
-                <p className="text-sm text-slate-500">
-                  Tích chọn các quyền chức năng bạn muốn phân bổ cho nhóm quyền này
-                </p>
+                <h3 className="text-sm font-bold text-slate-900">Chọn quyền cho nhóm</h3>
+                <p className="mt-0.5 text-[10px] text-slate-500">Chọn các quyền mà nhóm này sẽ được sử dụng</p>
               </div>
 
               {/* Quick selectors */}
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={selectAllPermissionsInCreate}
-                  className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-800"
-                >
-                  Chọn tất cả ({permissions.length})
-                </button>
-                <button
-                  type="button"
-                  onClick={deselectAllPermissionsInCreate}
-                  className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-rose-700"
-                >
-                  &#x0110;&#x1EB7;t l&#x1EA1;i quy&#x1EC1;n
-                </button>
-
-              </div>
+              <label className="flex shrink-0 items-center gap-2 text-[11px] font-medium text-slate-600"><input type="checkbox" checked={selectedPermissionIds.length === permissions.length && permissions.length > 0} onChange={(event) => event.target.checked ? selectAllPermissionsInCreate() : deselectAllPermissionsInCreate()} className="h-4 w-4 rounded border-slate-300 accent-emerald-700" />Chọn tất cả</label>
             </div>
 
             {/* Permissions list grouped by Module */}
-            <div className="space-y-3 pt-1">
+            <div className="max-h-[340px] space-y-2 overflow-y-auto pt-1 pr-1">
               {modules
                 .map((mod) => {
                   const modPerms = permissions.filter((permission) => permission.module === mod.id);
@@ -725,78 +664,22 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                             : ShieldCheck;
 
                   return (
-                    <div
-                      key={mod.id}
-                      className="overflow-hidden rounded-2xl border border-slate-200 bg-white"
-                    >
-                      <button
-                        type="button"
-                        onClick={() => setExpandedModuleIds((items) => items.includes(mod.id) ? items.filter((id) => id !== mod.id) : [...items, mod.id])}
-                        className="flex w-full items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 px-3 py-2.5 text-left transition-colors hover:bg-slate-100"
-                      >
-                        <div className="flex min-w-0 items-center gap-2">
-                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700">
-                            <ModuleIcon className="h-4 w-4" />
-                          </span>
-                          <span className="text-sm font-bold uppercase tracking-wide text-slate-800">{mod.name}</span>
-                        </div>
-                        <div className="flex shrink-0 items-center gap-2 text-xs font-medium text-slate-600">
-                          <span>{selectedInMod.length} / {modPerms.length} quy&#x1EC1;n</span>
-                          <ChevronRight className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
-                        </div>
-                      </button>
+                    <div key={mod.id} className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+                      <div className="flex min-h-9 items-center gap-2 bg-slate-50 px-2.5">
+                        <input type="checkbox" checked={isModAllSelected} onChange={() => setSelectedPermissionIds((ids) => isModAllSelected ? ids.filter((id) => !modPerms.some((perm) => perm.id === id)) : [...new Set([...ids, ...modPerms.map((perm) => perm.id)])])} aria-label={`Chọn tất cả quyền ${mod.name}`} className="h-3.5 w-3.5 rounded border-slate-300 accent-emerald-700" />
+                        <button type="button" onClick={() => setExpandedModuleIds((items) => items.includes(mod.id) ? items.filter((id) => id !== mod.id) : [...items, mod.id])} className="flex min-w-0 flex-1 items-center justify-between gap-2 py-1.5 text-left">
+                          <span className="flex min-w-0 items-center gap-2"><ModuleIcon className="h-3.5 w-3.5 shrink-0 text-emerald-700" /><span className="truncate text-[11px] font-semibold text-slate-800">{mod.name}</span><span className="shrink-0 text-[10px] text-slate-500">({modPerms.length} quyền)</span></span>
+                          <ChevronRight className={`h-3.5 w-3.5 shrink-0 text-emerald-700 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                        </button>
+                      </div>
                       {/* Permissions Grid */}
                       {isExpanded && (
-                        <div className="grid grid-cols-1 gap-2 p-3 md:grid-cols-2">
+                        <div className="ml-5 border-l border-emerald-100 pl-3 pr-2">
                         {modPerms.map((perm) => {
                           const isChecked = selectedPermissionIds.includes(perm.id);
 
                           return (
-                            <label
-                              key={perm.id}
-                              onMouseDown={(event) => event.preventDefault()}
-                              onClick={(event) => {
-                                event.preventDefault();
-                                const scrollContainer = event.currentTarget.closest('main');
-                                const scrollTop = scrollContainer?.scrollTop ?? 0;
-                                togglePermissionInCreate(perm.id);
-                                requestAnimationFrame(() => {
-                                  if (scrollContainer) scrollContainer.scrollTop = scrollTop;
-                                });
-                              }}
-                              className={`perm-card flex cursor-pointer select-none items-start gap-3 rounded-xl border p-4 text-sm transition-all ${
-                                isChecked
-                                  ? 'border-slate-200 bg-white text-slate-800'
-                                  : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'
-                              }`}
-                            >
-                              <input
-                                type="checkbox"
-                                checked={isChecked}
-                                readOnly
-                                tabIndex={-1}
-                                className="pointer-events-none sr-only"
-                              />
-                              <div
-                                className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border ${isChecked ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-emerald-300 bg-white'}`}
-                              >
-                                {isChecked && <Check className="h-3 w-3" />}
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <div className="flex items-center justify-between gap-1">
-                                  <span
-                                    className={`font-bold ${
-                                      isChecked ? 'text-slate-800' : 'text-slate-700'
-                                    }`}
-                                  >
-                                    {perm.name}
-                                  </span>
-                                </div>
-                                <p className="mt-1 text-xs leading-snug text-slate-500">
-                                  {perm.description}
-                                </p>
-                              </div>
-                            </label>
+                            <label key={perm.id} className="flex min-h-7 cursor-pointer items-center gap-2 border-b border-slate-100 py-1 text-[10px] text-slate-700 last:border-b-0"><input type="checkbox" checked={isChecked} onChange={() => togglePermissionInCreate(perm.id)} className="h-3.5 w-3.5 shrink-0 rounded border-slate-300 accent-emerald-700" /><span>{perm.name}</span></label>
                           );
                         })}
                       </div>
@@ -806,20 +689,21 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                 })}
             </div>
 
-            {/* Submit Action Bar */}
-          <div className="flex items-center justify-end border-t border-slate-200 pt-4">
-            <div className="flex items-center gap-3">
+          </div>
 
+          {/* Submit Action Bar */}
+          <div className="flex items-center justify-end gap-2 border-t border-slate-200 pt-3 lg:col-span-2">
+            <div className="flex items-center gap-3">
+              <button type="button" onClick={() => { setNewRoleName(''); setNewRoleDescription(''); setSelectedPermissionIds([]); onNavigateToRoles?.(); }} className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50">Hủy</button>
               <button
                 type="submit"
-                className="px-5 py-2.5 text-sm font-semibold bg-[#15803d] hover:bg-[#166534] text-white rounded-xl shadow-lg shadow-emerald-950/60 flex items-center gap-2"
+                className="flex items-center gap-2 rounded-lg bg-emerald-700 px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-emerald-800"
               >
                 <Check className="w-4 h-4" />
-                Lưu & Kích hoạt nhóm quyền này
+                Tạo nhóm quyền
               </button>
             </div>
             </div>
-          </div>
         </form>
       )}
 
@@ -827,47 +711,45 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
       {/* SUBTAB 3: NHẬT KÝ PHÂN QUYỀN (AUDIT LOGS)                                 */}
       {/* ========================================================================= */}
       {activeSubTab === 'audit_logs' && (
-        <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 space-y-4">
+        <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
           <div>
             <div>
-              <h2 className="text-lg font-bold text-white">Thùng rác</h2>
+              <h2 className="text-lg font-bold text-slate-900">Thùng rác</h2>
               <p className="text-xs text-slate-400">Dữ liệu đã xóa được lưu tạm thời để bạn khôi phục khi cần.</p>
             </div>
           </div>
 
-          {trashItems.length > 0 && (
+          <div className="flex gap-2 border-b border-slate-200">
+            {([{ id: 'accounts', label: `Tài khoản (${trashItems.filter((item) => item.entityType === 'account' || item.entityType === 'access_user').length})` }, { id: 'roles', label: `Nhóm quyền (${trashItems.filter((item) => item.entityType === 'role').length})` }] as const).map((tab) => <button key={tab.id} type="button" onClick={() => setTrashEntityTab(tab.id)} className={`rounded-t-xl px-4 py-2 text-xs font-bold ${trashEntityTab === tab.id ? 'bg-emerald-700 text-white' : 'text-slate-600 hover:bg-emerald-50'}`}>{tab.label}</button>)}
+          </div>
+
+          {filteredTrashItems.length > 0 && (
             <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 lg:flex-row lg:items-center">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
                 <input value={trashSearchQuery} onChange={(event) => setTrashSearchQuery(event.target.value)} placeholder="Tìm dữ liệu đã xóa..." className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-3 text-xs text-slate-800 outline-none focus:border-emerald-500" />
               </div>
               <select value={trashTypeFilter} onChange={(event) => setTrashTypeFilter(event.target.value as 'all' | TrashItem['entityType'])} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 outline-none focus:border-emerald-500">
-                <option value="all">Tất cả quản lý</option>
-                <option value="employee">Quản lý nhân sự</option>
-                <option value="media">Quản lý truyền thông</option>
+                <option value="all">Tất cả loại</option>
+                <option value="account">Tài khoản</option>
+                <option value="access_user">Tài khoản phân quyền</option>
                 <option value="role">Nhóm quyền</option>
               </select>
-              <button type="button" onClick={() => setSelectedTrashIds(isAllVisibleTrashSelected ? [] : filteredTrashItems.map((item) => item.id))} className="rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-100">
-                {isAllVisibleTrashSelected ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}
-              </button>
-              <button type="button" onClick={() => setTrashDeleteTarget('all')} className="rounded-xl border border-rose-300 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700 hover:bg-rose-100">
-                Xóa tất cả
-              </button>
             </div>
           )}
 
-          {trashItems.length === 0 ? (
+          {filteredTrashItems.length === 0 ? (
             <div className="flex min-h-64 flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center">
               <Trash2 className="h-9 w-9 text-slate-400" />
-              <p className="mt-3 text-sm font-bold text-slate-700">Thùng rác đang trống</p>
-              <p className="mt-1 text-xs text-slate-500">Nhân sự, truyền thông, tài khoản và nhóm quyền đã xóa sẽ hiển thị tại đây.</p>
+              <p className="mt-3 text-sm font-bold text-slate-700">{trashItems.length ? 'Không tìm thấy dữ liệu phù hợp' : 'Thùng rác đang trống'}</p>
+              <p className="mt-1 text-xs text-slate-500">Tài khoản và nhóm quyền đã xóa sẽ hiển thị tại đây.</p>
             </div>
-          ) : filteredTrashItems.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center text-sm text-slate-500">Không tìm thấy dữ liệu phù hợp.</div>
           ) : (
-            <div className="divide-y divide-slate-200 overflow-hidden rounded-xl border border-slate-200 bg-white">
+            <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+            <table className="w-full min-w-[760px] text-left text-xs">
+              <thead className="bg-slate-50 text-[11px] font-bold uppercase text-slate-500"><tr><th className="px-3 py-3">Loại</th><th className="px-3 py-3">Thông tin</th><th className="px-3 py-3">Người thực hiện</th><th className="px-3 py-3">Thời gian xóa</th><th className="px-3 py-3">Lý do xóa</th><th className="px-3 py-3 text-right">Thao tác</th></tr></thead>
+              <tbody className="divide-y divide-slate-100">
               {filteredTrashItems.map((item, index) => {
-                const isSelected = selectedTrashIds.includes(item.id);
                 const employee = item.entityType === 'employee' ? item.payload as Employee : null;
                 const mediaPost = item.entityType === 'media' ? item.payload as MediaPost : null;
                 const account = (item.entityType === 'account' || item.entityType === 'access_user') ? item.payload as UserAccount | User : null;
@@ -875,29 +757,17 @@ export const SystemSettingsView: React.FC<SystemSettingsViewProps> = ({
                 const roleHasCriticalPermission = !!role?.permissionIds.some((permissionId) => permissions.find((permission) => permission.id === permissionId)?.riskLevel === 'high');
                 const secondaryText = employee ? employee.department : mediaPost ? `${mediaPost.title} · ${mediaPost.authorDepartment}` : account ? `${'username' in account ? account.username : account.name} · ${account.email}` : roleHasCriticalPermission ? 'Quan trọng' : '';
                 return (
-                <div key={`${item.id}-${index}`} onClick={() => setSelectedTrashIds((ids) => isSelected ? ids.filter((id) => id !== item.id) : [...ids, item.id])} className={`flex cursor-pointer flex-col gap-3 p-4 transition-colors sm:flex-row sm:items-center sm:justify-between ${isSelected ? 'bg-rose-50 ring-1 ring-inset ring-rose-200' : 'hover:bg-slate-50'}`}>
-                  <div className="flex min-w-0 items-center gap-3">
-                    <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border ${isSelected ? 'border-rose-500 bg-rose-500 text-white' : 'border-slate-300 bg-white text-transparent'}`}><Check className="h-3.5 w-3.5" /></span>
-                    {employee || mediaPost ? (
-                      <img src={employee ? employee.avatar : mediaPost!.coverImage} alt="" className="h-10 w-10 shrink-0 rounded-xl object-cover" />
-                    ) : (
-                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-rose-50 text-rose-600"><Trash2 className="h-5 w-5" /></span>
-                    )}
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-bold text-slate-800">{item.title}</p>
-                      {secondaryText && <p className="mt-0.5 truncate text-xs text-slate-500">{secondaryText}</p>}
-                      <p className="mt-0.5 text-xs text-slate-500">{({ employee: 'Nhân sự', media: 'Truyền thông', account: 'Tài khoản', access_user: 'Tài khoản phân quyền', role: 'Nhóm quyền' } as const)[item.entityType]} · Đã xóa {item.deletedAt} · Người xóa: {item.deletedBy || 'chưa có dữ liệu'}</p>
-                    </div>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-2">
-                    {employee && <button type="button" onClick={(event) => { event.stopPropagation(); setTrashEmployeeDetail(employee); }} className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50"><Eye className="h-3.5 w-3.5" />Xem chi tiết</button>}
-                    {mediaPost && <button type="button" onClick={(event) => { event.stopPropagation(); setTrashMediaDetail(mediaPost); }} className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50"><Eye className="h-3.5 w-3.5" />Xem chi tiết</button>}
-                    <button type="button" onClick={async (event) => { event.stopPropagation(); await onRestoreTrashItem(item); setSelectedTrashIds((ids) => ids.filter((id) => id !== item.id)); }} className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-100"><RotateCcw className="h-3.5 w-3.5" />Khôi phục</button>
-                    <button type="button" onClick={(event) => { event.stopPropagation(); setTrashDeleteTarget(item); }} className="inline-flex items-center gap-1.5 rounded-xl border border-rose-300 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700 hover:bg-rose-100"><Trash2 className="h-3.5 w-3.5" />Xóa</button>
-                  </div>
-                </div>
+                <tr key={`${item.id}-${index}`} className="hover:bg-slate-50">
+                  <td className="px-3 py-3 text-slate-500">{item.entityType === 'role' ? 'Nhóm quyền' : 'Tài khoản'}</td>
+                  <td className="px-3 py-3"><span className="font-semibold text-slate-800">{item.title}</span>{secondaryText && <span className="mt-1 block text-[11px] text-slate-500">{secondaryText}</span>}</td>
+                  <td className="px-3 py-3 text-slate-500">{item.deletedBy || 'Quản trị viên'}</td>
+                  <td className="px-3 py-3 text-slate-500">{item.deletedAt}</td><td className="px-3 py-3 text-slate-500">{item.entityType === 'role' ? 'Ngừng sử dụng' : 'Không còn sử dụng'}</td>
+                  <td className="px-3 py-3"><div className="flex justify-end gap-2"><button type="button" onClick={async (event) => { event.stopPropagation(); await onRestoreTrashItem(item); setSelectedTrashIds((ids) => ids.filter((id) => id !== item.id)); }} className="inline-flex items-center gap-1 rounded-lg border border-emerald-300 px-2.5 py-1.5 font-bold text-emerald-800 hover:bg-emerald-50"><RotateCcw className="h-3.5 w-3.5" />Khôi phục</button><button type="button" onClick={(event) => { event.stopPropagation(); setTrashDeleteTarget(item); }} className="inline-flex items-center gap-1 rounded-lg border border-rose-300 px-2.5 py-1.5 font-bold text-rose-700 hover:bg-rose-50"><Trash2 className="h-3.5 w-3.5" />Xóa vĩnh viễn</button></div></td>
+                </tr>
                 );
               })}
+              </tbody>
+            </table>
             </div>
           )}
         </div>

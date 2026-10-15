@@ -12,10 +12,11 @@ Cập nhật lần cuối: 2026-10-07. File nguồn đã đọc: `backend/index.
 | `src/services/{admin,user,notification}` | Nghiệp vụ, mapping response, OTP/email, phân trang. |
 | `src/repositories/{admin,user}` | Lớp Mongoose; user repository lọc trường riêng tư. |
 | `src/models/` | Schema/collection/index/hook Mongoose. |
+| `src/jobs/` | Tác vụ nền dọn nội dung, tự chuyển lịch họp đã kết thúc và gửi email nhắc trước giờ họp 30 phút. |
 | `src/interfaces/` | Kiểu domain, input/output, hằng enum-like. |
 | `src/validates/admin/` | Joi body/query schema. |
 | `src/helpers/`, `src/utils/`, `src/types/` | Cloudinary/Multer, `AppError`/escape regex, mở rộng `Request.admin`. |
-| `scripts/` | Tạo admin ban đầu và upsert dữ liệu nhân viên. |
+| `scripts/` | Tạo admin ban đầu, upsert dữ liệu nhân viên và nạp lịch họp mẫu bằng `yarn seed:meetings`. |
 | `tests/` | Unit test service/validate/middleware bằng Jest mock. |
 
 ## Luồng và biên lớp

@@ -7,7 +7,6 @@ import AdminDashboard from "./AdminDashboard";
 
 const PUBLIC_ADMIN_PATHS = new Set([
   "/admin/login",
-  "/admin/register",
   "/admin/forgot-password",
 ]);
 

@@ -625,10 +625,10 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
       <header className={`flex shrink-0 items-center justify-between bg-white px-4 sm:px-6 lg:px-8 ${activeTab === 'meetings' ? 'h-[60px]' : 'h-[76px]'}`}>
           <Link href="/admin/dashboard" className="flex min-w-0 items-center gap-3 rounded-xl outline-none transition-opacity hover:opacity-80 focus-visible:ring-2 focus-visible:ring-emerald-500">
           <span className="flex h-12 w-12 shrink-0 items-center justify-center">
-            <Image src="/assets/images/asia-logo.png" alt="Asia Food & Beverage" width={48} height={48} className="h-12 w-12 object-contain" />
+            <Image src="/assets/images/asia-logo.png" alt="Asia Food & Beverage co.ltd" width={48} height={48} className="h-12 w-12 object-contain" />
           </span>
           <span className="min-w-0">
-            <span className="block whitespace-nowrap text-[18px] font-black leading-tight tracking-[-0.035em] text-[#082c5c]">Asia Food &amp; Beverage</span>
+            <span className="block whitespace-nowrap text-[18px] font-black leading-tight tracking-[-0.035em] text-[#082c5c]">Asia Food &amp; Beverage co.ltd</span>
             <span className="mt-1 block whitespace-nowrap text-[14px] font-semibold leading-[1.3] tracking-[-0.015em] text-[#00865a]">Cổng quản trị nội bộ</span>
           </span>
         </Link>
@@ -903,9 +903,9 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
                 {activeTab === 'permissions' && (
                   <nav aria-label="Dieu huong phan quyen" className="flex flex-wrap gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-md">
                     {([
-                      ['accounts', 'T\u00e0i kho\u1ea3n'],
-                      ['roles', 'Quy\u1ec1n \u0111\u00e3 t\u1ea1o'],
-                      ['new-role', 'T\u1ea1o quy\u1ec1n m\u1edbi'],
+                      ['accounts', 'Qu\u1ea3n l\u00fd t\u00e0i kho\u1ea3n'],
+                      ['roles', 'Nh\u00f3m quy\u1ec1n \u0111\u00e3 t\u1ea1o'],
+                      ['new-role', 'T\u1ea1o nh\u00f3m quy\u1ec1n'],
                       ['trash', 'Th\u00f9ng r\u00e1c'],
                     ] as const).map(([page, label]) => (
                       <button

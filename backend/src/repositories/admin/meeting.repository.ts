@@ -76,7 +76,7 @@ export const adminMeetingRepository = {
   findHistory(id: string) {
     return MeetingBookingTrashModel.findOne({ originalBookingId: new Types.ObjectId(id), deleteAt: { $gt: new Date() } }).lean();
   },
-  async update(snapshot: AdminBookingDocument, data: MeetingBooking, upcoming: boolean) {
+  async update(snapshot: AdminBookingDocument, data: MeetingBooking, upcoming: boolean, resetReminder = false) {
     await ensureReservationIndex();
     const filter = {
       _id: snapshot._id, archiveClaimedAt: { $exists: false },
@@ -89,6 +89,7 @@ export const adminMeetingRepository = {
     };
     return MeetingBookingModel.collection.findOneAndUpdate(filter, {
       $set: { ...data, reservationSlots: getReservationSlots(data.date, data.start, data.end), updatedAt: new Date() },
+      ...(resetReminder ? { $unset: { reminderSentAt: "", reminderLockUntil: "" } } : {}),
       $inc: { managementRevision: 1 },
     }, { returnDocument: "after", projection: { reservationSlots: 0 } }) as Promise<AdminBookingDocument | null>;
   },

@@ -14,6 +14,9 @@ const meetingBookingSchema = new Schema<MeetingBooking>(
     organizer: { type: String, required: true, trim: true },
     email: { type: String, required: true, trim: true, lowercase: true },
     department: { type: String, required: true, trim: true },
+    reminderSentAt: { type: Date },
+    reminderLockUntil: { type: Date },
+    isDemoData: { type: Boolean, default: false },
     archiveClaimedAt: { type: Date, select: false },
   },
   {

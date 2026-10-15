@@ -3,7 +3,7 @@ import AuthFlow from "../login/AuthFlow";
 
 export const metadata: Metadata = {
   title: "Đăng ký thành viên · Asia Internal Portal",
-  description: "Trang đăng ký tài khoản cho cổng thông tin nội bộ Asia Food & Beverage.",
+  description: "Trang đăng ký tài khoản cho cổng thông tin nội bộ Asia Food & Beverage co.ltd.",
 };
 
 export default function AdminRegisterPage() {

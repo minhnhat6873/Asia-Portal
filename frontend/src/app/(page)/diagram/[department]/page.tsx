@@ -21,7 +21,7 @@ export async function generateMetadata({ params }: DepartmentPageProps): Promise
   const department = findDiagramDepartment(slug);
 
   return {
-    title: department ? `${department.name} · Asia Food & Beverage` : "Phòng ban · Asia Food & Beverage",
+    title: department ? `${department.name} · Asia Food & Beverage co.ltd` : "Phòng ban · Asia Food & Beverage co.ltd",
   };
 }
 

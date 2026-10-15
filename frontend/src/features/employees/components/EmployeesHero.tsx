@@ -12,7 +12,7 @@ export default function EmployeesHero() {
     <section className="relative h-auto min-h-[280px] w-full overflow-hidden py-5 sm:h-64 sm:min-h-0 sm:py-0 xl:h-75">
       <Image
         src="/assets/images/employees-banner.png"
-        alt="Đội ngũ Asia Food & Beverage"
+        alt="Đội ngũ Asia Food & Beverage co.ltd"
         fill
         priority
         sizes="100vw"

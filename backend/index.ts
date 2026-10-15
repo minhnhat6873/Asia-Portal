@@ -15,6 +15,7 @@ import {
 import { globalErrorHandler } from "./src/middlewares/error.middleware";
 import routes from "./src/routes/index.route";
 import { startMeetingBookingArchiveJob } from "./src/jobs/meeting-booking-archive.job";
+import { startMeetingBookingReminderJob } from "./src/jobs/meeting-booking-reminder.job";
 import { startTinyMceImageCleanupJob } from "./src/jobs/tinyMceImageCleanup.job";
 
 const app = express();
@@ -83,6 +84,7 @@ app.use(globalErrorHandler);
 async function startServer(): Promise<void> {
   await connectDatabase();
   startMeetingBookingArchiveJob();
+  startMeetingBookingReminderJob();
   startTinyMceImageCleanupJob();
 
   app.listen(port, () => {

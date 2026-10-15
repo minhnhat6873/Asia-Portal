@@ -127,7 +127,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full bg-[#060806]">
             <Image
               src="/assets/images/asia-logo.png"
-              alt="Asia Food & Beverage"
+              alt="Asia Food & Beverage co.ltd"
               fill
               sizes="48px"
               className="object-cover"

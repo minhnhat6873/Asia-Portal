@@ -8,6 +8,7 @@ import { AppError } from "../../utils/errors/AppError";
 import { escapeRegex } from "../../utils/regex/escapeRegex";
 import { getVietnamDateTimeAsUtc, getVietnamNow } from "../../utils/time/vietnamTime";
 import { MIN_MEETING_GAP_MINUTES } from "../../config/meeting.config";
+import { remindMeetingBookingIfDue } from "../../jobs/meeting-booking-reminder.job";
 
 const VIETNAMESE_LETTER_GROUPS: Record<string, string> = {
   a: "aáàảãạăắằẳẵặâấầẩẫậ",
@@ -98,6 +99,7 @@ export const adminMeetingService = {
     try {
       const booking = await meetingBookingRepository.create(data);
       if (!booking) throw new AppError(500, "Không thể tạo lịch họp.");
+      await remindMeetingBookingIfDue(String(booking._id));
       return toResponse(booking);
     } catch (error) { return conflict(error); }
   },
@@ -115,9 +117,10 @@ export const adminMeetingService = {
       throw new AppError(409, "Lịch đang họp chỉ được sửa tiêu đề, người chủ trì, email và phòng ban.");
     }
     const data = validated({ ...before, ...input }, status === "upcoming");
+    const scheduleChanged = booking.roomId !== data.roomId || booking.date !== data.date || booking.start !== data.start || booking.end !== data.end || booking.email !== data.email;
     if (await meetingBookingRepository.findOverlapping(data.roomId, data.date, data.start, data.end, MIN_MEETING_GAP_MINUTES, undefined, id)) throw new AppError(409, "Khung giờ mới trùng lịch hoặc chưa đủ khoảng nghỉ.");
     try {
-      const updated = await adminMeetingRepository.update(booking, data, status === "upcoming");
+      const updated = await adminMeetingRepository.update(booking, data, status === "upcoming", scheduleChanged);
       if (!updated) throw new AppError(409, "Lịch vừa thay đổi hoặc chuyển trạng thái. Vui lòng tải lại.");
       await adminMeetingRepository.revokeCancel(id);
       return { before, after: toResponse(updated) };

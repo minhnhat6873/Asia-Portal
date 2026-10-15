@@ -57,10 +57,11 @@ function toUser(account: ApiAccount): User {
     department: account.role === "admin" ? "Quản trị hệ thống" : "",
     status: account.status === "inactive" ? "suspended" : account.status,
     lastActive: account.updatedAt ? new Date(account.updatedAt).toLocaleString("vi-VN") : "",
+    createdAt: account.createdAt ? new Date(account.createdAt).toLocaleDateString("vi-VN") : "",
   };
 }
 
-export function AccessControlTabs({ activeTab, onNavigate, page, onNavigateToPage, trashItems, onRemoveTrashItem, onRestoreExternalTrashItem }: AccessControlTabsProps) {
+export function AccessControlTabs({ activeTab, onNavigate, page, onNavigateToPage, trashItems, onAddTrashItem, onRemoveTrashItem, onRestoreExternalTrashItem }: AccessControlTabsProps) {
   const [users, setUsers] = useState<User[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -72,14 +73,18 @@ export function AccessControlTabs({ activeTab, onNavigate, page, onNavigateToPag
     setIsLoading(true);
     try {
       const [accounts, groups] = await Promise.all([getAccounts(), getPermissionGroups()]);
-      setUsers(accounts.map(toUser));
+      const trashedAccountIds = new Set(trashItems.filter((item) => item.entityType === "access_user").map((item) => {
+        const payload = item.payload as { id?: unknown } | null;
+        return payload?.id ? String(payload.id) : "";
+      }));
+      setUsers(accounts.filter((account) => !trashedAccountIds.has(account.id)).map(toUser));
       setRoles(groups.filter((group) => group.status === "active").map(toRole));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Không thể tải dữ liệu phân quyền.");
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [trashItems]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => { void reload(); }, 0);
@@ -113,7 +118,14 @@ export function AccessControlTabs({ activeTab, onNavigate, page, onNavigateToPag
       onSaveUserAccess={saveAccountAccess}
       onApproveUser={(userId, roleId) => void saveAccountAccess(userId, { roleId: roleId ?? "", status: "active" })}
       onRejectUser={(userId) => void saveAccountAccess(userId, { roleId: "", status: "suspended" })}
-      onDeleteUser={(userId) => void saveAccountAccess(userId, { roleId: "", status: "suspended" })}
+      onDeleteUser={(userId) => {
+        const user = users.find((item) => item.id === userId);
+        if (!user) return;
+        void updateAccount(userId, { status: "inactive", permissionGroupIds: [] }).then(() => {
+          onAddTrashItem({ entityType: "access_user", title: user.name, payload: user });
+          return reload();
+        }).catch((error: unknown) => toast.error(error instanceof Error ? error.message : "Không thể chuyển tài khoản vào thùng rác."));
+      }}
       onAddUser={(user) => void (async () => {
         try {
           if (!user.password) {
@@ -127,6 +139,7 @@ export function AccessControlTabs({ activeTab, onNavigate, page, onNavigateToPag
       })()}
       onNavigateToCreateRole={() => onNavigateToPage("new-role")}
       onViewRoleDetail={(roleId) => { setSelectedRoleId(roleId); onNavigateToPage("roles"); }}
+      deletedCount={trashItems.filter((item) => item.entityType === "access_user" || item.entityType === "account").length}
     />;
   }
 
@@ -148,14 +161,31 @@ export function AccessControlTabs({ activeTab, onNavigate, page, onNavigateToPag
       catch (error) { toast.error(error instanceof Error ? error.message : "Không thể lưu nhóm quyền."); }
     })()}
     onDeleteRole={(roleId) => void (async () => {
-      try { await updatePermissionGroup(roleId, { status: "inactive" }); await reload(); toast.success("Đã ngừng áp dụng nhóm quyền."); }
+      try {
+        const role = roles.find((item) => item.id === roleId);
+        await updatePermissionGroup(roleId, { status: "inactive" });
+        if (role) onAddTrashItem({ entityType: "role", title: role.name, payload: role });
+        await reload(); toast.success("Đã chuyển nhóm quyền vào thùng rác.");
+      }
       catch (error) { toast.error(error instanceof Error ? error.message : "Không thể cập nhật nhóm quyền."); }
     })()}
     onAssignUsersToRole={(roleId, userIds) => void Promise.all(userIds.map((userId) => updateAccount(userId, { permissionGroupIds: [roleId] }))).then(reload).catch((error: unknown) => toast.error(error instanceof Error ? error.message : "Không thể gán nhóm quyền."))}
     onNavigateToUserTab={() => activeTab === "permissions" ? onNavigateToPage("accounts") : onNavigate("permissions")}
     onNavigateToRoles={() => activeTab === "permissions" ? onNavigateToPage("roles") : setSettingsSubTab("manage_roles")}
+    onNavigateToCreateRole={() => onNavigateToPage("new-role")}
     trashItems={trashItems}
-    onRestoreTrashItem={async (item) => { await onRestoreExternalTrashItem(item); onRemoveTrashItem(item.id); }}
+    onRestoreTrashItem={async (item) => {
+      if (item.entityType === "access_user") {
+        const user = item.payload as User;
+        await updateAccount(user.id, { status: user.status === "suspended" ? "inactive" : "active", permissionGroupIds: user.roleId ? [user.roleId] : [] });
+        await reload();
+      } else if (item.entityType === "role") {
+        const role = item.payload as Role;
+        await updatePermissionGroup(role.id, { status: "active" });
+        await reload();
+      } else await onRestoreExternalTrashItem(item);
+      onRemoveTrashItem(item.id);
+    }}
     onPermanentlyDeleteTrashItem={onRemoveTrashItem}
   />;
 }

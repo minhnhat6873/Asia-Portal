@@ -174,8 +174,8 @@ function printBookingTable(list: Booking[], scope: PrintScope, orientation: Prin
 <body>
   <header class="report-header">
     <div class="brand">
-      <img class="brand-logo" src="${escapeHtml(logoUrl)}" alt="Asia Food &amp; Beverage">
-      <div><div class="brand-name">Asia Food &amp; Beverage</div><div class="brand-tagline">GROWING TOGETHER</div></div>
+      <img class="brand-logo" src="${escapeHtml(logoUrl)}" alt="Asia Food &amp; Beverage co.ltd">
+      <div><div class="brand-name">Asia Food &amp; Beverage co.ltd</div><div class="brand-tagline">GROWING TOGETHER</div></div>
     </div>
     <div class="print-info">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/><path d="M18 11h.01"/></svg>
@@ -187,12 +187,12 @@ function printBookingTable(list: Booking[], scope: PrintScope, orientation: Prin
     <h1>${escapeHtml(title)}</h1>
     <p class="subtitle">Meeting Schedule Report</p>
     <div class="title-rules"><span></span><span></span><span></span></div>
-    <p class="description">Asia Food &amp; Beverage · In lúc ${escapeHtml(printedAt)} · ${sortedBookings.length} cuộc họp</p>
+    <p class="description">Asia Food &amp; Beverage co.ltd · In lúc ${escapeHtml(printedAt)} · ${sortedBookings.length} cuộc họp</p>
   </section>
   <section class="summary">
     <div class="summary-item">
       <svg class="summary-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 21h18"/><path d="M6 21V5l6-3v19"/><path d="M12 8h6v13"/><path d="M8 7v.01M8 11v.01M8 15v.01M15 11v.01M18 11v.01M15 15v.01M18 15v.01"/></svg>
-      <div class="summary-copy"><div class="summary-label">Công ty / Chi nhánh</div><div class="summary-value">Asia Food &amp; Beverage</div></div>
+      <div class="summary-copy"><div class="summary-label">Công ty / Chi nhánh</div><div class="summary-value">Asia Food &amp; Beverage co.ltd</div></div>
     </div>
     <div class="summary-item report-period">
       <svg class="summary-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18M8 15h.01M12 15h.01M16 15h.01"/></svg>
@@ -207,7 +207,7 @@ function printBookingTable(list: Booking[], scope: PrintScope, orientation: Prin
     <thead><tr><th>#</th><th>Tiêu đề</th><th>Người đặt</th><th>Phòng ban</th><th>Ngày &amp; giờ</th><th>Email</th><th>Phòng họp</th><th>Số người</th></tr></thead>
     <tbody>${rows}</tbody>
   </table>
-  <footer class="report-footer"><span>Asia Food &amp; Beverage&nbsp; | &nbsp;Meeting Schedule</span><span>${escapeHtml(pageUrl)}</span><span>Trang 1/1</span></footer>
+  <footer class="report-footer"><span>Asia Food &amp; Beverage co.ltd&nbsp; | &nbsp;Meeting Schedule</span><span>${escapeHtml(pageUrl)}</span><span>Trang 1/1</span></footer>
 </body>
 </html>`);
   printDocument.close();
@@ -1027,7 +1027,7 @@ function RoomBookingCards({ bookings, onBook, onOpenSchedule }: { bookings: Book
         <div className="relative flex min-h-[266px] items-end">
           <div className="max-w-4xl">
             <div className="flex flex-wrap items-center gap-2.5">
-              <p className="w-fit rounded-full border border-white/20 bg-white/[0.11] px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.08em] text-emerald-50 backdrop-blur-sm">Asia Food &amp; Beverage JSC</p>
+              <p className="w-fit rounded-full border border-white/20 bg-white/[0.11] px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.08em] text-emerald-50 backdrop-blur-sm">Asia Food &amp; Beverage co.ltd</p>
               <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-100"><span className="h-1.5 w-1.5 rounded-full bg-lime-300" />Không gian họp chuyên nghiệp</span>
             </div>
             <h1 className="mt-5 max-w-3xl text-3xl font-extrabold leading-[1.08] tracking-tight sm:text-4xl">Hệ thống phòng họp WANA hiện đại</h1>

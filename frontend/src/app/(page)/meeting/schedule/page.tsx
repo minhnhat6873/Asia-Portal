@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import MeetingPage from "@/features/meeting/MeetingPage";
 
 export const metadata: Metadata = {
-  title: "Lịch phòng họp · Asia Food & Beverage",
+  title: "Lịch phòng họp · Asia Food & Beverage co.ltd",
 };
 
 export default function MeetingSchedulePage() {

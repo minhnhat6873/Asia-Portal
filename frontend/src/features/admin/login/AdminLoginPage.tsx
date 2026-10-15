@@ -4,7 +4,7 @@ import AuthFlow from "./AuthFlow";
 export const metadata: Metadata = {
   title: "Đăng nhập hệ thống · Asia Internal Portal",
   description:
-    "Trang đăng nhập, đăng ký và xác thực OTP dành cho nhân sự của cổng thông tin nội bộ Asia Food & Beverage.",
+    "Trang đăng nhập, đăng ký và xác thực OTP dành cho nhân sự của cổng thông tin nội bộ Asia Food & Beverage co.ltd.",
 };
 
 /**

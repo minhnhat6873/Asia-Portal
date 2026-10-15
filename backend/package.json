@@ -29,7 +29,8 @@
     "test": "jest",
     "seed:admin": "ts-node scripts/create-admin.ts",
     "seed:employees": "ts-node scripts/seed-employees.ts",
-    "seed:media": "ts-node scripts/seed-media.ts"
+    "seed:media": "ts-node scripts/seed-media.ts",
+    "seed:meetings": "ts-node scripts/seed-meetings.ts"
   },
   "devDependencies": {
     "@types/cookie-parser": "^1.4.10",

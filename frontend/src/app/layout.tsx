@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Asia Internal Portal",
-  description: "Cổng thông tin nội bộ Asia Food & Beverage",
+  description: "Cổng thông tin nội bộ Asia Food & Beverage co.ltd",
 };
 
 export default function RootLayout({

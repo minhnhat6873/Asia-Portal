@@ -14,6 +14,9 @@ export interface MeetingBooking {
   department: string;
   createdAt?: Date;
   updatedAt?: Date;
+  reminderSentAt?: Date;
+  reminderLockUntil?: Date;
+  isDemoData?: boolean;
   archiveClaimedAt?: Date;
 }
 

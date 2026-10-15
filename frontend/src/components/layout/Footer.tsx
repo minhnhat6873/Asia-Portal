@@ -23,9 +23,9 @@ export default function Footer() {
           {/* Brand */}
           <div className="col-span-2 md:col-span-1">
             <div className="bg-white rounded-xl p-2 inline-block mb-4">
-              <Image src="/assets/images/asia-logo.png" alt="Asia Food & Beverage JSC" width={64} height={64} className="h-12 w-12 sm:h-16 sm:w-16 object-contain" />
+              <Image src="/assets/images/asia-logo.png" alt="Asia Food & Beverage co.ltd" width={64} height={64} className="h-12 w-12 sm:h-16 sm:w-16 object-contain" />
             </div>
-            <p className="text-[#f5c800] font-bold text-sm mb-1">ASIA FOOD &amp; BEVERAGE JSC</p>
+            <p className="text-[#f5c800] font-bold text-sm mb-1">ASIA FOOD &amp; BEVERAGE co.ltd</p>
             <p className="text-white/60 text-xs leading-relaxed">
               Kết nối • Phát triển<br />
               Cổng thông tin nội bộ dành cho toàn thể<br />
@@ -71,7 +71,7 @@ export default function Footer() {
         {/* Bottom bar */}
         <div className="mt-7 flex flex-col gap-2 border-t border-white/10 pt-5 text-center sm:mt-8 sm:pt-6 md:flex-row md:text-left items-center justify-between gap-3">
           <p className="text-white/40 text-xs">
-            © 2026 Asia Food & Beverage. All rights reserved.
+            © 2026 Asia Food & Beverage co.ltd. All rights reserved.
           </p>
         </div>
       </div>

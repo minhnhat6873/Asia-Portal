@@ -444,7 +444,7 @@ export function ArticleReaderModal({ post, onClose, onEdit, onDelete, showAdminA
         <div ref={scrollRef} data-reader-scroll data-reader-print-root onWheel={pauseForManualScroll} onTouchStart={pauseForManualScroll} onPointerDown={(event) => { if (event.clientX >= event.currentTarget.getBoundingClientRect().right - 16) pauseForManualScroll(); }} onKeyDown={(event) => { if (["ArrowDown", "ArrowUp", "PageDown", "PageUp", "Home", "End", " "].includes(event.key)) pauseForManualScroll(); }} tabIndex={0} className={`min-h-0 overflow-y-auto overscroll-contain bg-white ${showAdminActions ? "flex-1" : "max-h-[calc(86vh-140px)] flex-none"}`}>
           <div data-reader-print-header className="mx-auto w-full max-w-4xl px-4 pt-5 sm:px-8">
             <img src="/assets/images/asia-logo.png" alt="Asia F&B" />
-            <div><strong>Asia Food &amp; Beverage</strong><span>BẢN TIN TRUYỀN THÔNG NỘI BỘ</span></div>
+            <div><strong>Asia Food &amp; Beverage co.ltd</strong><span>BẢN TIN TRUYỀN THÔNG NỘI BỘ</span></div>
           </div>
           <article ref={articleRef} data-reader-page style={{ zoom: zoom / 100, width: `${10000 / zoom}%`, maxWidth: `${89600 / zoom}px` }} className={`mx-auto max-w-4xl ${showAdminActions ? "px-4 py-5 sm:px-8 sm:py-8" : "px-4 py-4 sm:px-6 sm:py-5"} ${isFocus ? "reader-focus" : ""}`}>
             {post.coverImage && <img data-reader-cover src={post.coverImage} alt={post.title} className={`reader-cover mb-5 ${showAdminActions ? "max-h-[420px]" : "max-h-[280px]"} w-full rounded-2xl object-cover ${isFocus ? "hidden" : ""}`} />}

@@ -178,7 +178,7 @@ function BrandBadge({ size = 84 }: { size?: number }) {
     >
       <Image
         src="/assets/images/asia-logo.png"
-        alt="Asia Food & Beverage"
+        alt="Asia Food & Beverage co.ltd"
         fill
         priority
         sizes={`${size}px`}
@@ -373,16 +373,6 @@ function LoginScreen({
           </button>
         </form>
 
-        <div className="mt-6 text-center text-base text-zinc-400">
-          Chưa có tài khoản?{" "}
-          <button
-            type="button"
-            onClick={() => onNavigate("register")}
-            className={`${LINK} ml-1 underline`}
-          >
-            Đăng ký ngay
-          </button>
-        </div>
       </div>
     </div>
   );
@@ -651,16 +641,6 @@ function RegisterScreen({
           </button>
         </form>
 
-        <div className="mt-6 text-center text-base text-zinc-400">
-          Đã có tài khoản?{" "}
-          <button
-            type="button"
-            onClick={() => onNavigate("login")}
-            className={`${LINK} ml-1 underline`}
-          >
-            Đăng nhập ngay
-          </button>
-        </div>
       </div>
     </div>
   );
@@ -1140,7 +1120,7 @@ export default function AuthFlow({ initialView = "login" }: AuthFlowProps) {
       <footer className="mx-auto w-full max-w-5xl border-t border-white/10 px-4 py-6 text-xs text-zinc-500">
         <div className="flex items-center justify-center gap-2 text-center">
           <span className="h-2 w-2 animate-pulse rounded-full bg-[#f5c800]" />
-          <span>Asia Internal Portal • Hệ thống xác thực nội bộ Asia Food &amp; Beverage</span>
+          <span>Asia Internal Portal • Hệ thống xác thực nội bộ Asia Food &amp; Beverage co.ltd</span>
         </div>
       </footer>
     </main>

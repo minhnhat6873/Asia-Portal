@@ -60,7 +60,7 @@ function BrandBadge({ size = 84 }: { size?: number }) {
     >
       <Image
         src="/assets/images/asia-logo.png"
-        alt="Asia Food & Beverage"
+        alt="Asia Food & Beverage co.ltd"
         fill
         priority
         sizes={`${size}px`}

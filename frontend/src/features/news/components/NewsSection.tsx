@@ -286,7 +286,7 @@ export default function NewsSection({ preview = false }: Props) {
                   Asia Stories
                 </p>
                 <h1 className="mt-2 text-3xl font-black leading-[1.08] tracking-[-0.035em] text-white sm:text-4xl md:text-5xl">
-                  Asia Food &amp; Beverage
+                  Asia Food &amp; Beverage co.ltd
                 </h1>
                 <p className="mt-3 text-xl font-black leading-tight text-[#f5c800] sm:text-2xl md:text-3xl">
                   Tin tức &amp; Truyền thông
