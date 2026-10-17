@@ -1,9 +1,9 @@
 import Link from "next/link";
-import { ArrowRight, Building2, CalendarDays, Megaphone, Toolbox } from "lucide-react";
+import { ArrowRight, Building2, CalendarDays, Toolbox } from "lucide-react";
 
 const links = [
   { href: "/meeting", icon: CalendarDays, title: "Đặt phòng họp", desc: "Đặt phòng và theo dõi lịch họp" },
-  { href: "/news", icon: Megaphone, title: "Truyền thông nội bộ", desc: "Tin tức, sự kiện, hoạt động" },
+  { href: "https://request.base.vn/requests", icon: CalendarDays, title: "Đăng ký nghỉ phép", desc: "Gửi và theo dõi yêu cầu nghỉ phép", external: true },
   { href: "#resources", icon: Toolbox, title: "Công cụ & tài nguyên", desc: "Các tiện ích nội bộ dành cho nhân viên" },
   { href: "/about-asia", icon: Building2, title: "Về Á Châu", desc: "Văn hóa, giá trị, tầm nhìn" },
 ];

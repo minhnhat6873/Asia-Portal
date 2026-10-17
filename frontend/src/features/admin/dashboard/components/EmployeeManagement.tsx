@@ -868,6 +868,7 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
               details={[
                 { icon: User, label: 'Mã nhân viên', value: selectedEmployeeForDossier.code },
                 { icon: User, label: 'Giới tính', value: getEmployeeGenderLabel(selectedEmployeeForDossier.gender) },
+                { icon: Cake, label: '\u004e\u0067\u00e0\u0079 \u0073\u0069\u006e\u0068', value: selectedEmployeeForDossier.birthDate || '\u0043\u0068\u01b0\u0061 \u0063\u00f3 \u0064\u1eef \u006c\u0069\u1ec7\u0075' },
                 { icon: Calendar, label: 'Ngày gia nhập', value: selectedEmployeeForDossier.joinDate },
                 { icon: Briefcase, label: 'Chức vụ', value: selectedEmployeeForDossier.position },
                 { icon: Building, label: 'Phòng ban', value: getEmployeeDepartmentLabel(selectedEmployeeForDossier.department) },

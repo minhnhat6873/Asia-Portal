@@ -8,6 +8,8 @@ import { userEmployeeRepository } from "../../repositories/user/employee.reposit
 import { AppError } from "../../utils/errors/AppError";
 import { normalizeSearchText } from "../../utils/text/normalizeSearchText";
 
+const PUBLIC_EMPLOYEE_STATUSES = ["active", "probation"] as const;
+
 function ensureValidId(id: string): void {
   if (!mongoose.isValidObjectId(id)) {
     throw new AppError(400, "Mã nhân viên không hợp lệ");
@@ -17,7 +19,7 @@ function ensureValidId(id: string): void {
 export const userEmployeeService = {
   async getDepartments(): Promise<string[]> {
     const departments = await userEmployeeRepository.findDepartments({
-      status: "active",
+      status: { $in: PUBLIC_EMPLOYEE_STATUSES },
       isDeleted: { $ne: true },
     });
     return [...new Set(departments.filter((value): value is string => typeof value === "string")
@@ -27,7 +29,7 @@ export const userEmployeeService = {
   async getEmployees(query: EmployeeListQuery) {
     const page = Math.max(Number(query.page) || 1, 1);
     const limit = Math.min(Math.max(Number(query.limit) || 12, 1), 100);
-    const filter: QueryFilter<Employee> = { status: "active", isDeleted: { $ne: true } };
+    const filter: QueryFilter<Employee> = { status: { $in: PUBLIC_EMPLOYEE_STATUSES }, isDeleted: { $ne: true } };
 
     if (query.department) filter.department = query.department;
     if (query.position) filter.position = query.position;
@@ -69,7 +71,7 @@ export const userEmployeeService = {
   async getEmployeeById(id: string) {
     ensureValidId(id);
     const employee = await userEmployeeRepository.findById(id);
-    if (!employee || employee.status !== "active") {
+    if (!employee || !PUBLIC_EMPLOYEE_STATUSES.includes(employee.status)) {
       throw new AppError(404, "Không tìm thấy nhân viên");
     }
     return employee;
