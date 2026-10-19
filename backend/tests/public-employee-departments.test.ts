@@ -8,12 +8,12 @@ import { userEmployeeService } from "../src/services/user/employee.service";
 describe("public employee departments", () => {
   beforeEach(() => jest.clearAllMocks());
 
-  it("queries only active, non-deleted employees without pagination", async () => {
+  it("queries active and probation, non-deleted employees without pagination", async () => {
     jest.mocked(userEmployeeRepository.findDepartments).mockResolvedValue(["HR_AD"]);
 
     expect(await userEmployeeService.getDepartments()).toEqual(["HR_AD"]);
     expect(userEmployeeRepository.findDepartments).toHaveBeenCalledWith({
-      status: "active", isDeleted: { $ne: true },
+      status: { $in: ["active", "probation"] }, isDeleted: { $ne: true },
     });
   });
 

@@ -2,6 +2,7 @@ import type { NextFunction, Request, Response } from "express";
 import jwt, { type JwtPayload } from "jsonwebtoken";
 import mongoose from "mongoose";
 
+import { deleteCloudinaryAsset } from "../helpers/multerCloudinary.helper";
 import { AUTH_COOKIE_NAME } from "../config/auth.config";
 import {
   type AccountRole,
@@ -10,6 +11,7 @@ import { adminAccountRepository } from "../repositories/admin/account.repository
 import { permissionGroupRepository } from "../repositories/admin/permission-group.repository";
 import {
   PERMISSION_ACTIONS,
+  filterPermissionActions,
   type PermissionAction,
 } from "../interfaces/permission-group.interface";
 
@@ -68,12 +70,14 @@ export async function requireAdminAuth(
     );
     const permissions = account.role === "admin"
       ? [...PERMISSION_ACTIONS]
-      : [...new Set(groups.flatMap((group) => group.actions))];
+      : filterPermissionActions(groups.flatMap((group) => group.actions));
 
     request.admin = {
       id: account._id.toString(),
       name: account.name,
       email: account.email,
+      phone: account.phone,
+      status: account.status,
       role: account.role,
       permissions,
     };
@@ -121,11 +125,7 @@ export function requireEmployeeUpdatePermission(
   response: Response,
   next: NextFunction,
 ): void {
-  const permission: PermissionAction = request.body?.status === "inactive"
-    ? "employees:deactivate"
-    : "employees:update";
-
-  requirePermissions(permission)(request, response, next);
+  requirePermissions("employees:update")(request, response, next);
 }
 
 export function requireMediaUpdatePermission(
@@ -133,8 +133,33 @@ export function requireMediaUpdatePermission(
   response: Response,
   next: NextFunction,
 ): void {
-  const permission: PermissionAction = request.body?.status !== undefined
-    ? "media:publish"
-    : "media:update";
-  requirePermissions(permission)(request, response, next);
+  const fields = Object.keys(request.body ?? {});
+  const permissions: PermissionAction[] = [];
+  if (fields.includes("status")) permissions.push("media:publish");
+  if (fields.some((field) => field !== "status") || request.file || !fields.length) permissions.push("media:update");
+  enforceMediaPermissions(request, response, next, permissions);
+}
+
+export function requireAnyPermission(...permissions: PermissionAction[]) {
+  return (request: Request, response: Response, next: NextFunction): void => {
+    if (!request.admin || !permissions.some((permission) => request.admin!.permissions.includes(permission))) {
+      response.status(403).json({ success: false, message: "Tài khoản chưa được cấp quyền thực hiện thao tác này" });
+      return;
+    }
+    next();
+  };
+}
+
+export function requireMediaCreatePermission(request: Request, response: Response, next: NextFunction): void {
+  const permissions: PermissionAction[] = request.body?.status === "published" ? ["media:create", "media:publish"] : ["media:create"];
+  enforceMediaPermissions(request, response, next, permissions);
+}
+
+function enforceMediaPermissions(request: Request, response: Response, next: NextFunction, permissions: PermissionAction[]): void {
+  const rejectOrProceed = () => requirePermissions(...permissions)(request, response, next);
+  if (request.file?.filename && !permissions.every((permission) => request.admin?.permissions.includes(permission))) {
+    void deleteCloudinaryAsset(request.file.filename).catch(() => undefined).finally(rejectOrProceed);
+    return;
+  }
+  rejectOrProceed();
 }

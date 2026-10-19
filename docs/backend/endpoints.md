@@ -1,6 +1,6 @@
 # Danh sách endpoint backend
 
-Cập nhật lần cuối: 2026-10-09. File nguồn đã đọc: `backend/src/routes/**`, `backend/src/controllers/**`, `backend/src/services/**`, `backend/src/middlewares/**`, `backend/src/validates/**`.
+Cập nhật lần cuối: 2026-10-19. File nguồn đã đọc: `backend/src/routes/**`, `backend/src/controllers/**`, `backend/src/services/**`, `backend/src/middlewares/**`, `backend/src/validates/**`.
 
 Tất cả endpoint đi qua middleware toàn cục tại `backend/index.ts`: Helmet, CORS, limiter public (trừ health/admin), parser, cookie parser và sanitize. `ADMIN GATE` bên dưới nghĩa là `requireAdminAuth` + limiter theo account do [index.route.ts](/D:/Vscode/Asia-Portal/backend/src/routes/index.route.ts:36) mount sẵn. Response đều bọc `success`; chi tiết tại `api-response.md`.
 
@@ -29,15 +29,21 @@ Tất cả endpoint đi qua middleware toàn cục tại `backend/index.ts`: Hel
 | POST | `/admin/auth/forgot-password/resend-otp` | register limiter, body email | `resendPasswordResetOtp` | `passwordResetOtpService.resend` | `expiresInSeconds` |
 | POST | `/admin/auth/refresh` | refresh limiter | `refreshLogin` | `adminAuthService.refresh` | admin; set access cookie |
 | POST | `/admin/auth/logout` | — | `logout` | — | message; clear cookies |
+| POST | `/admin/auth/password/request-otp` | auth, OTP send limiter, body currentPassword/newPassword | `requestPasswordChangeOtp` | `passwordChangeOtpService.request` | requestId, email, expiresInSeconds, resendAfterSeconds (202) |
+| POST | `/admin/auth/password/resend-otp` | auth, OTP send limiter, body requestId | `resendPasswordChangeOtp` | `passwordChangeOtpService.resend` | requestId, email, expiresInSeconds, resendAfterSeconds |
+| PATCH | `/admin/auth/password` | auth, OTP verify limiter, body requestId/code | `changePassword` | `passwordChangeOtpService.confirm` | message; đổi mật khẩu khi OTP đúng |
+| POST | `/admin/auth/email/request-otp` | auth, email OTP send limiter, body newEmail | `requestEmailChangeOtp` | `emailChangeOtpService.request` | requestId, email (mới), expiresInSeconds, resendAfterSeconds (202) |
+| POST | `/admin/auth/email/resend-otp` | auth, email OTP send limiter, body requestId | `resendEmailChangeOtp` | `emailChangeOtpService.resend` | metadata OTP mới |
+| PATCH | `/admin/auth/email` | auth, email OTP verify limiter, body requestId/code | `changeEmail` | `emailChangeOtpService.confirm` | `{ email }`; chỉ đổi sau xác nhận OTP |
 | GET | `/admin/auth/me` | auth, session limiter | `getCurrentAccount` | — | `request.admin` |
 | GET | `/admin/dashboard/summary` | ADMIN GATE, `dashboard:view` | `getDashboardSummary` | `adminDashboardService.getSummary` | các số tổng hợp |
 | GET | `/admin/employees` | ADMIN GATE, `employees:view`, validate query | `getEmployees` | `adminEmployeeService.getEmployees` | danh sách + pagination |
-| GET | `/admin/employees/trash` | ADMIN GATE, `employees:delete`, validate query | `getDeletedEmployees` | `adminEmployeeService.getDeletedEmployees` | thùng rác + pagination |
+| GET | `/admin/employees/trash` | ADMIN GATE, `employees:trash`, validate query | `getDeletedEmployees` | `adminEmployeeService.getDeletedEmployees` | thùng rác + pagination |
 | GET | `/admin/employees/:id` | ADMIN GATE, `employees:view` | `getEmployeeById` | `adminEmployeeService.getEmployeeById` | nhân viên |
 | POST | `/admin/employees` | ADMIN GATE, `employees:create`, Cloudinary, multipart avatar, validate upload | `createEmployee` | `adminEmployeeService.createEmployee` + audit | nhân viên (201) |
-| PATCH | `/admin/employees/:id` | ADMIN GATE, Cloudinary, multipart avatar, validate upload, quyền update/deactivate | `updateEmployee` | `adminEmployeeService.updateEmployee` + audit | nhân viên |
-| POST | `/admin/employees/:id/restore` | ADMIN GATE, `employees:delete` | `restoreEmployee` | `adminEmployeeService.restoreEmployee` + audit | nhân viên |
-| DELETE | `/admin/employees/:id/permanent` | ADMIN GATE, `employees:delete` | `permanentlyDeleteEmployee` | `adminEmployeeService.permanentlyDeleteEmployee` + audit | nhân viên |
+| PATCH | `/admin/employees/:id` | ADMIN GATE, Cloudinary, multipart avatar, validate upload, `employees:update` | `updateEmployee` | `adminEmployeeService.updateEmployee` + audit | nhân viên |
+| POST | `/admin/employees/:id/restore` | ADMIN GATE, `employees:trash` | `restoreEmployee` | `adminEmployeeService.restoreEmployee` + audit | nhân viên |
+| DELETE | `/admin/employees/:id/permanent` | ADMIN GATE, `employees:trash` | `permanentlyDeleteEmployee` | `adminEmployeeService.permanentlyDeleteEmployee` + audit | nhân viên |
 | DELETE | `/admin/employees/:id` | ADMIN GATE, `employees:delete` | `softDeleteEmployee` | `adminEmployeeService.softDeleteEmployee` + audit | nhân viên |
 | GET | `/admin/media` | ADMIN GATE, `media:view`, validate query | `getMedia` | `adminMediaService.getMedia` | bài viết + pagination |
 | GET | `/admin/media/:id` | ADMIN GATE, `media:view` | `getMediaById` | `adminMediaService.getMediaById` | bài viết |
@@ -45,13 +51,17 @@ Tất cả endpoint đi qua middleware toàn cục tại `backend/index.ts`: Hel
 | PATCH | `/admin/media/:id` | ADMIN GATE, Cloudinary, multipart cover, validate upload, quyền update/publish | `updateMedia` | `adminMediaService.updateMedia` + audit | bài viết |
 | DELETE | `/admin/media/:id` | ADMIN GATE, `media:delete` | `permanentlyDeleteMedia` | `adminMediaService.permanentlyDeleteMedia` + audit | bài viết đã xóa vĩnh viễn |
 | GET | `/admin/audit-logs` | ADMIN GATE, role `admin`, validate query | `getAuditLogs` | `auditLogService.getAuditLogs` | audit logs + pagination |
+| DELETE | `/admin/accounts/:id` | ADMIN GATE, role `admin` | `deleteAccount` | `adminAccountService.deleteAccount` + audit | `{ id }`; gồm Admin khác, chặn tự xóa/Admin active cuối cùng |
 | GET | `/admin/accounts` | ADMIN GATE, role `admin` | `getAccounts` | `adminAccountService.getAccounts` | account[] |
+| POST | `/admin/accounts/check-contacts` | ADMIN GATE, role `admin`, validate body | `checkAccountContacts` | `accountContactService.check` | `{ emailAvailable?, phoneAvailable? }` từ MongoDB |
 | POST | `/admin/accounts` | ADMIN GATE, role `admin`, validate body | `createAccount` | `adminAccountService.createAccount` | account (201) |
 | PATCH | `/admin/accounts/:id` | ADMIN GATE, role `admin`, validate body | `updateAccount` | `adminAccountService.updateAccount` | account |
 | PATCH | `/admin/accounts/:id/password` | ADMIN GATE, role `admin`, validate body | `resetPassword` | `adminAccountService.resetPassword` | message |
+| GET | `/admin/permission-groups/catalog` | ADMIN GATE, role `admin` | `getPermissionCatalog` | — | `{ modules, permissions }` (16 quyền) |
 | GET | `/admin/permission-groups` | ADMIN GATE, role `admin` | `getGroups` | `permissionGroupService.getGroups` | group[] |
 | POST | `/admin/permission-groups` | ADMIN GATE, role `admin`, validate body | `createGroup` | `permissionGroupService.createGroup` | group (201) |
 | PATCH | `/admin/permission-groups/:id` | ADMIN GATE, role `admin`, validate body | `updateGroup` | `permissionGroupService.updateGroup` | group |
+| DELETE | `/admin/permission-groups/:id` | ADMIN GATE, role `admin` | `deleteGroup` | `permissionGroupService.deleteGroup` + audit | `{ id }`; xóa nhóm và gỡ nhóm khỏi tài khoản |
 
 Media không có thùng rác: `DELETE /admin/media/:id` xóa document khỏi MongoDB ngay và cố gắng dọn ảnh Cloudinary. Nguồn route trực tiếp: [admin auth](/D:/Vscode/Asia-Portal/backend/src/routes/admin/auth.route.ts:78), [admin employee](/D:/Vscode/Asia-Portal/backend/src/routes/admin/employee.route.ts:30), [admin media](/D:/Vscode/Asia-Portal/backend/src/routes/admin/media.route.ts), [account](/D:/Vscode/Asia-Portal/backend/src/routes/admin/account.route.ts:18), [permission group](/D:/Vscode/Asia-Portal/backend/src/routes/admin/permission-group.route.ts:16), [user employee](/D:/Vscode/Asia-Portal/backend/src/routes/user/employee.route.ts:12), [user media](/D:/Vscode/Asia-Portal/backend/src/routes/user/media.route.ts).
 

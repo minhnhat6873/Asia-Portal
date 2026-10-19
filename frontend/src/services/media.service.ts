@@ -11,6 +11,9 @@ interface ApiMedia {
   coverImage: string;
   authorDepartment: string;
   publishDate: string;
+  expiryDate?: string | null;
+  publishIndefinitely?: boolean;
+  isExpired?: boolean;
   createdAt?: string;
   status: "published";
 }
@@ -45,6 +48,9 @@ function mapPublicMedia(post: ApiMedia, featured = false): NewsItem {
     content: post.content,
     category: post.category,
     date: formatDate(post.publishDate),
+    expiryDate: post.expiryDate,
+    publishIndefinitely: post.publishIndefinitely,
+    isExpired: post.isExpired,
     createdAt: post.createdAt,
     author: post.authorDepartment,
     image: post.coverImage?.trim() || FALLBACK_IMAGE,

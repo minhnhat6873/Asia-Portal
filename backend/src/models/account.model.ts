@@ -1,5 +1,6 @@
 import bcrypt from "bcryptjs";
 import { model, models, Schema } from "mongoose";
+import { normalizeAccountPhone } from "../utils/account/normalizeContact";
 
 import {
   ACCOUNT_ROLES,
@@ -21,7 +22,9 @@ const accountSchema = new Schema<Account>(
     phone: {
       type: String,
       trim: true,
-    },    password: {
+    },
+    phoneKey: { type: String, select: false },
+    password: {
       type: String,
       required: true,
       select: false,
@@ -50,6 +53,16 @@ const accountSchema = new Schema<Account>(
     versionKey: false,
   },
 );
+
+// Existing accounts may already share a phone. Keep them intact and enforce
+// uniqueness for new/changed phones without a destructive data migration.
+accountSchema.index({ phoneKey: 1 }, { unique: true, partialFilterExpression: { phoneKey: { $type: "string" } } });
+accountSchema.pre("validate", function normalizePhone() {
+  if (!this.isModified("phone")) return;
+  const phone = this.phone ? normalizeAccountPhone(this.phone) : undefined;
+  this.phone = phone;
+  this.phoneKey = phone || undefined;
+});
 
 accountSchema.pre("save", async function hashPassword() {
   if (!this.isModified("password") || this.$locals.passwordAlreadyHashed) return;

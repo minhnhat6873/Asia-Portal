@@ -7,6 +7,8 @@ export interface Account {
   name: string;
   email: string;
   phone?: string;
+  /** Internal unique key for new/changed phone numbers; never returned by API. */
+  phoneKey?: string;
   password: string;
   role: AccountRole;
   status: AccountStatus;
@@ -19,6 +21,8 @@ export interface AuthenticatedAccount {
   id: string;
   name: string;
   email: string;
+  phone?: string;
+  status?: AccountStatus;
   role: AccountRole;
   permissions: import("./permission-group.interface").PermissionAction[];
 }
@@ -36,9 +40,8 @@ export interface RegisterAccountInput {
   password: string;
 }
 
-export interface CreateAdminAccountInput extends Omit<RegisterAccountInput, "phone"> {
-  phone?: string;
-  role: Exclude<AccountRole, "admin">;
+export interface CreateAdminAccountInput extends RegisterAccountInput {
+  role: AccountRole;
   permissionGroupIds?: string[];
 }
 

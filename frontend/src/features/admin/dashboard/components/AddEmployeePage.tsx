@@ -28,6 +28,8 @@ import { EMPLOYEE_GENDER_OPTIONS, getEmployeeGenderLabel } from '@/components/ui
 import { createAdminEmployee, getAdminEmployees, updateAdminEmployee } from '@/services/admin-employee.service';
 import { ApiError } from '@/services/api';
 
+import { useAdminPermissions } from "@/lib/adminPermissions";
+
 type FormField = "code" | "fullName" | "position" | "department" | "rank" | "joinDate" | "birthDate" | "gender" | "location" | "status" | "email" | "phone" | "bio";
 type FormErrors = Partial<Record<FormField, string>>;
 
@@ -82,8 +84,9 @@ export const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({
   mode = 'create',
   initialEmployee,
 }) => {
+  const { account, can } = useAdminPermissions();
   const isEditing = mode === 'edit' && Boolean(initialEmployee);
-  const draftStorageKey = `asia.admin.employee-form.${isEditing ? initialEmployee?.id : 'new'}`;
+  const draftStorageKey = `${account?.id ?? "anonymous"}:` + `asia.admin.employee-form.${isEditing ? initialEmployee?.id : 'new'}`;
 
   const emptyForm: EmployeeFormDraft = {
     code: '', fullName: '', position: '', department: '', rank: '',
@@ -107,6 +110,7 @@ export const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({
     bio: initialEmployee.bio ?? '',
   } : emptyForm);
 
+  const canViewBirthDate = can("employees:view-birth-date");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<FormErrors>({});
   const [avatarUploaderKey, setAvatarUploaderKey] = useState(0);
@@ -125,11 +129,6 @@ export const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({
     });
   }, [ceoEmployeeId, initialEmployee, formData.department]);
 
-  useEffect(() => {
-    if (formData.rank === 'Senior Management' && normalizeEmployeeDepartment(formData.department) !== 'BOD') {
-      setFormData((current) => ({ ...current, rank: '' }));
-    }
-  }, [formData.department, formData.rank]);
 
   const avatarPreview = useMemo(
     () => (avatarFile ? URL.createObjectURL(avatarFile) : formData.avatar),
@@ -156,7 +155,7 @@ export const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({
     const timer = window.setTimeout(() => {
       try {
         const draft = JSON.parse(sessionStorage.getItem(draftStorageKey) ?? 'null') as Partial<EmployeeFormDraft> | null;
-        if (draft) setFormData((current) => ({ ...current, ...draft }));
+        if (draft) setFormData((current) => ({ ...current, ...draft, birthDate: canViewBirthDate ? draft.birthDate ?? current.birthDate : "" }));
       } catch {
         sessionStorage.removeItem(draftStorageKey);
       } finally {
@@ -165,12 +164,12 @@ export const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({
     }, 0);
 
     return () => window.clearTimeout(timer);
-  }, [draftStorageKey]);
+  }, [draftStorageKey, canViewBirthDate]);
 
   useEffect(() => {
     if (!isDraftRestored) return;
     const timer = window.setTimeout(() => {
-      sessionStorage.setItem(draftStorageKey, JSON.stringify(formData));
+      sessionStorage.setItem(draftStorageKey, JSON.stringify({...formData, birthDate: ""}));
     }, 250);
 
     return () => window.clearTimeout(timer);
@@ -226,12 +225,6 @@ export const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({
     setIsSaving(true);
 
     try {
-      if (isEditing && initialEmployee && !/^[a-f\d]{24}$/i.test(initialEmployee.id)) {
-        setIsDraftRestored(false);
-        sessionStorage.removeItem(draftStorageKey);
-        onSave({ ...initialEmployee, ...formData, gender: formData.gender as EmployeeGender, status: formData.status || 'active', avatar: avatarPreview || initialEmployee.avatar });
-        return;
-      }
       const saveEmployee = isEditing && initialEmployee
         ? updateAdminEmployee.bind(null, initialEmployee.id)
         : createAdminEmployee;
@@ -246,7 +239,7 @@ export const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({
           phone: formData.phone.trim().replace(/[\s.-]/g, ""),
           location: formData.location,
           joinDate: toDatePickerValue(formData.joinDate),
-          birthDate: toDatePickerValue(formData.birthDate) || undefined,
+          ...(canViewBirthDate ? {birthDate: toDatePickerValue(formData.birthDate) || undefined} : {}),
           gender: formData.gender as EmployeeGender,
           status: formData.status || undefined,
           description: formData.bio.trim(),
@@ -451,7 +444,7 @@ export const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({
                 <label className="block text-sm font-bold text-slate-700 mb-1.5">
                   Phòng ban <span className="text-rose-500">*</span>
                 </label>
-                <AdminSelect value={formData.department} onChange={(department) => setFormData({ ...formData, department })} options={EMPLOYEE_DEPARTMENT_OPTIONS} placeholder="" className="w-full" searchable={false} showSelectionCheck={false} />
+                <AdminSelect value={formData.department} onChange={(department) => setFormData({ ...formData, department, rank: formData.rank === "Senior Management" && normalizeEmployeeDepartment(department) !== "BOD" ? "" : formData.rank })} options={EMPLOYEE_DEPARTMENT_OPTIONS} placeholder="" className="w-full" searchable={false} showSelectionCheck={false} />
                 {fieldErrors.department && <p className="mt-1 text-xs text-rose-600">{fieldErrors.department}</p>}
               </div>
             </div>
@@ -504,7 +497,7 @@ export const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({
                 />
                 {fieldErrors.joinDate && <p className="mt-1 text-xs text-rose-600">{fieldErrors.joinDate}</p>}
               </div>
-              <div>
+              {canViewBirthDate && <div>
                 <label className="block text-sm font-bold text-slate-700 mb-1.5">
                   Ngày sinh (DD/MM/YYYY)
                 </label>
@@ -514,7 +507,7 @@ export const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({
                   ariaLabel="Ng?y sinh"
                 />
                 {fieldErrors.birthDate && <p className="mt-1 text-xs text-rose-600">{fieldErrors.birthDate}</p>}
-              </div>
+              </div>}
             </div>
 
             {/* Row 4: Location (50%) | Status (50%) */}
@@ -637,7 +630,7 @@ export const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({
               { icon: MapPin, label: "V\u0103n ph\u00f2ng", value: formData.location || "Ch\u01b0a c\u00f3 d\u1eef li\u1ec7u" },
               { icon: Mail, label: "Email", value: formData.email || "Ch\u01b0a c\u00f3 d\u1eef li\u1ec7u" },
               { icon: Phone, label: "S\u1ed1 \u0111i\u1ec7n tho\u1ea1i", value: formData.phone || "Ch\u01b0a c\u00f3 d\u1eef li\u1ec7u" },
-              { icon: Cake, label: "Ng\u00e0y sinh", value: formData.birthDate || "Ch\u01b0a c\u00f3 d\u1eef li\u1ec7u" },
+              ...(canViewBirthDate ? [{ icon: Cake, label: "Ng\u00e0y sinh", value: formData.birthDate || "Ch\u01b0a c\u00f3 d\u1eef li\u1ec7u" }] : []),
               { icon: User, label: "Giới tính", value: getEmployeeGenderLabel(formData.gender) },
             ]}
             description={formData.bio}

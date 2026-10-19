@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 
 import { RichText } from "@/components/ui/RichText";
+import MediaExpiryBadge from "@/components/ui/MediaExpiryBadge";
 import type { MediaPost } from "../types";
 
 interface Props {
@@ -449,6 +450,7 @@ export function ArticleReaderModal({ post, onClose, onEdit, onDelete, showAdminA
           <article ref={articleRef} data-reader-page style={{ zoom: zoom / 100, width: `${10000 / zoom}%`, maxWidth: `${89600 / zoom}px` }} className={`mx-auto max-w-4xl ${showAdminActions ? "px-4 py-5 sm:px-8 sm:py-8" : "px-4 py-4 sm:px-6 sm:py-5"} ${isFocus ? "reader-focus" : ""}`}>
             {post.coverImage && <img data-reader-cover src={post.coverImage} alt={post.title} className={`reader-cover mb-5 ${showAdminActions ? "max-h-[420px]" : "max-h-[280px]"} w-full rounded-2xl object-cover ${isFocus ? "hidden" : ""}`} />}
             <h1 className="mb-4 text-2xl font-black leading-tight sm:text-3xl">{post.title}</h1>
+            <MediaExpiryBadge isExpired={post.isExpired} />
             <div className={isFocus ? "hidden" : ""}>
               <RichText html={post.summary} className="reader-copy reader-summary rich-content mb-4 text-base leading-7 text-slate-600" />
               <p className="reader-date mb-6 flex items-center gap-2 text-sm text-slate-500"><Calendar className="h-4 w-4" />{post.publishDate}</p>

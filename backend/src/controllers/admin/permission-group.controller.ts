@@ -5,6 +5,25 @@ import type {
   UpdatePermissionGroupInput,
 } from "../../interfaces/permission-group.interface";
 import { permissionGroupService } from "../../services/admin/permission-group.service";
+import { PERMISSION_CATALOG, PERMISSION_MODULES } from "../../config/permission-catalog";
+import { auditLogService } from "../../services/admin/audit-log.service";
+
+export async function deleteGroup(request: Request<{ id: string }>, response: Response, next: NextFunction): Promise<void> {
+  try {
+    const deleted = await permissionGroupService.deleteGroup(request.params.id);
+    const admin = request.admin!;
+    await auditLogService.record({
+      actor: { accountId: admin.id, name: admin.name, email: admin.email },
+      action: "permission_group.deleted", entityType: "permission_group", entityId: deleted.id,
+      description: `Xóa nhóm quyền ${deleted.name}`,
+    });
+    response.status(200).json({ success: true, message: "Đã xóa nhóm quyền.", data: { id: deleted.id } });
+  } catch (error) { next(error); }
+}
+
+export function getPermissionCatalog(_request: Request, response: Response): void {
+  response.json({ success: true, data: { modules: PERMISSION_MODULES, permissions: PERMISSION_CATALOG } });
+}
 
 export async function getGroups(
   _request: Request,

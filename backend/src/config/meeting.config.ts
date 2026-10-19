@@ -13,11 +13,12 @@ export const MEETING_TIME_OPTIONS = [
   "13:00", "13:15", "13:30", "13:45",
   "14:00", "14:15", "14:30", "14:45",
   "15:00", "15:15", "15:30", "15:45",
-  "16:00", "16:15", "16:30", "16:45",
+  "16:00", "16:15", "16:30",
 ] as const;
 
 export const LUNCH_BREAK_START = "12:00";
 export const LUNCH_BREAK_END = "13:00";
+export const MEETING_CLOSE_TIME = "17:00";
 export const MIN_MEETING_DURATION_MINUTES = 30;
 export const MEETING_DURATION_STEP_MINUTES = 15;
 export const MIN_MEETING_GAP_MINUTES = 15;

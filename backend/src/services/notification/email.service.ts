@@ -223,6 +223,50 @@ function getMailConfig() {
 }
 
 export const emailService = {
+  async sendEmailChangeOtp(email: string, code: string): Promise<void> {
+    const { host, port, secure, user, pass, from } = getMailConfig();
+    const transporter = nodemailer.createTransport({ host, port, secure, auth: { user, pass } });
+    try {
+      const info = await transporter.sendMail({
+        from, to: email, subject: "Mã OTP xác nhận đổi email Asia F&B",
+        text: `Mã OTP xác nhận đổi email của bạn là ${code}. Mã có hiệu lực trong ${OTP_EXPIRY_MINUTES} phút. Không chia sẻ mã này với bất kỳ ai.`,
+        html: `<div style="max-width:560px;margin:auto;padding:28px;font-family:Arial,sans-serif;color:#173b35;border:1px solid #e2e8f0;border-radius:16px;">
+          <h2 style="margin-top:0;color:#047857;">Xác nhận đổi email</h2>
+          <p>Bạn vừa yêu cầu dùng địa chỉ email này cho tài khoản Asia Food &amp; Beverage. Nhập mã bên dưới để xác nhận email mới:</p>
+          <p style="padding:20px;background:#ecfdf5;border-radius:12px;text-align:center;font-size:32px;font-weight:bold;letter-spacing:8px;color:#047857;">${escapeHtml(code)}</p>
+          <p>Mã có hiệu lực trong ${OTP_EXPIRY_MINUTES} phút và chỉ dùng một lần. Không chia sẻ mã này với bất kỳ ai.</p>
+          <p>Nếu bạn không yêu cầu đổi email, hãy liên hệ bộ phận IT.</p>
+        </div>`,
+      });
+      if (!info.accepted.some((address) => address.toLowerCase() === email.toLowerCase()) || info.rejected.length) throw new Error("Recipient rejected");
+    } catch {
+      console.error("Không thể gửi email OTP đổi email.");
+      throw new AppError(503, "Không thể gửi mã OTP. Vui lòng thử lại sau.");
+    }
+  },
+
+  async sendPasswordChangeOtp(email: string, code: string): Promise<void> {
+    const { host, port, secure, user, pass, from } = getMailConfig();
+    const transporter = nodemailer.createTransport({ host, port, secure, auth: { user, pass } });
+    try {
+      const info = await transporter.sendMail({
+        from, to: email, subject: "Mã OTP xác nhận đổi mật khẩu Asia F&B",
+        text: `Mã OTP xác nhận đổi mật khẩu của bạn là ${code}. Mã có hiệu lực trong ${OTP_EXPIRY_MINUTES} phút. Không chia sẻ mã này với bất kỳ ai.`,
+        html: `<div style="max-width:560px;margin:auto;padding:28px;font-family:Arial,sans-serif;color:#173b35;border:1px solid #e2e8f0;border-radius:16px;">
+          <h2 style="margin-top:0;color:#047857;">Xác nhận đổi mật khẩu</h2>
+          <p>Bạn vừa yêu cầu đổi mật khẩu tài khoản Asia Food &amp; Beverage. Nhập mã bên dưới để xác nhận:</p>
+          <p style="padding:20px;background:#ecfdf5;border-radius:12px;text-align:center;font-size:32px;font-weight:bold;letter-spacing:8px;color:#047857;">${escapeHtml(code)}</p>
+          <p>Mã có hiệu lực trong ${OTP_EXPIRY_MINUTES} phút và chỉ dùng một lần. Không chia sẻ mã này với bất kỳ ai.</p>
+          <p>Nếu bạn không yêu cầu đổi mật khẩu, hãy liên hệ bộ phận IT.</p>
+        </div>`,
+      });
+      if (!info.accepted.some((address) => address.toLowerCase() === email.toLowerCase()) || info.rejected.length) throw new Error("Recipient rejected");
+    } catch {
+      console.error("Không thể gửi email OTP đổi mật khẩu.");
+      throw new AppError(503, "Không thể gửi mã OTP. Vui lòng thử lại sau.");
+    }
+  },
+
   async sendMeetingBookingOtp(email: string, code: string, details: MeetingOtpEmailDetails): Promise<void> {
     await sendMeetingOtp(email, code, details, "đặt");
   },

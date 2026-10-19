@@ -1,9 +1,11 @@
-import { apiGet, apiPost } from "@/services/api";
+import { apiGet, apiPost, apiPatch } from "@/services/api";
 
 export interface AuthenticatedAdmin {
   id: string;
   name: string;
   email: string;
+  phone?: string;
+  status?: "pending" | "active" | "inactive";
   role: "admin" | "manager";
   permissions: string[];
 }
@@ -32,4 +34,29 @@ export function logoutAdmin(): Promise<void> {
 
 export function getAdminRoleLabel(role: AuthenticatedAdmin["role"]): string {
   return role === "admin" ? "Toàn quyền Admin" : "Quản lý";
+}
+export interface PasswordChangeOtpRequest {
+  requestId: string;
+  email: string;
+  expiresInSeconds: number;
+  resendAfterSeconds: number;
+}
+export function requestAdminPasswordChangeOtp(currentPassword: string, newPassword: string): Promise<PasswordChangeOtpRequest> {
+  return apiPost("/admin/auth/password/request-otp", { currentPassword, newPassword });
+}
+export function resendAdminPasswordChangeOtp(requestId: string): Promise<PasswordChangeOtpRequest> {
+  return apiPost("/admin/auth/password/resend-otp", { requestId });
+}
+export function changeAdminPassword(requestId: string, code: string): Promise<void> {
+  return apiPatch<void>("/admin/auth/password", { requestId, code });
+}
+
+export function requestAdminEmailChangeOtp(newEmail: string): Promise<PasswordChangeOtpRequest> {
+  return apiPost("/admin/auth/email/request-otp", { newEmail });
+}
+export function resendAdminEmailChangeOtp(requestId: string): Promise<PasswordChangeOtpRequest> {
+  return apiPost("/admin/auth/email/resend-otp", { requestId });
+}
+export function changeAdminEmail(requestId: string, code: string): Promise<{ email: string }> {
+  return apiPatch("/admin/auth/email", { requestId, code });
 }

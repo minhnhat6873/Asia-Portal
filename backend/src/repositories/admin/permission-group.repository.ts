@@ -5,6 +5,10 @@ import type {
 import PermissionGroupModel from "../../models/permission-group.model";
 
 export const permissionGroupRepository = {
+  deleteById(id: string) {
+    return PermissionGroupModel.findByIdAndDelete(id).lean();
+  },
+
   findAll() {
     return PermissionGroupModel.find({}).sort({ name: 1 }).lean();
   },

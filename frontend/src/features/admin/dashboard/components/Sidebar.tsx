@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { ActiveTab } from '../types';
 import { AdminUser, clearAdminSession, getAdminSession } from '@/lib/adminSession';
+import { hasAdminPermission } from '@/lib/adminPermissions';
 import { logoutAdmin } from '@/features/admin/login/auth.service';
 
 interface SidebarProps {
@@ -148,7 +149,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Navigation */}
       <nav className="flex-1 p-3 space-y-1.5 overflow-y-auto">
-{navItems.map((item) => {
+{navItems.filter((item) => item.id === 'permissions' ? account?.role === 'Toàn quyền Admin' : hasAdminPermission(account, ({overview:'dashboard:view',employees:'employees:view',media:'media:view',meetings:'meetings:view'} as const)[item.id as 'overview'|'employees'|'media'|'meetings'])).map((item) => {
           const Icon = item.icon;
           const isActive =
             activeTab === item.id ||
@@ -194,6 +195,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </button>
           );
         })}
+        {!hasAdminPermission(account, 'employees:view') && hasAdminPermission(account, 'employees:trash') && <Link href="/admin/employees/trash" className="flex items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-medium hover:bg-emerald-50"><Users className="h-4 w-4" />Thùng rác nhân viên</Link>}
+        {!hasAdminPermission(account, 'employees:view') && hasAdminPermission(account, 'employees:create') && <Link href="/admin/employees/new" className="flex items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-medium hover:bg-emerald-50"><Users className="h-4 w-4" />Thêm nhân viên</Link>}
+        {!hasAdminPermission(account, 'media:view') && hasAdminPermission(account, 'media:create') && <Link href="/admin/media/new" className="flex items-center gap-3 rounded-xl px-3.5 py-3 text-sm font-medium hover:bg-emerald-50"><Newspaper className="h-4 w-4" />Thêm bài viết</Link>}
       </nav>
 
       <p className="shrink-0 px-7 pb-1 pt-3 text-[10px] font-bold uppercase tracking-wide text-slate-700">

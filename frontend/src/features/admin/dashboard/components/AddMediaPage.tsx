@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { AlertCircle, ArrowLeft, Calendar, Check, RotateCcw, User } from "lucide-react";
+import { parseDate } from "@internationalized/date";
 
 import AvatarUploader from "@/components/ui/AvatarUploader";
 import DatePicker from "@/components/ui/DatePicker";
@@ -45,6 +46,8 @@ function initialForm(post?: MediaPost) {
     coverImage: post?.coverImage ?? "",
     authorDepartment: post?.authorDepartment ?? "Phòng HR&AD",
     publishDate: toPickerDate(post?.publishDate),
+    expiryDate: post?.expiryDate ? toPickerDate(post.expiryDate) : "",
+    publishIndefinitely: post ? post.publishIndefinitely ?? !post.expiryDate : false,
   };
 }
 
@@ -55,6 +58,8 @@ export function AddMediaPage({ mode = "create", initialPost, onBack, onSave }: A
   const [uploaderKey, setUploaderKey] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const minimumExpiryDate = formData.publishDate ? parseDate(formData.publishDate).add({ days: 1 }).toString() : undefined;
+  const invalidExpiryDate = Boolean(formData.expiryDate && formData.publishDate && formData.expiryDate <= formData.publishDate);
 
   const previewUrl = useMemo(() => coverFile ? URL.createObjectURL(coverFile) : "", [coverFile]);
   useEffect(() => () => { if (previewUrl) URL.revokeObjectURL(previewUrl); }, [previewUrl]);
@@ -69,6 +74,18 @@ export function AddMediaPage({ mode = "create", initialPost, onBack, onSave }: A
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (!formData.publishDate) {
+      setErrorMsg("Vui lòng chọn ngày đăng.");
+      return;
+    }
+    if (invalidExpiryDate) {
+      setErrorMsg("Ngày hết hạn phải sau ngày đăng ít nhất 1 ngày.");
+      return;
+    }
+    if (!formData.expiryDate && !formData.publishIndefinitely) {
+      setErrorMsg("Vui lòng chọn ngày hết hạn hoặc tích Đăng tin vĩnh viễn.");
+      return;
+    }
     if (!formData.title.trim() || !hasRichTextContent(formData.summary)) {
       setErrorMsg("Vui lòng nhập Tiêu đề bài viết và Tóm tắt ngắn.");
       return;
@@ -84,6 +101,8 @@ export function AddMediaPage({ mode = "create", initialPost, onBack, onSave }: A
         content: formData.content,
         authorDepartment: formData.authorDepartment,
         publishDate: toDisplayDate(formData.publishDate),
+        expiryDate: formData.expiryDate ? toDisplayDate(formData.expiryDate) : null,
+        publishIndefinitely: formData.publishIndefinitely,
         ...(mode === "create" ? { status: "draft" as const } : {}),
         ...(coverRemoved ? { coverImage: "" } : {}),
       };
@@ -108,12 +127,12 @@ export function AddMediaPage({ mode = "create", initialPost, onBack, onSave }: A
           <div><p className="text-xs font-semibold text-sky-700">Asia F&amp;B Media &amp; Events</p><h1 className="text-xl font-extrabold text-slate-900">{mode === "edit" ? "Chỉnh sửa bài viết" : "Đăng bài truyền thông mới"}</h1></div>
         </div>
         <div className="flex gap-2">
-          <button type="button" onClick={reset} disabled={isSaving} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-semibold text-slate-600"><RotateCcw className="h-4 w-4" />Đặt lại form</button>
+          {mode === "create" && <button type="button" onClick={reset} disabled={isSaving} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-semibold text-slate-600"><RotateCcw className="h-4 w-4" />Đặt lại form</button>}
           <button type="button" onClick={submit} disabled={isSaving} className="inline-flex items-center gap-2 rounded-xl bg-amber-500 px-5 py-2.5 text-xs font-bold text-slate-950 disabled:opacity-60"><Check className="h-4 w-4" />{isSaving ? "Đang lưu..." : "Lưu bài viết"}</button>
         </div>
       </div>
 
-      {errorMsg && <div className="flex items-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700"><AlertCircle className="h-4 w-4" />{errorMsg}</div>}
+      {errorMsg && <div role="alert" className="flex items-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700"><AlertCircle className="h-4 w-4" />{errorMsg}</div>}
 
       <div className="grid items-start gap-6 2xl:grid-cols-12">
         <form onSubmit={submit} className="space-y-5 rounded-3xl border border-slate-200 bg-white p-6 2xl:col-span-7">
@@ -123,7 +142,11 @@ export function AddMediaPage({ mode = "create", initialPost, onBack, onSave }: A
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div><label className="mb-1.5 block text-sm font-bold text-slate-700">Ngày đăng</label><DatePicker value={formData.publishDate} onChange={(publishDate) => setFormData({ ...formData, publishDate })} ariaLabel="Ngày đăng bài" /></div>
+            <div><label className="mb-1.5 block text-sm font-bold text-slate-700">Ngày hết hạn</label><DatePicker value={formData.expiryDate} minValue={minimumExpiryDate} onChange={(expiryDate) => setFormData({ ...formData, expiryDate })} ariaLabel="Ngày hết hạn bài" />{invalidExpiryDate && <p role="alert" className="mt-1.5 text-sm text-rose-600">Ngày hết hạn phải sau ngày đăng ít nhất 1 ngày.</p>}{formData.expiryDate && <button type="button" onClick={() => setFormData({ ...formData, expiryDate: "" })} className="mt-1.5 text-sm font-medium text-slate-600 underline hover:text-slate-900">Bỏ ngày hết hạn</button>}</div>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
             <label className="text-sm font-bold text-slate-700">Đơn vị / Phòng ban<select value={formData.authorDepartment} onChange={(e) => setFormData({ ...formData, authorDepartment: e.target.value })} className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 font-medium"><option>Phòng HR&amp;AD</option><option>Phòng MKT</option></select></label>
+            <label className="flex min-h-12 cursor-pointer items-center gap-3 self-end rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700"><input type="checkbox" checked={formData.publishIndefinitely} onChange={(event) => setFormData({ ...formData, publishIndefinitely: event.target.checked })} className="h-5 w-5 shrink-0 rounded border-slate-300 accent-emerald-700" />Đăng tin vĩnh viễn</label>
           </div>
           <AvatarUploader key={uploaderKey} inputId="media-cover-upload" inputName="coverImage" initialAvatarUrl={coverRemoved ? "" : formData.coverImage} onFileChange={(file) => { setCoverFile(file); if (file) setCoverRemoved(false); }} onExistingAvatarRemove={() => setCoverRemoved(true)} label="Ảnh bìa" emptyHelperText="Thả tệp vào đây hoặc duyệt. JPEG, PNG, WebP tối đa 5 MB; khung 4:3." selectedHelperText="Ảnh bìa mới đã sẵn sàng." existingHelperText="Đang giữ ảnh bìa hiện tại." imageAlt="Xem trước ảnh bìa" changeLabel="Thay ảnh bìa" />
           <div><label className="mb-1.5 block text-sm font-bold text-slate-700">Tóm tắt ngắn (Sapo) *</label><RichTextEditor value={formData.summary} onChange={(summary) => setFormData({ ...formData, summary })} placeholder="Nhập tóm tắt bài viết..." enableImageInsert uploadImage={uploadAdminMediaContentImage} /></div>

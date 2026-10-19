@@ -1,4 +1,4 @@
-import { MEETING_ROOMS, MEETING_TIME_OPTIONS, MIN_MEETING_DURATION_MINUTES, MEETING_DURATION_STEP_MINUTES, LUNCH_BREAK_START, LUNCH_BREAK_END } from "../../config/meeting.config";
+import { MEETING_ROOMS, MEETING_TIME_OPTIONS, MIN_MEETING_DURATION_MINUTES, MEETING_DURATION_STEP_MINUTES, LUNCH_BREAK_START, LUNCH_BREAK_END, MEETING_CLOSE_TIME } from "../../config/meeting.config";
 import type { StartMeetingBookingInput } from "../../interfaces/meeting.interface";
 import { AppError } from "../errors/AppError";
 import { addMinutes, compareTimes, getVietnamNow } from "../time/vietnamTime";
@@ -57,6 +57,9 @@ export function validateBookingInput(input: StartMeetingBookingInput, requireFut
   const startMinutes = Number(input.start.slice(0, 2)) * 60 + Number(input.start.slice(3));
   if (startMinutes + input.durationMinutes >= 24 * 60) {
     throw new AppError(400, "Cuộc họp phải kết thúc trong cùng ngày.");
+  }
+  if (end > MEETING_CLOSE_TIME) {
+    throw new AppError(400, "Cuộc họp phải kết thúc không muộn hơn 17:00.");
   }
   if (input.start < LUNCH_BREAK_END && end > LUNCH_BREAK_START) {
     throw new AppError(400, "Khung giờ họp không được trùng giờ nghỉ trưa (12:00–13:00).");

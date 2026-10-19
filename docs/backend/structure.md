@@ -1,6 +1,6 @@
 # Cấu trúc backend
 
-Cập nhật lần cuối: 2026-10-07. File nguồn đã đọc: `backend/index.ts`, `backend/src/config/**`, `backend/src/routes/**`, `backend/src/middlewares/**`, `backend/src/controllers/**`, `backend/src/services/**`, `backend/src/repositories/**`, `backend/src/models/**`, `backend/src/interfaces/**`, `backend/src/validates/**`, `backend/src/helpers/**`, `backend/src/utils/**`, `backend/src/types/**`, `backend/scripts/**`, `backend/tests/**`.
+Cập nhật lần cuối: 2026-10-19. File nguồn đã đọc: `backend/index.ts`, `backend/src/config/**`, `backend/src/routes/**`, `backend/src/middlewares/**`, `backend/src/controllers/**`, `backend/src/services/**`, `backend/src/repositories/**`, `backend/src/models/**`, `backend/src/interfaces/**`, `backend/src/validates/**`, `backend/src/helpers/**`, `backend/src/utils/**`, `backend/src/types/**`, `backend/scripts/**`, `backend/tests/**`.
 
 | Vị trí | Vai trò |
 | --- | --- |
@@ -10,6 +10,13 @@ Cập nhật lần cuối: 2026-10-07. File nguồn đã đọc: `backend/index.
 | `src/middlewares/` | Xác thực/quyền, Joi, upload có dọn file lỗi, error mapping. |
 | `src/controllers/{admin,user}` | Nhận HTTP, gọi service, trả JSON; admin employee ghi audit. |
 | `src/services/{admin,user,notification}` | Nghiệp vụ, mapping response, OTP/email, phân trang. |
+| `src/services/account-contact.service.ts` | Kiểm tra email/số điện thoại tồn tại, dùng chung cho tạo tài khoản và service OTP đăng ký. |
+| `src/repositories/admin/account-administration.repository.ts`, `src/models/account-administration-lock.model.ts` | Transaction và khóa ghi chung cho thay đổi tài khoản, bảo vệ Admin gốc đang hoạt động cuối cùng. |
+| `src/interfaces/password-change-otp.interface.ts`, `src/models/password-change-otp.model.ts` | Yêu cầu đổi mật khẩu riêng, hash OTP/password ẩn, TTL hết hạn. |
+| `src/services/admin/password-change-otp.service.ts`, `src/repositories/admin/password-change-otp.repository.ts` | Kiểm tra mật khẩu hiện tại, gửi/gửi lại OTP email, giới hạn thử và transaction xác nhận một lần. |
+| `src/interfaces/email-change-otp.interface.ts`, `src/models/email-change-otp.model.ts` | Yêu cầu đổi email gắn với chủ tài khoản, email hiện tại/email mới, hash OTP/password ẩn và TTL. |
+| `src/services/admin/email-change-otp.service.ts`, `src/repositories/admin/email-change-otp.repository.ts` | Kiểm tra email trùng, OTP gửi đến email mới, giới hạn thử/gửi lại và transaction đổi email một lần. |
+| `src/utils/account/normalizeContact.ts` | Chuẩn hóa số điện thoại và đối chiếu số có định dạng cũ. |
 | `src/repositories/{admin,user}` | Lớp Mongoose; user repository lọc trường riêng tư. |
 | `src/models/` | Schema/collection/index/hook Mongoose. |
 | `src/jobs/` | Tác vụ nền dọn nội dung, tự chuyển lịch họp đã kết thúc và gửi email nhắc trước giờ họp 30 phút. |

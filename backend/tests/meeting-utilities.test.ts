@@ -7,6 +7,8 @@ import {
 import { getVietnamNow, addMinutes, subtractMinutes, compareTimes } from "../src/utils/time/vietnamTime";
 import { escapeHtml } from "../src/utils/html/escapeHtml";
 import { maskEmail } from "../src/utils/email/maskEmail";
+import { validateBookingInput } from "../src/utils/meeting/validateBooking";
+import type { StartMeetingBookingInput } from "../src/interfaces/meeting.interface";
 
 describe("meeting and OTP configuration", () => {
   it("defines only the two supported rooms and booking start times", () => {
@@ -14,9 +16,59 @@ describe("meeting and OTP configuration", () => {
       { id: "room-01", name: "Phòng 1", floor: "Tầng 1", capacity: 12 },
       { id: "room-02", name: "Phòng 2", floor: "Tầng 1", capacity: 6 },
     ]);
-    expect(MEETING_TIME_OPTIONS).toHaveLength(32);
+    expect(MEETING_TIME_OPTIONS).toHaveLength(31);
+    expect(MEETING_TIME_OPTIONS).not.toContain("16:45");
     expect(MEETING_TIME_OPTIONS).not.toContain("17:00");
     expect(MEETING_TIME_OPTIONS).not.toContain("12:00");
+  });
+});
+
+describe("meeting booking hours", () => {
+  const booking: StartMeetingBookingInput = {
+    title: "Họp nội bộ", organizer: "Nguyễn Văn An", email: "an@asiafnb.com",
+    department: "Hành chính", roomId: "room-01", date: "2026-10-19",
+    start: "16:30", durationMinutes: 30, attendees: 2,
+  };
+
+  beforeEach(() => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date("2026-10-19T08:00:00Z")); // 15:00 in Vietnam
+  });
+  afterEach(() => jest.useRealTimers());
+
+  it("accepts the last 30-minute meeting ending at 17:00", () => {
+    expect(validateBookingInput(booking).end).toBe("17:00");
+  });
+
+  it.each([45, 60, 180])("rejects a %i-minute meeting extending past closing time", (durationMinutes) => {
+    expect(() => validateBookingInput({ ...booking, durationMinutes })).toThrow("17:00");
+  });
+
+  it("rejects a start later than 16:30", () => {
+    expect(() => validateBookingInput({ ...booking, start: "16:45" })).toThrow("Giờ bắt đầu không hợp lệ");
+  });
+
+  it.each([
+    { date: "2026-10-18", start: "16:00" },
+    { date: "2026-10-19", start: "14:45" },
+    { date: "2026-10-19", start: "15:00" },
+  ])("rejects a past date or elapsed start: %o", (schedule) => {
+    expect(() => validateBookingInput({ ...booking, ...schedule })).toThrow("tương lai");
+  });
+
+  it("allows a future day and preserves the lunch break", () => {
+    expect(validateBookingInput({ ...booking, date: "2026-10-20", start: "11:30" }).end).toBe("12:00");
+    expect(validateBookingInput({ ...booking, date: "2026-10-20", start: "13:00" }).end).toBe("13:30");
+    expect(() => validateBookingInput({ ...booking, date: "2026-10-20", start: "11:45" })).toThrow("nghỉ trưa");
+    expect(() => validateBookingInput({ ...booking, date: "2026-10-20", start: "11:30", durationMinutes: 60 })).toThrow("nghỉ trưa");
+  });
+
+  it.each(["12:00", "12:15", "12:30", "12:45"])("rejects a start during lunch at %s", (start) => {
+    expect(() => validateBookingInput({ ...booking, date: "2026-10-20", start })).toThrow("Giờ bắt đầu không hợp lệ");
+  });
+
+  it("still allows validating the unchanged schedule of an ongoing meeting", () => {
+    expect(validateBookingInput({ ...booking, start: "14:45" }, false).end).toBe("15:15");
   });
 });
 

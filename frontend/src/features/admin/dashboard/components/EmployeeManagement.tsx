@@ -32,6 +32,7 @@ import { EMPLOYEE_RANK_OPTIONS_UI, getEmployeeRankLabel } from '@/components/ui/
 import { EMPLOYEE_STATUS_OPTIONS_UI } from '@/components/ui/employee-status-options';
 import { getEmployeeGenderLabel } from '@/components/ui/employee-gender-options';
 import { updateAdminEmployeeChartAvatar, type AdminEmployeeListParams } from '@/services/admin-employee.service';
+import { useAdminPermissions } from '@/lib/adminPermissions';
 import EmployeeProfileCard from '@/components/ui/EmployeeProfileCard';
 
 const EMPLOYEE_FILTER_STORAGE_KEY = 'asia.admin.employee-filters';
@@ -94,6 +95,7 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
   onNavigateToTrash,
   onChartAvatarUpdated,
 }) => {
+  const { can } = useAdminPermissions();
   // Search & Filter State
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDept, setSelectedDept] = useState<string>('all');
@@ -163,7 +165,7 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
   };
 
   const saveChartAvatar = async () => {
-    if (!chartAvatarEmployee || !chartAvatarFile || isChartAvatarSaving) return;
+    if (!can("employees:update") || !chartAvatarEmployee || !chartAvatarFile || isChartAvatarSaving) return;
     setIsChartAvatarSaving(true);
     try {
       const croppedFile = await createCroppedChartAvatar();
@@ -376,7 +378,7 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
           </button>
           <button
             type="button"
-            onClick={onNavigateToTrash}
+            hidden={!can("employees:trash")} onClick={onNavigateToTrash}
             className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-slate-100 text-slate-600 transition-colors hover:bg-rose-50 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-50"
             title="Thùng rác"
             aria-label="Mở Thùng rác"
@@ -388,7 +390,7 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
 
           {/* Add Employee Button */}
           <button
-            onClick={onNavigateToAdd}
+            hidden={!can("employees:create")} onClick={onNavigateToAdd}
             className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm transition-all"
           >
             <Plus className="w-4 h-4" />
@@ -555,13 +557,13 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
                           <span className="font-bold text-slate-900">{emp.phone}</span>
                         </div>
 
-                        <div className="flex items-center">
+                        {can("employees:view-birth-date") && <div className="flex items-center">
                           <span className="w-8 flex items-center justify-start text-slate-400">
                             <Cake className="w-4 h-4" />
                           </span>
                           <span className="w-36 text-slate-500 font-normal">Ngày sinh</span>
                           <span className="font-bold text-slate-900">{emp.birthDate}</span>
-                        </div>
+                        </div>}
 
                         <div className="flex items-center">
                           <span className="w-8 flex items-center justify-start text-slate-400">
@@ -601,14 +603,14 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
                     </button>
                     <div className="flex items-center gap-2">
                       <button
-                        onClick={() => onNavigateToEdit?.(emp)}
+                        hidden={!can("employees:update")} onClick={() => onNavigateToEdit?.(emp)}
                         className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 font-medium transition-colors flex items-center gap-1"
                         title="Chỉnh sửa thông tin"
                       >
                         <Edit3 className="w-3.5 h-3.5" /> Sửa
                       </button>
                       <button
-                        onClick={() => setDeletingId(emp.id)}
+                        hidden={!can("employees:delete")} onClick={() => setDeletingId(emp.id)}
                         className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-rose-50 text-slate-700 hover:text-rose-600 font-medium transition-colors flex items-center gap-1"
                         title="Xóa nhân sự"
                       >
@@ -678,7 +680,8 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
                         {['CEO', 'Senior Management'].includes(emp.rank ?? '') ? (
                           <button
                             type="button"
-                            onClick={() => {
+                            hidden={!can("employees:update")} onClick={() => {
+                              if (!can("employees:update")) return;
                               setChartAvatarEmployee(emp);
                               setChartAvatarFile(null);
                               setChartAvatarPreview(emp.chartAvatar || emp.avatar || '');
@@ -704,7 +707,7 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
                           </button>
                           <button
                             type="button"
-                            onClick={() => onNavigateToEdit?.(emp)}
+                            hidden={!can("employees:update")} onClick={() => onNavigateToEdit?.(emp)}
                             className="rounded-lg p-2 text-emerald-600 transition-colors hover:bg-emerald-50"
                             title="Chỉnh sửa"
                           >
@@ -712,7 +715,7 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
                           </button>
                           <button
                             type="button"
-                            onClick={() => setDeletingId(emp.id)}
+                            hidden={!can("employees:delete")} onClick={() => setDeletingId(emp.id)}
                             className="rounded-lg p-2 text-rose-500 transition-colors hover:bg-rose-50"
                             title="Xóa"
                           >
@@ -868,7 +871,7 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
               details={[
                 { icon: User, label: 'Mã nhân viên', value: selectedEmployeeForDossier.code },
                 { icon: User, label: 'Giới tính', value: getEmployeeGenderLabel(selectedEmployeeForDossier.gender) },
-                { icon: Cake, label: '\u004e\u0067\u00e0\u0079 \u0073\u0069\u006e\u0068', value: selectedEmployeeForDossier.birthDate || '\u0043\u0068\u01b0\u0061 \u0063\u00f3 \u0064\u1eef \u006c\u0069\u1ec7\u0075' },
+                ...(can("employees:view-birth-date") ? [{ icon: Cake, label: '\u004e\u0067\u00e0\u0079 \u0073\u0069\u006e\u0068', value: selectedEmployeeForDossier.birthDate || '\u0043\u0068\u01b0\u0061 \u0063\u00f3 \u0064\u1eef \u006c\u0069\u1ec7\u0075' }] : []),
                 { icon: Calendar, label: 'Ngày gia nhập', value: selectedEmployeeForDossier.joinDate },
                 { icon: Briefcase, label: 'Chức vụ', value: selectedEmployeeForDossier.position },
                 { icon: Building, label: 'Phòng ban', value: getEmployeeDepartmentLabel(selectedEmployeeForDossier.department) },

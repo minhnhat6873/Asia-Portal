@@ -8,7 +8,7 @@ import {
   OTP_EXPIRY_MS,
   OTP_RESEND_COOLDOWN_MS,
 } from "../../config/otp.config";
-import { MEETING_ROOMS, MEETING_TIME_OPTIONS } from "../../config/meeting.config";
+import { MEETING_ROOMS, MEETING_TIME_OPTIONS, MEETING_CLOSE_TIME } from "../../config/meeting.config";
 import type {
   MeetingBooking,
   PendingMeetingBooking,
@@ -77,6 +77,9 @@ function revalidatePendingBooking(pending: PendingMeetingBooking): void {
   }
   if (compareTimes(pending.start, pending.end) >= 0) {
     throw new AppError(400, "Giờ kết thúc cuộc họp không hợp lệ.");
+  }
+  if (pending.end > MEETING_CLOSE_TIME) {
+    throw new AppError(400, "Cuộc họp phải kết thúc không muộn hơn 17:00.");
   }
   if (pending.start < "13:00" && pending.end > "12:00") {
     throw new AppError(400, "Khung giờ họp không được trùng giờ nghỉ trưa (12:00–13:00).");

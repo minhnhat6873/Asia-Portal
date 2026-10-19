@@ -7,6 +7,7 @@ import {
   Calendar
 } from 'lucide-react';
 import { Employee, MediaPost, ActiveTab } from '../types';
+import { useAdminPermissions } from '@/lib/adminPermissions';
 import { stripHtml } from '@/utils/stripHtml';
 
 import type { DashboardSummary } from '../dashboard.service';
@@ -25,6 +26,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
   summary,
   onPreviewMedia,
 }) => {
+  const { can } = useAdminPermissions();
   const totalEmployees = summary?.totalEmployees ?? employees.length;
   const totalDepartments = summary?.totalDepartments ?? new Set(employees.map((employee) => employee.department)).size;
   const totalMediaPosts = summary?.totalMediaPosts ?? mediaPosts.length;
@@ -35,7 +37,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <div
-          onClick={() => onNavigate('employees')}
+          onClick={can('employees:view') ? () => onNavigate('employees') : undefined}
           className="group flex min-h-40 cursor-pointer items-center gap-5 rounded-3xl border border-slate-200/80 bg-white p-6 shadow-2xs transition-all hover:border-emerald-400/60 hover:shadow-sm"
         >
           <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-3xl bg-emerald-50 text-emerald-600 transition-transform group-hover:scale-105">
@@ -48,7 +50,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
         </div>
 
         <div
-          onClick={() => onNavigate('employees')}
+          onClick={can('employees:view') ? () => onNavigate('employees') : undefined}
           className="group flex min-h-40 cursor-pointer items-center gap-5 rounded-3xl border border-slate-200/80 bg-white p-6 shadow-2xs transition-all hover:border-sky-400/60 hover:shadow-sm"
         >
           <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-3xl bg-sky-50 text-sky-500 transition-transform group-hover:scale-105">
@@ -61,7 +63,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
         </div>
 
         <div
-          onClick={() => onNavigate('media')}
+          onClick={can('media:view') ? () => onNavigate('media') : undefined}
           className="group flex min-h-40 cursor-pointer items-center gap-5 rounded-3xl border border-slate-200/80 bg-white p-6 shadow-2xs transition-all hover:border-amber-400/60 hover:shadow-sm"
         >
           <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-3xl bg-amber-50 text-amber-500 transition-transform group-hover:scale-105">
@@ -75,7 +77,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
       </div>
 
       {/* Recent media — full width now that the department panel is gone */}
-      <div className="bg-white rounded-3xl border border-slate-200/90 shadow-2xs p-6">
+      {can("media:view") && <div className="bg-white rounded-3xl border border-slate-200/90 shadow-2xs p-6">
         <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h3 className="font-bold text-slate-900 text-base">
@@ -86,7 +88,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
             </p>
           </div>
           <button
-            onClick={() => onNavigate('media')}
+            onClick={can('media:view') ? () => onNavigate('media') : undefined}
             className="text-xs font-semibold text-sky-700 hover:text-sky-800 flex items-center gap-1"
           >
             Xem tất cả ({totalMediaPosts}) <ArrowUpRight className="w-3.5 h-3.5" />
@@ -105,11 +107,21 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
               }}
               className="flex flex-col sm:flex-row items-start sm:items-center gap-3.5 p-3.5 rounded-2xl border border-slate-100 hover:border-sky-200 hover:bg-slate-50/70 transition-all group cursor-pointer"
             >
-              <img
-                src={post.coverImage}
-                alt={post.title}
-                className="w-full sm:w-28 h-24 sm:h-20 rounded-xl object-cover shrink-0"
-              />
+              {post.coverImage?.trim() ? (
+                <img
+                  src={post.coverImage.trim()}
+                  alt={post.title}
+                  className="w-full sm:w-28 h-24 sm:h-20 rounded-xl object-cover shrink-0"
+                />
+              ) : (
+                <div
+                  role="img"
+                  aria-label="Chưa có ảnh bìa"
+                  className="flex h-24 w-full shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-400 sm:h-20 sm:w-28"
+                >
+                  <FileText className="h-8 w-8" aria-hidden="true" />
+                </div>
+              )}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-50 text-sky-700 border border-sky-200">
@@ -134,7 +146,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
             </div>
           ))}
         </div>
-      </div>
+      </div>}
     </div>
   );
 };

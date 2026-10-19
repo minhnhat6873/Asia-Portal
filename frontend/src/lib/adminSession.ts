@@ -2,6 +2,8 @@ export interface AdminUser {
   id: string;
   fullName: string;
   email: string;
+  phone?: string;
+  status?: "pending" | "active" | "inactive";
   role: string;
   initials: string;
   permissions: string[];
@@ -18,6 +20,8 @@ export function getAdminSession(): AdminUser | null {
     return {
       id: parsed.id,
       email: parsed.email,
+      phone: typeof parsed.phone === "string" ? parsed.phone : undefined,
+      status: parsed.status === "pending" || parsed.status === "active" || parsed.status === "inactive" ? parsed.status : undefined,
       fullName: parsed.fullName,
       role: parsed.role ?? "Quản lý",
       initials: deriveInitials(parsed.fullName),

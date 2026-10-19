@@ -10,6 +10,7 @@ import type {
 import { adminEmployeeService } from "../../services/admin/employee.service";
 import { auditLogService } from "../../services/admin/audit-log.service";
 import { AppError } from "../../utils/errors/AppError";
+import { presentEmployee } from "../../utils/employee/presentEmployee";
 
 type CloudinaryUploadedFile = Express.Multer.File & {
   secure_url?: string;
@@ -49,7 +50,7 @@ export async function getEmployees(
 ): Promise<void> {
   try {
     const result = await adminEmployeeService.getEmployees(request.query);
-    response.status(200).json({ success: true, data: result });
+    response.status(200).json({ success: true, data: { ...result, items: result.items.map((employee) => presentEmployee(employee, request.admin?.permissions)) } });
   } catch (error) {
     next(error);
   }
@@ -62,7 +63,7 @@ export async function getEmployeeById(
 ): Promise<void> {
   try {
     const employee = await adminEmployeeService.getEmployeeById(request.params.id);
-    response.status(200).json({ success: true, data: employee });
+    response.status(200).json({ success: true, data: presentEmployee(employee, request.admin?.permissions) });
   } catch (error) {
     next(error);
   }
@@ -75,7 +76,7 @@ export async function getDeletedEmployees(
 ): Promise<void> {
   try {
     const result = await adminEmployeeService.getDeletedEmployees(request.query);
-    response.status(200).json({ success: true, data: result });
+    response.status(200).json({ success: true, data: { ...result, items: result.items.map((employee) => presentEmployee(employee, request.admin?.permissions)) } });
   } catch (error) {
     next(error);
   }
@@ -102,7 +103,7 @@ export async function createEmployee(
     response.status(201).json({
       success: true,
       message: "T\u1ea1o nh\u00e2n vi\u00ean th\u00e0nh c\u00f4ng",
-      data: employee,
+      data: presentEmployee(employee, request.admin?.permissions),
     });
   } catch (error) {
     try {
@@ -148,7 +149,7 @@ export async function updateEmployee(
     response.status(200).json({
       success: true,
       message: "C\u1eadp nh\u1eadt nh\u00e2n vi\u00ean th\u00e0nh c\u00f4ng",
-      data: employee,
+      data: presentEmployee(employee, request.admin?.permissions),
     });
   } catch (error) {
     try {
@@ -194,7 +195,7 @@ export async function updateEmployeeChartAvatar(
       }
     }
     await recordEmployeeAudit(request.admin, "employee.updated", employee, { chartAvatarChanged: true });
-    response.status(200).json({ success: true, message: "\u0110\u00e3 l\u01b0u \u1ea3nh s\u01a1 \u0111\u1ed3", data: employee });
+    response.status(200).json({ success: true, message: "\u0110\u00e3 l\u01b0u \u1ea3nh s\u01a1 \u0111\u1ed3", data: presentEmployee(employee, request.admin?.permissions) });
   } catch (error) {
     if (!uploadPersisted) {
       try { await deleteCloudinaryAsset(uploadedFile.filename); } catch {}
@@ -219,7 +220,7 @@ export async function softDeleteEmployee(
     response.status(200).json({
       success: true,
       message: "Đã chuyển nhân viên vào thùng rác",
-      data: employee,
+      data: presentEmployee(employee, request.admin?.permissions),
     });
   } catch (error) {
     next(error);
@@ -236,7 +237,7 @@ export async function restoreEmployee(
     response.status(200).json({
       success: true,
       message: "Đã khôi phục nhân viên",
-      data: employee,
+      data: presentEmployee(employee, request.admin?.permissions),
     });
   } catch (error) {
     next(error);
@@ -270,7 +271,7 @@ export async function permanentlyDeleteEmployee(
     response.status(200).json({
       success: true,
       message: "Đã xóa vĩnh viễn nhân viên",
-      data: employee,
+      data: presentEmployee(employee, request.admin?.permissions),
     });
   } catch (error) {
     next(error);

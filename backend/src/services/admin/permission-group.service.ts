@@ -7,7 +7,9 @@ import type {
   UpdatePermissionGroupInput,
 } from "../../interfaces/permission-group.interface";
 import { permissionGroupRepository } from "../../repositories/admin/permission-group.repository";
+import { adminAccountRepository } from "../../repositories/admin/account.repository";
 import { AppError } from "../../utils/errors/AppError";
+import { filterPermissionActions } from "../../interfaces/permission-group.interface";
 
 type StoredPermissionGroup = PermissionGroup & { _id: unknown };
 
@@ -15,7 +17,10 @@ function toResponse(group: StoredPermissionGroup): PermissionGroupResponse {
   return {
     id: String(group._id),
     name: group.name,
-    actions: group.actions,
+    description: group.description ?? "",
+    color: group.color ?? "emerald",
+    icon: group.icon ?? "shield",
+    actions: filterPermissionActions(group.actions),
     status: group.status,
     createdAt: group.createdAt,
     updatedAt: group.updatedAt,
@@ -29,6 +34,16 @@ function ensureValidId(id: string): void {
 }
 
 export const permissionGroupService = {
+  async deleteGroup(id: string): Promise<PermissionGroupResponse> {
+    ensureValidId(id);
+    const deleted = await permissionGroupRepository.deleteById(id);
+    // Permissions resolve against existing groups on every request, so deletion
+    // revokes access immediately, before removing obsolete account assignments.
+    await adminAccountRepository.removePermissionGroup(id);
+    if (!deleted) throw new AppError(404, "Không tìm thấy nhóm quyền.");
+    return toResponse(deleted);
+  },
+
   async getGroups(): Promise<PermissionGroupResponse[]> {
     const groups = await permissionGroupRepository.findAll();
     return groups.map((group) => toResponse(group));

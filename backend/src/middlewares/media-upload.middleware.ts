@@ -10,7 +10,8 @@ async function validateMediaUpload(
   isUpdate: boolean,
 ): Promise<void> {
   const schema = isUpdate ? updateMediaSchema : createMediaSchema;
-  const { error, value } = schema.validate(request.body, { abortEarly: false, stripUnknown: true });
+  const body = request.body.expiryDate === "" ? { ...request.body, expiryDate: null } : request.body;
+  const { error, value } = schema.validate(body, { abortEarly: false, stripUnknown: true });
 
   if (!error) {
     request.body = value;

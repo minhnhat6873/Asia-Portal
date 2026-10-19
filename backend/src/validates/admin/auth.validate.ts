@@ -1,4 +1,5 @@
 import Joi from "joi";
+import { accountEmailSchema } from "./account.validate";
 
 export const loginSchema = Joi.object({
   email: Joi.string().trim().lowercase().email().max(150).required(),
@@ -160,3 +161,36 @@ export const resetPasswordWithOtpSchema = Joi.object({
       "any.required": "Vui lòng xác nhận lại mật khẩu.",
     }),
 });
+export const requestPasswordChangeOtpSchema = Joi.object({
+  currentPassword: Joi.string().max(100).required(),
+  newPassword: Joi.string().min(8).max(100).pattern(/\S/).required(),
+});
+export const resendPasswordChangeOtpSchema = Joi.object({
+  requestId: Joi.string().uuid().required(),
+});
+export const changePasswordSchema = Joi.object({
+  requestId: Joi.string().uuid().required(),
+  code: Joi.string().pattern(/^\d{6}$/).required(),
+});
+
+const emailChangeRequestIdSchema = Joi.string().uuid().required().messages({
+  "any.required": "Thiếu phiên xác nhận đổi email. Vui lòng yêu cầu mã OTP mới.",
+  "string.empty": "Thiếu phiên xác nhận đổi email. Vui lòng yêu cầu mã OTP mới.",
+  "string.base": "Phiên xác nhận đổi email không hợp lệ.",
+  "string.guid": "Phiên xác nhận đổi email không hợp lệ.",
+});
+
+export const requestEmailChangeOtpSchema = Joi.object({
+  newEmail: accountEmailSchema.required().messages({
+    "any.required": "Vui lòng nhập email mới.",
+    "string.empty": "Vui lòng nhập email mới.",
+    "string.base": "Email mới phải là địa chỉ email hợp lệ.",
+  }),
+}).required();
+export const resendEmailChangeOtpSchema = Joi.object({
+  requestId: emailChangeRequestIdSchema,
+}).required();
+export const changeEmailSchema = Joi.object({
+  requestId: emailChangeRequestIdSchema,
+  code: otpCodeSchema.messages({ "string.base": "Mã OTP phải gồm đúng 6 chữ số." }),
+}).required();

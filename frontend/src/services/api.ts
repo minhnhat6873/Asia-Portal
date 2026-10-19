@@ -11,6 +11,7 @@ interface ApiErrorResponse {
   success: false;
   message?: string;
   errors?: string[];
+  fieldErrors?: Record<string, string>;
 }
 
 export class ApiError extends Error {
@@ -18,6 +19,7 @@ export class ApiError extends Error {
     message: string,
     public readonly status: number,
     public readonly errors: string[] = [],
+    public readonly fieldErrors: Record<string, string> = {},
   ) {
     super(message);
     this.name = "ApiError";
@@ -39,6 +41,7 @@ function throwIfRequestFailed<T>(
     errorPayload?.message ?? "Không thể kết nối tới máy chủ",
     response.status,
     errorPayload?.errors ?? [],
+    errorPayload?.fieldErrors ?? {},
   );
 }
 

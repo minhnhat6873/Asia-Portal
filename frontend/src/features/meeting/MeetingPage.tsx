@@ -8,7 +8,8 @@ import { useRouter } from "next/navigation";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import DatePicker from "@/components/ui/DatePicker";
-import { getPublicEmployees } from "@/services/employee.service";
+import { getFutureMeetingTimes, getMeetingDurationOptions, getNextMeetingSlot, getVietnamBookingNow } from "@/lib/meetingSchedule";
+import { EMPLOYEE_DEPARTMENT_OPTIONS } from "@/components/ui/employee-department-options";
 import {
   getMeetingBookings,
   resendMeetingBookingOtp,
@@ -26,14 +27,6 @@ type Booking = MeetingBooking & {
   displayRoom?: string;
 };
 
-const MEETING_TIME_OPTIONS = ["08:00", "08:15", "08:30", "08:45", "09:00", "09:15", "09:30", "09:45", "10:00", "10:15", "10:30", "10:45", "11:00", "11:15", "11:30", "11:45", "13:00", "13:15", "13:30", "13:45", "14:00", "14:15", "14:30", "14:45", "15:00", "15:15", "15:30", "15:45", "16:00", "16:15", "16:30", "16:45", "17:00"];
-
-function roundUpToMeetingTime(date: Date) {
-  const totalMinutes = date.getHours() * 60 + date.getMinutes();
-  const roundedMinutes = Math.ceil(totalMinutes / 15) * 15;
-  const rounded = `${String(Math.floor(roundedMinutes / 60)).padStart(2, "0")}:${String(roundedMinutes % 60).padStart(2, "0")}`;
-  return MEETING_TIME_OPTIONS.includes(rounded) ? rounded : MEETING_TIME_OPTIONS.find((time) => time > rounded) ?? "08:00";
-}
 const ASIA_FNB_EMAIL_PATTERN = /^[A-Z0-9._%+-]+@asiafnb\.com$/i;
 const NAME_PATTERN = /^[\p{L}\p{M}\s]+$/u;
 const rooms = [
@@ -42,8 +35,7 @@ const rooms = [
 ];
 
 function todayLocal() {
-  const date = new Date();
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+  return getVietnamBookingNow().date;
 }
 
 function formatDate(value: string) {
@@ -266,12 +258,11 @@ export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: b
   const [end, setEnd] = useState("10:00");
   const [durationMinutes, setDurationMinutes] = useState(60);
   const [durationInput, setDurationInput] = useState("60");
+  const [bookingNow, setBookingNow] = useState(() => new Date());
   const [attendees, setAttendees] = useState(1);
   const [organizer, setOrganizer] = useState("");
   const [email, setEmail] = useState("");
   const [department, setDepartment] = useState("");
-  const [employeeDepartments, setEmployeeDepartments] = useState<string[]>([]);
-  const [isDepartmentsLoading, setIsDepartmentsLoading] = useState(true);
   const scheduleRef = useRef<HTMLDivElement>(null);
   const otpInputRefs = useRef<Array<HTMLInputElement | null>>([]);
 
@@ -300,18 +291,13 @@ export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: b
     return () => { disposed = true; window.clearInterval(timer); window.removeEventListener("focus", refreshWhenVisible); document.removeEventListener("visibilitychange", refreshWhenVisible); controller?.abort(); };
   }, []);
 
-  useEffect(() => {
-    const controller = new AbortController();
-    getPublicEmployees({ limit: 100, sort: "latest" }, controller.signal)
-      .then((result) => setEmployeeDepartments(Array.from(new Set(result.items.map((employee) => employee.department).filter(Boolean))).sort()))
-      .catch(() => setEmployeeDepartments([]))
-      .finally(() => { if (!controller.signal.aborted) setIsDepartmentsLoading(false); });
-    return () => controller.abort();
-  }, []);
 
   const currentDate = todayLocal();
-  const now = new Date();
-  const currentTime = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+  const currentTime = getVietnamBookingNow().time;
+  const futureStartTimes = getFutureMeetingTimes(date, bookingNow);
+  const validStart = futureStartTimes.includes(start);
+  const durationOptions = getMeetingDurationOptions(start);
+  const minimumBookingDate = getNextMeetingSlot(bookingNow).date;
   const todayCount = bookings.filter((booking) => booking.date === currentDate).length;
   const selectedRoom = rooms.find((room) => room.id === roomId)!;
   const otpBooking = otpAction === "cancel" ? bookingToCancel : null;
@@ -323,14 +309,18 @@ export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: b
   const overlapsLunchBreak = start < "13:00" && end > "12:00";
   const overlapsExistingBooking = bookings.some((booking) => booking.roomId === roomId && booking.date === date && start < addMinutes(booking.end, 15) && end > addMinutes(booking.start, -15));
   const validDuration = Number.isInteger(durationMinutes) && durationMinutes >= 30 && (durationMinutes - 30) % 15 === 0;
-  const selectedTimeAvailable = validDuration && start < end && !overlapsLunchBreak && !overlapsExistingBooking;
-  const scheduleWarning = overlapsLunchBreak
-    ? "Khung giờ họp không được trùng giờ nghỉ trưa (12:00–13:00)."
-    : overlapsExistingBooking
-      ? "Phòng đã có lịch trùng hoặc chưa đủ 15 phút nghỉ giữa các cuộc họp. Vui lòng chọn giờ khác."
-      : !validDuration
-        ? "Thời lượng phải từ 30 phút và tăng theo từng 15 phút (30, 45, 60, 75, 90...)."
-        : `Khung giờ ${start} - ${end} (${formatDate(date)}) đang trống và sẵn sàng đặt.`;
+  const selectedTimeAvailable = validStart && validDuration && durationOptions.includes(durationMinutes) && start < end && !overlapsLunchBreak && !overlapsExistingBooking;
+  const scheduleWarning = !validStart
+    ? "Hãy chọn ngày và giờ bắt đầu trong tương lai theo giờ Việt Nam."
+    : !durationOptions.includes(durationMinutes)
+      ? "Cuộc họp phải kết thúc trước hoặc đúng 17:00 và không trùng giờ nghỉ trưa."
+      : overlapsLunchBreak
+        ? "Khung giờ họp không được trùng giờ nghỉ trưa (12:00–13:00)."
+        : overlapsExistingBooking
+          ? "Phòng đã có lịch trùng hoặc chưa đủ 15 phút nghỉ giữa các cuộc họp. Vui lòng chọn giờ khác."
+          : !validDuration
+            ? "Thời lượng phải từ 30 phút và tăng theo từng 15 phút (30, 45, 60, 75, 90...)."
+            : `Khung giờ ${start} - ${end} (${formatDate(date)}) đang trống và sẵn sàng đặt.`;
   const bookedDepartments = Array.from(new Set(bookings.map((booking) => booking.department).filter(Boolean))).sort();
   const visibleBookings = bookings
     .filter((booking) => roomFilter === "all" || booking.roomId === roomFilter)
@@ -345,6 +335,29 @@ export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: b
       return;
     }
     router.push("/meeting/schedule");
+  };
+
+  useEffect(() => {
+    if (!formOpen) return;
+    const refresh = () => setBookingNow(new Date());
+    const timer = window.setInterval(refresh, 15_000);
+    window.addEventListener("focus", refresh);
+    return () => { window.clearInterval(timer); window.removeEventListener("focus", refresh); };
+  }, [formOpen]);
+
+  const changeBookingStart = (value: string) => {
+    const options = getMeetingDurationOptions(value);
+    const duration = options.includes(durationMinutes) ? durationMinutes : options.at(-1) ?? 30;
+    setStart(value);
+    setDurationMinutes(duration);
+    setDurationInput(String(duration));
+    setEnd(value ? addMinutes(value, duration) : "");
+  };
+
+  const changeBookingDate = (value: string) => {
+    setDate(value);
+    const options = getFutureMeetingTimes(value);
+    if (options.length && !options.includes(start)) changeBookingStart(options[0]);
   };
 
   useEffect(() => {
@@ -407,12 +420,16 @@ export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: b
       setFormError("Thời lượng chỉ được nhập từ 30 phút và theo bước 15 phút: 30, 45, 60, 75, 90...");
       return;
     }
-    if (start >= end || date < todayLocal() || (date === todayLocal() && start <= currentTime)) {
+    if (start >= end || !getFutureMeetingTimes(date).includes(start)) {
       setFormError("Hãy chọn ngày và khoảng thời gian hợp lệ trong tương lai.");
       return;
     }
     if (overlapsLunchBreak) {
       setFormError("Không thể đặt cuộc họp trong giờ nghỉ trưa (12:00–13:00).");
+      return;
+    }
+    if (!durationOptions.includes(durationMinutes)) {
+      setFormError("Cuộc họp phải kết thúc trước hoặc đúng 17:00.");
       return;
     }
     if (!Number.isInteger(attendees) || attendees < 1 || attendees > selectedRoom.capacity) {
@@ -515,14 +532,16 @@ export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: b
 
   const openRoomBooking = (nextRoomId: RoomId) => {
     const now = new Date();
-    const suggestedStart = roundUpToMeetingTime(now);
-    const availableEnd = addMinutes(suggestedStart, 60);
+    const suggested = getNextMeetingSlot(now);
+    const duration = Math.min(60, getMeetingDurationOptions(suggested.start).at(-1) ?? 30);
+    const availableEnd = addMinutes(suggested.start, duration);
     setRoomId(nextRoomId);
-    setDate(todayLocal());
-    setStart(suggestedStart);
+    setBookingNow(now);
+    setDate(suggested.date);
+    setStart(suggested.start);
     setEnd(availableEnd);
-    setDurationMinutes(60);
-    setDurationInput("60");
+    setDurationMinutes(duration);
+    setDurationInput(String(duration));
     setFormStep("details");
     setOtpAction("create");
     setBookingToCancel(null);
@@ -682,18 +701,18 @@ export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: b
               <Field label="Email liên hệ *" error={fieldErrors.email}><input required type="email" value={email} onChange={(event) => { setEmail(event.target.value); setFieldErrors((errors) => ({ ...errors, email: "" })); }} placeholder="ten@asiafnb.com" className={`form-input ${fieldErrors.email ? "!border-rose-500 !ring-1 !ring-rose-200" : ""}`} /></Field>
             </div>
             <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,0.8fr)]">
-              <Field label="Phòng ban" error={fieldErrors.department}><DepartmentSelect value={department} options={employeeDepartments} isLoading={isDepartmentsLoading} onChange={(value) => { setDepartment(value); setFieldErrors((errors) => ({ ...errors, department: "" })); }} /></Field>
+              <Field label="Phòng ban" error={fieldErrors.department}><DepartmentSelect value={department} options={EMPLOYEE_DEPARTMENT_OPTIONS.map(({ label }) => label)} isLoading={false} onChange={(value) => { setDepartment(value); setFieldErrors((errors) => ({ ...errors, department: "" })); }} /></Field>
               <Field label="Số người tham dự" error={fieldErrors.attendees}><div className="flex items-center gap-2"><input required type="number" min={1} max={selectedRoom.capacity} value={attendees} onChange={(event) => { setAttendees(Math.min(selectedRoom.capacity, Math.max(1, Number(event.target.value) || 1))); setFieldErrors((errors) => ({ ...errors, attendees: "" })); }} className="form-input min-w-0 flex-1 appearance-textfield [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" /><span className="shrink-0 text-[11px] font-normal text-slate-400">/ max {selectedRoom.capacity} người</span></div></Field>
             </div>
 
             <section className="rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50/80 to-slate-50 p-3.5 sm:p-4">
               <div className="flex flex-wrap items-center justify-between gap-2"><p className="inline-flex items-center gap-2 text-xs font-extrabold uppercase tracking-wide text-slate-700"><span className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-[#159447] shadow-sm"><Clock3 size={14} /></span> Khung giờ họp</p><span className="rounded-lg border border-emerald-200 bg-white px-2.5 py-1 text-[11px] font-bold text-[#08723d] shadow-sm">{start} → {end} ({Math.max((Number(end.slice(0, 2)) * 60 + Number(end.slice(3))) - (Number(start.slice(0, 2)) * 60 + Number(start.slice(3))), 0) / 60} giờ)</span></div>
               <div className="mt-3 grid gap-2.5 sm:grid-cols-3">
-                <Field label="Ngày họp"><DatePicker value={date} minValue={todayLocal()} onChange={setDate} /></Field>
-                <Field label="Giờ bắt đầu"><select value={start} onChange={(event) => { setStart(event.target.value); setEnd(addMinutes(event.target.value, durationMinutes)); }} className="form-input">{MEETING_TIME_OPTIONS.slice(0, -1).map((value) => <option key={value} value={value}>{value}</option>)}</select></Field>
-                <Field label="Phút họp"><div className="form-input flex items-center gap-2"><input type="text" inputMode="numeric" required value={durationInput} onChange={(event) => { const raw = event.target.value; if (!/^\d*$/.test(raw)) return; setDurationInput(raw); if (raw === "") return; const value = Number(raw); if (!Number.isFinite(value)) return; const nearest = Math.max(30, Math.round(value / 15) * 15); setDurationMinutes(nearest); setEnd(addMinutes(start, nearest)); }} onBlur={() => { if (durationInput === "") { setDurationMinutes(30); setDurationInput("30"); setEnd(addMinutes(start, 30)); } else { const nearest = Math.max(30, Math.round(Number(durationInput) / 15) * 15); setDurationMinutes(nearest); setDurationInput(String(nearest)); setEnd(addMinutes(start, nearest)); } }} className="min-w-0 flex-1 bg-transparent text-sm text-slate-800 outline-none" /><span className="shrink-0 text-xs text-slate-400">phút</span></div></Field>
+                <Field label="Ngày họp"><DatePicker value={date} minValue={minimumBookingDate} ariaLabel="Ngày họp" onChange={changeBookingDate} /></Field>
+                <Field label="Giờ bắt đầu"><select required disabled={futureStartTimes.length === 0} value={start} onChange={(event) => changeBookingStart(event.target.value)} className="form-input">{!futureStartTimes.includes(start) ? <option disabled value={start}>Chọn giờ tương lai</option> : null}{futureStartTimes.map((value) => <option key={value} value={value}>{value}</option>)}</select></Field>
+                <Field label="Phút họp"><div className="form-input flex items-center gap-2"><input type="text" inputMode="numeric" required value={durationInput} onChange={(event) => { const raw = event.target.value; if (!/^\d*$/.test(raw)) return; setDurationInput(raw); if (raw === "") return; const value = Number(raw); if (!Number.isFinite(value)) return; const nearest = Math.max(30, Math.round(value / 15) * 15); setDurationMinutes(nearest); setEnd(addMinutes(start, nearest)); }} onBlur={() => { if (durationInput === "") { setDurationMinutes(30); setDurationInput("30"); setEnd(addMinutes(start, 30)); } else { const nearest = Math.min(durationOptions.at(-1) ?? 30, Math.max(30, Math.round(Number(durationInput) / 15) * 15)); setDurationMinutes(nearest); setDurationInput(String(nearest)); setEnd(addMinutes(start, nearest)); } }} className="min-w-0 flex-1 bg-transparent text-sm text-slate-800 outline-none" /><span className="shrink-0 text-xs text-slate-400">phút</span></div></Field>
               </div>
-              <p className="mt-2 text-[11px] text-slate-500">Thời lượng tối thiểu 30 phút. Các cuộc họp cùng phòng cần cách nhau ít nhất 15 phút.</p>
+              <p className="mt-2 text-[11px] text-slate-500">Thời lượng tối thiểu 30 phút, bắt đầu muộn nhất 16:30 và kết thúc trước hoặc đúng 17:00. Các cuộc họp cùng phòng cần cách nhau ít nhất 15 phút.</p>
               <p role="status" className={`mt-3 rounded-xl border px-3 py-2 text-xs ${selectedTimeAvailable ? "border-emerald-200 bg-emerald-50 text-[#08723d]" : "border-rose-200 bg-rose-50 text-rose-700"}`}>{scheduleWarning}</p>
             </section>
 

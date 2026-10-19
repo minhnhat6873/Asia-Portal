@@ -20,20 +20,30 @@ export default function NewsDetailPage() {
 
   useEffect(() => {
     const controller = new AbortController();
-    Promise.all([
-      getPublicMediaById(params.id, controller.signal),
-      getPublicMedia({ limit: 4, sort: "latest" }, controller.signal),
-    ]).then(([post, list]) => {
-      setItem(post);
-      setRelated(list.items.filter((entry) => String(entry.id) !== String(post.id)).slice(0, 3));
-      setError(null);
-    }).catch((reason: unknown) => {
-      if (!controller.signal.aborted) {
-        setItem(null);
-        setError(reason instanceof ApiError && reason.status === 404 ? "Không tìm thấy bài viết." : reason instanceof Error ? reason.message : "Không thể tải bài viết.");
-      }
-    }).finally(() => { if (!controller.signal.aborted) setIsLoading(false); });
-    return () => controller.abort();
+    let inFlight = false;
+    const refresh = () => {
+      if (inFlight) return;
+      inFlight = true;
+      void Promise.all([
+        getPublicMediaById(params.id, controller.signal),
+        getPublicMedia({ limit: 4, sort: "latest" }, controller.signal),
+      ]).then(([post, list]) => {
+        if (controller.signal.aborted) return;
+        setItem(post);
+        setRelated(list.items.filter((entry) => String(entry.id) !== String(post.id)).slice(0, 3));
+        setError(null);
+      }).catch((reason: unknown) => {
+        if (!controller.signal.aborted) {
+          setItem(null);
+          setError(reason instanceof ApiError && reason.status === 404 ? "Không tìm thấy bài viết." : reason instanceof Error ? reason.message : "Không thể tải bài viết.");
+        }
+      }).finally(() => { inFlight = false; if (!controller.signal.aborted) setIsLoading(false); });
+    };
+    refresh();
+    const refreshWhenVisible = () => { if (document.visibilityState === "visible") refresh(); };
+    const timer = window.setInterval(refreshWhenVisible, 60_000);
+    window.addEventListener("focus", refreshWhenVisible);
+    return () => { controller.abort(); window.clearInterval(timer); window.removeEventListener("focus", refreshWhenVisible); };
   }, [params.id]);
 
   return (

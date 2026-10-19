@@ -4,6 +4,7 @@ import type { Media, MediaListQuery } from "../../interfaces/media.interface";
 import { userMediaRepository } from "../../repositories/user/media.repository";
 import { AppError } from "../../utils/errors/AppError";
 import { normalizeSearchText } from "../../utils/text/normalizeSearchText";
+import { withMediaExpiry } from "../../utils/media/validateMediaDates";
 
 function ensureValidId(id: string): void {
   if (!mongoose.isValidObjectId(id)) throw new AppError(400, "Mã bài viết không hợp lệ");
@@ -25,21 +26,21 @@ export const userMediaService = {
       );
       const total = matchingItems.length;
       const items = matchingItems.slice((page - 1) * limit, page * limit);
-      return { items, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } };
+      return { items: items.map(withMediaExpiry), pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } };
     }
 
     const [items, total] = await Promise.all([
       userMediaRepository.findAll({ filter, skip: (page - 1) * limit, limit, sort }),
       userMediaRepository.count(filter),
     ]);
-    return { items, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } };
+    return { items: items.map(withMediaExpiry), pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } };
   },
 
   async getMediaById(id: string) {
     ensureValidId(id);
     const post = await userMediaRepository.findById(id);
     if (!post) throw new AppError(404, "Không tìm thấy bài viết");
-    return post;
+    return withMediaExpiry(post);
   },
 };
 

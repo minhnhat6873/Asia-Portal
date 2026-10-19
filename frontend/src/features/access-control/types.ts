@@ -1,6 +1,8 @@
+import type { GroupColor, GroupIcon } from './permission-group-appearance';
+
 export type RiskLevel = 'low' | 'medium' | 'high';
 
-export type SystemModuleId = 'accounts' | 'roles' | 'employees' | 'media' | 'meetings' | 'system' | 'pos' | 'menu' | 'inventory' | 'finance' | 'hr';
+export type SystemModuleId = 'employees' | 'media' | 'meetings' | 'dashboard';
 
 export interface SystemPermission {
   id: string;
@@ -22,9 +24,11 @@ export interface ModuleCategory {
 export interface Role {
   id: string;
   name: string;
+  status: 'active' | 'inactive';
   code: string;
   description: string;
-  color: string;
+  color: GroupColor;
+  icon: GroupIcon;
   permissionIds: string[];
   isSystemDefault?: boolean;
   createdAt: string;
@@ -36,23 +40,13 @@ export interface User {
   name: string;
   email: string;
   phone: string;
-  roleId: string;
-  branch: string;
-  department: string;
+  roleIds: string[];
+  accountRole: 'admin' | 'manager' | 'user';
   status: 'active' | 'suspended' | 'pending' | 'rejected';
   avatar?: string;
-  lastActive: string;
   createdAt?: string;
   /** Only present while creating an account; never persisted in frontend state. */
   password?: string;
 }
 
-export interface AuditLog {
-  id: string;
-  action: string;
-  detail: string;
-  actor: string;
-  target: string;
-  timestamp: string;
-  type: 'role_create' | 'role_update' | 'role_delete' | 'user_assign' | 'user_create' | 'user_update';
-}
+export type NewUserInput = Pick<User, 'name' | 'email' | 'phone' | 'roleIds'> & {accountRole: 'admin' | 'manager'; password: string; confirmPassword: string};

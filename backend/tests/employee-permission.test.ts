@@ -43,10 +43,10 @@ describe("employee permissions", () => {
     expect(next).not.toHaveBeenCalled();
   });
 
-  it("yêu cầu quyền deactivate khi chuyển nhân viên sang inactive", () => {
+  it("quyền chỉnh sửa bao gồm chuyển nhân viên sang inactive", () => {
     const next = jest.fn() as NextFunction;
     requireEmployeeUpdatePermission(
-      requestMock(["employees:deactivate"], { status: "inactive" }),
+      requestMock(["employees:update"], { status: "inactive" }),
       responseMock(),
       next,
     );

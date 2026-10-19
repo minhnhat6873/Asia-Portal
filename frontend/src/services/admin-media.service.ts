@@ -9,12 +9,15 @@ export interface AdminMediaInput {
   coverImage?: string;
   authorDepartment: string;
   publishDate: string;
+  expiryDate?: string | null;
+  publishIndefinitely?: boolean;
   status?: MediaPost["status"];
 }
 
-interface ApiMedia extends Omit<MediaPost, "id" | "publishDate"> {
+interface ApiMedia extends Omit<MediaPost, "id" | "publishDate" | "expiryDate"> {
   _id: string;
   publishDate: string;
+  expiryDate?: string | null;
   coverImagePublicId?: string;
 }
 
@@ -55,15 +58,16 @@ function formatApiDate(value: string): string {
 }
 
 function mapMedia(post: ApiMedia): MediaPost {
-  const { _id, publishDate, ...rest } = post;
-  return { ...rest, id: _id, publishDate: formatDisplayDate(publishDate) };
+  const { _id, publishDate, expiryDate, ...rest } = post;
+  return { ...rest, id: _id, publishDate: formatDisplayDate(publishDate), expiryDate: expiryDate ? formatDisplayDate(expiryDate) : null };
 }
 
 function buildFormData(input: Partial<AdminMediaInput>, coverFile: File | null): FormData {
   const body = new FormData();
   Object.entries(input).forEach(([key, value]) => {
     if (value === undefined) return;
-    body.append(key, key === "publishDate" ? formatApiDate(String(value)) : String(value));
+    if (value === null) { body.append(key, ""); return; }
+    body.append(key, key === "publishDate" || key === "expiryDate" ? formatApiDate(String(value)) : String(value));
   });
   if (coverFile) body.append("coverImage", coverFile);
   return body;

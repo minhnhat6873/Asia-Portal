@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { newsCategories, NewsItem } from "@/config/news";
 import { getPublicMedia } from "@/services/media.service";
+import MediaExpiryBadge from "@/components/ui/MediaExpiryBadge";
 import { ArrowRight, Calendar, User, ChevronRight, Search, ArrowDownUp, LayoutGrid, Newspaper, Users, Megaphone, X, RotateCcw, Eye } from "lucide-react";
 import { hasRichTextContent, RichText } from "@/components/ui/RichText";
 import { normalizeSearchText } from "@/utils/normalizeSearchText";
@@ -61,6 +62,7 @@ function FeaturedEvent({ item, onSelect }: { item: NewsItem; onSelect: () => voi
           {item.category}
         </span>
         <h3 className="mb-3 text-3xl font-black leading-tight text-[#16241a] md:text-4xl">{item.title}</h3>
+        <MediaExpiryBadge isExpired={item.isExpired} />
         <RichText html={item.excerpt} className="mb-4 line-clamp-3 text-sm leading-relaxed text-gray-500 [&_p]:my-0" />
         <div className="flex items-center gap-4 text-xs text-gray-400">
           <span className="flex items-center gap-1"><Calendar size={12} /> {item.date}</span>
@@ -114,6 +116,7 @@ function NewsDetailPanel({ item, onClose, onOpenReader, panelRef }: { item: News
         </button>
       </div>
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-5">
+        <div className="mb-2"><MediaExpiryBadge isExpired={item.isExpired} /></div>
         <h3 className="line-clamp-2 shrink-0 text-xl font-black leading-snug text-[#16241a]" title={item.title}>{item.title}</h3>
         <RichText html={item.excerpt} className="mt-3 line-clamp-3 shrink-0 text-sm leading-relaxed text-slate-500 [&_p]:my-0 [&_p]:line-clamp-3" />
         <div className="mt-5 shrink-0 border-t border-slate-100 pt-4 text-sm">
@@ -176,6 +179,8 @@ export default function NewsSection({ preview = false }: Props) {
     try {
       const result = await getPublicMedia({ limit: 100, sort: "latest" }, signal);
       setNews(result.items);
+      setReaderNews((current) => current ? result.items.find((item) => item.id === current.id) ?? null : null);
+      setSelectedNews((current) => current ? result.items.find((item) => item.id === current.id) ?? null : null);
       setLoadError(null);
     } catch (error) {
       if (!signal?.aborted) {
@@ -190,7 +195,10 @@ export default function NewsSection({ preview = false }: Props) {
   useEffect(() => {
     const controller = new AbortController();
     queueMicrotask(() => void loadNews(controller.signal));
-    return () => controller.abort();
+    const refresh = () => { if (document.visibilityState === "visible") void loadNews(controller.signal); };
+    const timer = window.setInterval(refresh, 60_000);
+    window.addEventListener("focus", refresh);
+    return () => { controller.abort(); window.clearInterval(timer); window.removeEventListener("focus", refresh); };
   }, [loadNews]);
 
   const filtered = news.filter(
@@ -415,10 +423,11 @@ export default function NewsSection({ preview = false }: Props) {
                 {/* Content */}
                 <div className="absolute inset-0 flex flex-col justify-between p-5">
                   {/* Top: badge */}
-                  <div>
+                  <div className="flex flex-wrap items-center gap-2">
                     <span className={`inline-block text-xs px-2.5 py-1 rounded-full font-semibold ${categoryBadgeClass[item.category]}`}>
                       {item.category}
                     </span>
+                    <MediaExpiryBadge isExpired={item.isExpired} />
                   </div>
 
                   {/* Bottom: title + date */}
@@ -452,6 +461,9 @@ export default function NewsSection({ preview = false }: Props) {
             coverImage: readerNews.image,
             authorDepartment: readerNews.author,
             publishDate: readerNews.date,
+            expiryDate: readerNews.expiryDate,
+            publishIndefinitely: readerNews.publishIndefinitely,
+            isExpired: readerNews.isExpired,
             status: "published",
           } satisfies MediaPost}
           onClose={() => setReaderNews(null)}

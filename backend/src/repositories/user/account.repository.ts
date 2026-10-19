@@ -13,11 +13,13 @@ export const userAccountRepository = {
     return AccountModel.findOne({ email: email.toLowerCase() }).lean();
   },
 
-  create(data: RegisterAccountInput | Account) {
+  async create(data: RegisterAccountInput | Account) {
+    await AccountModel.init();
     return AccountModel.create(data);
   },
 
   async createWithHashedPassword(data: VerifiedRegistrationData) {
+    await AccountModel.init();
     const account = new AccountModel({
       name: data.name,
       email: data.email,

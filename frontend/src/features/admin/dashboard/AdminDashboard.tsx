@@ -2,24 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import {
-  Employee,
-  MediaPost,
-  ActiveTab,
-  UserAccount,
-  UserRole,
-  UserPermissions,
-  UserStatus,
-  TrashItem
-} from './types';
-import {
-  getStoredUsers,
-  saveStoredUsers,
-  getStoredTrashItems,
-  saveStoredTrashItems,
-  getCurrentUser,
-  setCurrentUser as persistCurrentUser
-} from './utils/storage';
+import type { Employee, MediaPost, ActiveTab } from './types';
 import { Sidebar } from './components/Sidebar';
 import { DashboardOverview } from './components/DashboardOverview';
 import { EmployeeManagement } from './components/EmployeeManagement';
@@ -27,18 +10,19 @@ import { EmployeeTrashPage } from './components/EmployeeTrashPage';
 import { MediaManagement } from './components/MediaManagement';
 import { AddEmployeePage } from './components/AddEmployeePage';
 import { AddMediaPage } from './components/AddMediaPage';
-import { DEFAULT_ROLE_PERMISSIONS, PermissionsManagement } from './components/PermissionsManagement';
 import { AccessControlTabs, type AccessControlPage } from '@/features/access-control/AccessControlTabs';
+import { AccessControlHome } from '@/features/access-control/AccessControlHome';
 import AccountPage from '@/features/admin/account/AccountPage';
 import Image from 'next/image';
 import Link from 'next/link';
 import { clearAdminSession, getAdminSession, type AdminUser } from '@/lib/adminSession';
 import { logoutAdmin } from '@/features/admin/login/auth.service';
-import { subscribePortalContent } from '@/lib/portalContent';
-import { ChevronDown, KeyRound, LogOut, Menu, ShieldCheck, UserRound } from 'lucide-react';
+import { ArrowLeft, ChevronDown, KeyRound, LogOut, Menu, ShieldCheck, UserRound } from 'lucide-react';
 import { getDashboardSummary, type DashboardSummary } from './dashboard.service';
 import { getAdminEmployee, getAdminEmployees, softDeleteAdminEmployee, type AdminEmployeeListParams, type AdminEmployeeResult } from '@/services/admin-employee.service';
 import { toast } from 'sonner';
+import { canAccessAdminPath, hasAdminPermission } from '@/lib/adminPermissions';
+import { getAccounts } from '@/services/access-control.service';
 import { getAdminMedia, getAdminMediaById, type AdminMediaListParams } from '@/services/admin-media.service';
 import { MeetingManagement } from './components/MeetingManagement';
 
@@ -55,11 +39,12 @@ export const ADMIN_TAB_ROUTES: Record<ActiveTab, string> = {
   'system-settings': '/admin/settings',
   account: '/admin/account',
 };
-const ACCESS_CONTROL_PAGE_ROUTES: Record<AccessControlPage, string> = {
-  accounts: '/admin/access-control',
+const ACCESS_CONTROL_PAGE_ROUTES: Record<Exclude<AccessControlPage, "edit-role">, string> = {
+  overview: '/admin/access-control',
+  accounts: '/admin/access-control/accounts',
+  'new-account': '/admin/access-control/accounts/new',
   roles: '/admin/access-control/roles',
   'new-role': '/admin/access-control/roles/new',
-  trash: '/admin/access-control/trash',
 };
 
 
@@ -120,18 +105,21 @@ function mapApiEmployeeToDashboardEmployee(employee: AdminEmployeeResult): Emplo
 }
 
 function getAccessControlPage(pathname: string): AccessControlPage {
+  if (pathname === '/admin/access-control/accounts/new') return 'new-account';
   if (pathname === '/admin/access-control/roles/new') return 'new-role';
+  if (/^\/admin\/access-control\/roles\/[^/]+\/edit$/.test(pathname)) return 'edit-role';
   if (pathname === '/admin/access-control/roles') return 'roles';
-  if (pathname === '/admin/access-control/trash') return 'trash';
-  return 'accounts';
+  if (pathname === '/admin/access-control/accounts') return 'accounts';
+  return 'overview';
 }
 
 
-export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
+export default function AdminDashboard(_props: AdminDashboardProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const [activeTab, setActiveTab] = useState<ActiveTab>(() => initialTab ?? getTabFromPath(pathname));
+  const activeTab = getTabFromPath(pathname);
   const accessControlPage = getAccessControlPage(pathname);
+  const editingRoleId = pathname.match(/^\/admin\/access-control\/roles\/([^/]+)\/edit$/)?.[1];
   const isEmployeeTrashPage = pathname === '/admin/employees/trash';
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [employeeTotal, setEmployeeTotal] = useState(0);
@@ -151,16 +139,14 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
   const [editingMedia, setEditingMedia] = useState<MediaPost | null>(null);
   const [isEditingMediaLoading, setIsEditingMediaLoading] = useState(Boolean(editingMediaId));
   const [editingMediaError, setEditingMediaError] = useState<string | null>(null);
-  const [users, setUsers] = useState<UserAccount[]>([]);
-  const [trashItems, setTrashItems] = useState<TrashItem[]>([]);
-  const [currentUser, setCurrentUserState] = useState<UserAccount | null>(null);
+  const [pendingUsersCount, setPendingUsersCount] = useState(0);
   const [sessionAccount, setSessionAccount] = useState<AdminUser | null>(null);
+  const canViewEmployees = hasAdminPermission(sessionAccount, 'employees:view');
+  const canViewMedia = hasAdminPermission(sessionAccount, 'media:view');
+  const canViewDashboard = hasAdminPermission(sessionAccount, 'dashboard:view');
   const [dashboardSummary, setDashboardSummary] = useState<DashboardSummary | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
-  useEffect(() => {
-    setActiveTab(getTabFromPath(pathname));
-  }, [pathname]);
   const accountMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -178,23 +164,18 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
   }, []);
 
   useEffect(() => {
-    if (!editingEmployeeId) {
-      setEditingEmployee(null);
-      setEditingEmployeeError(null);
-      setIsEditingEmployeeLoading(false);
+    if (!editingEmployeeId || !canViewEmployees) {
+      queueMicrotask(() => { setEditingEmployee(null); setEditingEmployeeError(null); setIsEditingEmployeeLoading(false); });
       return;
     }
 
     const employeeId = decodeURIComponent(editingEmployeeId);
     if (!/^[a-f\d]{24}$/i.test(employeeId)) {
-      setEditingEmployee(null);
-      setEditingEmployeeError("Không tìm thấy hồ sơ nhân viên trên hệ thống.");
-      setIsEditingEmployeeLoading(false);
+      queueMicrotask(() => { setEditingEmployee(null); setEditingEmployeeError("Không tìm thấy hồ sơ nhân viên trên hệ thống."); setIsEditingEmployeeLoading(false); });
       return;
     }
     const controller = new AbortController();
-    setIsEditingEmployeeLoading(true);
-    setEditingEmployeeError(null);
+    queueMicrotask(() => { if (!controller.signal.aborted) { setIsEditingEmployeeLoading(true); setEditingEmployeeError(null); } });
 
     void getAdminEmployee(employeeId, controller.signal)
       .then((employee) => setEditingEmployee(mapApiEmployeeToDashboardEmployee(employee)))
@@ -209,10 +190,10 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
       });
 
     return () => controller.abort();
-  }, [editingEmployeeId]);
+  }, [editingEmployeeId, canViewEmployees]);
 
   useEffect(() => {
-    if (!editingMediaId) return;
+    if (!editingMediaId || !canViewMedia) return;
     const controller = new AbortController();
     void getAdminMediaById(decodeURIComponent(editingMediaId), controller.signal)
       .then(setEditingMedia)
@@ -224,7 +205,7 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
       })
       .finally(() => { if (!controller.signal.aborted) setIsEditingMediaLoading(false); });
     return () => controller.abort();
-  }, [editingMediaId]);
+  }, [editingMediaId, canViewMedia]);
 
   useEffect(() => {
     const syncSession = () => setSessionAccount(getAdminSession());
@@ -238,6 +219,7 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
   }, []);
 
   const loadEmployees = useCallback(async (signal?: AbortSignal) => {
+    if (!canViewEmployees) { setEmployees([]); setAreEmployeesLoading(false); return; }
     setAreEmployeesLoading(true);
     try {
       const result = await getAdminEmployees(employeeListParams, signal);
@@ -253,9 +235,10 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
     } finally {
       if (!signal?.aborted) setAreEmployeesLoading(false);
     }
-  }, [employeeListParams]);
+  }, [employeeListParams, canViewEmployees]);
 
   const loadMedia = useCallback(async (signal?: AbortSignal) => {
+    if (!canViewMedia) { setMediaPosts([]); setAreMediaLoading(false); return; }
     try {
       const result = await getAdminMedia(mediaListParams, signal);
       setMediaPosts(result.items);
@@ -270,16 +253,17 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
     } finally {
       if (!signal?.aborted) setAreMediaLoading(false);
     }
-  }, [mediaListParams]);
+  }, [mediaListParams, canViewMedia]);
 
   const refreshDashboardSummary = useCallback(async (signal?: AbortSignal) => {
+    if (!canViewDashboard) return;
     try {
       const summary = await getDashboardSummary(signal);
       setDashboardSummary(summary);
     } catch {
       if (!signal?.aborted) setDashboardSummary(null);
     }
-  }, []);
+  }, [canViewDashboard]);
 
   const handleEmployeeFiltersChange = useCallback((filters: AdminEmployeeListParams) => {
     setEmployeeListParams({ ...filters, page: 1, limit: 10 });
@@ -301,7 +285,7 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
 
   useEffect(() => {
     const controller = new AbortController();
-    void loadEmployees(controller.signal);
+    queueMicrotask(() => { if (!controller.signal.aborted) void loadEmployees(controller.signal); });
     return () => controller.abort();
   }, [loadEmployees]);
   useEffect(() => {
@@ -311,7 +295,7 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
   }, [loadMedia]);
   useEffect(() => {
     const controller = new AbortController();
-    void refreshDashboardSummary(controller.signal);
+    queueMicrotask(() => { if (!controller.signal.aborted) void refreshDashboardSummary(controller.signal); });
 
     return () => controller.abort();
   }, [refreshDashboardSummary]);
@@ -336,40 +320,12 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
   const [selectedDossierEmployee, setSelectedDossierEmployee] = useState<Employee | null>(null);
   const [previewMediaPost, setPreviewMediaPost] = useState<MediaPost | null>(null);
 
-  // Account/access-control data still uses the legacy browser store.
   useEffect(() => {
-    const load = () => {
-      const storedUsers = getStoredUsers();
-      const normalizedUsers = storedUsers.map((user) =>
-        user.role === 'admin'
-          ? {
-              ...user,
-              status: 'approved' as const,
-              permissions: {
-                canViewDashboard: true,
-                canManageEmployees: true,
-                canManageMedia: true,
-                canManagePermissions: true,
-                canExportData: true,
-              },
-            }
-          : user
-      );
-      const needsAdminNormalization = normalizedUsers.some(
-        (user, index) => JSON.stringify(user) !== JSON.stringify(storedUsers[index])
-      );
-      if (needsAdminNormalization) saveStoredUsers(normalizedUsers);
-      setUsers(normalizedUsers);
-      const storedTrashItems = getStoredTrashItems();
-      const realTrashItems = storedTrashItems.filter((item) => item.entityType !== 'employee' && item.entityType !== 'media');
-      if (realTrashItems.length !== storedTrashItems.length) saveStoredTrashItems(realTrashItems);
-      setTrashItems(realTrashItems);
-      setCurrentUserState(getCurrentUser());
-    };
-
-    load();
-    return subscribePortalContent(load);
-  }, []);
+    if (sessionAccount?.role !== 'Toàn quyền Admin') return;
+    let active = true;
+    void getAccounts().then((accounts) => { if (active) setPendingUsersCount(accounts.filter((account) => account.status === 'pending').length); }).catch(() => {});
+    return () => { active = false; };
+  }, [sessionAccount?.role]);
 
   // On phones, start with the content visible and open navigation as an overlay.
   useEffect(() => {
@@ -380,8 +336,8 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
   }, []);
 
   const navigateToTab = (tab: ActiveTab) => {
-    setActiveTab(tab);
-    router.push(ADMIN_TAB_ROUTES[tab]);
+    const target = ADMIN_TAB_ROUTES[tab];
+    router.push(canAccessAdminPath(sessionAccount, target) ? target : "/admin/account");
     if (window.matchMedia('(max-width: 767px)').matches) setIsSidebarOpen(false);
   };
   // Helper toast notifier
@@ -390,44 +346,9 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
     notify(message);
   };
 
-  const addTrashItem = (item: Omit<TrashItem, 'id' | 'deletedAt'>) => {
-    const nextItem: TrashItem = {
-      ...item,
-      id: `trash-${crypto.randomUUID()}`,
-      deletedAt: new Date().toLocaleString('vi-VN'),
-      deletedBy: currentUser?.fullName,
-    };
-    setTrashItems((items) => {
-      const payloadId =
-        item.payload && typeof item.payload === 'object' && 'id' in item.payload
-          ? String((item.payload as { id: unknown }).id)
-          : item.title;
-      if (items.some((existing) => {
-        const existingPayloadId =
-          existing.payload && typeof existing.payload === 'object' && 'id' in existing.payload
-            ? String((existing.payload as { id: unknown }).id)
-            : existing.title;
-        return existing.entityType === item.entityType && existingPayloadId === payloadId;
-      })) return items;
-      const next = [nextItem, ...items];
-      saveStoredTrashItems(next);
-      return next;
-    });
-  };
-
-  const removeTrashItem = (trashId: string) => {
-    setTrashItems((items) => {
-      const next = items.filter((item) => item.id !== trashId);
-      saveStoredTrashItems(next);
-      return next;
-    });
-  };
-
   // --- EMPLOYEE CRUD ---
   const handleAddEmployee = (newEmpData: Employee) => {
-    const newEmployee: Employee = newEmpData.id
-      ? newEmpData
-      : { ...newEmpData, id: `emp-${Date.now()}` };
+    const newEmployee = newEmpData;
     const updated = [newEmployee, ...employees];
     setEmployees(updated);
     void refreshDashboardSummary();
@@ -446,11 +367,11 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
 
   const handleDeleteEmployee = async (id: string): Promise<boolean> => {
     const empToDelete = employees.find((e) => e.id === id);
-    if (!empToDelete) return false;
+    if (!empToDelete || !hasAdminPermission(sessionAccount, 'employees:delete')) return false;
 
     const loadingToastId = toast.loading('Đang xóa nhân viên, vui lòng chờ trong giây lát...');
 
-    if (/^[a-f\d]{24}$/i.test(id)) {
+    {
       try {
         await softDeleteAdminEmployee(id);
       } catch (error) {
@@ -496,131 +417,8 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
     void refreshDashboardSummary();
   };
 
-  // --- ACCOUNT APPROVAL & PERMISSIONS ---
-
-  const handleSetCurrentUser = (user: UserAccount | null) => {
-    setCurrentUserState(user);
-    persistCurrentUser(user);
-  };
-
-  const handleApproveUser = (userId: string, role: UserRole, permissions: UserPermissions) => {
-    const targetUser = users.find((u) => u.id === userId);
-    if (!targetUser) return;
-
-    const effectivePermissions: UserPermissions =
-      role === 'admin' ? DEFAULT_ROLE_PERMISSIONS.admin : permissions;
-
-    const updatedUsers = users.map((u) =>
-      u.id === userId
-        ? {
-            ...u,
-            status: 'approved' as const,
-            role,
-            permissions: effectivePermissions,
-            approvedAt: new Date().toLocaleDateString('vi-VN'),
-            approvedBy: currentUser?.fullName || 'Quản Trị Viên',
-          }
-        : u
-    );
-
-    setUsers(updatedUsers);
-    saveStoredUsers(updatedUsers);
-    addToast(
-      `Đã phê duyệt và phân quyền cho ${targetUser.fullName} (@${targetUser.username})! Tài khoản này hiện đã có thể đăng nhập.`,
-      'success'
-    );
-  };
-
-  const handleRejectUser = (userId: string, reason: string) => {
-    const targetUser = users.find((u) => u.id === userId);
-    if (!targetUser) return;
-
-    const updatedUsers = users.map((u) =>
-      u.id === userId
-        ? {
-            ...u,
-            status: 'rejected' as const,
-            rejectReason: reason,
-            rejectedAt: new Date().toLocaleDateString('vi-VN'),
-            rejectedBy: currentUser?.fullName || 'Quản Trị Viên',
-          }
-        : u
-    );
-
-    setUsers(updatedUsers);
-    saveStoredUsers(updatedUsers);
-    addToast(`Đã từ chối duyệt tài khoản @${targetUser.username}.`, 'info');
-  };
-
-  const handleUpdatePermissions = (userId: string, role: UserRole, permissions: UserPermissions) => {
-    const targetUser = users.find((u) => u.id === userId);
-    if (!targetUser) return;
-    if (targetUser.role === 'admin') {
-      addToast('Tài khoản Admin được bảo vệ và không thể thay đổi phân quyền.', 'info');
-      return;
-    }
-
-    const fixedPermissions = role === 'admin' ? DEFAULT_ROLE_PERMISSIONS.admin : permissions;
-    const updatedUsers = users.map((u) => {
-      if (u.id !== userId) return u;
-      const updated = { ...u, role, permissions: fixedPermissions };
-      // Keep the signed-in copy in step when an admin edits their own rights.
-      if (currentUser?.id === userId) handleSetCurrentUser(updated);
-      return updated;
-    });
-
-    setUsers(updatedUsers);
-    saveStoredUsers(updatedUsers);
-    addToast(`Đã cập nhật phân quyền cho tài khoản ${targetUser.fullName}!`, 'success');
-  };
-
-  const handleToggleLockUser = (userId: string) => {
-    const targetUser = users.find((u) => u.id === userId);
-    if (!targetUser) return;
-    if (targetUser.role === 'admin') {
-      addToast('Tài khoản Admin được bảo vệ và không thể khóa.', 'info');
-      return;
-    }
-
-    const newStatus: UserStatus = targetUser.status === 'locked' ? 'approved' : 'locked';
-    const updatedUsers = users.map((u) => (u.id === userId ? { ...u, status: newStatus } : u));
-
-    setUsers(updatedUsers);
-    saveStoredUsers(updatedUsers);
-    addToast(
-      newStatus === 'locked'
-        ? `Đã tạm khóa tài khoản @${targetUser.username}.`
-        : `Đã mở khóa tài khoản @${targetUser.username}!`,
-      'info'
-    );
-  };
-
-  const handleDeleteUser = (userId: string) => {
-    const targetUser = users.find((u) => u.id === userId);
-    if (!targetUser) return;
-    const updatedUsers = users.filter((u) => u.id !== userId);
-    setUsers(updatedUsers);
-    saveStoredUsers(updatedUsers);
-    addTrashItem({ entityType: 'account', title: targetUser.fullName, payload: targetUser });
-    addToast(`Đã chuyển tài khoản ${targetUser.fullName} vào Thùng rác.`, 'info');
-  };
-
-  const restoreExternalTrashItem = async (item: TrashItem) => {
-    if (item.entityType === 'account') {
-      const account = item.payload as UserAccount;
-      setUsers((items) => {
-        const next = items.some((entry) => entry.id === account.id) ? items : [account, ...items];
-        saveStoredUsers(next);
-        return next;
-      });
-      addToast(`Đã khôi phục tài khoản ${account.fullName}.`);
-    }
-  };
-
-  const pendingUsersCount = users.filter((u) => u.status === 'pending').length;
-
   return (
-    <div className={`relative flex h-screen flex-col overflow-hidden bg-[#f8fafc] font-sans text-slate-800`}>
+    <div className={`relative flex h-screen flex-col overflow-hidden bg-admin-main font-sans text-slate-800`}>
       {/* Toast notifications */}
       <header className={`flex shrink-0 items-center justify-between bg-white px-4 sm:px-6 lg:px-8 ${activeTab === 'meetings' ? 'h-[60px]' : 'h-[76px]'}`}>
           <Link href="/admin/dashboard" className="flex min-w-0 items-center gap-3 rounded-xl outline-none transition-opacity hover:opacity-80 focus-visible:ring-2 focus-visible:ring-emerald-500">
@@ -715,7 +513,7 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
       )}
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
+      <main className="min-w-0 h-full flex-1 overflow-y-auto bg-admin-main">
         {/* Topbar — back to the public portal + account dropdown */}
         <header className={`shrink-0 items-center justify-between gap-3 bg-transparent px-4 md:px-6 ${activeTab === 'meetings' ? 'flex h-14 lg:hidden' : 'flex h-16'}`}>
           <div className="flex items-center gap-3">
@@ -733,8 +531,19 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
               <Menu className="h-[21px] w-[21px]" />
             </button>
 
+            {activeTab === 'permissions' && (accessControlPage === 'roles' || accessControlPage === 'accounts' || accessControlPage === 'new-role' || accessControlPage === 'new-account') && (
+              <Link
+                href={accessControlPage === 'new-account' ? '/admin/access-control/accounts' : '/admin/access-control'}
+                aria-label={accessControlPage === 'new-account' ? 'Quay lại quản lý tài khoản' : 'Quay lại phân quyền và quản lý tài khoản'}
+                title="Quay lại"
+                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-slate-700 transition-colors hover:bg-emerald-50 hover:text-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+              >
+                <ArrowLeft className="h-5 w-5" aria-hidden="true" />
+              </Link>
+            )}
+
             {/* Section title for the active tab */}
-            <span className="hidden items-center gap-2 px-1 text-lg font-bold uppercase tracking-[0.04em] text-slate-800 lg:inline-flex">
+            <span className={`${activeTab === 'permissions' ? 'inline-flex text-sm sm:text-lg' : 'hidden text-lg lg:inline-flex'} items-center gap-2 px-1 font-bold uppercase tracking-[0.04em] text-slate-800`}>
               <span className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.65)]" />
               {activeTab === 'overview' && 'Bảng Điều Khiển'}
               {activeTab === 'employees' && (isEmployeeTrashPage ? 'Thùng Rác Nhân Viên' : 'Quản Lý Nhân Sự')}
@@ -743,7 +552,7 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
               {activeTab === 'meetings' && 'Quản Lý Đặt Phòng Họp'}
               {activeTab === 'add-media' && 'Đăng Tin Truyền Thông'}
               {activeTab === 'edit-media' && 'Chỉnh Sửa Tin Truyền Thông'}
-              {activeTab === 'permissions' && 'Phân Quyền & Quản Lý Tài Khoản'}
+              {activeTab === 'permissions' && ({ overview: 'Phân Quyền & Quản Lý Tài Khoản', accounts: 'Quản Lý Tài Khoản', 'new-account': 'Thêm Tài Khoản', roles: 'Nhóm Quyền Đã Tạo', 'new-role': 'Tạo Nhóm Quyền', 'edit-role': 'Chỉnh Sửa Nhóm Quyền' }[accessControlPage])}
               {activeTab === 'system-settings' && 'Cài Đặt Hệ Thống'}
               {activeTab === 'account' && 'Thông Tin Tài Khoản'}
             </span>
@@ -752,7 +561,7 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
 
           <span className="hidden" aria-hidden="true" />
         </header>
-        <main className={`flex-1 overflow-y-auto ${activeTab === 'meetings' ? 'bg-[#f4faf7] p-3 sm:p-4 lg:p-[18px]' : 'bg-[#f4f6f8] p-3 sm:p-4 md:p-6 lg:p-8'}`}>
+        <div className={activeTab === 'meetings' ? 'p-3 sm:p-4 lg:p-[18px]' : 'p-3 sm:p-4 md:p-6 lg:p-8'}>
           <div className={activeTab === 'meetings' ? 'mx-0 w-full max-w-none' : 'mx-auto max-w-7xl'}>
             {/* 1. Tổng quan Dashboard */}
             {activeTab === 'overview' && (
@@ -899,43 +708,20 @@ export default function AdminDashboard({ initialTab }: AdminDashboardProps) {
 
             {/* 6. Trang Phân Quyền Quản Lý & Duyệt Tài Khoản Đăng Ký */}
             {(activeTab === 'permissions' || activeTab === 'system-settings') && (
-              <div className="space-y-5">
-                {activeTab === 'permissions' && (
-                  <nav aria-label="Dieu huong phan quyen" className="flex flex-wrap gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-md">
-                    {([
-                      ['accounts', 'Qu\u1ea3n l\u00fd t\u00e0i kho\u1ea3n'],
-                      ['roles', 'Nh\u00f3m quy\u1ec1n \u0111\u00e3 t\u1ea1o'],
-                      ['new-role', 'T\u1ea1o nh\u00f3m quy\u1ec1n'],
-                      ['trash', 'Th\u00f9ng r\u00e1c'],
-                    ] as const).map(([page, label]) => (
-                      <button
-                        key={page}
-                        type="button"
-                        aria-current={accessControlPage === page ? 'page' : undefined}
-                        onClick={() => router.push(ACCESS_CONTROL_PAGE_ROUTES[page])}
-                        className={`rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${accessControlPage === page ? 'bg-emerald-700 text-white shadow-sm' : 'text-slate-600 hover:bg-emerald-50 hover:text-emerald-800'}`}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </nav>
-                )}
-
+              accessControlPage === 'overview' ? <AccessControlHome /> : (
                 <AccessControlTabs
                   activeTab={activeTab}
-                  onNavigate={navigateToTab}
                   page={accessControlPage}
+                  editingRoleId={editingRoleId}
+                  onNavigateToEditRole={(roleId) => router.push(`/admin/access-control/roles/${encodeURIComponent(roleId)}/edit`)}
                   onNavigateToPage={(page) => router.push(ACCESS_CONTROL_PAGE_ROUTES[page])}
-                  trashItems={trashItems.filter((item) => item.entityType !== 'employee' && item.entityType !== 'media')}
-                  onAddTrashItem={addTrashItem}
-                  onRemoveTrashItem={removeTrashItem}
-                  onRestoreExternalTrashItem={restoreExternalTrashItem}
+                  onAccountsChanged={setPendingUsersCount}
                 />
-              </div>
+              )
             )}
           </div>
-        </main>
-      </div>
+        </div>
+      </main>
       </div>
     </div>
   );

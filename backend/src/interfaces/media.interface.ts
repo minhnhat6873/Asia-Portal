@@ -39,6 +39,8 @@ export interface Media {
   coverImagePublicId?: string;
   authorDepartment: string;
   publishDate: Date;
+  expiryDate?: Date | null;
+  publishIndefinitely?: boolean;
   status: MediaStatus;
   isDeleted?: boolean;
   deletedAt?: Date | null;

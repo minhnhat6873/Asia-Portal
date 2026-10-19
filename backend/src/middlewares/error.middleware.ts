@@ -37,6 +37,7 @@ export function globalErrorHandler(
     response.status(error.statusCode).json({
       success: false,
       message: error.message,
+      ...(error.fieldErrors ? { fieldErrors: error.fieldErrors } : {}),
     });
     return;
   }
@@ -51,6 +52,12 @@ export function globalErrorHandler(
 
   if ((error as MongoDuplicateError)?.code === 11000) {
     const duplicateError = error as MongoDuplicateError;
+    const field = duplicateError.keyPattern?.phoneKey ? "phone" : duplicateError.keyPattern?.email ? "email" : null;
+    if (field) {
+      const message = field === "phone" ? "Số điện thoại đã được sử dụng." : "Email đã được sử dụng.";
+      response.status(409).json({ success: false, message, fieldErrors: { [field]: message } });
+      return;
+    }
     response.status(409).json({
       success: false,
       message: duplicateError.keyPattern?.rank

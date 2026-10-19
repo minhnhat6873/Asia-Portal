@@ -2,6 +2,12 @@ import { Router } from "express";
 import rateLimit from "express-rate-limit";
 
 import {
+  changePassword,
+  changeEmail,
+  requestEmailChangeOtp,
+  resendEmailChangeOtp,
+  requestPasswordChangeOtp,
+  resendPasswordChangeOtp,
   getCurrentAccount,
   login,
   logout,
@@ -15,6 +21,12 @@ import { requireAdminAuth } from "../../middlewares/auth.middleware";
 import { validateBody } from "../../middlewares/validate.middleware";
 import { securityConfig } from "../../config/security.config";
 import {
+  changePasswordSchema,
+  changeEmailSchema,
+  requestEmailChangeOtpSchema,
+  resendEmailChangeOtpSchema,
+  requestPasswordChangeOtpSchema,
+  resendPasswordChangeOtpSchema,
   loginSchema,
   requestPasswordResetOtpSchema,
   resetPasswordWithOtpSchema,
@@ -77,6 +89,36 @@ router.post("/forgot-password/resend-otp", registerLimiter, validateBody(request
 
 router.post("/refresh", refreshLimiter, refreshLogin);
 router.post("/logout", logout);
+const passwordOtpSendLimiter = rateLimit({
+  windowMs: securityConfig.rateLimitWindowMs, limit: 10,
+  standardHeaders: "draft-8", legacyHeaders: false,
+  keyGenerator: (request) => `password-otp:${request.admin!.id}`,
+  message: { success: false, message: "Bạn đã yêu cầu OTP quá nhiều lần. Vui lòng thử lại sau." },
+});
+const passwordOtpVerifyLimiter = rateLimit({
+  windowMs: securityConfig.rateLimitWindowMs, limit: 30,
+  standardHeaders: "draft-8", legacyHeaders: false,
+  keyGenerator: (request) => `password-verify:${request.admin!.id}`,
+  message: { success: false, message: "Bạn đã xác nhận OTP quá nhiều lần. Vui lòng thử lại sau." },
+});
+router.post("/password/request-otp", requireAdminAuth, passwordOtpSendLimiter, validateBody(requestPasswordChangeOtpSchema), requestPasswordChangeOtp);
+router.post("/password/resend-otp", requireAdminAuth, passwordOtpSendLimiter, validateBody(resendPasswordChangeOtpSchema), resendPasswordChangeOtp);
+router.patch("/password", requireAdminAuth, passwordOtpVerifyLimiter, validateBody(changePasswordSchema), changePassword);
+const emailOtpSendLimiter = rateLimit({
+  windowMs: securityConfig.rateLimitWindowMs, limit: 10,
+  standardHeaders: "draft-8", legacyHeaders: false,
+  keyGenerator: (request) => `email-otp:${request.admin!.id}`,
+  message: { success: false, message: "Bạn đã yêu cầu OTP quá nhiều lần. Vui lòng thử lại sau." },
+});
+const emailOtpVerifyLimiter = rateLimit({
+  windowMs: securityConfig.rateLimitWindowMs, limit: 30,
+  standardHeaders: "draft-8", legacyHeaders: false,
+  keyGenerator: (request) => `email-verify:${request.admin!.id}`,
+  message: { success: false, message: "Bạn đã xác nhận OTP quá nhiều lần. Vui lòng thử lại sau." },
+});
+router.post("/email/request-otp", requireAdminAuth, emailOtpSendLimiter, validateBody(requestEmailChangeOtpSchema), requestEmailChangeOtp);
+router.post("/email/resend-otp", requireAdminAuth, emailOtpSendLimiter, validateBody(resendEmailChangeOtpSchema), resendEmailChangeOtp);
+router.patch("/email", requireAdminAuth, emailOtpVerifyLimiter, validateBody(changeEmailSchema), changeEmail);
 router.get("/me", requireAdminAuth, sessionLimiter, getCurrentAccount);
 
 export default router;

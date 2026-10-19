@@ -1,3 +1,5 @@
+import { emailChangeOtpService } from "../../services/admin/email-change-otp.service";
+import type { ConfirmEmailChangeInput, RequestEmailChangeInput } from "../../interfaces/email-change-otp.interface";
 import type { NextFunction, Request, Response } from "express";
 
 import {
@@ -16,6 +18,8 @@ import type {
 import { registrationOtpService } from "../../services/user/registration-otp.service";
 
 import { passwordResetOtpService } from "../../services/user/password-reset-otp.service";
+import { passwordChangeOtpService } from "../../services/admin/password-change-otp.service";
+import type { ConfirmPasswordChangeInput, RequestPasswordChangeInput } from "../../interfaces/password-change-otp.interface";
 function clearAuthCookie(response: Response, name: string): void {
   const options = getAuthCookieOptions();
   response.clearCookie(name, {
@@ -189,4 +193,41 @@ export async function resendPasswordResetOtp(
   } catch (error) {
     next(error);
   }
+}
+export async function requestPasswordChangeOtp(request: Request<unknown, unknown, RequestPasswordChangeInput>, response: Response, next: NextFunction): Promise<void> {
+  try {
+    const data = await passwordChangeOtpService.request(request.admin!.id, request.body);
+    response.status(202).json({ success: true, message: "Mã OTP đã được gửi đến email của bạn.", data });
+  } catch (error) { next(error); }
+}
+export async function resendPasswordChangeOtp(request: Request<unknown, unknown, { requestId: string }>, response: Response, next: NextFunction): Promise<void> {
+  try {
+    const data = await passwordChangeOtpService.resend(request.admin!.id, request.body.requestId);
+    response.json({ success: true, message: "Mã OTP mới đã được gửi đến email của bạn.", data });
+  } catch (error) { next(error); }
+}
+export async function changePassword(request: Request<unknown, unknown, ConfirmPasswordChangeInput>, response: Response, next: NextFunction): Promise<void> {
+  try {
+    await passwordChangeOtpService.confirm(request.admin!.id, request.body);
+    response.status(200).json({success: true, message: "Đổi mật khẩu thành công."});
+  } catch (error) { next(error); }
+}
+
+export async function requestEmailChangeOtp(request: Request<unknown, unknown, RequestEmailChangeInput>, response: Response, next: NextFunction): Promise<void> {
+  try {
+    const data = await emailChangeOtpService.request(request.admin!.id, request.body);
+    response.status(202).json({ success: true, message: "Mã OTP đã được gửi đến email mới.", data });
+  } catch (error) { next(error); }
+}
+export async function resendEmailChangeOtp(request: Request<unknown, unknown, { requestId: string }>, response: Response, next: NextFunction): Promise<void> {
+  try {
+    const data = await emailChangeOtpService.resend(request.admin!.id, request.body.requestId);
+    response.json({ success: true, message: "Mã OTP mới đã được gửi đến email mới.", data });
+  } catch (error) { next(error); }
+}
+export async function changeEmail(request: Request<unknown, unknown, ConfirmEmailChangeInput>, response: Response, next: NextFunction): Promise<void> {
+  try {
+    const data = await emailChangeOtpService.confirm(request.admin!.id, request.body);
+    response.status(200).json({ success: true, message: "Đổi email thành công.", data });
+  } catch (error) { next(error); }
 }

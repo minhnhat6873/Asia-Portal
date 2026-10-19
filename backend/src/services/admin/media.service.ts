@@ -11,6 +11,7 @@ import { mediaAssetService } from "./media-asset.service";
 import { AppError } from "../../utils/errors/AppError";
 import { sanitizeRichText, richTextToPlainText } from "../../utils/html/sanitizeRichText";
 import { normalizeSearchText } from "../../utils/text/normalizeSearchText";
+import { validateMediaDates, withMediaExpiry } from "../../utils/media/validateMediaDates";
 
 function ensureValidId(id: string): void {
   if (!mongoose.isValidObjectId(id)) {
@@ -30,10 +31,10 @@ function sanitizeContent<T extends CreateMediaInput | UpdateMediaInput>(data: T)
   return next;
 }
 
-function withoutInternalAssetReferences<T extends { contentAssetPublicIds?: string[] }>(media: T): T {
+function withoutInternalAssetReferences<T extends { contentAssetPublicIds?: string[]; expiryDate?: Date | null }>(media: T) {
   const result = { ...media };
   delete (result as Partial<Media>).contentAssetPublicIds;
-  return result;
+  return withMediaExpiry(result);
 }
 
 async function getContentAssetIds(summary: string, content: string): Promise<string[]> {
@@ -80,6 +81,7 @@ export const adminMediaService = {
   },
 
   async createMedia(data: CreateMediaInput) {
+    validateMediaDates(data.publishDate, data.expiryDate);
     const sanitized = sanitizeContent(data);
     const contentAssetPublicIds = await getContentAssetIds(sanitized.summary, sanitized.content);
     await mediaAssetService.prepareForReference(contentAssetPublicIds);
@@ -94,6 +96,11 @@ export const adminMediaService = {
     for (let attempt = 0; attempt < 3; attempt += 1) {
       const previous = await adminMediaRepository.findById(id);
       if (!previous) throw new AppError(404, "Không tìm thấy bài viết");
+
+      validateMediaDates(
+        sanitized.publishDate ?? previous.publishDate,
+        sanitized.expiryDate !== undefined ? sanitized.expiryDate : previous.expiryDate,
+      );
 
       const summary = sanitized.summary ?? previous.summary;
       const content = sanitized.content ?? previous.content;

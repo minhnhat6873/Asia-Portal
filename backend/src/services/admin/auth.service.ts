@@ -7,7 +7,7 @@ import {
 } from "../../interfaces/account.interface";
 import { adminAccountRepository } from "../../repositories/admin/account.repository";
 import { permissionGroupRepository } from "../../repositories/admin/permission-group.repository";
-import { PERMISSION_ACTIONS } from "../../interfaces/permission-group.interface";
+import { PERMISSION_ACTIONS, filterPermissionActions } from "../../interfaces/permission-group.interface";
 import { AppError } from "../../utils/errors/AppError";
 
 interface RefreshTokenPayload extends JwtPayload {
@@ -53,12 +53,14 @@ async function buildActiveAdmin(accountId: string): Promise<AuthenticatedAccount
   );
   const permissions = account.role === "admin"
     ? [...PERMISSION_ACTIONS]
-    : [...new Set(groups.flatMap((group) => group.actions))];
+    : filterPermissionActions(groups.flatMap((group) => group.actions));
 
   return {
     id: account._id.toString(),
     name: account.name,
     email: account.email,
+    phone: account.phone,
+    status: account.status,
     role: account.role,
     permissions,
   };

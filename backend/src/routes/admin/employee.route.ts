@@ -30,7 +30,7 @@ import { employeeListQuerySchema } from "../../validates/admin/employee.validate
 const router = Router();
 
 router.get("/", requirePermissions("employees:view"), validateQuery(employeeListQuerySchema), getEmployees);
-router.get("/trash", requirePermissions("employees:delete"), validateQuery(employeeListQuerySchema), getDeletedEmployees);
+router.get("/trash", requirePermissions("employees:trash"), validateQuery(employeeListQuerySchema), getDeletedEmployees);
 router.get("/:id", requirePermissions("employees:view"), getEmployeeById);
 router.post(
   "/",
@@ -42,6 +42,7 @@ router.post(
 );
 router.patch(
   "/:id",
+  requirePermissions("employees:update"),
   requireCloudinaryConfig,
   uploadAvatar.single("avatar"),
   validateEmployeeUpdateUpload,
@@ -55,8 +56,8 @@ router.patch(
   uploadChartAvatar.single("chartAvatar"),
   updateEmployeeChartAvatar,
 );
-router.post("/:id/restore", requirePermissions("employees:delete"), restoreEmployee);
-router.delete("/:id/permanent", requirePermissions("employees:delete"), permanentlyDeleteEmployee);
+router.post("/:id/restore", requirePermissions("employees:trash"), restoreEmployee);
+router.delete("/:id/permanent", requirePermissions("employees:trash"), permanentlyDeleteEmployee);
 router.delete("/:id", requirePermissions("employees:delete"), softDeleteEmployee);
 
 export default router;

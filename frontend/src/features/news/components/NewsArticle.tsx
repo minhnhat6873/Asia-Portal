@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowLeft, ArrowRight, Calendar, User } from "lucide-react";
 import type { NewsItem } from "@/config/news";
 import { hasRichTextContent, RichText } from "@/components/ui/RichText";
+import MediaExpiryBadge from "@/components/ui/MediaExpiryBadge";
 
 /**
  * Badge colours for the four news categories. Tailwind classes cannot be built
@@ -44,6 +45,7 @@ export default function NewsArticle({ item, related }: Props) {
             <span className={`inline-block rounded-full px-3 py-1 text-xs font-semibold ${badge}`}>
               {item.category}
             </span>
+            <span className="ml-2"><MediaExpiryBadge isExpired={item.isExpired} /></span>
             <h1 className="mt-3 text-2xl font-black leading-tight text-white sm:text-3xl md:text-4xl">
               {item.title}
             </h1>
@@ -107,6 +109,7 @@ export default function NewsArticle({ item, related }: Props) {
                     </span>
                   </div>
                   <div className="p-4">
+                    <MediaExpiryBadge isExpired={entry.isExpired} />
                     <h3 className="line-clamp-2 text-sm font-bold leading-snug text-[#16241a] group-hover:text-[#1a7a1a]">
                       {entry.title}
                     </h3>

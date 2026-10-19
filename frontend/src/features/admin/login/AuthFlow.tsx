@@ -17,7 +17,8 @@ import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, Check, CheckCircle2, Eye, EyeOff, KeyRound, Lock, LockKeyhole, Mail, Phone, RotateCcw, ShieldAlert, ShieldCheck, Sparkles, User } from "lucide-react";
-import { setAdminSession } from "@/lib/adminSession";
+import { getAdminLandingPath } from "@/lib/adminPermissions";
+import { getAdminSession, setAdminSession } from "@/lib/adminSession";
 import { getAdminRoleLabel, loginAdmin } from "@/features/admin/login/auth.service";
 import { getPasswordValidationError, normalizeVietnamPhone, validateRegisterForm } from "@/features/admin/register/register.validation";
 import { resendRegistrationOtp, startRegistration, verifyRegistrationOtp } from "@/features/admin/register/register.service";
@@ -254,11 +255,13 @@ function LoginScreen({
         id: admin.id,
         email: admin.email,
         fullName: admin.name,
+        phone: admin.phone,
+        status: admin.status,
         role: getAdminRoleLabel(admin.role),
         permissions: admin.permissions,
       });
       showToast("Đăng nhập thành công!", "Chào mừng bạn quay lại cổng thông tin nội bộ Asia F&B.", "success");
-      router.replace("/admin/dashboard");
+      router.replace(getAdminLandingPath(getAdminSession()));
       router.refresh();
     } catch (error) {
       const message = error instanceof ApiError ? error.message : "Không thể kết nối tới máy chủ";
@@ -937,7 +940,7 @@ function OtpScreen({
               <CheckCircle2 className="h-9 w-9" />
             </div>
             <h2 className="text-2xl font-bold text-white">Xác thực thành công!</h2>
-            {purpose === "registration" && (<p className="mt-2 text-sm leading-relaxed text-zinc-400">"Email của bạn đã được xác thực. Tài khoản đang chờ admin phê duyệt."</p>)}
+            {purpose === "registration" && (<p className="mt-2 text-sm leading-relaxed text-zinc-400">Email của bạn đã được xác thực. Tài khoản đang chờ admin phê duyệt.</p>)}
 
             {purpose === "password-reset" && (
               <div className="my-6 space-y-3 rounded-xl border border-white/10 bg-white/[0.04] p-4 text-left">

@@ -1,5 +1,5 @@
 import AdminDashboard from "@/features/admin/dashboard/AdminDashboard";
 
-export default function AccessControlTrashPage() {
+export default function AccessControlAccountsPage() {
   return <AdminDashboard initialTab="permissions" />;
 }

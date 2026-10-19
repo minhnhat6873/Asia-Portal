@@ -4,7 +4,7 @@ import rateLimit from "express-rate-limit";
 
 import { createMedia, getMedia, getMediaById, permanentlyDeleteMedia, updateMedia, uploadMediaContentImage } from "../../controllers/admin/media.controller";
 import { requireCloudinaryConfig, uploadMediaCover, uploadTinyMceImage } from "../../helpers/multerCloudinary.helper";
-import { requireMediaUpdatePermission, requirePermissions } from "../../middlewares/auth.middleware";
+import { requireAnyPermission, requireMediaCreatePermission, requireMediaUpdatePermission, requirePermissions } from "../../middlewares/auth.middleware";
 import { validateMediaCreateUpload, validateMediaUpdateUpload } from "../../middlewares/media-upload.middleware";
 import { validateQuery } from "../../middlewares/validate.middleware";
 import { securityConfig } from "../../config/security.config";
@@ -21,10 +21,10 @@ const contentImageUploadLimiter = rateLimit({
 });
 
 router.get("/", requirePermissions("media:view"), validateQuery(mediaListQuerySchema), getMedia);
-router.post("/content-images", requirePermissions("media:create"), contentImageUploadLimiter, requireCloudinaryConfig, uploadTinyMceImage.single("image"), uploadMediaContentImage);
+router.post("/content-images", requireAnyPermission("media:create", "media:update"), contentImageUploadLimiter, requireCloudinaryConfig, uploadTinyMceImage.single("image"), uploadMediaContentImage);
 router.get("/:id", requirePermissions("media:view"), getMediaById);
-router.post("/", requirePermissions("media:create"), uploadMediaCover.single("coverImage"), validateMediaCreateUpload, createMedia);
-router.patch("/:id", uploadMediaCover.single("coverImage"), validateMediaUpdateUpload, requireMediaUpdatePermission, updateMedia);
+router.post("/", requirePermissions("media:create"), uploadMediaCover.single("coverImage"), validateMediaCreateUpload, requireMediaCreatePermission, createMedia);
+router.patch("/:id", requireAnyPermission("media:update", "media:publish"), uploadMediaCover.single("coverImage"), validateMediaUpdateUpload, requireMediaUpdatePermission, updateMedia);
 router.delete("/:id", requirePermissions("media:delete"), permanentlyDeleteMedia);
 
 export default router;

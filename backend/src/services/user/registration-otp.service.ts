@@ -9,6 +9,7 @@ import { pendingRegistrationRepository } from "../../repositories/admin/pending-
 import { userAccountRepository } from "../../repositories/user/account.repository";
 import { emailService } from "../notification/email.service";
 import { AppError } from "../../utils/errors/AppError";
+import { accountContactService } from "../account-contact.service";
 
 const OTP_EXPIRY_MS = 3 * 60 * 1000;
 const OTP_RESEND_COOLDOWN_MS = 60 * 1000;
@@ -38,8 +39,7 @@ function isOtpMatch(expectedHash: string, submittedHash: string): boolean {
 export const registrationOtpService = {
   async start(data: StartRegistrationInput): Promise<{ email: string; expiresInSeconds: number }> {
     const email = data.email.toLowerCase();
-    const existingAccount = await userAccountRepository.findByEmail(email);
-    if (existingAccount) throw new AppError(409, "Email đã được sử dụng");
+    await accountContactService.ensureAvailable({ email, phone: data.phone });
 
     const code = createOtpCode();
     const now = new Date();
@@ -89,8 +89,7 @@ export const registrationOtpService = {
       throw new AppError(400, `Mã OTP không chính xác. Bạn còn ${remainingAttempts} lần thử.`);
     }
 
-    const existingAccount = await userAccountRepository.findByEmail(email);
-    if (existingAccount) throw new AppError(409, "Email đã được sử dụng");
+    await accountContactService.ensureAvailable({ email, phone: pending.phone });
 
     const account = await userAccountRepository.createWithHashedPassword({
       name: pending.name,

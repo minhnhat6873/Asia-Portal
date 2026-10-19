@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { createPortal } from "react-dom";
 import {
   CalendarDays, CalendarRange, Check, ChevronDown, ChevronLeft, ChevronRight, Clock3, Eye, Filter, List,
   LoaderCircle, Mail, MapPin, Pencil, Plus, Printer, RotateCcw, Search, Trash2, UsersRound, X,
@@ -13,6 +14,8 @@ import {
   type MeetingStatus, type MeetingSummary,
 } from "@/services/admin-meeting.service";
 import { ApiError } from "@/services/api";
+import { EMPLOYEE_DEPARTMENT_OPTIONS, getEmployeeDepartmentLabel } from "@/components/ui/employee-department-options";
+import { getFutureMeetingTimes, getMeetingDurationOptions, getNextMeetingSlot, getVietnamBookingNow } from "@/lib/meetingSchedule";
 
 const ROOMS = [
   { id: "room-01" as const, name: "Phòng 1", capacity: 12, image: "/assets/images/Phonghop1.jpg" },
@@ -24,14 +27,9 @@ const TABS: { id: AdminMeetingTab; label: string }[] = [
 ];
 const PAGE_SIZE = 10;
 const EMPTY_SUMMARY: MeetingSummary = { total: 0, today: 0, ongoing: 0, ended: 0, departmentCount: 0, room01: 0, room02: 0, pendingOtp: 0 };
-const TIME_OPTIONS = Array.from({ length: 36 }, (_, index) => 8 * 60 + index * 15)
-  .filter((minute) => minute <= 16 * 60 + 45 && !(minute >= 12 * 60 && minute < 13 * 60))
-  .map((minute) => `${String(Math.floor(minute / 60)).padStart(2, "0")}:${String(minute % 60).padStart(2, "0")}`);
 
 function isoToday() {
-  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Ho_Chi_Minh", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date());
-  const values = Object.fromEntries(parts.map(({ type, value }) => [type, value]));
-  return `${values.year}-${values.month}-${values.day}`;
+  return getVietnamBookingNow().date;
 }
 function addDays(value: string, amount: number) {
   const [year, month, day] = value.split("-").map(Number);
@@ -527,7 +525,7 @@ export function MeetingManagement({ permissions }: Props) {
       </div>
 
     {selectedMeeting ? <MeetingDetails meeting={{ ...selectedMeeting, status: liveStatus(selectedMeeting, clock) }} loading={detailLoading} canDelete={canDelete} deleting={deletingId === selectedMeeting.id} onClose={() => setSelectedMeeting(null)} onDelete={() => { setDeleteTarget(selectedMeeting); setSelectedMeeting(null); }} /> : null}
-    {formOpen ? <MeetingFormModal key={formTarget?.id ?? "new"} meeting={formTarget} departments={departments} saving={saving} onClose={() => { if (!saving) { setFormOpen(false); setFormTarget(null); } }} onSave={saveMeeting} /> : null}
+    {formOpen ? <MeetingFormModal key={formTarget?.id ?? "new"} meeting={formTarget} saving={saving} onClose={() => { if (!saving) { setFormOpen(false); setFormTarget(null); } }} onSave={saveMeeting} /> : null}
     {deleteTarget ? <DeleteMeetingModal meeting={deleteTarget} busy={deletingId === deleteTarget.id} onCancel={() => { if (!deletingId) setDeleteTarget(null); }} onConfirm={() => void removeMeeting()} /> : null}
   </div>;
 }
@@ -539,24 +537,56 @@ function emptyLabel(tab: AdminMeetingTab) {
 function minutesOf(value: string) { const [hour, minute] = value.split(":").map(Number); return hour * 60 + minute; }
 function timeText(minutes: number) { return `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`; }
 
-function MeetingFormModal({ meeting, departments, saving, onClose, onSave }: {
-  meeting: AdminMeeting | null; departments: string[]; saving: boolean; onClose: () => void; onSave: (input: AdminMeetingInput) => Promise<void>;
+function MeetingFormModal({ meeting, saving, onClose, onSave }: {
+  meeting: AdminMeeting | null; saving: boolean; onClose: () => void; onSave: (input: AdminMeetingInput) => Promise<void>;
 }) {
+  const [initialSlot] = useState(() => getNextMeetingSlot());
+  const [now, setNow] = useState(() => new Date());
   const [title, setTitle] = useState(meeting?.title ?? "");
   const [organizer, setOrganizer] = useState(meeting?.organizer ?? "");
   const [email, setEmail] = useState(meeting?.email ?? "");
-  const [department, setDepartment] = useState(meeting?.department ?? "");
+  const [department, setDepartment] = useState(meeting?.department ? getEmployeeDepartmentLabel(meeting.department) : "");
   const [roomId, setRoomId] = useState<AdminMeetingInput["roomId"]>(meeting?.roomId ?? "room-01");
-  const [date, setDate] = useState(meeting?.date ?? isoToday());
-  const [start, setStart] = useState(meeting?.start ?? TIME_OPTIONS.find((time) => time > new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Ho_Chi_Minh", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date())) ?? "08:00");
+  const [date, setDate] = useState(meeting?.date ?? initialSlot.date);
+  const [start, setStart] = useState(meeting?.start ?? initialSlot.start);
   const [durationMinutes, setDurationMinutes] = useState(meeting?.durationMinutes ?? 30);
   const [attendees, setAttendees] = useState(meeting?.attendees ?? 1);
   const [busySlots, setBusySlots] = useState<AdminMeeting[]>([]);
   const [formError, setFormError] = useState("");
+  const errorRef = useRef<HTMLDivElement>(null);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const readOnlyBooking = meeting?.status === "ongoing";
   const room = ROOMS.find((item) => item.id === roomId)!;
   const end = timeText(minutesOf(start) + durationMinutes);
+  const timeOptions = getFutureMeetingTimes(date, now);
+  const durationOptions = getMeetingDurationOptions(start);
+  const minimumDate = getNextMeetingSlot(now).date;
+  const canUseSelectedTime = timeOptions.includes(start);
+  const validDuration = durationOptions.includes(durationMinutes);
+
+  useEffect(() => {
+    if (formError) errorRef.current?.scrollIntoView({ block: "nearest" });
+  }, [formError]);
+
+  useEffect(() => {
+    const refresh = () => setNow(new Date());
+    const timer = window.setInterval(refresh, 15_000);
+    window.addEventListener("focus", refresh);
+    return () => { window.clearInterval(timer); window.removeEventListener("focus", refresh); };
+  }, []);
+
+  const changeStart = (value: string) => {
+    setStart(value);
+    const options = getMeetingDurationOptions(value);
+    if (!options.includes(durationMinutes)) setDurationMinutes(options.at(-1) ?? 30);
+    setFormError("");
+  };
+  const changeDate = (value: string) => {
+    setDate(value);
+    const options = getFutureMeetingTimes(value);
+    if (options.length && !options.includes(start)) changeStart(options[0]);
+    setFormError("");
+  };
 
   useEffect(() => {
     if (!date || readOnlyBooking) return;
@@ -571,16 +601,16 @@ function MeetingFormModal({ meeting, departments, saving, onClose, onSave }: {
 
   const overlaps = busySlots.some((item) => minutesOf(start) < minutesOf(item.end) + 15 && minutesOf(end) + 15 > minutesOf(item.start));
   const overlapsLunch = minutesOf(start) < 13 * 60 && minutesOf(end) > 12 * 60;
-  const canUseSelectedTime = date > isoToday() || (date === isoToday() && start > new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Ho_Chi_Minh", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date()));
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setFormError("");
     if (title.trim().length < 3 || title.trim().length > 200) return setFormError("Tiêu đề phải từ 3 đến 200 ký tự.");
     if (organizer.trim().length < 2 || organizer.trim().length > 100) return setFormError("Nhập tên người chủ trì hợp lệ.");
     if (!/^[^\s@]+@asiafnb\.com$/i.test(email.trim())) return setFormError("Email phải thuộc miền @asiafnb.com.");
-    if (department.trim().length < 2) return setFormError("Vui lòng nhập phòng ban.");
-    if (!readOnlyBooking && (!canUseSelectedTime || date < isoToday())) return setFormError("Không thể chọn thời gian trong quá khứ.");
+    if (department.trim().length < 2) return setFormError("Vui lòng chọn phòng ban.");
+    if (!readOnlyBooking && !getFutureMeetingTimes(date).includes(start)) return setFormError("Hãy chọn ngày và giờ bắt đầu trong tương lai theo giờ Việt Nam.");
     if (!readOnlyBooking && overlapsLunch) return setFormError("Cuộc họp không được trùng giờ nghỉ trưa 12:00–13:00.");
+    if (!readOnlyBooking && !validDuration) return setFormError("Cuộc họp phải kéo dài ít nhất 30 phút và kết thúc không muộn hơn 17:00.");
     if (!readOnlyBooking && overlaps) return setFormError("Phòng có lịch trùng hoặc chưa đủ 15 phút nghỉ giữa các cuộc họp.");
     if (!Number.isInteger(attendees) || attendees < 1 || attendees > room.capacity) return setFormError(`Phòng này nhận từ 1 đến ${room.capacity} người.`);
     try {
@@ -591,25 +621,24 @@ function MeetingFormModal({ meeting, departments, saving, onClose, onSave }: {
     }
   };
   const inputClass = "mt-1.5 h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 disabled:bg-slate-100 disabled:text-slate-500";
-  return <div className="fixed inset-0 z-[130] flex items-center justify-center bg-slate-950/55 p-3 backdrop-blur-sm" onMouseDown={(event) => { if (event.target === event.currentTarget && !saving) onClose(); }}>
-    <section role="dialog" aria-modal="true" aria-labelledby="meeting-form-title" className="max-h-[94dvh] w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-2xl">
-      <div className="meeting-form-scroll max-h-[94dvh] overflow-y-auto rounded-2xl">
-      <header className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white px-5 py-4"><div><p className="text-[10px] font-bold uppercase tracking-widest text-emerald-700">Quản lý đặt phòng họp</p><h2 id="meeting-form-title" className="mt-1 text-lg font-extrabold text-slate-900">{meeting ? "Cập nhật lịch họp" : "Thêm lịch họp"}</h2></div><button type="button" onClick={onClose} disabled={saving} aria-label="Đóng" className="grid h-9 w-9 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-50"><X size={18} /></button></header>
-      <form onSubmit={(event) => void submit(event)} className="space-y-4 p-5">
-        {formError ? <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-3 text-sm text-rose-700">{formError}</div> : null}
+  return createPortal(<div className="fixed inset-0 z-[130] flex items-center justify-center bg-slate-950/55 p-3 backdrop-blur-sm" onMouseDown={(event) => { if (event.target === event.currentTarget && !saving) onClose(); }}>
+    <section role="dialog" aria-modal="true" aria-labelledby="meeting-form-title" className="flex max-h-[94dvh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+      <header className="flex shrink-0 items-center justify-between border-b border-slate-100 bg-white px-5 py-4"><div><p className="text-[10px] font-bold uppercase tracking-widest text-emerald-700">Quản lý đặt phòng họp</p><h2 id="meeting-form-title" className="mt-1 text-lg font-extrabold text-slate-900">{meeting ? "Cập nhật lịch họp" : "Thêm lịch họp"}</h2></div><button type="button" onClick={onClose} disabled={saving} aria-label="Đóng" className="grid h-9 w-9 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-50"><X size={18} /></button></header>
+      <form onSubmit={(event) => void submit(event)} className="flex min-h-0 flex-1 flex-col">
+        <div className="meeting-form-scroll min-h-0 space-y-4 overflow-y-auto p-5">
+        {formError ? <div ref={errorRef} role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-3 text-sm text-rose-700">{formError}</div> : null}
         {readOnlyBooking ? <p className="rounded-xl bg-amber-50 px-3.5 py-3 text-xs leading-5 text-amber-800">Cuộc họp đang diễn ra. Backend chỉ cho phép sửa tiêu đề, người chủ trì, email và phòng ban.</p> : null}
         <label className="block text-xs font-bold text-slate-700">Tiêu đề cuộc họp<input required minLength={3} maxLength={200} value={title} onChange={(event) => setTitle(event.target.value)} className={inputClass} /></label>
-        <div className="grid gap-4 sm:grid-cols-2"><label className="block text-xs font-bold text-slate-700">Người đặt / chủ trì<input required value={organizer} onChange={(event) => setOrganizer(event.target.value)} className={inputClass} /></label><label className="block text-xs font-bold text-slate-700">Email @asiafnb.com<input required type="email" value={email} onChange={(event) => setEmail(event.target.value)} className={inputClass} /></label></div>
-        <label className="block text-xs font-bold text-slate-700">Phòng ban<input required list="meeting-departments" value={department} onChange={(event) => setDepartment(event.target.value)} className={inputClass} /><datalist id="meeting-departments">{departments.map((value) => <option key={value} value={value} />)}</datalist></label>
-        <div className="grid gap-4 sm:grid-cols-2"><label className="block text-xs font-bold text-slate-700">Phòng họp<select disabled={readOnlyBooking} value={roomId} onChange={(event) => { setRoomId(event.target.value as AdminMeetingInput["roomId"]); setAttendees((current) => Math.min(current, ROOMS.find((item) => item.id === event.target.value)?.capacity ?? 12)); }} className={inputClass}>{ROOMS.map((item) => <option key={item.id} value={item.id}>{item.name} · tối đa {item.capacity} người</option>)}</select></label><label className="block text-xs font-bold text-slate-700">Ngày tổ chức<input required type="date" min={isoToday()} disabled={readOnlyBooking} value={date} onChange={(event) => setDate(event.target.value)} className={inputClass} /></label></div>
-        <div className="grid gap-4 sm:grid-cols-3"><label className="block text-xs font-bold text-slate-700">Giờ bắt đầu<select disabled={readOnlyBooking} value={start} onChange={(event) => setStart(event.target.value)} className={inputClass}>{TIME_OPTIONS.map((value) => <option key={value} value={value}>{value}</option>)}</select></label><label className="block text-xs font-bold text-slate-700">Thời lượng<select disabled={readOnlyBooking} value={durationMinutes} onChange={(event) => setDurationMinutes(Number(event.target.value))} className={inputClass}>{[...Array.from({ length: 33 }, (_, index) => 30 + index * 15), ...(durationMinutes > 510 ? [durationMinutes] : [])].filter((value) => value < 24 * 60 - minutesOf(start)).map((value) => <option key={value} value={value}>{value} phút</option>)}</select></label><div className="text-xs font-bold text-slate-700">Giờ kết thúc<div className="mt-1.5 flex h-10 items-center rounded-xl bg-slate-50 px-3 text-sm text-slate-600">{end}</div></div></div>
-        <label className="block text-xs font-bold text-slate-700">Số người tham gia<input required type="number" min={1} max={room.capacity} disabled={readOnlyBooking} value={attendees} onChange={(event) => setAttendees(Number(event.target.value))} className={inputClass} /><span className="mt-1 block text-[10px] font-normal text-slate-400">Sức chứa {room.capacity} người · Nghỉ trưa 12:00–13:00 · Cách nhau tối thiểu 15 phút</span></label>
-        {!readOnlyBooking ? <div className={`rounded-xl px-3.5 py-3 text-xs ${overlaps || overlapsLunch ? "bg-rose-50 text-rose-700" : "bg-emerald-50 text-emerald-800"}`}><p className="font-bold">{loadingSlots ? "Đang kiểm tra lịch phòng…" : overlapsLunch ? "Khung giờ không được trùng giờ nghỉ trưa." : overlaps ? "Khung giờ này bị trùng hoặc thiếu thời gian nghỉ." : "Khung giờ chưa trùng với lịch đã tải."}</p>{busySlots.length ? <p className="mt-1.5 leading-5">Đã có lịch: {busySlots.map((item) => `${item.start}–${item.end}`).join(" · ")}</p> : null}<p className="mt-1 text-[10px] opacity-75">Lịch mới nhất sẽ được kiểm tra lại khi lưu.</p></div> : null}
-        <footer className="sticky bottom-0 flex justify-end gap-2 border-t border-slate-100 bg-white pt-4"><button type="button" disabled={saving} onClick={onClose} className="rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-50">Hủy</button><button type="submit" disabled={saving || (meeting?.status !== "ongoing" && (overlaps || overlapsLunch))} className="inline-flex min-w-28 items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-2.5 text-xs font-bold text-white hover:bg-emerald-800 disabled:opacity-50">{saving ? <><LoaderCircle size={15} className="animate-spin" />Đang lưu…</> : meeting ? "Cập nhật" : "Lưu lịch"}</button></footer>
+        <div className="grid gap-4 sm:grid-cols-2"><label className="block text-xs font-bold text-slate-700">Người đặt / chủ trì<input id="meeting-organizer" name="organizer" autoComplete="name" minLength={2} maxLength={100} required value={organizer} onChange={(event) => setOrganizer(event.target.value)} className={inputClass} /></label><label className="block text-xs font-bold text-slate-700">Email @asiafnb.com<input required type="email" value={email} onChange={(event) => setEmail(event.target.value)} className={inputClass} /></label></div>
+        <label className="block text-xs font-bold text-slate-700">Phòng ban<select required value={department} onChange={(event) => setDepartment(event.target.value)} className={inputClass}><option value="">Chọn phòng ban</option>{department && !EMPLOYEE_DEPARTMENT_OPTIONS.some((item) => item.label === department) ? <option value={department}>{department}</option> : null}{EMPLOYEE_DEPARTMENT_OPTIONS.map(({ value, label }) => <option key={value} value={label}>{label}</option>)}</select></label>
+        <div className="grid gap-4 sm:grid-cols-2"><label className="block text-xs font-bold text-slate-700">Phòng họp<select disabled={readOnlyBooking} value={roomId} onChange={(event) => { setRoomId(event.target.value as AdminMeetingInput["roomId"]); setAttendees((current) => Math.min(current, ROOMS.find((item) => item.id === event.target.value)?.capacity ?? 12)); }} className={inputClass}>{ROOMS.map((item) => <option key={item.id} value={item.id}>{item.name} · tối đa {item.capacity} người</option>)}</select></label><label className="block text-xs font-bold text-slate-700">Ngày tổ chức<input required type="date" min={minimumDate} disabled={readOnlyBooking} value={date} onChange={(event) => changeDate(event.target.value)} onBlur={() => { if (date && date < minimumDate) changeDate(minimumDate); }} className={inputClass} /></label></div>
+        <div className="grid gap-4 sm:grid-cols-3"><label className="block text-xs font-bold text-slate-700">Giờ bắt đầu<select required disabled={readOnlyBooking || timeOptions.length === 0} value={start} onChange={(event) => changeStart(event.target.value)} className={inputClass}>{!timeOptions.includes(start) ? <option value={start} disabled>{readOnlyBooking ? start : "Chọn giờ tương lai"}</option> : null}{timeOptions.map((value) => <option key={value} value={value}>{value}</option>)}</select></label><label className="block text-xs font-bold text-slate-700">Thời lượng<select disabled={readOnlyBooking} value={durationMinutes} onChange={(event) => setDurationMinutes(Number(event.target.value))} className={inputClass}>{!durationOptions.includes(durationMinutes) ? <option value={durationMinutes} disabled>{durationMinutes} phút</option> : null}{durationOptions.map((value) => <option key={value} value={value}>{value} phút</option>)}</select></label><div className="text-xs font-bold text-slate-700">Giờ kết thúc<div className="mt-1.5 flex h-10 items-center rounded-xl bg-slate-50 px-3 text-sm text-slate-600">{end}</div></div></div>
+        <label className="block text-xs font-bold text-slate-700">Số người tham gia<input required type="number" min={1} max={room.capacity} disabled={readOnlyBooking} value={attendees} onChange={(event) => setAttendees(Number(event.target.value))} className={inputClass} /></label>
+        </div>
+        <footer className="flex shrink-0 justify-end gap-2 border-t border-slate-100 bg-white px-5 py-4"><button type="button" disabled={saving} onClick={onClose} className="rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-50">Hủy</button><button type="submit" disabled={saving || (!readOnlyBooking && (!canUseSelectedTime || !validDuration || loadingSlots))} className="inline-flex min-w-28 items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-2.5 text-xs font-bold text-white hover:bg-emerald-800 disabled:opacity-50">{saving ? <><LoaderCircle size={15} className="animate-spin" />Đang lưu…</> : meeting ? "Cập nhật" : "Lưu lịch"}</button></footer>
       </form>
-      </div>
     </section>
-  </div>;
+  </div>, document.body);
 }
 
 function DeleteMeetingModal({ meeting, busy, onCancel, onConfirm }: { meeting: AdminMeeting; busy: boolean; onCancel: () => void; onConfirm: () => void }) {

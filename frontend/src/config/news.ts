@@ -6,6 +6,9 @@ export interface NewsItem {
   content: string;
   category: "Sự kiện" | "Tin tức" | "Nhân sự" | "Thông báo";
   date: string;
+  expiryDate?: string | null;
+  publishIndefinitely?: boolean;
+  isExpired?: boolean;
   createdAt?: string;
   author: string;
   image: string;
