@@ -324,7 +324,7 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
         document.body,
       )}
       {/* Page Title & Action Toolbar */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-2xs flex flex-col items-stretch justify-between gap-3">
+      <div id="admin-employee-results" className="scroll-mt-6 grid grid-cols-1 items-center gap-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-2xs min-[1600px]:grid-cols-[minmax(180px,1fr)_auto]">
         {/* Search */}
         <div className="relative min-w-0 w-full">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -333,12 +333,13 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
             placeholder="Tìm theo mã nhân viên hoặc họ tên..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all placeholder:text-slate-400"
+            className="h-12 w-full pl-9 pr-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-colors placeholder:text-slate-400"
           />
         </div>
 
         {/* Filters */}
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
+          <div className="grid min-w-0 flex-1 grid-cols-1 gap-2 sm:grid-cols-3 xl:min-w-[590px] min-[1600px]:w-[620px] min-[1600px]:flex-none [&>div]:!w-full [&>div>button]:h-12 [&>div>button]:rounded-xl [&>div>button]:px-3">
           <AdminSelect value={selectedDept} onChange={setSelectedDept} className="w-full min-w-0 sm:w-52" searchPlaceholder="Tìm kiếm phòng ban..." options={[{ value: 'all', label: 'Tất cả phòng ban' }, ...EMPLOYEE_DEPARTMENT_OPTIONS]} />
 
           <AdminSelect value={selectedRank} onChange={setSelectedRank} className="w-full min-w-0 sm:w-44" searchPlaceholder="Tìm kiếm cấp bậc..." options={[{ value: 'all', label: 'Tất cả cấp bậc' }, ...EMPLOYEE_RANK_OPTIONS_UI]} />
@@ -346,10 +347,12 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
           <AdminSelect value={selectedStatus} onChange={(value) => setSelectedStatus(value as 'all' | EmployeeStatus)} className="w-full min-w-0 sm:w-44" searchPlaceholder="Tìm kiếm trạng thái..." options={[{ value: 'all', label: 'Tất cả trạng thái' }, ...EMPLOYEE_STATUS_OPTIONS_UI]} />
 
           {/* Toggle View Mode (Image 5) */}
-          <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
+          </div>
+          <div className="flex flex-wrap items-center justify-end gap-2 xl:shrink-0">
+          <div className="flex h-10 shrink-0 items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
             <button
               onClick={() => setViewMode('grid')}
-              className={`p-1.5 rounded-lg transition-colors ${
+              className={`grid h-7 w-7 place-items-center rounded-lg transition-colors ${
                 viewMode === 'grid' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-900'
               }`}
               title="Xem dạng thẻ"
@@ -358,7 +361,7 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
             </button>
             <button
               onClick={() => setViewMode('table')}
-              className={`p-1.5 rounded-lg transition-colors ${
+              className={`grid h-7 w-7 place-items-center rounded-lg transition-colors ${
                 viewMode === 'table' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-900'
               }`}
               title="Xem dạng bảng"
@@ -370,7 +373,7 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
           {/* Reset filter button (replaced CSV export as requested) */}
           <button
             onClick={handleResetFilters}
-            className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors border border-slate-200"
+            className="-order-1 flex h-10 shrink-0 items-center gap-1.5 px-2.5 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 rounded-xl transition-colors border border-slate-200"
             title="Đặt lại tất cả bộ lọc tìm kiếm"
           >
             <RotateCcw className="w-3.5 h-3.5 text-slate-600" />
@@ -379,7 +382,7 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
           <button
             type="button"
             hidden={!can("employees:trash")} onClick={onNavigateToTrash}
-            className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-slate-100 text-slate-600 transition-colors hover:bg-rose-50 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-slate-100 text-slate-600 transition-colors hover:bg-rose-50 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-50"
             title="Thùng rác"
             aria-label="Mở Thùng rác"
             disabled={!onNavigateToTrash}
@@ -391,11 +394,12 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
           {/* Add Employee Button */}
           <button
             hidden={!can("employees:create")} onClick={onNavigateToAdd}
-            className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm transition-all"
+            className="flex h-10 flex-1 items-center justify-center gap-1.5 whitespace-nowrap px-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm transition-colors sm:flex-none"
           >
             <Plus className="w-4 h-4" />
             <span>Thêm Nhân Viên</span>
           </button>
+          </div>
         </div>
       </div>
 
@@ -412,20 +416,16 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
         </div>
       )}
 
-      {/* Results Count Banner */}
-      <div id="admin-employee-results" className="scroll-mt-6 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500 px-1">
-        <span>
-          Đang hiển thị <strong>{total}</strong> nhân sự trong hệ thống Asia F&B Beverage
-        </span>
-        {(searchQuery || selectedDept !== 'all' || selectedRank !== 'all' || selectedStatus !== 'all') && (
+      {(searchQuery || selectedDept !== 'all' || selectedRank !== 'all' || selectedStatus !== 'all') && (
+        <div className="px-1 text-xs">
           <button
             onClick={handleResetFilters}
             className="text-emerald-600 hover:underline font-semibold"
           >
             Xóa bộ lọc
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* VIEW: GRID */}
       {viewMode === 'grid' ? (
