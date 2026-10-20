@@ -1,0 +1,4 @@
+Windows Registry Editor Version 5.00
+
+; Remove only the Asia Portal shared-documents shortcut for this user.
+[-HKEY_CURRENT_USER\Software\Classes\asia-folder]

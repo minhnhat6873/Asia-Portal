@@ -28,6 +28,8 @@ export type ResourceItem = {
   anchor?: string;
   /** The handbook card shows a download glyph instead of an arrow. */
   showDownloadIcon?: boolean;
+  /** Open the Windows shared-documents shortcut and its first-use setup. */
+  networkFolder?: boolean;
 };
 
 export const RESOURCE_ITEMS: ResourceItem[] = [
@@ -41,13 +43,13 @@ export const RESOURCE_ITEMS: ResourceItem[] = [
     anchor: "hr-portal",
   },
   {
-    title: "Sổ tay Nhân viên (PDF)",
-    desc: "Tải xuống tài liệu hướng dẫn quy định, chính sách và quyền lợi tân binh.",
+    title: "Sổ tay & Tài liệu nội bộ",
+    desc: "Truy cập sổ tay nhân viên, quy định và tài liệu dùng chung của công ty.",
     icon: BookOpen,
     chipTone: "bg-amber-50 text-amber-600",
     linkTone: "text-amber-600",
-    linkText: "Tải về PDF",
-    showDownloadIcon: true,
+    linkText: "Mở thư mục tài liệu",
+    networkFolder: true,
   },
   {
     title: "Hệ thống Email & Slack",
