@@ -2,8 +2,10 @@ import Link from "next/link";
 import { ArrowRight, CalendarDays, Download, Toolbox } from "lucide-react";
 import { RESOURCE_ITEMS, type ResourceItem } from "./resourceData";
 import EmailSystemPicker from "./EmailSystemPicker";
+import { NetworkFolderCard } from "./NetworkFolderCard";
 
 function ResourceCard({ item }: { item: ResourceItem }) {
+  if (item.networkFolder) return <NetworkFolderCard item={{ title: item.title, desc: item.desc, chipTone: item.chipTone, linkTone: item.linkTone, linkText: item.linkText }} />;
   const Icon = item.icon;
   const content = (
     <>

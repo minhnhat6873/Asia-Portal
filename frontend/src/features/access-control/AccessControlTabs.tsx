@@ -19,7 +19,6 @@ interface AccessControlTabsProps {
   page: AccessControlPage;
   onNavigateToPage: (page: Exclude<AccessControlPage, "edit-role">) => void;
   editingRoleId?: string;
-  onNavigateToEditRole: (roleId: string) => void;
   activeTab: AccessControlTab;
   onAccountsChanged?: (pendingCount: number) => void;
 }
@@ -41,7 +40,7 @@ function toUser(account: ApiAccount): User {
   };
 }
 
-export function AccessControlTabs({ activeTab, page, editingRoleId, onNavigateToEditRole, onNavigateToPage, onAccountsChanged }: AccessControlTabsProps) {
+export function AccessControlTabs({ activeTab, page, editingRoleId, onNavigateToPage, onAccountsChanged }: AccessControlTabsProps) {
   const [users, setUsers] = useState<User[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [modules, setModules] = useState<ModuleCategory[]>([]);
@@ -102,7 +101,6 @@ export function AccessControlTabs({ activeTab, page, editingRoleId, onNavigateTo
     onDeleteUser={(userId) => mutate(() => deleteAccount(userId), "Đã xóa tài khoản.")}
     onRejectUser={(userId) => void mutate(() => updateAccount(userId, { status: "inactive", permissionGroupIds: [] }), "Đã từ chối tài khoản.")}
     onNavigateToCreateRole={() => onNavigateToPage("new-role")}
-    onViewRoleDetail={onNavigateToEditRole}
   />;
 
   if (page === "edit-role") {
