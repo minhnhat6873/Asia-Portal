@@ -1,6 +1,6 @@
 import { useState } from "react";
 import Link from "next/link";
-import { Check, CirclePlus, Clock3, LockKeyhole, Pencil, Search, Trash2, UserRoundCheck, Users } from "lucide-react";
+import { Check, CirclePlus, LockKeyhole, Pencil, Search, Trash2, UserRoundCheck, Users } from "lucide-react";
 import type { Role, User } from "../types";
 import { DeleteAccountDialog } from "./DeleteAccountDialog";
 import { PageSelect } from "@/components/ui/PageSelect";
@@ -15,10 +15,9 @@ interface Props {
   onDeleteUser: (userId: string) => Promise<boolean>;
   onRejectUser: (userId: string) => void;
   onNavigateToCreateRole: () => void;
-  onViewRoleDetail: (roleId: string) => void;
 }
 
-export function UserManagementView({ users, roles, currentUserId, saving, canManageAccountTypes, onSaveUserAccess, onDeleteUser, onRejectUser, onNavigateToCreateRole, onViewRoleDetail }: Props) {
+export function UserManagementView({ users, roles, currentUserId, saving, canManageAccountTypes, onSaveUserAccess, onDeleteUser, onRejectUser, onNavigateToCreateRole }: Props) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [page, setPage] = useState(1);
@@ -38,11 +37,10 @@ export function UserManagementView({ users, roles, currentUserId, saving, canMan
   const save = async (userId: string) => { if (await onSaveUserAccess(userId, access)) setEditingId(null); };
 
   return <div className="asia-access-control space-y-5">
-    <div className="grid grid-cols-1 gap-3 min-[360px]:grid-cols-2 xl:grid-cols-4">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
       {[
         { label: "Tổng tài khoản", count: users.length, Icon: Users, status: "all" },
         { label: "Đang hoạt động", count: users.filter((user) => user.status === "active").length, Icon: UserRoundCheck, status: "active" },
-        { label: "Chờ duyệt", count: users.filter((user) => user.status === "pending").length, Icon: Clock3, status: "pending" },
         { label: "Tạm khóa", count: users.filter((user) => user.status === "suspended").length, Icon: LockKeyhole, status: "suspended" },
       ].map(({ label, count, Icon, status }) => <button key={label} type="button" onClick={() => { setStatusFilter(status); setPage(1); }} className="flex min-w-0 items-center gap-2 rounded-xl border border-slate-200 bg-white p-3 text-left shadow-sm sm:gap-3 sm:p-4"><Icon className="h-6 w-6 shrink-0 text-emerald-700" /><span><span className="block text-sm text-slate-600">{label}</span><strong className="text-2xl text-slate-900">{count}</strong></span></button>)}
     </div>
@@ -65,7 +63,7 @@ export function UserManagementView({ users, roles, currentUserId, saving, canMan
               <td className="px-4 py-3">{editing ? <select aria-label={`Loại tài khoản của ${user.name}`} disabled={saving || !canManageAccountTypes} value={access.accountRole} onChange={(event) => setAccess((current) => ({ ...current, accountRole: event.target.value as AccountAccess["accountRole"] }))} className="min-h-10 rounded-lg border border-slate-200 bg-white px-3 py-2"><option value="manager">Quản lý</option><option value="admin">Admin gốc</option></select> : <PermissionGroupBadge name={isAdmin ? "Admin gốc" : "Quản lý"} color={isAdmin ? "orange" : "blue"} icon={isAdmin ? "crown" : "user"} />}</td>
               <td className="max-w-xs px-4 py-3">{isAdmin ? <span className="text-sm font-semibold text-emerald-700">Toàn quyền hệ thống</span> : editing ? <div className="max-h-40 space-y-2 overflow-y-auto rounded-lg border border-slate-200 p-2">{activeRoles.length ? activeRoles.map((role) => <label key={role.id} className="flex cursor-pointer items-center gap-2"><input type="checkbox" checked={access.roleIds.includes(role.id)} disabled={saving} onChange={(event) => setAccess((current) => ({ ...current, roleIds: event.target.checked ? [...current.roleIds, role.id] : current.roleIds.filter((id) => id !== role.id) }))} className="h-4 w-4 accent-emerald-700" />{role.name}</label>) : <button type="button" onClick={onNavigateToCreateRole} className="underline">Tạo nhóm quyền</button>}</div> : <div className="flex flex-wrap gap-1">{user.roleIds.length ? user.roleIds.map((id) => {
                 const role = roles.find((item) => item.id === id);
-                return <button key={id} type="button" onClick={() => onViewRoleDetail(id)} className="rounded-lg text-left outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"><PermissionGroupBadge name={role?.name ?? "Nhóm quyền không còn hoạt động"} color={role?.color} icon={role?.icon} /></button>;
+                return <PermissionGroupBadge key={id} name={role?.name ?? "Nhóm quyền không còn hoạt động"} color={role?.color} icon={role?.icon} />;
               }) : "Chưa gán"}</div>}</td>
               <td className="px-4 py-3">{editing ? <select aria-label={`Trạng thái của ${user.name}`} value={access.status} onChange={(event) => setAccess((current) => ({ ...current, status: event.target.value as AccountAccess["status"] }))} className="rounded-lg border border-slate-200 p-2"><option value="active">Đang hoạt động</option><option value="suspended">Tạm khóa</option></select> : <span className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${user.status === "active" ? "bg-emerald-50 text-emerald-700" : user.status === "pending" ? "bg-amber-50 text-amber-700" : "bg-rose-50 text-rose-700"}`}>{user.status === "active" ? "Đang hoạt động" : user.status === "pending" ? "Chờ duyệt" : "Tạm khóa"}</span>}</td>
               <td className="px-4 py-3 text-slate-500">{user.createdAt || "—"}</td>

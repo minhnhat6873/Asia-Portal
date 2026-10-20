@@ -1,4 +1,5 @@
 import {
+  ChartNoAxesCombined,
   Coins,
   FlaskConical,
   Landmark,
@@ -13,7 +14,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-/** Ten specialist departments shown directly below senior management. */
+/** Specialist departments grouped beneath the four organization divisions. */
 export const ORGANIZATION_DEPARTMENTS = [
   { id: "HR_AD", slug: "phong-nhan-su-hanh-chinh", name: "HR&AD", description: "Hành chính & Nhân sự", icon: UsersRound, tone: "bg-rose-50 text-rose-500" },
   { id: "F_AND_A", slug: "phong-tai-chinh-ke-toan", name: "F&A", description: "Tài chính & Kế toán", icon: Coins, tone: "bg-emerald-50 text-emerald-600" },
@@ -26,6 +27,21 @@ export const ORGANIZATION_DEPARTMENTS = [
   { id: "PURCHASING", slug: "phong-mua-hang", name: "Purchasing", description: "Mua hàng", icon: ShoppingCart, tone: "bg-amber-50 text-amber-600" },
   { id: "SALES", slug: "phong-kinh-doanh", name: "Sales", description: "Kinh doanh", icon: Landmark, tone: "bg-indigo-50 text-indigo-600" },
 ] as const;
+
+type OrganizationDepartmentId = (typeof ORGANIZATION_DEPARTMENTS)[number]["id"];
+type OrganizationDivision = {
+  id: string;
+  name: string;
+  departmentIds: readonly OrganizationDepartmentId[];
+  icon: LucideIcon;
+};
+
+export const ORGANIZATION_DIVISIONS = [
+  { id: "commercial", name: "Khối kinh doanh", departmentIds: ["SALES", "MKT", "DESIGN"], icon: ChartNoAxesCombined },
+  { id: "operations", name: "Khối vận hành", departmentIds: ["PURCHASING", "LOGISTICS"], icon: Truck },
+  { id: "product-compliance", name: "Phát triển SP & Tuân thủ", departmentIds: ["R_AND_D"], icon: FlaskConical },
+  { id: "office", name: "Quản trị văn phòng", departmentIds: ["HR_AD", "F_AND_A", "LEGAL", "IT"], icon: UsersRound },
+] as const satisfies readonly OrganizationDivision[];
 
 export type DiagramDepartment = {
   slug: string;
@@ -86,12 +102,15 @@ export const DIAGRAM_DEPARTMENTS: DiagramDepartment[] = [
 // Keep existing URLs and connect every department page to its employee API code.
 for (const department of ORGANIZATION_DEPARTMENTS) {
   const existing = DIAGRAM_DEPARTMENTS.find((item) => item.slug === department.slug);
+  const divisionId = ORGANIZATION_DIVISIONS.find((division) => division.departmentIds.some((id) => id === department.id))?.id;
   if (existing) {
     existing.name = `Phòng ${department.name}`;
     existing.employeeDepartments = [department.id];
+    existing.divisionId = divisionId;
   } else {
     DIAGRAM_DEPARTMENTS.push({
       slug: department.slug,
+      divisionId,
       name: `Phòng ${department.name}`,
       employeeDepartments: [department.id],
       icon: department.icon,

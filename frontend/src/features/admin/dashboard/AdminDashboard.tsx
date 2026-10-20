@@ -722,7 +722,6 @@ export default function AdminDashboard(_props: AdminDashboardProps) {
                   activeTab={activeTab}
                   page={accessControlPage}
                   editingRoleId={editingRoleId}
-                  onNavigateToEditRole={(roleId) => router.push(`/admin/access-control/roles/${encodeURIComponent(roleId)}/edit`)}
                   onNavigateToPage={(page) => router.push(ACCESS_CONTROL_PAGE_ROUTES[page])}
                   onAccountsChanged={setPendingUsersCount}
                 />
