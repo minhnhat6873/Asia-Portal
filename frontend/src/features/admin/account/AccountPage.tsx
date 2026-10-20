@@ -131,7 +131,7 @@ export default function AccountPage({
   const isRootAdmin = adminUser.role === "Toàn quyền Admin";
 
   return (
-    <div className="relative min-h-screen text-zinc-200 selection:bg-[#f5c800] selection:text-black">
+    <div className={`relative min-w-0 ${embedded ? "min-h-0" : "min-h-screen"} text-zinc-200 selection:bg-[#f5c800] selection:text-black`}>
       <AmbientBackground />
 
       {!embedded && <header className="sticky top-0 z-50 border-b border-white/10 bg-[#060806]/80 backdrop-blur-xl">
@@ -161,7 +161,7 @@ export default function AccountPage({
         </div>
       </header>}
 
-      <main className="mx-auto max-w-3xl px-4 py-6 sm:px-6">
+      <main className={`mx-auto w-full min-w-0 max-w-3xl py-4 ${embedded ? "px-0" : "px-4 sm:px-6"}`}>
         <div className="mb-6 flex flex-col items-center text-center">
           <BrandBadge size={72} />
           <div className="inline-flex items-center gap-1.5 rounded-full border border-[#f5c800]/25 bg-white/[0.06] px-3 py-1 text-xs font-semibold text-[#f5c800]">

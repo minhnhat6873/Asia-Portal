@@ -13,6 +13,7 @@ import {
   ShieldCheck,
   UserCheck,
   LogOut,
+  X,
 } from 'lucide-react';
 import { ActiveTab } from '../types';
 import { AdminUser, clearAdminSession, getAdminSession } from '@/lib/adminSession';
@@ -28,6 +29,7 @@ interface SidebarProps {
   pendingUsersCount?: number;
   canViewMeetings?: boolean;
   compact?: boolean;
+  onClose?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -38,6 +40,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   pendingUsersCount = 0,
   canViewMeetings = false,
   compact = false,
+  onClose,
 }) => {
   const router = useRouter();
   const [account, setAccount] = useState<AdminUser | null>(null);
@@ -121,7 +124,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
   ];
 
   return (
-    <aside className={`h-full ${compact ? 'w-48' : 'w-64'} bg-white text-slate-700 flex flex-col shrink-0 border-r border-slate-200 select-none`}>
+    <aside id="admin-navigation" aria-label="Điều hướng quản trị" className={`h-full max-w-full ${compact ? 'w-48' : 'w-64'} bg-white text-slate-700 flex flex-col shrink-0 border-r border-slate-200 select-none`}>
+      <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-4 py-3 lg:hidden">
+        <span className="text-sm font-bold text-slate-800">Menu quản trị</span>
+        <button type="button" onClick={onClose} aria-label="Đóng menu quản trị" className="grid h-10 w-10 place-items-center rounded-xl text-slate-600 hover:bg-slate-100"><X className="h-5 w-5" /></button>
+      </div>
       {/* Brand Header — Asia F&B logo on the black canvas, gold-ringed */}
       <div className="hidden border-b border-white/[0.08] px-5 py-5">
         <div className="flex items-center gap-3.5">

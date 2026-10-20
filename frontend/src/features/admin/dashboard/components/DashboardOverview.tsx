@@ -35,49 +35,49 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
     <div className="space-y-6">
 
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
         <div
           onClick={can('employees:view') ? () => onNavigate('employees') : undefined}
-          className="group flex min-h-40 cursor-pointer items-center gap-5 rounded-3xl border border-slate-200/80 bg-white p-6 shadow-2xs transition-all hover:border-emerald-400/60 hover:shadow-sm"
+          className="group flex min-w-0 cursor-pointer items-center gap-4 rounded-2xl border border-slate-200/80 bg-white p-4 sm:min-h-36 sm:flex-col sm:items-start sm:gap-3 lg:min-h-40 xl:flex-row xl:items-center xl:gap-5 xl:rounded-3xl xl:p-6 shadow-2xs transition-all hover:border-emerald-400/60 hover:shadow-sm"
         >
-          <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-3xl bg-emerald-50 text-emerald-600 transition-transform group-hover:scale-105">
-            <Users className="h-10 w-10" strokeWidth={2.2} />
+          <div className="flex h-14 w-14 shrink-0 xl:h-20 xl:w-20 items-center justify-center rounded-3xl bg-emerald-50 text-emerald-600 transition-transform group-hover:scale-105">
+            <Users className="h-7 w-7 xl:h-10 xl:w-10" strokeWidth={2.2} />
           </div>
           <div>
-            <p className="text-base font-bold text-slate-600">Tổng số nhân viên</p>
+            <p className="text-sm font-bold text-slate-600 xl:text-base">Tổng số nhân viên</p>
             <p className="mt-2 text-4xl font-black tracking-tight text-slate-950">{totalEmployees}</p>
           </div>
         </div>
 
         <div
           onClick={can('employees:view') ? () => onNavigate('employees') : undefined}
-          className="group flex min-h-40 cursor-pointer items-center gap-5 rounded-3xl border border-slate-200/80 bg-white p-6 shadow-2xs transition-all hover:border-sky-400/60 hover:shadow-sm"
+          className="group flex min-w-0 cursor-pointer items-center gap-4 rounded-2xl border border-slate-200/80 bg-white p-4 sm:min-h-36 sm:flex-col sm:items-start sm:gap-3 lg:min-h-40 xl:flex-row xl:items-center xl:gap-5 xl:rounded-3xl xl:p-6 shadow-2xs transition-all hover:border-sky-400/60 hover:shadow-sm"
         >
-          <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-3xl bg-sky-50 text-sky-500 transition-transform group-hover:scale-105">
-            <Building2 className="h-10 w-10" strokeWidth={2.2} />
+          <div className="flex h-14 w-14 shrink-0 xl:h-20 xl:w-20 items-center justify-center rounded-3xl bg-sky-50 text-sky-500 transition-transform group-hover:scale-105">
+            <Building2 className="h-7 w-7 xl:h-10 xl:w-10" strokeWidth={2.2} />
           </div>
           <div>
-            <p className="text-base font-bold text-slate-600">Số phòng ban</p>
+            <p className="text-sm font-bold text-slate-600 xl:text-base">Số phòng ban</p>
             <p className="mt-2 text-4xl font-black tracking-tight text-slate-950">{totalDepartments}</p>
           </div>
         </div>
 
         <div
           onClick={can('media:view') ? () => onNavigate('media') : undefined}
-          className="group flex min-h-40 cursor-pointer items-center gap-5 rounded-3xl border border-slate-200/80 bg-white p-6 shadow-2xs transition-all hover:border-amber-400/60 hover:shadow-sm"
+          className="group flex min-w-0 cursor-pointer items-center gap-4 rounded-2xl border border-slate-200/80 bg-white p-4 sm:min-h-36 sm:flex-col sm:items-start sm:gap-3 lg:min-h-40 xl:flex-row xl:items-center xl:gap-5 xl:rounded-3xl xl:p-6 shadow-2xs transition-all hover:border-amber-400/60 hover:shadow-sm"
         >
-          <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-3xl bg-amber-50 text-amber-500 transition-transform group-hover:scale-105">
-            <FileText className="h-10 w-10" strokeWidth={2.2} />
+          <div className="flex h-14 w-14 shrink-0 xl:h-20 xl:w-20 items-center justify-center rounded-3xl bg-amber-50 text-amber-500 transition-transform group-hover:scale-105">
+            <FileText className="h-7 w-7 xl:h-10 xl:w-10" strokeWidth={2.2} />
           </div>
           <div>
-            <p className="text-base font-bold text-slate-600">Bài viết</p>
+            <p className="text-sm font-bold text-slate-600 xl:text-base">Bài viết</p>
             <p className="mt-2 text-4xl font-black tracking-tight text-slate-950">{totalMediaPosts}</p>
           </div>
         </div>
       </div>
 
       {/* Recent media — full width now that the department panel is gone */}
-      {can("media:view") && <div className="bg-white rounded-3xl border border-slate-200/90 shadow-2xs p-6">
+      {can("media:view") && <div className="min-w-0 bg-white rounded-2xl border border-slate-200/90 shadow-2xs p-4 sm:rounded-3xl sm:p-6">
         <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h3 className="font-bold text-slate-900 text-base">
@@ -122,8 +122,8 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
                   <FileText className="h-8 w-8" aria-hidden="true" />
                 </div>
               )}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
+              <div className="w-full flex-1 min-w-0">
+                <div className="flex flex-wrap items-center gap-2 mb-1">
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-50 text-sky-700 border border-sky-200">
                     {post.category}
                   </span>

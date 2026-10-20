@@ -113,10 +113,10 @@ export function MediaManagement({ mediaPosts, total, page, pageSize, isLoading, 
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm lg:flex-row lg:items-center">
-        <div className="relative flex-1"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Tìm theo tiêu đề hoặc Sapo..." className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-sm outline-none focus:border-sky-500" /></div>
-        <AdminSelect value={category} onChange={setCategory} options={[{ value: "", label: "Tất cả chuyên mục" }, ...CATEGORIES.map((value) => ({ value, label: value }))]} className="min-w-48" searchable={false} showSelectionCheck={false} />
-        <AdminSelect value={status} onChange={setStatus} options={[{ value: "", label: "Tất cả trạng thái" }, { value: "published", label: "Đăng tin" }, { value: "draft", label: "Ẩn Tin" }]} className="min-w-44" searchable={false} showSelectionCheck={false} />
+      <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="relative min-w-0 basis-full xl:basis-64 xl:flex-1"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Tìm theo tiêu đề hoặc Sapo..." className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-sm outline-none focus:border-sky-500" /></div>
+        <AdminSelect value={category} onChange={setCategory} options={[{ value: "", label: "Tất cả chuyên mục" }, ...CATEGORIES.map((value) => ({ value, label: value }))]} className="w-full min-w-0 sm:w-48" searchable={false} showSelectionCheck={false} />
+        <AdminSelect value={status} onChange={setStatus} options={[{ value: "", label: "Tất cả trạng thái" }, { value: "published", label: "Đăng tin" }, { value: "draft", label: "Ẩn Tin" }]} className="w-full min-w-0 sm:w-44" searchable={false} showSelectionCheck={false} />
         <button type="button" onClick={reset} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 py-2.5 text-xs font-semibold text-slate-600"><RotateCcw className="h-4 w-4" />Đặt lại</button>
         <div className="flex rounded-xl border border-slate-200 bg-slate-100 p-1"><button type="button" onClick={() => setViewMode("grid")} className={`rounded-lg p-2 ${viewMode === "grid" ? "bg-white shadow-sm" : "text-slate-500"}`}><LayoutGrid className="h-4 w-4" /></button><button type="button" onClick={() => setViewMode("table")} className={`rounded-lg p-2 ${viewMode === "table" ? "bg-white shadow-sm" : "text-slate-500"}`}><List className="h-4 w-4" /></button></div>
         <button type="button" hidden={!can("media:create")} onClick={onNavigateToAdd} className="inline-flex items-center justify-center gap-2 rounded-xl bg-sky-600 px-4 py-2.5 text-xs font-bold text-white"><Plus className="h-4 w-4" />Đăng bài mới</button>
@@ -132,7 +132,7 @@ export function MediaManagement({ mediaPosts, total, page, pageSize, isLoading, 
 
       {total > 0 && <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 bg-white px-4 py-3">
         <p className="text-xs font-medium text-slate-600">Trang <strong className="text-sky-700">{page}</strong> / {totalPages}</p>
-        <nav aria-label="Chuyển trang bài viết" className="flex items-center gap-1.5">
+        <nav aria-label="Chuyển trang bài viết" className="flex max-w-full flex-wrap items-center gap-1.5">
           <button type="button" aria-label="Trang trước" disabled={page <= 1 || isLoading} onClick={() => goToPage(page - 1)} className="grid h-9 w-9 place-items-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:border-sky-300 hover:text-sky-700 disabled:cursor-not-allowed disabled:opacity-40"><ChevronLeft className="h-4 w-4" /></button>
           {paginationItems.map((item, index) => item === "ellipsis"
             ? <span key={`ellipsis-${index}`} aria-hidden="true" className="min-w-5 text-center text-sm text-slate-400">…</span>
@@ -162,7 +162,7 @@ export function MediaManagement({ mediaPosts, total, page, pageSize, isLoading, 
         </div>
       )}
 
-      {deleteTarget && <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/60 p-4"><div className="w-full max-w-sm rounded-3xl bg-white p-6 text-center"><Trash2 className="mx-auto h-10 w-10 text-rose-600" /><h3 className="mt-3 text-lg font-bold">Xóa vĩnh viễn bài viết?</h3><p className="mt-2 text-sm text-slate-500">“{deleteTarget.title}” sẽ bị xóa khỏi cơ sở dữ liệu và không thể khôi phục.</p><div className="mt-5 flex justify-center gap-2"><button type="button" onClick={() => setDeleteTarget(null)} disabled={isDeleting} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold">Hủy</button><button type="button" onClick={() => void remove()} disabled={isDeleting} className="rounded-xl bg-rose-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-60">{isDeleting ? "Đang xóa..." : "Xóa vĩnh viễn"}</button></div></div></div>}
+      {deleteTarget && <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/60 p-4"><div className="max-h-[90dvh] w-full max-w-sm overflow-y-auto rounded-3xl bg-white p-6 text-center"><Trash2 className="mx-auto h-10 w-10 text-rose-600" /><h3 className="mt-3 text-lg font-bold">Xóa vĩnh viễn bài viết?</h3><p className="mt-2 text-sm text-slate-500">“{deleteTarget.title}” sẽ bị xóa khỏi cơ sở dữ liệu và không thể khôi phục.</p><div className="mt-5 flex justify-center gap-2"><button type="button" onClick={() => setDeleteTarget(null)} disabled={isDeleting} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold">Hủy</button><button type="button" onClick={() => void remove()} disabled={isDeleting} className="rounded-xl bg-rose-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-60">{isDeleting ? "Đang xóa..." : "Xóa vĩnh viễn"}</button></div></div></div>}
     </div>
   );
 }

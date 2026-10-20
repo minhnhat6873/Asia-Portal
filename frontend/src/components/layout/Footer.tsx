@@ -13,6 +13,11 @@ const supportLinks = [
   { label: "Trợ giúp", href: "#" },
   { label: "Liên hệ IT", href: "#" },
   { label: "Hỗ trợ", href: "#" },
+  {
+    label: "Vị trí",
+    href: "https://www.google.com/maps/place//@10.8943109,106.7667012,17z/data=!3m1!4b1!4m3!3m2!1s0x3174d950dde268b1:0x95c49cc55d68d91d!12e1?entry=ttu&g_ep=EgoyMDI2MTAxNC4wIKXMDSoASAFQAw%3D%3D",
+    external: true,
+  },
 ];
 
 export default function Footer() {
@@ -41,6 +46,8 @@ export default function Footer() {
                 <li key={link.href}>
                   <Link
                     href={link.href}
+                    target={link.external ? "_blank" : undefined}
+                    rel={link.external ? "noopener noreferrer" : undefined}
                     className="text-white/60 text-sm hover:text-[#f5c800] transition-colors"
                   >
                     {link.label}
@@ -56,12 +63,23 @@ export default function Footer() {
             <ul className="space-y-2">
               {supportLinks.map((link) => (
                 <li key={link.label}>
-                  <Link
-                    href={link.href}
-                    className="text-white/60 text-sm hover:text-[#f5c800] transition-colors"
-                  >
-                    {link.label}
-                  </Link>
+                  {link.external ? (
+                    <a
+                      href={link.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-white/60 text-sm hover:text-[#f5c800] transition-colors"
+                    >
+                      {link.label}
+                    </a>
+                  ) : (
+                    <Link
+                      href={link.href}
+                      className="text-white/60 text-sm hover:text-[#f5c800] transition-colors"
+                    >
+                      {link.label}
+                    </Link>
+                  )}
                 </li>
               ))}
             </ul>

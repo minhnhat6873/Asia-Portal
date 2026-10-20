@@ -38,16 +38,16 @@ export function UserManagementView({ users, roles, currentUserId, saving, canMan
   const save = async (userId: string) => { if (await onSaveUserAccess(userId, access)) setEditingId(null); };
 
   return <div className="asia-access-control space-y-5">
-    <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+    <div className="grid grid-cols-1 gap-3 min-[360px]:grid-cols-2 xl:grid-cols-4">
       {[
         { label: "Tổng tài khoản", count: users.length, Icon: Users, status: "all" },
         { label: "Đang hoạt động", count: users.filter((user) => user.status === "active").length, Icon: UserRoundCheck, status: "active" },
         { label: "Chờ duyệt", count: users.filter((user) => user.status === "pending").length, Icon: Clock3, status: "pending" },
         { label: "Tạm khóa", count: users.filter((user) => user.status === "suspended").length, Icon: LockKeyhole, status: "suspended" },
-      ].map(({ label, count, Icon, status }) => <button key={label} type="button" onClick={() => { setStatusFilter(status); setPage(1); }} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm"><Icon className="h-6 w-6 shrink-0 text-emerald-700" /><span><span className="block text-sm text-slate-600">{label}</span><strong className="text-2xl text-slate-900">{count}</strong></span></button>)}
+      ].map(({ label, count, Icon, status }) => <button key={label} type="button" onClick={() => { setStatusFilter(status); setPage(1); }} className="flex min-w-0 items-center gap-2 rounded-xl border border-slate-200 bg-white p-3 text-left shadow-sm sm:gap-3 sm:p-4"><Icon className="h-6 w-6 shrink-0 text-emerald-700" /><span><span className="block text-sm text-slate-600">{label}</span><strong className="text-2xl text-slate-900">{count}</strong></span></button>)}
     </div>
     <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white p-3">
-      <label className="relative min-w-48 flex-1"><Search className="absolute left-3 top-3 h-5 w-5 text-slate-400" /><input aria-label="Tìm tài khoản" placeholder="Tìm theo tên, email, số điện thoại..." value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} className="h-11 w-full rounded-lg border border-slate-200 pl-10 pr-3 text-sm outline-none focus:border-emerald-600" /></label>
+      <label className="relative min-w-0 basis-full sm:basis-48 sm:flex-1"><Search className="absolute left-3 top-3 h-5 w-5 text-slate-400" /><input aria-label="Tìm tài khoản" placeholder="Tìm theo tên, email, số điện thoại..." value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} className="h-11 w-full rounded-lg border border-slate-200 pl-10 pr-3 text-sm outline-none focus:border-emerald-600" /></label>
       <Link href="/admin/access-control/accounts/new" className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-emerald-700 px-4 text-sm font-bold text-white"><CirclePlus className="h-4 w-4" />Thêm tài khoản</Link>
     </div>
     <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">

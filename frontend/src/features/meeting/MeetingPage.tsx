@@ -257,7 +257,6 @@ export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: b
   const [start, setStart] = useState("09:00");
   const [end, setEnd] = useState("10:00");
   const [durationMinutes, setDurationMinutes] = useState(60);
-  const [durationInput, setDurationInput] = useState("60");
   const [bookingNow, setBookingNow] = useState(() => new Date());
   const [attendees, setAttendees] = useState(1);
   const [organizer, setOrganizer] = useState("");
@@ -350,7 +349,6 @@ export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: b
     const duration = options.includes(durationMinutes) ? durationMinutes : options.at(-1) ?? 30;
     setStart(value);
     setDurationMinutes(duration);
-    setDurationInput(String(duration));
     setEnd(value ? addMinutes(value, duration) : "");
   };
 
@@ -541,7 +539,6 @@ export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: b
     setStart(suggested.start);
     setEnd(availableEnd);
     setDurationMinutes(duration);
-    setDurationInput(String(duration));
     setFormStep("details");
     setOtpAction("create");
     setBookingToCancel(null);
@@ -688,37 +685,38 @@ export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: b
       /> : null}
 
       {formOpen && !(scheduleOnly && formStep === "otp" && otpAction === "cancel") ? <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/55 p-3 backdrop-blur-[2px] sm:p-5" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) closeBookingForm(); }}>
-        <section role="dialog" aria-modal="true" aria-labelledby="meeting-form-title" className="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl bg-white shadow-[0_24px_70px_rgba(15,23,42,0.3)]">
-          <div className="flex shrink-0 items-start justify-between gap-4 border-b border-emerald-100 bg-gradient-to-r from-emerald-50 to-white px-5 py-5 sm:px-7">
-            <div><div className="flex flex-wrap items-center gap-2.5"><h2 id="meeting-form-title" className="text-xl font-extrabold text-[#0d5c0d] sm:text-2xl">{formStep === "details" ? "Đặt phòng họp mới" : otpAction === "cancel" ? "Xác nhận hủy phòng" : "Xác nhận mã OTP"}</h2>{formStep === "details" ? <span className="rounded-full bg-[#f5c800] px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wide text-[#0d5c0d]">{selectedRoom.name}</span> : null}</div><p className="mt-1.5 text-sm text-slate-500">{formStep === "details" ? "Điền thông tin và chọn khung giờ còn trống." : otpAction === "cancel" ? "Nhập mã OTP được gửi đến email đã dùng để đặt phòng." : "Nhập mã gồm 6 chữ số đã được gửi đến email của bạn."}</p></div>
-            <button type="button" onClick={closeBookingForm} aria-label="Đóng" className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-500 transition-colors hover:bg-white hover:text-slate-800"><X size={21} /></button>
+        <section role="dialog" aria-modal="true" aria-labelledby="meeting-form-title" className="flex max-h-[94dvh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+          <div className="flex shrink-0 items-center justify-between gap-4 border-b border-slate-100 bg-white px-5 py-4 sm:px-7">
+            <div><p className="text-[10px] font-bold uppercase tracking-widest text-emerald-700">{formStep === "details" ? "Quản lý đặt phòng họp" : otpAction === "cancel" ? "Xác nhận hủy phòng" : "Xác nhận mã OTP"}</p><h2 id="meeting-form-title" className="mt-1 text-lg font-extrabold text-slate-900 sm:text-xl">{formStep === "details" ? "Đặt phòng họp mới" : otpAction === "cancel" ? "Xác nhận hủy phòng" : "Xác nhận mã OTP"}</h2></div>
+            <button type="button" onClick={closeBookingForm} aria-label="Đóng" className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-slate-500 hover:bg-slate-100"><X size={18} /></button>
           </div>
           {formStep === "details" ? <form noValidate onSubmit={createBooking} className="flex min-h-0 flex-1 flex-col">
-          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-5 [scrollbar-width:none] sm:px-7 sm:py-6 [&::-webkit-scrollbar]:hidden">
-            <Field label="Tiêu đề cuộc họp *" error={fieldErrors.title}><input required value={title} onChange={(event) => { setTitle(event.target.value); setFieldErrors((errors) => ({ ...errors, title: "" })); }} placeholder="VD: Họp giao ban tuần, Báo cáo tiến độ dự án..." className={`form-input ${fieldErrors.title ? "!border-rose-500 !ring-1 !ring-rose-200" : ""}`} /></Field>
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5 [scrollbar-width:none] sm:px-7 sm:py-5 [&::-webkit-scrollbar]:hidden">
+            <Field label="Tiêu đề cuộc họp *" error={fieldErrors.title}><input required minLength={3} maxLength={200} value={title} onChange={(event) => { setTitle(event.target.value); setFieldErrors((errors) => ({ ...errors, title: "" })); setFormError(""); }} placeholder="VD: Họp giao ban tuần, Báo cáo tiến độ dự án..." className={`form-input ${fieldErrors.title ? "!border-rose-500 !ring-1 !ring-rose-200" : ""}`} /></Field>
             <div className="grid gap-3 sm:grid-cols-2">
-              <Field label="Người chủ trì / Người đặt *" error={fieldErrors.organizer}><input required value={organizer} onChange={(event) => { setOrganizer(event.target.value); setFieldErrors((errors) => ({ ...errors, organizer: "" })); }} placeholder="Họ và tên" className={`form-input ${fieldErrors.organizer ? "!border-rose-500 !ring-1 !ring-rose-200" : ""}`} /></Field>
-              <Field label="Email liên hệ *" error={fieldErrors.email}><input required type="email" value={email} onChange={(event) => { setEmail(event.target.value); setFieldErrors((errors) => ({ ...errors, email: "" })); }} placeholder="ten@asiafnb.com" className={`form-input ${fieldErrors.email ? "!border-rose-500 !ring-1 !ring-rose-200" : ""}`} /></Field>
+              <Field label="Người chủ trì / Người đặt *" error={fieldErrors.organizer}><input required minLength={2} maxLength={100} autoComplete="name" value={organizer} onChange={(event) => { setOrganizer(event.target.value); setFieldErrors((errors) => ({ ...errors, organizer: "" })); setFormError(""); }} placeholder="Họ và tên" className={`form-input ${fieldErrors.organizer ? "!border-rose-500 !ring-1 !ring-rose-200" : ""}`} /></Field>
+              <Field label="Email liên hệ *" error={fieldErrors.email}><input required type="email" maxLength={150} autoComplete="email" value={email} onChange={(event) => { setEmail(event.target.value); setFieldErrors((errors) => ({ ...errors, email: "" })); setFormError(""); }} placeholder="ten@asiafnb.com" className={`form-input ${fieldErrors.email ? "!border-rose-500 !ring-1 !ring-rose-200" : ""}`} /></Field>
             </div>
-            <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,0.8fr)]">
-              <Field label="Phòng ban" error={fieldErrors.department}><DepartmentSelect value={department} options={EMPLOYEE_DEPARTMENT_OPTIONS.map(({ label }) => label)} isLoading={false} onChange={(value) => { setDepartment(value); setFieldErrors((errors) => ({ ...errors, department: "" })); }} /></Field>
-              <Field label="Số người tham dự" error={fieldErrors.attendees}><div className="flex items-center gap-2"><input required type="number" min={1} max={selectedRoom.capacity} value={attendees} onChange={(event) => { setAttendees(Math.min(selectedRoom.capacity, Math.max(1, Number(event.target.value) || 1))); setFieldErrors((errors) => ({ ...errors, attendees: "" })); }} className="form-input min-w-0 flex-1 appearance-textfield [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" /><span className="shrink-0 text-[11px] font-normal text-slate-400">/ max {selectedRoom.capacity} người</span></div></Field>
-            </div>
+            <Field label="Phòng ban" error={fieldErrors.department}><DepartmentSelect value={department} options={EMPLOYEE_DEPARTMENT_OPTIONS.map(({ label }) => label)} isLoading={false} onChange={(value) => { setDepartment(value); setFieldErrors((errors) => ({ ...errors, department: "" })); setFormError(""); }} /></Field>
 
-            <section className="rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50/80 to-slate-50 p-3.5 sm:p-4">
-              <div className="flex flex-wrap items-center justify-between gap-2"><p className="inline-flex items-center gap-2 text-xs font-extrabold uppercase tracking-wide text-slate-700"><span className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-[#159447] shadow-sm"><Clock3 size={14} /></span> Khung giờ họp</p><span className="rounded-lg border border-emerald-200 bg-white px-2.5 py-1 text-[11px] font-bold text-[#08723d] shadow-sm">{start} → {end} ({Math.max((Number(end.slice(0, 2)) * 60 + Number(end.slice(3))) - (Number(start.slice(0, 2)) * 60 + Number(start.slice(3))), 0) / 60} giờ)</span></div>
-              <div className="mt-3 grid gap-2.5 sm:grid-cols-3">
-                <Field label="Ngày họp"><DatePicker value={date} minValue={minimumBookingDate} ariaLabel="Ngày họp" onChange={changeBookingDate} /></Field>
-                <Field label="Giờ bắt đầu"><select required disabled={futureStartTimes.length === 0} value={start} onChange={(event) => changeBookingStart(event.target.value)} className="form-input">{!futureStartTimes.includes(start) ? <option disabled value={start}>Chọn giờ tương lai</option> : null}{futureStartTimes.map((value) => <option key={value} value={value}>{value}</option>)}</select></Field>
-                <Field label="Phút họp"><div className="form-input flex items-center gap-2"><input type="text" inputMode="numeric" required value={durationInput} onChange={(event) => { const raw = event.target.value; if (!/^\d*$/.test(raw)) return; setDurationInput(raw); if (raw === "") return; const value = Number(raw); if (!Number.isFinite(value)) return; const nearest = Math.max(30, Math.round(value / 15) * 15); setDurationMinutes(nearest); setEnd(addMinutes(start, nearest)); }} onBlur={() => { if (durationInput === "") { setDurationMinutes(30); setDurationInput("30"); setEnd(addMinutes(start, 30)); } else { const nearest = Math.min(durationOptions.at(-1) ?? 30, Math.max(30, Math.round(Number(durationInput) / 15) * 15)); setDurationMinutes(nearest); setDurationInput(String(nearest)); setEnd(addMinutes(start, nearest)); } }} className="min-w-0 flex-1 bg-transparent text-sm text-slate-800 outline-none" /><span className="shrink-0 text-xs text-slate-400">phút</span></div></Field>
-              </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Phòng họp"><select value={roomId} onChange={(event) => { const nextId = event.target.value as RoomId; setRoomId(nextId); setAttendees((current) => Math.min(current, rooms.find((room) => room.id === nextId)?.capacity ?? current)); setFormError(""); }} className="form-input">{rooms.map((room) => <option key={room.id} value={room.id}>{room.name} · tối đa {room.capacity} người</option>)}</select></Field>
+              <Field label="Ngày tổ chức"><DatePicker value={date} minValue={minimumBookingDate} ariaLabel="Ngày tổ chức" onChange={(value) => { changeBookingDate(value); setFormError(""); }} /></Field>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <Field label="Giờ bắt đầu"><select required disabled={futureStartTimes.length === 0} value={start} onChange={(event) => { changeBookingStart(event.target.value); setFormError(""); }} className="form-input">{!futureStartTimes.includes(start) ? <option disabled value={start}>Chọn giờ tương lai</option> : null}{futureStartTimes.map((value) => <option key={value} value={value}>{value}</option>)}</select></Field>
+              <Field label="Thời lượng"><select required disabled={durationOptions.length === 0} value={durationMinutes} onChange={(event) => { const value = Number(event.target.value); setDurationMinutes(value); setEnd(addMinutes(start, value)); setFormError(""); }} className="form-input">{durationOptions.map((value) => <option key={value} value={value}>{value} phút</option>)}</select></Field>
+              <div className="text-xs font-bold text-slate-700">Giờ kết thúc<div className="mt-1.5 flex h-10 items-center rounded-xl bg-slate-50 px-3 text-sm font-semibold text-slate-600">{end}</div></div>
+            </div>
+            <Field label="Số người tham gia" error={fieldErrors.attendees}><input required type="number" min={1} max={selectedRoom.capacity} step={1} value={attendees} onChange={(event) => { setAttendees(Math.min(selectedRoom.capacity, Math.max(1, Number(event.target.value) || 1))); setFieldErrors((errors) => ({ ...errors, attendees: "" })); setFormError(""); }} className="form-input" /></Field>
+            <section className="space-y-3 rounded-xl border border-slate-100 bg-white py-1">
               <p className="mt-2 text-[11px] text-slate-500">Thời lượng tối thiểu 30 phút, bắt đầu muộn nhất 16:30 và kết thúc trước hoặc đúng 17:00. Các cuộc họp cùng phòng cần cách nhau ít nhất 15 phút.</p>
               <p role="status" className={`mt-3 rounded-xl border px-3 py-2 text-xs ${selectedTimeAvailable ? "border-emerald-200 bg-emerald-50 text-[#08723d]" : "border-rose-200 bg-rose-50 text-rose-700"}`}>{scheduleWarning}</p>
             </section>
 
             {formError ? <p role="alert" className="rounded-xl border border-rose-100 bg-rose-50 px-3 py-2.5 text-sm text-rose-700">{formError}</p> : null}
           </div>
-            <div className="flex shrink-0 justify-end border-t border-slate-100 bg-white px-5 py-4 sm:px-7"><button type="submit" disabled={isSubmitting} className="rounded-xl bg-[#159447] px-5 py-2.5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-[#0d5c0d] disabled:cursor-wait disabled:opacity-60">{isSubmitting ? "Đang gửi OTP..." : "Xác nhận đặt phòng"}</button></div>
+            <div className="flex shrink-0 justify-end gap-2 border-t border-slate-100 bg-white px-5 py-4 sm:px-7"><button type="button" onClick={closeBookingForm} disabled={isSubmitting} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50">Hủy</button><button type="submit" disabled={isSubmitting || !loaded || !selectedTimeAvailable} className="rounded-xl bg-emerald-700 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50">{isSubmitting ? "Đang gửi OTP..." : !loaded ? "Đang tải lịch..." : "Xác nhận đặt phòng"}</button></div>
           </form>
           : <form onSubmit={confirmOtp} className="flex min-h-0 flex-1 flex-col">
             <div className="min-h-0 flex-1 space-y-5 overflow-y-auto bg-gradient-to-br from-emerald-50 via-white to-amber-50/70 px-5 py-5 [scrollbar-width:none] sm:px-7 sm:py-6 [&::-webkit-scrollbar]:hidden">
@@ -1002,7 +1000,7 @@ function StatCard({ label, value, unit, description, green = false }: { label: s
 }
 
 function Field({ label, children, error }: { label: string; children: React.ReactNode; error?: string }) {
-  return <div className="block text-xs font-semibold text-slate-700"><p>{label}</p><div className={`mt-1.5 [&_.form-input]:w-full [&_.form-input]:rounded-lg [&_.form-input]:border [&_.form-input]:bg-white [&_.form-input]:px-3 [&_.form-input]:py-2.5 [&_.form-input]:text-sm [&_.form-input]:font-normal [&_.form-input]:text-slate-800 [&_.form-input]:outline-none ${error ? "[&_.form-input]:!border-rose-500 [&_.form-input]:!ring-1 [&_.form-input]:!ring-rose-200" : "[&_.form-input]:border-slate-200 focus-within:[&_.form-input]:border-green-500"}`}>{children}</div>{error ? <p role="alert" className="mt-1 text-xs font-medium text-rose-600">{error}</p> : null}</div>;
+  return <div className="block text-xs font-bold text-slate-700"><p>{label}</p><div className={`mt-1.5 [&_.form-input]:h-10 [&_.form-input]:w-full [&_.form-input]:rounded-xl [&_.form-input]:border [&_.form-input]:bg-white [&_.form-input]:px-3 [&_.form-input]:py-0 [&_.form-input]:text-sm [&_.form-input]:font-medium [&_.form-input]:text-slate-800 [&_.form-input]:outline-none ${error ? "[&_.form-input]:!border-rose-500 [&_.form-input]:!ring-1 [&_.form-input]:!ring-rose-200" : "[&_.form-input]:border-slate-200 focus-within:[&_.form-input]:border-green-500"}`}>{children}</div>{error ? <p role="alert" className="mt-1 text-xs font-medium text-rose-600">{error}</p> : null}</div>;
 }
 
 function DepartmentSelect({ value, options, isLoading, onChange }: { value: string; options: string[]; isLoading: boolean; onChange: (value: string) => void }) {

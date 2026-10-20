@@ -126,7 +126,7 @@ export function AddMediaPage({ mode = "create", initialPost, onBack, onSave }: A
           <button type="button" onClick={onBack} className="rounded-2xl bg-slate-100 p-2.5 text-slate-700 hover:bg-slate-200"><ArrowLeft className="h-5 w-5" /></button>
           <div><p className="text-xs font-semibold text-sky-700">Asia F&amp;B Media &amp; Events</p><h1 className="text-xl font-extrabold text-slate-900">{mode === "edit" ? "Chỉnh sửa bài viết" : "Đăng bài truyền thông mới"}</h1></div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {mode === "create" && <button type="button" onClick={reset} disabled={isSaving} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-semibold text-slate-600"><RotateCcw className="h-4 w-4" />Đặt lại form</button>}
           <button type="button" onClick={submit} disabled={isSaving} className="inline-flex items-center gap-2 rounded-xl bg-amber-500 px-5 py-2.5 text-xs font-bold text-slate-950 disabled:opacity-60"><Check className="h-4 w-4" />{isSaving ? "Đang lưu..." : "Lưu bài viết"}</button>
         </div>
@@ -134,8 +134,8 @@ export function AddMediaPage({ mode = "create", initialPost, onBack, onSave }: A
 
       {errorMsg && <div role="alert" className="flex items-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700"><AlertCircle className="h-4 w-4" />{errorMsg}</div>}
 
-      <div className="grid items-start gap-6 2xl:grid-cols-12">
-        <form onSubmit={submit} className="space-y-5 rounded-3xl border border-slate-200 bg-white p-6 2xl:col-span-7">
+      <div className="grid items-start gap-6 min-[1440px]:grid-cols-12">
+        <form onSubmit={submit} className="space-y-5 rounded-3xl border border-slate-200 bg-white p-4 sm:p-6 min-w-0 min-[1440px]:col-span-7">
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="text-sm font-bold text-slate-700">Tiêu đề bài viết *<input required minLength={5} maxLength={200} value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 font-medium outline-none focus:border-sky-500" /></label>
             <div><label className="text-sm font-bold text-slate-700">Chuyên mục *</label><AdminSelect value={formData.category} onChange={(value) => setFormData({ ...formData, category: value as MediaCategory })} options={CATEGORIES.map((value) => ({ value, label: value }))} className="mt-1.5 w-full" searchable={false} showSelectionCheck={false} /></div>
@@ -153,7 +153,7 @@ export function AddMediaPage({ mode = "create", initialPost, onBack, onSave }: A
           <div><label className="mb-1.5 block text-sm font-bold text-slate-700">Nội dung chi tiết</label><RichTextEditor value={formData.content} onChange={(content) => setFormData({ ...formData, content })} placeholder="Nhập nội dung chi tiết..." enableImageInsert uploadImage={uploadAdminMediaContentImage} /></div>
         </form>
 
-        <aside className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm 2xl:col-span-5">
+        <aside className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm min-w-0 min-[1440px]:col-span-5">
           <div className="relative aspect-[4/3] bg-slate-100">{visibleCover ? <img src={visibleCover} alt={formData.title || "Ảnh xem trước"} className="h-full w-full object-cover" /> : null}<span className="absolute bottom-4 left-4 rounded-full bg-rose-800 px-3.5 py-1 text-xs font-bold text-white">{formData.category}</span></div>
           <div className="space-y-4 p-6"><h2 className="text-2xl font-black text-slate-900">{formData.title || "Tiêu đề bài viết"}</h2>{hasRichTextContent(formData.summary) && <RichText html={formData.summary} className="rich-content text-sm text-slate-500" />}<div className="border-t border-slate-100 pt-3 text-sm text-slate-400"><p className="flex items-center gap-2"><Calendar className="h-4 w-4" />{toDisplayDate(formData.publishDate)}</p><p className="mt-2 flex items-center gap-2"><User className="h-4 w-4" />{formData.authorDepartment}</p></div>{hasRichTextContent(formData.content) && <RichText html={formData.content} className="rich-content rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-sm text-emerald-950" />}</div>
         </aside>

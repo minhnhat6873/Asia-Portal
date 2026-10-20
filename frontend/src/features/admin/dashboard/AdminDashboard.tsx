@@ -145,23 +145,36 @@ export default function AdminDashboard(_props: AdminDashboardProps) {
   const canViewMedia = hasAdminPermission(sessionAccount, 'media:view');
   const canViewDashboard = hasAdminPermission(sessionAccount, 'dashboard:view');
   const [dashboardSummary, setDashboardSummary] = useState<DashboardSummary | null>(null);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const accountMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const syncSidebarWithViewport = () => {
-      if (window.matchMedia('(min-width: 1024px)').matches) {
-        setIsSidebarOpen(true);
-      } else if (window.matchMedia('(max-width: 767px)').matches) {
-        setIsSidebarOpen(false);
-      }
-    };
-
+    const desktop = window.matchMedia('(min-width: 992px)');
+    const syncSidebarWithViewport = () => setIsSidebarOpen(desktop.matches);
     syncSidebarWithViewport();
-    window.addEventListener('resize', syncSidebarWithViewport);
-    return () => window.removeEventListener('resize', syncSidebarWithViewport);
+    desktop.addEventListener('change', syncSidebarWithViewport);
+    return () => desktop.removeEventListener('change', syncSidebarWithViewport);
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    queueMicrotask(() => {
+      if (!active) return;
+      if (!window.matchMedia('(min-width: 992px)').matches) setIsSidebarOpen(false);
+      setIsAccountMenuOpen(false);
+    });
+    return () => { active = false; };
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!isSidebarOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !window.matchMedia('(min-width: 992px)').matches) setIsSidebarOpen(false);
+    };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [isSidebarOpen]);
 
   useEffect(() => {
     if (!editingEmployeeId || !canViewEmployees) {
@@ -327,18 +340,10 @@ export default function AdminDashboard(_props: AdminDashboardProps) {
     return () => { active = false; };
   }, [sessionAccount?.role]);
 
-  // On phones, start with the content visible and open navigation as an overlay.
-  useEffect(() => {
-    const closeOnMobile = window.setTimeout(() => {
-      if (window.matchMedia('(max-width: 767px)').matches) setIsSidebarOpen(false);
-    }, 0);
-    return () => window.clearTimeout(closeOnMobile);
-  }, []);
-
   const navigateToTab = (tab: ActiveTab) => {
     const target = ADMIN_TAB_ROUTES[tab];
     router.push(canAccessAdminPath(sessionAccount, target) ? target : "/admin/account");
-    if (window.matchMedia('(max-width: 767px)').matches) setIsSidebarOpen(false);
+    if (!window.matchMedia('(min-width: 992px)').matches) setIsSidebarOpen(false);
   };
   // Helper toast notifier
   const addToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
@@ -418,16 +423,16 @@ export default function AdminDashboard(_props: AdminDashboardProps) {
   };
 
   return (
-    <div className={`relative flex h-screen flex-col overflow-hidden bg-admin-main font-sans text-slate-800`}>
+    <div className="admin-shell relative flex h-dvh min-h-0 flex-col overflow-hidden bg-admin-main font-sans text-slate-800">
       {/* Toast notifications */}
       <header className={`flex shrink-0 items-center justify-between bg-white px-4 sm:px-6 lg:px-8 ${activeTab === 'meetings' ? 'h-[60px]' : 'h-[76px]'}`}>
-          <Link href="/admin/dashboard" className="flex min-w-0 items-center gap-3 rounded-xl outline-none transition-opacity hover:opacity-80 focus-visible:ring-2 focus-visible:ring-emerald-500">
+          <Link href="/admin/dashboard" className="flex min-w-0 items-center gap-2 rounded-xl sm:gap-3 outline-none transition-opacity hover:opacity-80 focus-visible:ring-2 focus-visible:ring-emerald-500">
           <span className="flex h-12 w-12 shrink-0 items-center justify-center">
             <Image src="/assets/images/asia-logo.png" alt="Asia Food & Beverage co.ltd" width={48} height={48} className="h-12 w-12 object-contain" />
           </span>
           <span className="min-w-0">
-            <span className="block whitespace-nowrap text-[18px] font-black leading-tight tracking-[-0.035em] text-[#082c5c]">Asia Food &amp; Beverage co.ltd</span>
-            <span className="mt-1 block whitespace-nowrap text-[14px] font-semibold leading-[1.3] tracking-[-0.015em] text-[#00865a]">Cổng quản trị nội bộ</span>
+            <span className="block truncate text-xs font-black leading-tight tracking-[-0.035em] text-[#082c5c] sm:text-lg">Asia Food &amp; Beverage co.ltd</span>
+            <span className="mt-1 block truncate text-[11px] font-semibold leading-[1.3] tracking-[-0.015em] text-[#00865a] sm:text-sm">Cổng quản trị nội bộ</span>
           </span>
         </Link>
         <div ref={accountMenuRef} className="relative shrink-0">
@@ -449,7 +454,7 @@ export default function AdminDashboard(_props: AdminDashboardProps) {
           </button>
 
           {isAccountMenuOpen && (
-            <div role="menu" className="absolute right-0 top-full z-50 mt-2 w-72 overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-xl shadow-slate-900/15">
+            <div role="menu" className="absolute right-0 top-full z-50 mt-2 w-72 max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-xl shadow-slate-900/15">
               <div className="flex items-center gap-3 rounded-xl bg-slate-50 px-3 py-3">
                 <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-emerald-600 to-[#0d5c0d] text-sm font-black text-white">
                   {sessionAccount?.initials ?? "AF"}
@@ -483,23 +488,26 @@ export default function AdminDashboard(_props: AdminDashboardProps) {
 
       <div className="relative flex min-h-0 flex-1 overflow-hidden">      {/* Persistent Sidebar (Stays on screen as requested) */}
       <div
+        inert={!isSidebarOpen}
+        aria-hidden={!isSidebarOpen}
         className={`h-full shrink-0 transition-[width] duration-300 ease-in-out ${
           isSidebarOpen ? 'overflow-visible' : 'overflow-hidden'
         } ${
-        isSidebarOpen ? 'w-64 max-md:absolute max-md:inset-y-0 max-md:left-0 max-md:z-40 max-md:shadow-2xl' : 'w-0'
+        isSidebarOpen ? 'w-64 max-w-[85vw] max-lg:absolute max-lg:inset-y-0 max-lg:left-0 max-lg:z-40 max-lg:shadow-2xl' : 'w-0'
         }`}
       >
         <Sidebar
           activeTab={activeTab}
           onTabChange={(tab) => {
             navigateToTab(tab);
-            if (window.matchMedia('(max-width: 767px)').matches) setIsSidebarOpen(false);
+            if (!window.matchMedia('(min-width: 992px)').matches) setIsSidebarOpen(false);
           }}
           employeeCount={dashboardSummary?.totalEmployees ?? employeeTotal}
           mediaCount={dashboardSummary?.totalMediaPosts ?? mediaTotal}
           pendingUsersCount={pendingUsersCount}
           canViewMeetings={sessionAccount?.role === "Toàn quyền Admin" || sessionAccount?.permissions.includes("meetings:view") === true}
           compact={false}
+          onClose={() => setIsSidebarOpen(false)}
         />
       </div>
 
@@ -508,20 +516,21 @@ export default function AdminDashboard(_props: AdminDashboardProps) {
           type="button"
           aria-label="Đóng thanh điều hướng"
           onClick={() => setIsSidebarOpen(false)}
-          className="absolute inset-0 z-30 bg-slate-950/35 md:hidden"
+          className="absolute inset-0 z-30 bg-slate-950/35 lg:hidden"
         />
       )}
 
       {/* Main Content Area */}
-      <main className="min-w-0 h-full flex-1 overflow-y-auto bg-admin-main">
+      <main id="admin-main" className="min-w-0 h-full flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain bg-admin-main">
         {/* Topbar — back to the public portal + account dropdown */}
         <header className={`shrink-0 items-center justify-between gap-3 bg-transparent px-4 md:px-6 ${activeTab === 'meetings' ? 'flex h-14 lg:hidden' : 'flex h-16'}`}>
-          <div className="flex items-center gap-3">
+          <div className="flex min-w-0 items-center gap-2 sm:gap-3">
             <button
               type="button"
               onClick={() => setIsSidebarOpen((open) => !open)}
               aria-label={isSidebarOpen ? 'Ẩn thanh điều hướng' : 'Mở thanh điều hướng'}
               aria-expanded={isSidebarOpen}
+              aria-controls="admin-navigation"
               className={`inline-flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 lg:hidden ${
                 isSidebarOpen
                   ? 'bg-transparent text-slate-600 hover:bg-emerald-50 hover:text-emerald-700 hover:shadow-[0_0_12px_rgba(22,163,74,0.20)]'
@@ -543,7 +552,7 @@ export default function AdminDashboard(_props: AdminDashboardProps) {
             )}
 
             {/* Section title for the active tab */}
-            <span className={`${activeTab === 'permissions' ? 'inline-flex text-sm sm:text-lg' : 'hidden text-lg lg:inline-flex'} items-center gap-2 px-1 font-bold uppercase tracking-[0.04em] text-slate-800`}>
+            <span className="inline-flex min-w-0 items-center gap-2 text-sm font-bold uppercase tracking-[0.04em] text-slate-800 sm:text-lg [&>span]:hidden [&>span]:shrink-0 lg:[&>span]:inline-block">
               <span className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.65)]" />
               {activeTab === 'overview' && 'Bảng Điều Khiển'}
               {activeTab === 'employees' && (isEmployeeTrashPage ? 'Thùng Rác Nhân Viên' : 'Quản Lý Nhân Sự')}
@@ -562,7 +571,7 @@ export default function AdminDashboard(_props: AdminDashboardProps) {
           <span className="hidden" aria-hidden="true" />
         </header>
         <div className={activeTab === 'meetings' ? 'p-3 sm:p-4 lg:p-[18px]' : 'p-3 sm:p-4 md:p-6 lg:p-8'}>
-          <div className={activeTab === 'meetings' ? 'mx-0 w-full max-w-none' : 'mx-auto max-w-7xl'}>
+          <div className={activeTab === 'meetings' ? 'mx-0 w-full min-w-0 max-w-none' : 'mx-auto w-full min-w-0 max-w-7xl'}>
             {/* 1. Tổng quan Dashboard */}
             {activeTab === 'overview' && (
               <DashboardOverview

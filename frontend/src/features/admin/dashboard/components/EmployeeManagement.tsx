@@ -301,7 +301,7 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
   const pagination = total > 0 && (
     <div className={`flex flex-col items-center justify-between gap-3 bg-slate-50/70 px-4 py-3 sm:flex-row ${viewMode === 'grid' ? 'rounded-2xl border border-slate-200' : 'border-t border-slate-200'}`}>
       <p className="text-xs font-medium text-slate-600">Trang <strong className="text-emerald-700">{page}</strong> / {totalPages}</p>
-      <nav aria-label="Chuyển trang nhân viên" className="inline-flex items-center gap-1.5">
+      <nav aria-label="Chuyển trang nhân viên" className="inline-flex max-w-full flex-wrap justify-center items-center gap-1.5">
         <button type="button" aria-label="Trang trước" disabled={page <= 1 || isLoading} onClick={() => goToPage(page - 1)} className="grid h-9 w-9 place-items-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:border-emerald-300 hover:text-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"><ChevronLeft className="h-4 w-4" /></button>
         {paginationItems.map((item, index) => item === 'ellipsis'
           ? <span key={`ellipsis-${index}`} aria-hidden="true" className="min-w-5 text-center text-sm text-slate-400">…</span>
@@ -324,9 +324,9 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
         document.body,
       )}
       {/* Page Title & Action Toolbar */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-2xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+      <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-2xs flex flex-col items-stretch justify-between gap-3">
         {/* Search */}
-        <div className="relative flex-1 max-w-md">
+        <div className="relative min-w-0 w-full">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             type="text"
@@ -339,11 +339,11 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
 
         {/* Filters */}
         <div className="flex items-center gap-2 flex-wrap">
-          <AdminSelect value={selectedDept} onChange={setSelectedDept} className="min-w-52" searchPlaceholder="Tìm kiếm phòng ban..." options={[{ value: 'all', label: 'Tất cả phòng ban' }, ...EMPLOYEE_DEPARTMENT_OPTIONS]} />
+          <AdminSelect value={selectedDept} onChange={setSelectedDept} className="w-full min-w-0 sm:w-52" searchPlaceholder="Tìm kiếm phòng ban..." options={[{ value: 'all', label: 'Tất cả phòng ban' }, ...EMPLOYEE_DEPARTMENT_OPTIONS]} />
 
-          <AdminSelect value={selectedRank} onChange={setSelectedRank} className="min-w-44" searchPlaceholder="Tìm kiếm cấp bậc..." options={[{ value: 'all', label: 'Tất cả cấp bậc' }, ...EMPLOYEE_RANK_OPTIONS_UI]} />
+          <AdminSelect value={selectedRank} onChange={setSelectedRank} className="w-full min-w-0 sm:w-44" searchPlaceholder="Tìm kiếm cấp bậc..." options={[{ value: 'all', label: 'Tất cả cấp bậc' }, ...EMPLOYEE_RANK_OPTIONS_UI]} />
 
-          <AdminSelect value={selectedStatus} onChange={(value) => setSelectedStatus(value as 'all' | EmployeeStatus)} className="min-w-44" searchPlaceholder="Tìm kiếm trạng thái..." options={[{ value: 'all', label: 'Tất cả trạng thái' }, ...EMPLOYEE_STATUS_OPTIONS_UI]} />
+          <AdminSelect value={selectedStatus} onChange={(value) => setSelectedStatus(value as 'all' | EmployeeStatus)} className="w-full min-w-0 sm:w-44" searchPlaceholder="Tìm kiếm trạng thái..." options={[{ value: 'all', label: 'Tất cả trạng thái' }, ...EMPLOYEE_STATUS_OPTIONS_UI]} />
 
           {/* Toggle View Mode (Image 5) */}
           <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
@@ -413,7 +413,7 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
       )}
 
       {/* Results Count Banner */}
-      <div id="admin-employee-results" className="scroll-mt-6 flex items-center justify-between text-xs text-slate-500 px-1">
+      <div id="admin-employee-results" className="scroll-mt-6 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500 px-1">
         <span>
           Đang hiển thị <strong>{total}</strong> nhân sự trong hệ thống Asia F&B Beverage
         </span>
@@ -429,7 +429,7 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
 
       {/* VIEW: GRID */}
       {viewMode === 'grid' ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 min-[1440px]:grid-cols-3 gap-4 sm:gap-6">
           {filteredEmployees.length === 0 ? (
             <div className="col-span-full py-16 text-center bg-white rounded-2xl border border-slate-200 text-slate-400">
               Không tìm thấy nhân viên nào phù hợp.
