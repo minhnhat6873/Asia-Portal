@@ -43,7 +43,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onClose,
 }) => {
   const router = useRouter();
-  const [account, setAccount] = useState<AdminUser | null>(null);
+  const [account, setAccount] = useState<AdminUser | null>(getAdminSession);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const accountMenuRef = useRef<HTMLDivElement>(null);
 

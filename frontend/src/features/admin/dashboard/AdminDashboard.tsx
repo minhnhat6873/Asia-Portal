@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useCallback, useTransition } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import type { Employee, MediaPost, ActiveTab } from './types';
 import { Sidebar } from './components/Sidebar';
@@ -17,7 +17,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { clearAdminSession, getAdminSession, type AdminUser } from '@/lib/adminSession';
 import { logoutAdmin } from '@/features/admin/login/auth.service';
-import { ArrowLeft, ChevronDown, KeyRound, LogOut, Menu, ShieldCheck, UserRound } from 'lucide-react';
+import { ArrowLeft, ChevronDown, KeyRound, LoaderCircle, LogOut, Menu, ShieldCheck, UserRound } from 'lucide-react';
 import { getDashboardSummary, type DashboardSummary } from './dashboard.service';
 import { getAdminEmployee, getAdminEmployees, softDeleteAdminEmployee, type AdminEmployeeListParams, type AdminEmployeeResult } from '@/services/admin-employee.service';
 import { toast } from 'sonner';
@@ -116,6 +116,10 @@ function getAccessControlPage(pathname: string): AccessControlPage {
 
 export default function AdminDashboard(_props: AdminDashboardProps) {
   const router = useRouter();
+  const [isNavigating, startNavigation] = useTransition();
+  const navigateToPage = (href: string) => {
+    startNavigation(() => router.push(href));
+  };
   const pathname = usePathname();
   const activeTab = getTabFromPath(pathname);
   const accessControlPage = getAccessControlPage(pathname);
@@ -140,16 +144,23 @@ export default function AdminDashboard(_props: AdminDashboardProps) {
   const [isEditingMediaLoading, setIsEditingMediaLoading] = useState(Boolean(editingMediaId));
   const [editingMediaError, setEditingMediaError] = useState<string | null>(null);
   const [pendingUsersCount, setPendingUsersCount] = useState(0);
-  const [sessionAccount, setSessionAccount] = useState<AdminUser | null>(null);
+  const [sessionAccount, setSessionAccount] = useState<AdminUser | null>(getAdminSession);
   const canViewEmployees = hasAdminPermission(sessionAccount, 'employees:view');
   const canViewMedia = hasAdminPermission(sessionAccount, 'media:view');
   const canViewDashboard = hasAdminPermission(sessionAccount, 'dashboard:view');
   const [dashboardSummary, setDashboardSummary] = useState<DashboardSummary | null>(null);
+  const [isSummaryLoading, setIsSummaryLoading] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const accountMenuRef = useRef<HTMLDivElement>(null);
+  const isPageLoading = isNavigating
+    || (activeTab === 'overview' && (isSummaryLoading || areEmployeesLoading || areMediaLoading))
+    || (activeTab === 'employees' && !isEmployeeTrashPage && areEmployeesLoading)
+    || (activeTab === 'media' && areMediaLoading)
+    || (activeTab === 'edit-employee' && isEditingEmployeeLoading)
+    || (activeTab === 'edit-media' && isEditingMediaLoading);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const desktop = window.matchMedia('(min-width: 992px)');
     const syncSidebarWithViewport = () => setIsSidebarOpen(desktop.matches);
     syncSidebarWithViewport();
@@ -269,12 +280,14 @@ export default function AdminDashboard(_props: AdminDashboardProps) {
   }, [mediaListParams, canViewMedia]);
 
   const refreshDashboardSummary = useCallback(async (signal?: AbortSignal) => {
-    if (!canViewDashboard) return;
+    if (!canViewDashboard) { setIsSummaryLoading(false); return; }
     try {
       const summary = await getDashboardSummary(signal);
       setDashboardSummary(summary);
     } catch {
       if (!signal?.aborted) setDashboardSummary(null);
+    } finally {
+      if (!signal?.aborted) setIsSummaryLoading(false);
     }
   }, [canViewDashboard]);
 
@@ -342,7 +355,7 @@ export default function AdminDashboard(_props: AdminDashboardProps) {
 
   const navigateToTab = (tab: ActiveTab) => {
     const target = ADMIN_TAB_ROUTES[tab];
-    router.push(canAccessAdminPath(sessionAccount, target) ? target : "/admin/account");
+    navigateToPage(canAccessAdminPath(sessionAccount, target) ? target : "/admin/account");
     if (!window.matchMedia('(min-width: 992px)').matches) setIsSidebarOpen(false);
   };
   // Helper toast notifier
@@ -467,10 +480,10 @@ export default function AdminDashboard(_props: AdminDashboardProps) {
               </div>
 
               <div className="mt-2 space-y-1">
-                <button type="button" role="menuitem" onClick={() => { setIsAccountMenuOpen(false); router.push("/admin/account"); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-slate-700 transition-colors hover:bg-emerald-50 hover:text-emerald-800">
+                <button type="button" role="menuitem" onClick={() => { setIsAccountMenuOpen(false); navigateToPage("/admin/account"); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-slate-700 transition-colors hover:bg-emerald-50 hover:text-emerald-800">
                   <UserRound className="h-4 w-4 text-slate-500" />Hồ sơ cá nhân
                 </button>
-                <button type="button" role="menuitem" onClick={() => { setIsAccountMenuOpen(false); router.push("/admin/account?tab=password"); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-slate-700 transition-colors hover:bg-emerald-50 hover:text-emerald-800">
+                <button type="button" role="menuitem" onClick={() => { setIsAccountMenuOpen(false); navigateToPage("/admin/account?tab=password"); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-slate-700 transition-colors hover:bg-emerald-50 hover:text-emerald-800">
                   <KeyRound className="h-4 w-4 text-slate-500" />Đổi mật khẩu
                 </button>
               </div>
@@ -570,7 +583,13 @@ export default function AdminDashboard(_props: AdminDashboardProps) {
 
           <span className="hidden" aria-hidden="true" />
         </header>
-        <div className={activeTab === 'meetings' ? 'p-3 sm:p-4 lg:p-[18px]' : 'p-3 sm:p-4 md:p-6 lg:p-8'}>
+        {isPageLoading && (
+          <div role="status" aria-live="polite" className="flex min-h-64 items-center justify-center gap-2.5 text-sm text-slate-500">
+            <LoaderCircle aria-hidden="true" className="h-5 w-5 animate-spin text-emerald-600 motion-reduce:animate-none" />
+            <span>Đang tải trang...</span>
+          </div>
+        )}
+        <div hidden={isPageLoading} className={activeTab === 'meetings' ? 'p-3 sm:p-4 lg:p-[18px]' : 'p-3 sm:p-4 md:p-6 lg:p-8'}>
           <div className={activeTab === 'meetings' ? 'mx-0 w-full min-w-0 max-w-none' : 'mx-auto w-full min-w-0 max-w-7xl'}>
             {/* 1. Tổng quan Dashboard */}
             {activeTab === 'overview' && (
@@ -604,15 +623,15 @@ export default function AdminDashboard(_props: AdminDashboardProps) {
                 onCloseDossier={() => setSelectedDossierEmployee(null)}
                 onOpenDossier={(emp) => setSelectedDossierEmployee(emp)}
                 onNavigateToAdd={() => navigateToTab('add-employee')}
-                onNavigateToEdit={(employee) => router.push(`/admin/employees/${encodeURIComponent(employee.id)}/edit`)}
-                onNavigateToTrash={() => router.push('/admin/employees/trash')}
+                onNavigateToEdit={(employee) => navigateToPage(`/admin/employees/${encodeURIComponent(employee.id)}/edit`)}
+                onNavigateToTrash={() => navigateToPage('/admin/employees/trash')}
                 onChartAvatarUpdated={() => loadEmployees()}
               />
             )}
 
             {activeTab === 'employees' && isEmployeeTrashPage && (
               <EmployeeTrashPage
-                onBack={() => router.push('/admin/employees')}
+                onBack={() => navigateToPage('/admin/employees')}
                 onRestored={async () => {
                   await Promise.all([loadEmployees(), refreshDashboardSummary()]);
                 }}
@@ -640,10 +659,10 @@ export default function AdminDashboard(_props: AdminDashboardProps) {
                   key={editingEmployee.id}
                   mode="edit"
                   initialEmployee={editingEmployee}
-                  onBack={() => router.push('/admin/employees')}
+                  onBack={() => navigateToPage('/admin/employees')}
                   onSave={(updatedEmployee) => {
                     handleUpdateEmployee(updatedEmployee);
-                    router.push('/admin/employees');
+                    navigateToPage('/admin/employees');
                   }}
                   existingCount={employees.length}
                 />
@@ -673,7 +692,7 @@ export default function AdminDashboard(_props: AdminDashboardProps) {
                 previewPost={previewMediaPost}
                 onSelectPreview={(post) => setPreviewMediaPost(post)}
                 onNavigateToAdd={() => navigateToTab('add-media')}
-                onNavigateToEdit={(post) => router.push(`/admin/media/${encodeURIComponent(post.id)}/edit`)}
+                onNavigateToEdit={(post) => navigateToPage(`/admin/media/${encodeURIComponent(post.id)}/edit`)}
               />
             )}
 
@@ -704,10 +723,10 @@ export default function AdminDashboard(_props: AdminDashboardProps) {
                   key={editingMedia.id}
                   mode="edit"
                   initialPost={editingMedia}
-                  onBack={() => router.push('/admin/media')}
+                  onBack={() => navigateToPage('/admin/media')}
                   onSave={(updatedPost) => {
                     handleUpdateMedia(updatedPost);
-                    router.push('/admin/media');
+                    navigateToPage('/admin/media');
                   }}
                 />
               ) : (
@@ -722,8 +741,8 @@ export default function AdminDashboard(_props: AdminDashboardProps) {
                   activeTab={activeTab}
                   page={accessControlPage}
                   editingRoleId={editingRoleId}
-                  onNavigateToEditRole={(roleId) => router.push(`/admin/access-control/roles/${encodeURIComponent(roleId)}/edit`)}
-                  onNavigateToPage={(page) => router.push(ACCESS_CONTROL_PAGE_ROUTES[page])}
+                  onNavigateToEditRole={(roleId) => navigateToPage(`/admin/access-control/roles/${encodeURIComponent(roleId)}/edit`)}
+                  onNavigateToPage={(page) => navigateToPage(ACCESS_CONTROL_PAGE_ROUTES[page])}
                   onAccountsChanged={setPendingUsersCount}
                 />
               )

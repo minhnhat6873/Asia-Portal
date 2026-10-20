@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, CalendarDays, Download, Toolbox } from "lucide-react";
 import { RESOURCE_ITEMS, type ResourceItem } from "./resourceData";
+import EmailSystemPicker from "./EmailSystemPicker";
 
 function ResourceCard({ item }: { item: ResourceItem }) {
   const Icon = item.icon;
@@ -18,6 +19,7 @@ function ResourceCard({ item }: { item: ResourceItem }) {
     </>
   );
   const className = "group flex flex-col justify-between rounded-2xl border border-slate-100 bg-white p-6 shadow-lg shadow-slate-100 transition-all hover:border-[#bbf7d0] hover:shadow-xl";
+  if (item.emailPicker) return <EmailSystemPicker className={className}>{content}</EmailSystemPicker>;
   return item.href
     ? <Link id={item.anchor} href={item.href} className={className}>{content}</Link>
     : <div id={item.anchor} className={className}>{content}</div>;

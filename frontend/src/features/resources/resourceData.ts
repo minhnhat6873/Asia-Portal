@@ -24,6 +24,7 @@ export type ResourceItem = {
   linkText: string;
   /** Where the card navigates. Omit for informational cards. */
   href?: string;
+  emailPicker?: boolean;
   /** Anchor consumed by the navbar "FAQ" shortcut. */
   anchor?: string;
   /** The handbook card shows a download glyph instead of an arrow. */
@@ -55,8 +56,8 @@ export const RESOURCE_ITEMS: ResourceItem[] = [
     icon: MessagesSquare,
     chipTone: "bg-blue-50 text-blue-600",
     linkTone: "text-blue-600",
-    linkText: "Đăng nhập Slack",
-    href: "https://pro218.emailserver.vn/mail/?_task=mail&_mbox=INBOX",
+    linkText: "Chọn hệ thống Email",
+    emailPicker: true,
   },
   {
     title: "Sơ đồ Văn phòng & Wifi",

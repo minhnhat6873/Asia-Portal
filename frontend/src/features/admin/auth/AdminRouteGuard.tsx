@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
 import Link from "next/link";
+import { LoaderCircle } from "lucide-react";
 import { canAccessAdminPath, getAdminLandingPath } from "@/lib/adminPermissions";
 import { type AdminUser, clearAdminSession, setAdminSession } from "@/lib/adminSession";
 import {
@@ -53,7 +54,7 @@ export default function AdminRouteGuard({ children }: { children: React.ReactNod
   const pathname = usePathname();
   const router = useRouter();
   const isPublicPage = PUBLIC_ADMIN_PATHS.has(pathname);
-  const [verified, setVerified] = useState<{path: string; account: AdminUser} | null>(null);
+  const [verified, setVerified] = useState<AdminUser | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
   const [retry, setRetry] = useState(0);
 
@@ -68,7 +69,7 @@ export default function AdminRouteGuard({ children }: { children: React.ReactNod
         const admin = await verifyAuthenticatedAdmin();
         if (!active) return;
         const account = storeSession(admin);
-        setVerified({path: pathname, account});
+        setVerified(account);
         setErrorMessage("");
         ["asia_fnb_users_v2", "asia_fnb_current_user_v2", "asia_fnb_trash_v1", "asia_fnb_access_control_users_v1", "asia_fnb_access_control_roles_v1"].forEach((key) => localStorage.removeItem(key));
 
@@ -79,7 +80,7 @@ export default function AdminRouteGuard({ children }: { children: React.ReactNod
         if (sessionRejected) {
           clearAdminSession();
           if (!active) return;
-          router.replace(`/admin/login?next=${encodeURIComponent(pathname)}`);
+          router.replace(`/admin/login?next=${encodeURIComponent(window.location.pathname)}`);
           return;
         }
 
@@ -99,12 +100,17 @@ export default function AdminRouteGuard({ children }: { children: React.ReactNod
     window.addEventListener("focus", refresh);
     const timer = window.setInterval(refresh, 60000);
     return () => { active = false; window.removeEventListener("focus", refresh); window.clearInterval(timer); };
-  }, [isPublicPage, pathname, router, retry]);
+  }, [isPublicPage, router, retry]);
 
   if (isPublicPage) return <>{children}</>;
   if (errorMessage) return <div className="p-8 text-slate-700"><p>{errorMessage}</p><button onClick={() => { setErrorMessage(""); setRetry((value) => value + 1); }} className="mt-4 rounded-xl bg-emerald-700 px-5 py-3 text-white">Thử lại</button></div>;
-  if (!verified || verified.path !== pathname) return <div className="min-h-screen bg-slate-50" aria-busy="true" />;
+  if (!verified) return (
+    <div role="status" aria-live="polite" aria-busy="true" className="flex h-dvh items-center justify-center gap-2.5 bg-admin-main text-sm text-slate-500">
+      <LoaderCircle aria-hidden="true" className="h-5 w-5 animate-spin text-emerald-600 motion-reduce:animate-none" />
+      <span>Đang tải trang...</span>
+    </div>
+  );
 
-  if (!canAccessAdminPath(verified.account, pathname)) return <div className="min-h-screen bg-slate-50 p-8"><h1 className="text-xl font-bold">Bạn chưa được cấp quyền truy cập trang này.</h1><Link href={getAdminLandingPath(verified.account)} className="mt-4 inline-block text-emerald-700 underline">Về trang được cấp quyền</Link></div>;
+  if (!canAccessAdminPath(verified, pathname)) return <div className="min-h-screen bg-slate-50 p-8"><h1 className="text-xl font-bold">Bạn chưa được cấp quyền truy cập trang này.</h1><Link href={getAdminLandingPath(verified)} className="mt-4 inline-block text-emerald-700 underline">Về trang được cấp quyền</Link></div>;
   return <>{children}</>;
 }
