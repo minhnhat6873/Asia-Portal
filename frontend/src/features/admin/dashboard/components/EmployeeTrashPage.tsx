@@ -1,5 +1,6 @@
 "use client";
 
+import { useDelayedLoading } from "@/lib/useDelayedLoading";
 import { ArrowLeft, ChevronLeft, ChevronRight, LoaderCircle, RotateCcw, Search, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -30,6 +31,7 @@ export function EmployeeTrashPage({ onBack, onRestored }: EmployeeTrashPageProps
   const [employees, setEmployees] = useState<AdminEmployeeResult[]>([]);
   const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const showLoading = useDelayedLoading(isLoading);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [restoringId, setRestoringId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -127,14 +129,14 @@ export function EmployeeTrashPage({ onBack, onRestored }: EmployeeTrashPageProps
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xs">
-        {isLoading ? (
+        {showLoading ? (
           <div className="flex min-h-64 items-center justify-center gap-2 text-sm font-semibold text-emerald-700">
             <LoaderCircle className="h-5 w-5 animate-spin" /> Đang tải thùng rác...
           </div>
         ) : loadError ? (
           <div className="min-h-64 p-8 text-center text-sm text-rose-600">{loadError}</div>
         ) : employees.length === 0 ? (
-          <div className="flex min-h-64 flex-col items-center justify-center gap-3 p-8 text-center">
+          <div hidden={isLoading} className="flex min-h-64 flex-col items-center justify-center gap-3 p-8 text-center">
             <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-400"><Trash2 className="h-7 w-7" /></span>
             <div><p className="font-bold text-slate-700">Thùng rác nhân viên đang trống</p><p className="mt-1 text-xs text-slate-500">Nhân viên đã xóa sẽ xuất hiện tại đây.</p></div>
           </div>

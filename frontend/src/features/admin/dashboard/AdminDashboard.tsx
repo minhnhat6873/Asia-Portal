@@ -1,5 +1,6 @@
 "use client";
 
+import { useDelayedLoading } from "@/lib/useDelayedLoading";
 import React, { useState, useEffect, useLayoutEffect, useRef, useCallback, useTransition } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import type { Employee, MediaPost, ActiveTab } from './types';
@@ -159,6 +160,7 @@ export default function AdminDashboard(_props: AdminDashboardProps) {
     || (activeTab === 'media' && areMediaLoading)
     || (activeTab === 'edit-employee' && isEditingEmployeeLoading)
     || (activeTab === 'edit-media' && isEditingMediaLoading);
+  const showPageLoading = useDelayedLoading(isPageLoading, 1000, pathname);
 
   useLayoutEffect(() => {
     const desktop = window.matchMedia('(min-width: 992px)');
@@ -583,13 +585,13 @@ export default function AdminDashboard(_props: AdminDashboardProps) {
 
           <span className="hidden" aria-hidden="true" />
         </header>
-        {isPageLoading && (
+        {showPageLoading && (
           <div role="status" aria-live="polite" className="flex min-h-64 items-center justify-center gap-2.5 text-sm text-slate-500">
             <LoaderCircle aria-hidden="true" className="h-5 w-5 animate-spin text-emerald-600 motion-reduce:animate-none" />
             <span>Đang tải trang...</span>
           </div>
         )}
-        <div hidden={isPageLoading} className={activeTab === 'meetings' ? 'p-3 sm:p-4 lg:p-[18px]' : 'p-3 sm:p-4 md:p-6 lg:p-8'}>
+        <div hidden={showPageLoading} className={activeTab === 'meetings' ? 'p-3 sm:p-4 lg:p-[18px]' : 'p-3 sm:p-4 md:p-6 lg:p-8'}>
           <div className={activeTab === 'meetings' ? 'mx-0 w-full min-w-0 max-w-none' : 'mx-auto w-full min-w-0 max-w-7xl'}>
             {/* 1. Tổng quan Dashboard */}
             {activeTab === 'overview' && (
@@ -653,7 +655,7 @@ export default function AdminDashboard(_props: AdminDashboardProps) {
             {/* 4. Danh sách Quản lý Truyền thông */}
             {activeTab === 'edit-employee' && (
               isEditingEmployeeLoading ? (
-                <div className="rounded-3xl border border-slate-200 bg-white p-8 text-sm text-slate-500">\u0110ang t\u1ea3i h\u1ed3 s\u01a1 nh\u00e2n vi\u00ean...</div>
+                <div hidden={!showPageLoading} className="rounded-3xl border border-slate-200 bg-white p-8 text-sm text-slate-500">\u0110ang t\u1ea3i h\u1ed3 s\u01a1 nh\u00e2n vi\u00ean...</div>
               ) : editingEmployee ? (
                 <AddEmployeePage
                   key={editingEmployee.id}

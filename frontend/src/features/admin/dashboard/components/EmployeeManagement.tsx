@@ -1,3 +1,4 @@
+import { useDelayedLoading } from "@/lib/useDelayedLoading";
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { hasRichTextContent, RichText } from '@/components/ui/RichText';
@@ -96,6 +97,7 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
   onChartAvatarUpdated,
 }) => {
   const { can } = useAdminPermissions();
+  const showLoading = useDelayedLoading(isLoading);
   // Search & Filter State
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDept, setSelectedDept] = useState<string>('all');
@@ -313,16 +315,6 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
 
   return (
     <div className="space-y-6">
-      {isLoading && employees.length === 0 && typeof document !== 'undefined' && createPortal(
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/35 p-4 backdrop-blur-sm" role="status" aria-live="polite">
-          <div className="flex w-full max-w-sm flex-col items-center rounded-3xl bg-white px-8 py-7 text-center shadow-2xl">
-            <span className="h-10 w-10 animate-spin rounded-full border-4 border-emerald-100 border-t-emerald-600" />
-            <p className="mt-4 text-base font-bold text-slate-900">Đang tải dữ liệu nhân viên</p>
-            <p className="mt-1 text-sm text-slate-500">Vui lòng chờ trong giây lát</p>
-          </div>
-        </div>,
-        document.body,
-      )}
       {/* Page Title & Action Toolbar */}
       <div id="admin-employee-results" className="scroll-mt-6 grid grid-cols-1 items-center gap-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-2xs min-[1600px]:grid-cols-[minmax(180px,1fr)_auto]">
         {/* Search */}
@@ -409,7 +401,7 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
         </div>
       )}
 
-      {isLoading && (
+      {showLoading && (
         <div className="flex items-center justify-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-xs font-semibold text-emerald-700">
           <span className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-200 border-t-emerald-600" />
           Đang tải danh sách nhân viên...
@@ -431,7 +423,7 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
       {viewMode === 'grid' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 min-[1440px]:grid-cols-3 gap-4 sm:gap-6">
           {filteredEmployees.length === 0 ? (
-            <div className="col-span-full py-16 text-center bg-white rounded-2xl border border-slate-200 text-slate-400">
+            <div hidden={isLoading} className="col-span-full py-16 text-center bg-white rounded-2xl border border-slate-200 text-slate-400">
               Không tìm thấy nhân viên nào phù hợp.
             </div>
           ) : (
@@ -645,7 +637,7 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
                 {filteredEmployees.length === 0 ? (
                   <tr>
                     <td colSpan={9} className="px-3 py-10 text-left text-sm text-slate-400">
-                      Không tìm thấy nhân viên nào phù hợp.
+                      {!isLoading && "Không tìm thấy nhân viên nào phù hợp."}
                     </td>
                   </tr>
                 ) : (

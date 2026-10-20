@@ -1,5 +1,6 @@
 "use client";
 
+import { useDelayedLoading } from "@/lib/useDelayedLoading";
 import { useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
@@ -112,9 +113,11 @@ export default function AccountPage({
     void logoutAdmin().finally(() => { clearAdminSession(); router.push("/admin/login"); });
   };
 
+  const showLoading = useDelayedLoading(loading);
+
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#060806]">
+      <div hidden={!showLoading} role="status" className="flex min-h-screen items-center justify-center bg-[#060806]">
         <div className="animate-spin rounded-full h-10 w-10 border-3 border-wana-green border-t-transparent" />
       </div>
     );

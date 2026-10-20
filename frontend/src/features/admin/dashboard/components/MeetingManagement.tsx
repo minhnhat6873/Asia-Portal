@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useDelayedLoading } from "@/lib/useDelayedLoading";
 import { createPortal } from "react-dom";
 import {
   CalendarDays, CalendarRange, Check, ChevronDown, ChevronLeft, ChevronRight, Clock3, Eye, Filter, List,
@@ -120,7 +121,9 @@ export function MeetingManagement({ permissions }: Props) {
   const [calendarMeetings, setCalendarMeetings] = useState<AdminMeeting[]>([]);
   const [departments, setDepartments] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showLoading, setShowLoading] = useState(false);
   const [calendarLoading, setCalendarLoading] = useState(true);
+  const showCalendarLoading = useDelayedLoading(calendarLoading);
   const [error, setError] = useState("");
   const [calendarError, setCalendarError] = useState("");
   const [view, setView] = useState<"table" | "week">("table");
@@ -173,19 +176,24 @@ export function MeetingManagement({ permissions }: Props) {
   useEffect(() => {
     const controller = new AbortController();
     setLoading(true);
+    setShowLoading(false);
+    const loadingTimer = window.setTimeout(() => setShowLoading(true), 1000);
     setError("");
     const request = tab === "pending"
       ? getAdminMeetingRequests("pending", page, PAGE_SIZE, controller.signal)
       : tab === "cancellations"
         ? getAdminMeetingRequests("cancel-requests", page, PAGE_SIZE, controller.signal)
         : getAdminMeetings({ ...meetingFilters, page: view === "week" ? 1 : page, limit: view === "week" ? 500 : pageSize }, controller.signal);
-    void request.then(setPageData).catch((cause: unknown) => {
+    void request.then((result) => { if (!controller.signal.aborted) setPageData(result); }).catch((cause: unknown) => {
       if (!controller.signal.aborted) {
         setPageData({ items: [], pagination: { total: 0, totalPages: 0 } });
         setError(cause instanceof Error ? cause.message : "Không thể tải danh sách lịch họp.");
       }
-    }).finally(() => { if (!controller.signal.aborted) setLoading(false); });
-    return () => controller.abort();
+    }).finally(() => {
+      window.clearTimeout(loadingTimer);
+      if (!controller.signal.aborted) { setLoading(false); setShowLoading(false); }
+    });
+    return () => { controller.abort(); window.clearTimeout(loadingTimer); };
   }, [meetingFilters, tab, page, pageSize, view, refreshToken]);
 
 
@@ -337,7 +345,7 @@ export function MeetingManagement({ permissions }: Props) {
       <div className="grid items-start gap-4 lg:grid-cols-2">
         <section aria-busy={calendarLoading} className="relative rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <div className="flex items-center justify-between"><h2 className="text-sm font-extrabold text-slate-900">Lịch tháng {Number(month.slice(5))}, {month.slice(0, 4)}</h2><div className="flex gap-1"><button type="button" aria-label="Tháng trước" onClick={() => setMonth(addDays(`${month}-01`, -1).slice(0, 7))} className="grid h-7 w-7 place-items-center rounded-lg text-slate-600 hover:bg-slate-100"><ChevronLeft size={16} /></button><button type="button" aria-label="Tháng sau" onClick={() => setMonth(addDays(`${month}-28`, 10).slice(0, 7))} className="grid h-7 w-7 place-items-center rounded-lg text-slate-600 hover:bg-slate-100"><ChevronRight size={16} /></button></div></div>
-          {calendarLoading && <span role="status" className="pointer-events-none absolute right-24 top-5 text-emerald-700"><LoaderCircle size={16} className="animate-spin motion-reduce:animate-none" aria-hidden="true" /><span className="sr-only">Đang tải lịch…</span></span>}
+          {showCalendarLoading && <span role="status" className="pointer-events-none absolute right-24 top-5 text-emerald-700"><LoaderCircle size={16} className="animate-spin motion-reduce:animate-none" aria-hidden="true" /><span className="sr-only">Đang tải lịch…</span></span>}
           {calendarError && <p role="alert" className="absolute inset-x-4 bottom-2 rounded-lg bg-rose-50 px-2 py-1 text-xs text-rose-600">{calendarError}</p>}
           <>
             <div className="mt-2 grid grid-cols-7 text-center text-sm font-semibold text-slate-500">{["T2", "T3", "T4", "T5", "T6", "T7", "CN"].map((day) => <span key={day} className="py-1">{day}</span>)}</div>
@@ -364,7 +372,7 @@ export function MeetingManagement({ permissions }: Props) {
         <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="p-3 sm:p-3.5 print:hidden">
           <div className="grid gap-2 xl:grid-cols-[minmax(0,1fr)_auto_auto]">
-            <label className="flex h-10 min-w-0 items-center gap-2 rounded-xl border border-slate-200 px-3 text-slate-400 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-100"><Search size={16} className="shrink-0 text-emerald-700" /><input aria-label="Tìm lịch họp" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} placeholder="Tìm theo tiêu đề, người đặt lịch..." className="min-w-0 flex-1 bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400" /></label>
+            <label className="flex h-10 min-w-0 items-center gap-2 rounded-xl border border-slate-200 px-3 text-slate-400 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-100"><Search size={16} className="shrink-0 text-emerald-700" /><input aria-label="Tìm lịch họp" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Tìm theo tiêu đề, người đặt lịch..." className="min-w-0 flex-1 bg-transparent text-sm text-slate-700 outline-none placeholder:text-slate-400" /></label>
             <button type="button" onClick={resetFilters} className="inline-flex h-10 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl px-2 text-sm font-bold text-emerald-800 hover:bg-emerald-50"><RotateCcw size={14} />Đặt lại</button>
             <button type="button" disabled={!canCreate} title={canCreate ? "Thêm lịch họp" : "Bạn chưa có quyền thêm lịch"} onClick={() => { setFormTarget(null); setFormOpen(true); }} className="inline-flex h-10 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl bg-emerald-700 px-3 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-40"><Plus size={15} />Thêm lịch họp</button>
           </div>
@@ -381,11 +389,11 @@ export function MeetingManagement({ permissions }: Props) {
 
           {view === "week" && (tab === "active" || tab === "history") ? <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-4 py-3"><div><p className="text-sm font-bold text-slate-800">Lịch tuần</p><p className="text-sm text-slate-500">{dateRangeLabel(weekFrom, weekTo)}</p></div><div className="flex items-center gap-1"><button type="button" aria-label="Tuần trước" onClick={() => { setSelectedDate(addDays(weekFrom, -7)); setPage(1); }} className="grid h-8 w-8 place-items-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50"><ChevronLeft size={16} /></button><input aria-label="Chọn tuần bắt đầu từ thứ Hai" type="date" value={weekFrom} onChange={(event) => event.target.value && setSelectedDate(weekStart(event.target.value))} className="h-8 rounded-lg border border-slate-200 px-2 text-sm text-slate-700" /><button type="button" aria-label="Tuần sau" onClick={() => { setSelectedDate(addDays(weekFrom, 7)); setPage(1); }} className="grid h-8 w-8 place-items-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50"><ChevronRight size={16} /></button></div></div> : null}
 
-          {loading ? <div className="flex min-h-64 items-center justify-center gap-2 text-sm text-slate-500"><LoaderCircle size={18} className="animate-spin text-emerald-700" />Đang tải lịch họp...</div> : error ? <div role="alert" className="m-4 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700"><p className="font-bold">Không thể tải dữ liệu</p><p className="mt-1">{error}</p><button type="button" onClick={reload} className="mt-3 font-bold underline">Thử lại</button></div> : (tab === "active" || tab === "history") && view === "week" ? <WeekSchedule meetings={(pageItems as AdminMeeting[]).map((meeting) => ({ ...meeting, status: liveStatus(meeting, clock) }))} days={weekDays} onSelect={openDetails} /> : <div className="min-w-0 max-w-full overflow-x-auto overscroll-x-contain">
+          {(tab === "active" || tab === "history") && view === "week" ? error ? <div role="alert" className="m-4 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700"><p className="font-bold">Không thể tải dữ liệu</p><p className="mt-1">{error}</p><button type="button" onClick={reload} className="mt-3 font-bold underline">Thử lại</button></div> : <div aria-busy={loading} inert={loading}>{showLoading ? <div role="status" className="flex min-h-64 items-center justify-center gap-2 text-sm text-slate-500"><LoaderCircle size={18} className="animate-spin text-emerald-700" />Đang tải lịch họp...</div> : <WeekSchedule meetings={(pageItems as AdminMeeting[]).map((meeting) => ({ ...meeting, status: liveStatus(meeting, clock) }))} days={weekDays} onSelect={openDetails} />}</div> : <div className="min-w-0 max-w-full overflow-x-auto overscroll-x-contain">
             <table className="w-full min-w-[1200px] border-collapse text-left text-sm">
               <thead className="bg-[#f3f7f9] text-sm font-bold tracking-wide text-slate-600"><tr>{tab === "pending" ? <><th className="px-4 py-3">Tiêu đề</th><th className="px-4 py-3">Email</th><th className="px-4 py-3">Phòng</th><th className="px-4 py-3">Ngày &amp; giờ</th><th className="px-4 py-3">Hết hạn</th><th className="px-4 py-3">Trạng thái</th><th className="px-4 py-3 text-center">Thao tác</th></> : tab === "cancellations" ? <><th className="px-4 py-3">Booking</th><th className="px-4 py-3">Email</th><th className="px-4 py-3">Thời gian yêu cầu</th><th className="px-4 py-3">Hết hạn</th><th className="px-4 py-3">Trạng thái</th><th className="px-4 py-3 text-center">Thao tác</th></> : tab === "history" ? <><th className="px-4 py-3">Tiêu đề</th><th className="px-4 py-3">Phòng</th><th className="px-4 py-3">Ngày &amp; giờ</th><th className="px-4 py-3">Người chủ trì</th><th className="px-4 py-3">Kết thúc</th><th className="px-4 py-3">Tự xóa sau</th><th className="px-4 py-3">Trạng thái</th><th className="px-4 py-3 text-center">Thao tác</th></> : <><th className="px-4 py-3">Tiêu đề</th><th className="px-4 py-3">Phòng</th><th className="px-4 py-3">Phòng ban</th><th className="px-4 py-3">Người chủ trì</th><th className="px-4 py-3">Email</th><th className="px-4 py-3"><button type="button" onClick={() => { setSortOrder((value) => value === "asc" ? "desc" : "asc"); setPage(1); }}>Ngày &amp; giờ <span aria-hidden="true">{sortOrder === "asc" ? "↑" : "↓"}</span></button></th><th className="px-4 py-3">Nguồn</th><th className="px-4 py-3">Trạng thái</th><th className="px-4 py-3 text-center">Thao tác</th></>}</tr></thead>
-              <tbody className="divide-y divide-slate-100">
-                {pageItems.length === 0 ? <tr><td colSpan={9} className="px-4 py-16 text-center"><span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-emerald-50 text-emerald-700"><CalendarDays size={22} /></span><p className="mt-3 text-sm font-bold text-slate-700">{emptyLabel(tab)}</p><p className="mt-1 text-sm text-slate-400">Thử điều chỉnh bộ lọc hoặc chọn khoảng ngày khác.</p></td></tr> : pageItems.map((entry) => {
+              <tbody aria-busy={loading} inert={loading} className="divide-y divide-slate-100">
+                {error ? <tr><td colSpan={tab === "pending" ? 7 : tab === "cancellations" ? 6 : tab === "history" ? 8 : 9} className="px-4 py-16"><div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700"><p className="font-bold">Không thể tải dữ liệu</p><p className="mt-1">{error}</p><button type="button" onClick={reload} className="mt-3 font-bold underline">Thử lại</button></div></td></tr> : showLoading || (loading && pageItems.length === 0) ? <tr><td colSpan={tab === "pending" ? 7 : tab === "cancellations" ? 6 : tab === "history" ? 8 : 9} className="h-64 px-4 text-center">{showLoading ? <span role="status" className="inline-flex items-center gap-2 text-sm text-slate-500"><LoaderCircle size={18} className="animate-spin text-emerald-700" />Đang tải lịch họp...</span> : <span className="sr-only">Đang cập nhật kết quả</span>}</td></tr> : pageItems.length === 0 ? <tr><td colSpan={tab === "pending" ? 7 : tab === "cancellations" ? 6 : tab === "history" ? 8 : 9} className="px-4 py-16 text-center"><span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-emerald-50 text-emerald-700"><CalendarDays size={22} /></span><p className="mt-3 text-sm font-bold text-slate-700">{emptyLabel(tab)}</p><p className="mt-1 text-sm text-slate-400">Thử điều chỉnh bộ lọc hoặc chọn khoảng ngày khác.</p></td></tr> : pageItems.map((entry) => {
                   if (tab === "pending") { const request = entry as MeetingRequest; return <tr key={request.id} className="hover:bg-emerald-50/30"><td className="max-w-[230px] px-4 py-3 font-bold text-slate-800"><span className="block truncate">{request.title ?? "Yêu cầu đặt phòng"}</span><span className="mt-1 block text-sm font-normal text-slate-400">{request.organizer ?? "—"}</span></td><td className="px-4 py-3 text-slate-600">{request.email}</td><td className="px-4 py-3 text-slate-600">{roomLabel(request.roomId)}</td><td className="px-4 py-3 leading-5 text-slate-600">{formatDate(request.date)}<br />{request.start ?? "—"}{request.end ? ` – ${request.end}` : ""}</td><td className="px-4 py-3 text-slate-600">{formatDateTime(request.otpExpiresAt)}</td><td className="px-4 py-3"><StatusPill expired={request.expired} /></td><td className="px-4 py-3 text-center"><RequestActions canDelete={canDelete} busy={requestDeleteId === request.id} onRevoke={() => void revokeRequest(request, "pending")} /></td></tr>; }
                   if (tab === "cancellations") { const request = entry as MeetingRequest; return <tr key={request.id} className="hover:bg-emerald-50/30"><td className="px-4 py-3 font-mono text-sm font-semibold text-slate-700">{request.bookingId ?? "—"}</td><td className="px-4 py-3 text-slate-600">{request.email}</td><td className="px-4 py-3 text-slate-600">{formatDateTime(request.createdAt)}</td><td className="px-4 py-3 text-slate-600">{formatDateTime(request.otpExpiresAt)}</td><td className="px-4 py-3"><StatusPill expired={request.expired} /></td><td className="px-4 py-3 text-center"><RequestActions canDelete={canDelete} busy={requestDeleteId === request.id} onRevoke={() => void revokeRequest(request, "cancel-requests")} /></td></tr>; }
                   const meeting = entry as AdminMeeting;
@@ -397,13 +405,13 @@ export function MeetingManagement({ permissions }: Props) {
             </table>
           </div>}
 
-          {!loading && !error && view === "table" ? <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 bg-white px-4 py-2.5 text-sm text-slate-500">
+          {!error && view === "table" ? <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 bg-white px-4 py-2.5 text-sm text-slate-500">
             <span className="text-sm font-medium text-slate-600">Trang <strong className="text-emerald-700">{page}</strong> / {totalPages}</span>
             <div className="ml-auto flex items-center gap-2">
               <nav aria-label="Phân trang lịch họp" className="flex items-center gap-1.5">
-                <button type="button" aria-label="Trang trước" disabled={page <= 1} onClick={() => goToPage(page - 1)} className="grid h-9 w-9 place-items-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-emerald-300 hover:text-emerald-700 disabled:opacity-40"><ChevronLeft size={15} /></button>
-                {paginationItems.map((item, index) => typeof item === "string" ? <span key={`${item}-${index}`} aria-hidden="true" className="min-w-5 text-center text-sm text-slate-400">…</span> : <button key={item} type="button" aria-current={page === item ? "page" : undefined} onClick={() => goToPage(item)} className={`grid h-9 min-w-9 place-items-center rounded-full border px-2 text-sm font-semibold shadow-sm transition ${page === item ? "border-emerald-700 bg-emerald-700 text-white shadow-emerald-900/15" : "border-slate-200 bg-white text-slate-700 hover:border-emerald-300 hover:bg-emerald-50"}`}>{item}</button>)}
-                <button type="button" aria-label="Trang sau" disabled={page >= totalPages} onClick={() => goToPage(page + 1)} className="grid h-9 w-9 place-items-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-emerald-300 hover:text-emerald-700 disabled:opacity-40"><ChevronRight size={15} /></button>
+                <button type="button" aria-label="Trang trước" disabled={loading || page <= 1} onClick={() => goToPage(page - 1)} className="grid h-9 w-9 place-items-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-emerald-300 hover:text-emerald-700 disabled:opacity-40"><ChevronLeft size={15} /></button>
+                {paginationItems.map((item, index) => typeof item === "string" ? <span key={`${item}-${index}`} aria-hidden="true" className="min-w-5 text-center text-sm text-slate-400">…</span> : <button key={item} type="button" aria-current={page === item ? "page" : undefined} disabled={loading} onClick={() => goToPage(item)} className={`grid h-9 min-w-9 place-items-center rounded-full border px-2 text-sm font-semibold shadow-sm transition ${page === item ? "border-emerald-700 bg-emerald-700 text-white shadow-emerald-900/15" : "border-slate-200 bg-white text-slate-700 hover:border-emerald-300 hover:bg-emerald-50"}`}>{item}</button>)}
+                <button type="button" aria-label="Trang sau" disabled={loading || page >= totalPages} onClick={() => goToPage(page + 1)} className="grid h-9 w-9 place-items-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-emerald-300 hover:text-emerald-700 disabled:opacity-40"><ChevronRight size={15} /></button>
               </nav>
             </div>
           </footer> : null}

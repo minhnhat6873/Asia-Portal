@@ -1,5 +1,6 @@
 "use client";
 
+import { useDelayedLoading } from "@/lib/useDelayedLoading";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { UserManagementView, type AccountAccess } from "./components/UserManagementView";
@@ -46,6 +47,7 @@ export function AccessControlTabs({ activeTab, page, editingRoleId, onNavigateTo
   const [modules, setModules] = useState<ModuleCategory[]>([]);
   const [permissions, setPermissions] = useState<SystemPermission[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const showLoading = useDelayedLoading(isLoading);
   const [loadError, setLoadError] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -81,7 +83,7 @@ export function AccessControlTabs({ activeTab, page, editingRoleId, onNavigateTo
     }), "Đã cập nhật loại tài khoản, trạng thái và nhóm quyền.");
   };
 
-  if (isLoading) return <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500">Đang tải dữ liệu phân quyền...</div>;
+  if (isLoading) return <div hidden={!showLoading} role="status" className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500">Đang tải dữ liệu phân quyền...</div>;
   if (loadError) return <div role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-sm text-rose-700">{loadError}<button type="button" onClick={() => void reload().catch((error: Error) => setLoadError(error.message))} className="ml-3 font-bold underline">Thử lại</button></div>;
 
   if (page === "new-account") return <CreateAccountPage
