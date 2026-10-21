@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
-import Link from "next/link";
+import AccessDenied from "./AccessDenied";
 import { LoaderCircle } from "lucide-react";
 import { canAccessAdminPath, getAdminLandingPath } from "@/lib/adminPermissions";
 import { type AdminUser, clearAdminSession, setAdminSession } from "@/lib/adminSession";
@@ -111,6 +111,6 @@ export default function AdminRouteGuard({ children }: { children: React.ReactNod
     </div>
   );
 
-  if (!canAccessAdminPath(verified, pathname)) return <div className="min-h-screen bg-slate-50 p-8"><h1 className="text-xl font-bold">Bạn chưa được cấp quyền truy cập trang này.</h1><Link href={getAdminLandingPath(verified)} className="mt-4 inline-block text-emerald-700 underline">Về trang được cấp quyền</Link></div>;
+  if (!canAccessAdminPath(verified, pathname)) return <AccessDenied returnHref={getAdminLandingPath(verified)} />;
   return <>{children}</>;
 }
