@@ -555,10 +555,10 @@ export default function AdminDashboard(_props: AdminDashboardProps) {
               <Menu className="h-[21px] w-[21px]" />
             </button>
 
-            {activeTab === 'permissions' && (accessControlPage === 'roles' || accessControlPage === 'accounts' || accessControlPage === 'new-role' || accessControlPage === 'new-account') && (
+            {activeTab === 'permissions' && (accessControlPage === 'roles' || accessControlPage === 'accounts' || accessControlPage === 'new-role' || accessControlPage === 'edit-role' || accessControlPage === 'new-account') && (
               <Link
-                href={accessControlPage === 'new-account' ? '/admin/access-control/accounts' : '/admin/access-control'}
-                aria-label={accessControlPage === 'new-account' ? 'Quay lại quản lý tài khoản' : 'Quay lại phân quyền và quản lý tài khoản'}
+                href={accessControlPage === 'new-account' ? '/admin/access-control/accounts' : accessControlPage === 'new-role' || accessControlPage === 'edit-role' ? '/admin/access-control/roles' : '/admin/access-control'}
+                aria-label={accessControlPage === 'new-account' ? 'Quay lại quản lý tài khoản' : accessControlPage === 'new-role' || accessControlPage === 'edit-role' ? 'Quay lại danh sách nhóm quyền' : 'Quay lại phân quyền và quản lý tài khoản'}
                 title="Quay lại"
                 className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-slate-700 transition-colors hover:bg-emerald-50 hover:text-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
               >

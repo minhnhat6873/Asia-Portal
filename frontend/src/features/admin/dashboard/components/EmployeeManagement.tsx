@@ -227,9 +227,7 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
     return () => window.clearTimeout(timer);
   }, [areFiltersRestored, onFiltersChange, searchQuery, selectedDept, selectedRank, selectedStatus, viewMode]);
 
-  const filteredEmployees = [...employees].sort((left, right) =>
-    left.code.localeCompare(right.code, 'vi', { numeric: true, sensitivity: 'base' }),
-  );
+  const filteredEmployees = employees;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const deletingEmployee = deletingId ? employees.find((employee) => employee.id === deletingId) : null;
   const goToPage = (nextPage: number) => {

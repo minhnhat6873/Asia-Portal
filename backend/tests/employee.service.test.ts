@@ -9,6 +9,8 @@ jest.mock("../src/repositories/admin/employee.repository", () => ({
     restoreById: jest.fn(),
     permanentlyDeleteById: jest.fn(),
     findAllForSearch: jest.fn(),
+    findAll: jest.fn(),
+    count: jest.fn(),
   },
 }));
 
@@ -74,6 +76,46 @@ describe("admin employee CEO constraint", () => {
 
     await expect(adminEmployeeService.createEmployee({ rank: "Senior Management" } as never)).resolves.toEqual(employee);
     expect(adminEmployeeRepository.findActiveByRank).not.toHaveBeenCalled();
+  });
+});
+
+describe("admin employee creation order", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.mocked(adminEmployeeRepository.findAll).mockResolvedValue([]);
+    jest.mocked(adminEmployeeRepository.count).mockResolvedValue(21);
+  });
+
+  it.each([
+    [undefined, -1],
+    ["latest", -1],
+    ["oldest", 1],
+  ] as const)("sort=%s sorts by creation time before pagination", async (sort, direction) => {
+    const result = await adminEmployeeService.getEmployees({ sort, page: "2", limit: "10", department: "IT" });
+
+    expect(adminEmployeeRepository.findAll).toHaveBeenCalledWith({
+      filter: { isDeleted: { $ne: true }, department: "IT" },
+      sort: { createdAt: direction, _id: direction },
+      skip: 10,
+      limit: 10,
+    });
+    expect(result.pagination).toEqual({ page: 2, limit: 10, total: 21, totalPages: 3 });
+  });
+
+  it("preserves creation order when searching and slicing pages", async () => {
+    const ordered = [
+      { ...employee, employeeCode: "NV-999", name: "Nguyễn Mới", createdAt: new Date("2026-10-21"), joinDate: new Date("2020-01-01") },
+      { ...employee, employeeCode: "NV-001", name: "Nguyễn Cũ", createdAt: new Date("2026-10-20"), joinDate: new Date("2026-10-21") },
+    ];
+    jest.mocked(adminEmployeeRepository.findAllForSearch).mockResolvedValue(ordered as never);
+    const result = await adminEmployeeService.getEmployees({ search: "nguyen", page: "2", limit: "1" });
+
+    expect(adminEmployeeRepository.findAllForSearch).toHaveBeenCalledWith(
+      { isDeleted: { $ne: true } }, { createdAt: -1, _id: -1 },
+    );
+    expect(result.items).toEqual([ordered[1]]);
+    expect(result.pagination.total).toBe(2);
+    expect(adminEmployeeRepository.findAll).not.toHaveBeenCalled();
   });
 });
 

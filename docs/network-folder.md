@@ -29,12 +29,24 @@ Website không đọc được registry hay xác nhận File Explorer mở thàn
 
 ## Các tệp liên quan
 
-- `frontend/src/config/networkFolder.ts`: đường dẫn hiển thị, URI và URL tải cấu hình.
+- `frontend/.env`: cấu hình `NEXT_PUBLIC_NETWORK_FOLDER_PATH`; không commit file này.
+- `frontend/src/config/networkFolder.ts`: đọc đường dẫn từ biến môi trường, URI và URL tải cấu hình.
 - `frontend/src/features/resources/NetworkFolderCard.tsx`: nút mở, hướng dẫn lần đầu, tải file và sao chép thủ công.
-- `frontend/public/downloads/Cai-dat-mo-thu-muc.reg`: cấu hình cho user hiện tại; UTF-16LE của lệnh REG_EXPAND_SZ được biểu diễn bằng `hex(2)` trong file registry dạng ASCII.
+- `frontend/src/app/downloads/Cai-dat-mo-thu-muc.reg/route.ts`: tạo file cài đặt từ cùng cấu hình tại URL `/downloads/Cai-dat-mo-thu-muc.reg`. Không còn bản cài đặt cố định trong `public`.
+- `frontend/src/lib/networkFolderPath.ts`, `networkFolderRegistry.ts`: kiểm tra đường dẫn UNC và tạo UTF-16LE của lệnh REG_EXPAND_SZ dưới dạng `hex(2)` trong file registry ASCII/CRLF, kể cả đường dẫn chứa tiếng Việt.
 - `frontend/public/downloads/Go-cai-dat-mo-thu-muc.reg`: gỡ duy nhất key `asia-folder` của user hiện tại. Không xóa tài liệu hay đổi quyền Windows.
 
-Khi đổi địa chỉ share, cần đồng bộ config frontend và lệnh trong file `.reg`, rồi triển khai lại registry cho các user đã cài. Chỉ thay link web không cập nhật được lệnh đã đăng ký trên Windows.
+## Cấu hình đường dẫn bằng môi trường
+
+Đặt biến trong `frontend/.env` (không đặt trong `frontend/src` hay `.env` của backend):
+
+```dotenv
+NEXT_PUBLIC_NETWORK_FOLDER_PATH=\\192.168.16.10\data\Chung
+```
+
+Không cần khai báo tên miền website: URL tải bắt đầu bằng `/downloads/` nên tự theo origin đang truy cập. URI `asia-folder://chung/` giữ nguyên. Biến `NEXT_PUBLIC_*` được chốt lúc build và có thể đọc được từ trình duyệt, không dùng để chứa mật khẩu. Nếu không khai báo biến, đường dẫn mặc định là `\\192.168.16.10\data\Chung` để tương thích bản cũ. Đường dẫn phải là UNC hợp lệ; cấu hình rỗng, dấu nháy, ký tự điều khiển, `%` hoặc các ký tự cấm của Windows sẽ bị từ chối, không tạo lệnh Registry từ cấu hình đó.
+
+Khi đổi địa chỉ share, chỉ sửa biến này rồi khởi động lại `yarn dev`, hoặc build và triển khai lại frontend trên production. Giao diện và file tải xuống cùng dùng đường dẫn đã cấu hình; không nhận đường dẫn tùy ý từ query/URI. User đã cài cần tải và chạy lại file cài đặt mới (hoặc IT triển khai lại bằng GPO). Chỉ đổi tên miền website không cần cài lại registry, trừ khi IT đã cấu hình policy Chrome riêng theo origin. Đổi `.env` lúc chạy bản production mà không build lại sẽ không cập nhật biến `NEXT_PUBLIC_*`.
 
 ## Triển khai domain/GPO
 

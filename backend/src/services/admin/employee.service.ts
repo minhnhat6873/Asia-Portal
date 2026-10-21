@@ -27,9 +27,8 @@ export const adminEmployeeService = {
     if (query.rank) filter.rank = query.rank;
     if (query.status) filter.status = query.status;
 
-    const sort: Record<string, 1 | -1> = query.sort
-      ? { joinDate: query.sort === "oldest" ? 1 : -1 }
-      : { employeeCode: 1 };
+    const direction = query.sort === "oldest" ? 1 : -1;
+    const sort: Record<string, 1 | -1> = { createdAt: direction, _id: direction };
     const normalizedSearch = normalizeSearchText(query.search);
     if (normalizedSearch) {
       const matchingItems = (await adminEmployeeRepository.findAllForSearch(filter, sort)).filter((employee) =>
