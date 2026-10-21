@@ -105,8 +105,7 @@ function DepartmentLink({ department }: { department: Department }) {
   );
 }
 
-function DivisionCard({ division }: { division: Division }) {
-  const [expanded, setExpanded] = useState(false);
+function DivisionCard({ division, expanded, onToggle }: { division: Division; expanded: boolean; onToggle: () => void }) {
   const Icon = division.icon;
   const departments = division.departmentIds.flatMap((id) => ORGANIZATION_DEPARTMENTS.filter((department) => department.id === id));
   const buttonId = `division-${division.id}`;
@@ -116,7 +115,7 @@ function DivisionCard({ division }: { division: Division }) {
     <section className="relative w-[260px]">
       <span aria-hidden="true" className="pointer-events-none absolute -top-1.5 left-1/2 z-20 h-3 w-3 -translate-x-1/2 rounded-full border-[3px] border-[#ccefdc] bg-[#008d4b] shadow-[0_0_0_2px_#e3f7eb,0_0_10px_rgba(26,173,100,0.20)]" />
       <h3>
-        <button id={buttonId} type="button" aria-expanded={expanded} aria-controls={panelId} onClick={() => setExpanded((value) => !value)} className={`relative z-10 flex h-[90px] w-full items-center gap-4 overflow-hidden rounded-2xl border bg-gradient-to-br from-[#fcfefd] via-[#f5fbf8] to-[#eff9f4] px-5 py-3.5 text-left shadow-[0_5px_13px_rgba(16,125,77,0.10)] transition-colors hover:border-[#8acdae] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-emerald-600 ${expanded ? "border-[#b6dfcc]" : "border-[#cce9dc]"}`}>
+        <button id={buttonId} type="button" aria-expanded={expanded} aria-controls={panelId} onClick={onToggle} className={`relative z-10 flex h-[90px] w-full items-center gap-4 overflow-hidden rounded-2xl border bg-gradient-to-br from-[#fcfefd] via-[#f5fbf8] to-[#eff9f4] px-5 py-3.5 text-left shadow-[0_5px_13px_rgba(16,125,77,0.10)] transition-colors hover:border-[#8acdae] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-emerald-600 ${expanded ? "border-[#b6dfcc]" : "border-[#cce9dc]"}`}>
           <svg aria-hidden="true" viewBox="0 0 90 88" preserveAspectRatio="none" className="pointer-events-none absolute inset-y-0 right-0 h-full w-[80px]">
             <path d="M0 88c39-8 76-29 90-54v54z" fill="#d6f0e2" />
             <path d="M13 88c33-5 62-18 77-36v36z" fill="#b4e4cc" />
@@ -152,6 +151,7 @@ export default function OrganizationChart() {
   const chartContentRef = useRef<HTMLDivElement>(null);
   const [ceo, setCeo] = useState<Executive | null>(null);
   const [seniorManagers, setSeniorManagers] = useState<Executive[]>([]);
+  const [expandedDivisionId, setExpandedDivisionId] = useState<Division["id"] | null>(null);
   const managerCount = Math.max(seniorManagers.length, 1);
   const chartMinWidth = Math.max(
     470,
@@ -246,7 +246,11 @@ export default function OrganizationChart() {
               <div key={division.id} className="relative">
                 <div className="absolute -top-8 left-1/2 h-8 w-[2px] -translate-x-1/2 bg-[#24934d]">
                 </div>
-                <DivisionCard division={division} />
+                <DivisionCard
+                  division={division}
+                  expanded={expandedDivisionId === division.id}
+                  onToggle={() => setExpandedDivisionId((current) => current === division.id ? null : division.id)}
+                />
               </div>
             ))}
           </div>

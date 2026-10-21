@@ -84,12 +84,6 @@ export default function Footer() {
           </div>
         </div>
 
-        {/* Bottom bar */}
-        <div className="mt-7 flex flex-col gap-2 border-t border-white/10 pt-5 text-center sm:mt-8 sm:pt-6 md:flex-row md:text-left items-center justify-between gap-3">
-          <p className="text-white/40 text-xs">
-            © 2026 Asia Food & Beverage co.ltd. All rights reserved.
-          </p>
-        </div>
       </div>
     </footer>
   );

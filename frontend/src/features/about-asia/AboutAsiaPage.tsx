@@ -280,7 +280,7 @@ export default function VeWanaPage() {
          ══════════════════════════════════ */}
       <section className="bg-white py-8 sm:py-12 xl:py-16">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
-          <div className="grid grid-cols-1 gap-8 xl:grid-cols-[320px_1fr] xl:gap-14">
+          <div className="grid min-w-0 grid-cols-1 gap-8 md:gap-10 xl:grid-cols-[280px_minmax(0,1fr)] xl:gap-10">
             <div className="pt-2">
               <p className="section-label mb-3">Hành trình phát triển</p>
               <h2 className="text-2xl font-black leading-tight text-gray-900 sm:text-3xl xl:text-4xl">
@@ -299,9 +299,9 @@ export default function VeWanaPage() {
             </div>
 
             <div className="min-w-0">
-              <div className="relative overflow-x-auto pt-1 pb-2">
-                <div className="absolute left-5 right-5 top-6 h-0.5 bg-[#d9e5dc]" />
-                <div className="relative grid min-w-[780px] grid-cols-6 gap-2">
+              <div role="region" aria-label="Các mốc phát triển của Asia" tabIndex={0} className="overflow-x-auto overscroll-x-contain px-1 pb-3 pt-2 focus-visible:rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#218332]">
+                <div className="relative grid min-w-[720px] grid-cols-6 md:min-w-0">
+                  <div aria-hidden="true" className="pointer-events-none absolute left-[calc(100%/12)] right-[calc(100%/12)] top-6 h-0.5 bg-[#d9e5dc]" />
                   {milestones.map((milestone, index) => {
                     const isActive = index === activeMilestone;
 
@@ -311,7 +311,7 @@ export default function VeWanaPage() {
                         type="button"
                         onClick={() => setActiveMilestone(index)}
                         aria-pressed={isActive}
-                        className="group flex min-w-0 flex-col items-center text-center"
+                        className="group relative flex min-w-0 flex-col items-center px-1 text-center focus-visible:rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#218332]"
                       >
                         <span
                           className={`relative z-10 flex h-12 w-12 items-center justify-center rounded-full border-[3px] text-sm font-black transition-all ${
@@ -330,8 +330,8 @@ export default function VeWanaPage() {
                 </div>
               </div>
 
-              <div className="mt-5 grid overflow-hidden sm:mt-8 rounded-2xl bg-[linear-gradient(100deg,#ffffff_0%,#f0f9f0_100%)] shadow-[0_10px_28px_rgba(22,91,35,0.1)] md:grid-cols-[320px_1fr]">
-                <div className="relative min-h-[190px]">
+              <div className="mt-5 grid min-w-0 overflow-hidden sm:mt-8 rounded-2xl bg-[linear-gradient(100deg,#ffffff_0%,#f0f9f0_100%)] shadow-[0_10px_28px_rgba(22,91,35,0.1)] md:grid-cols-[minmax(0,0.9fr)_minmax(0,1fr)]">
+                <div className="relative aspect-video min-h-[190px] md:aspect-auto md:min-h-[220px]">
                   <img
                     src={selectedMilestone.image}
                     alt={selectedMilestone.event}
