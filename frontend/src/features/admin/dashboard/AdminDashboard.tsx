@@ -505,7 +505,7 @@ export default function AdminDashboard(_props: AdminDashboardProps) {
       <div
         inert={!isSidebarOpen}
         aria-hidden={!isSidebarOpen}
-        className={`h-full shrink-0 transition-[width] duration-300 ease-in-out ${
+        className={`h-full shrink-0 ${
           isSidebarOpen ? 'overflow-visible' : 'overflow-hidden'
         } ${
         isSidebarOpen ? 'w-64 max-w-[85vw] max-lg:absolute max-lg:inset-y-0 max-lg:left-0 max-lg:z-40 max-lg:shadow-2xl' : 'w-0'

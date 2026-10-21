@@ -624,7 +624,7 @@ export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: b
           </>
         ) : null}
 
-        {!scheduleOnly ? <RoomBookingCards bookings={bookings} onBook={openRoomBooking} onOpenSchedule={openSchedule} /> : null}
+        {!scheduleOnly ? <RoomBookingCards bookings={bookings} loaded={loaded} loadError={loadError} onBook={openRoomBooking} onOpenSchedule={openSchedule} /> : null}
 
         <div className={scheduleOnly ? "" : "hidden"}>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -1029,9 +1029,14 @@ function DepartmentSelect({ value, options, isLoading, onChange }: { value: stri
   </div>;
 }
 
-function RoomBookingCards({ bookings, onBook, onOpenSchedule }: { bookings: Booking[]; onBook: (roomId: RoomId) => void; onOpenSchedule: () => void }) {
-  const timeSlots = ["08:30", "10:00", "11:30", "13:30", "15:00", "16:30"];
-  const currentDate = todayLocal();
+function RoomBookingCards({ bookings, loaded, loadError, onBook, onOpenSchedule }: { bookings: Booking[]; loaded: boolean; loadError: string; onBook: (roomId: RoomId) => void; onOpenSchedule: () => void }) {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 30_000);
+    return () => window.clearInterval(timer);
+  }, []);
+  const { date: currentDate, time: currentTime } = getVietnamBookingNow(now);
+  const timeSlots = getFutureMeetingTimes(currentDate, now);
 
   return (
     <div className="space-y-5">
@@ -1063,8 +1068,8 @@ function RoomBookingCards({ bookings, onBook, onOpenSchedule }: { bookings: Book
       <div className="grid auto-rows-fr gap-5 lg:grid-cols-2">
         {rooms.map((room, index) => {
           const roomBookings = bookings.filter((booking) => booking.roomId === room.id && booking.date === currentDate);
-          const isOccupied = (slot: string) => roomBookings.some((booking) => booking.start <= slot && booking.end > slot);
-          const nextMeeting = roomBookings.sort((a, b) => a.start.localeCompare(b.start))[0];
+          const availableSlots = timeSlots.filter((slot) => !roomBookings.some((booking) => slot < addMinutes(booking.end, 15) && addMinutes(slot, 30) > addMinutes(booking.start, -15))).slice(0, 6);
+          const nextMeeting = roomBookings.filter((booking) => booking.end > currentTime).sort((a, b) => a.start.localeCompare(b.start))[0];
 
           return (
             <article key={room.id} className="flex h-full flex-col overflow-hidden rounded-2xl border border-emerald-100 bg-white shadow-[0_10px_26px_rgba(15,118,65,0.08)]">
@@ -1081,9 +1086,12 @@ function RoomBookingCards({ bookings, onBook, onOpenSchedule }: { bookings: Book
               <div className="flex flex-1 flex-col p-4 sm:p-5">
                 <p className="min-h-12 text-sm leading-6 text-slate-500">{index === 0 ? "Không gian họp chuyên nghiệp, phù hợp cho các buổi trao đổi nội bộ và làm việc cùng đối tác." : "Không gian họp gọn gàng, phù hợp cho các buổi trao đổi và thảo luận nhóm."}</p>
                 <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50/60 p-3">
-                  <div className="flex flex-wrap items-center justify-between gap-2"><p className="inline-flex items-center gap-1.5 text-xs font-bold text-[#08723d]"><Clock3 size={14} /> Khung giờ trống hôm nay</p><span className="text-[11px] text-slate-500">{roomBookings.length} lịch đã đặt</span></div>
-                  <div className="mt-3 flex flex-wrap gap-2">{timeSlots.map((slot) => <span key={slot} className={`rounded-lg border px-2.5 py-1 text-[11px] font-semibold ${isOccupied(slot) ? "border-slate-200 bg-slate-100 text-slate-400 line-through" : "border-emerald-300 bg-white text-[#08723d]"}`}>{slot}</span>)}</div>
-                  <p className="mt-3 truncate text-[11px] text-slate-500">{nextMeeting ? <>Cuộc họp kế tiếp: <strong className="text-slate-700">{nextMeeting.start} · {nextMeeting.title}</strong></> : "Chưa có lịch họp hôm nay."}</p>
+                  <div className="flex flex-wrap items-center justify-between gap-2"><p className="inline-flex items-center gap-1.5 text-xs font-bold text-[#08723d]"><Clock3 size={14} /> Khung giờ trống hôm nay</p><span className="text-[11px] text-slate-500">{!loaded ? "Đang tải lịch…" : loadError ? "Chưa cập nhật được lịch" : `${roomBookings.length} lịch đã đặt hôm nay`}</span></div>
+                  {!loaded || loadError ? <p className="mt-3 text-xs text-slate-500">{loadError ? "Không thể kiểm tra giờ trống. Vui lòng thử lại sau." : "Đang kiểm tra các khung giờ còn trống…"}</p> : <>
+                    <div className="mt-3 flex flex-wrap gap-2">{availableSlots.length ? availableSlots.map((slot) => <span key={slot} className="rounded-lg border border-emerald-300 bg-white px-2.5 py-1 text-[11px] font-semibold text-[#08723d]">{slot}</span>) : <p className="text-xs text-slate-500">Hôm nay không còn khung giờ trống phù hợp. Vui lòng chọn ngày khác.</p>}</div>
+                    <p className="mt-2 text-[11px] text-slate-500">Gợi ý cho cuộc họp 30 phút, cách lịch đã đặt ít nhất 15 phút.</p>
+                    <p className="mt-3 truncate text-[11px] text-slate-500">{nextMeeting ? <>{nextMeeting.start <= currentTime ? "Đang họp" : "Cuộc họp kế tiếp"}: <strong className="text-slate-700">{nextMeeting.start} · {nextMeeting.title}</strong></> : roomBookings.length ? "Các cuộc họp hôm nay đã kết thúc." : "Chưa có lịch họp hôm nay."}</p>
+                  </>}
                 </div>
                 <button type="button" onClick={() => onBook(room.id)} className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#0d6d27] px-4 py-3 text-sm font-bold text-white transition-colors hover:bg-[#08571f]"><Plus size={16} /> Đặt {room.name} <ChevronRight size={16} /></button>
               </div>

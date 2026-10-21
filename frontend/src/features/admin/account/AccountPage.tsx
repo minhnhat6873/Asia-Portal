@@ -194,16 +194,16 @@ export default function AccountPage({
             <div className="p-4 sm:p-5">
             {activeTab === "info" && (
               <div className="space-y-4">
-                <div className="flex flex-col items-start gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:flex-row sm:items-center">
-                  <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-[#0d5c0d] to-[#2d9e2d] text-xl font-bold text-white shadow-lg shadow-[#1a7a1a]/40 ring-2 ring-[#f5c800]/40">
+                <div className="flex flex-col items-center gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:flex-row">
+                  <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-[#0d5c0d] to-[#2d9e2d] text-2xl sm:text-xl font-bold text-white shadow-lg shadow-[#1a7a1a]/40 ring-2 ring-[#f5c800]/40">
                     {adminUser.initials}
                   </div>
-                  <div className="flex-1 text-center sm:flex sm:items-center sm:justify-between sm:text-left">
+                  <div className="w-full min-w-0 flex-1 text-center sm:flex sm:items-center sm:justify-between sm:text-left">
                     <div>
-                      <h2 className="text-xl font-bold text-slate-900">{adminUser.fullName}</h2>
-                      <p className="mt-1 text-sm text-slate-500">{adminUser.email}</p>
+                      <h2 className="break-words text-2xl sm:text-xl font-bold text-slate-900">{adminUser.fullName}</h2>
+                      <p className="mt-1 break-all text-base sm:text-sm text-slate-500">{adminUser.email}</p>
                     </div>
-                    <div className="mt-3 sm:mt-0"><PermissionGroupBadge name={isRootAdmin ? "Admin gốc" : "Quản lý"} color={isRootAdmin ? "orange" : "blue"} icon={isRootAdmin ? "crown" : "user"} /></div>
+                    <div className="mt-3 max-sm:[&>span]:text-base sm:mt-0"><PermissionGroupBadge name={isRootAdmin ? "Admin gốc" : "Quản lý"} color={isRootAdmin ? "orange" : "blue"} icon={isRootAdmin ? "crown" : "user"} /></div>
                   </div>
                 </div>
 
