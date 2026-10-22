@@ -40,14 +40,14 @@ HTTP này chỉ là bước kiểm tra LAN, chưa mã hóa mật khẩu/session 
 
 Compose đọc env theo cú pháp của Docker Compose. Nếu secret có ký tự `$`, dùng giá trị single-quoted để không bị nội suy; mật khẩu trong MongoDB URI phải được URL-encode đúng. Không ghi dấu placeholder hay secret rỗng thay cho dữ liệu thật.
 
-TinyMCE cần public API key nếu dùng trình soạn thảo. Có thể tạo `.env` tại gốc dự án chứa duy nhất `NEXT_PUBLIC_TINYMCE_API_KEY=...` để Compose truyền vào build frontend; đây là public key, không dùng secret backend. Đảm bảo key cho phép origin triển khai.
+Tạo `frontend/.env` từ `frontend/.env.example`. Đặt `NEXT_PUBLIC_TINYMCE_API_KEY` (public key cho trình soạn thảo, cho phép origin triển khai) và `NEXT_PUBLIC_NETWORK_FOLDER_PATH` (đường dẫn UNC, ví dụ `\\192.168.16.10\data\Chung`). Không dùng secret backend. Các lệnh Compose bên dưới dùng `--env-file frontend/.env` để truyền các biến public vào lúc build; file frontend bị loại khỏi Docker build context. Đổi biến `NEXT_PUBLIC_*` cần build lại image.
 
 ## 3. Build và chạy ứng dụng
 
 ```bash
-sudo docker compose config --quiet
-sudo docker compose up -d --build
-sudo docker compose ps
+sudo docker compose --env-file frontend/.env config --quiet
+sudo docker compose --env-file frontend/.env up -d --build
+sudo docker compose --env-file frontend/.env ps
 curl -f http://127.0.0.1:4000/health
 curl -I http://127.0.0.1:3000
 ```
@@ -55,8 +55,8 @@ curl -I http://127.0.0.1:3000
 `config --quiet` chỉ validate, không in giá trị secret. Build cần Internet. Backend phải kết nối Atlas thành công thì frontend mới khởi động. Nếu lỗi:
 
 ```bash
-sudo docker compose logs --tail=80 backend
-sudo docker compose logs --tail=80 frontend
+sudo docker compose --env-file frontend/.env logs --tail=80 backend
+sudo docker compose --env-file frontend/.env logs --tail=80 frontend
 ```
 
 Không gửi log chứa URI/password/token. Không chạy seed trên Atlas đã có dữ liệu. Container tự khởi động lại trừ khi đã dừng thủ công; healthcheck không tự restart một process còn chạy nhưng unhealthy. Ubuntu cần tắt auto-suspend và giữ mạng ổn định nếu chạy 24/24.
@@ -94,8 +94,8 @@ Không bật/tắt firewall hoặc thay đổi toàn bộ rule khi chưa biết 
 
 ```bash
 git pull --ff-only
-sudo docker compose up -d --build
-sudo docker compose ps
+sudo docker compose --env-file frontend/.env up -d --build
+sudo docker compose --env-file frontend/.env ps
 ```
 
 Không dùng `reset --hard` để xử lý thay đổi local. Thay backend `.env` cần recreate container (`docker compose up -d`), không chỉ restart. Nếu IP LAN đổi, sửa origin backend và `server_name` Nginx, validate/reload Nginx. Backup Atlas và lên kế hoạch rollback trước khi cập nhật production.
