@@ -1,5 +1,7 @@
 import { createEmployeeSchema } from "../src/validates/admin/employee.validate";
 import { getCloudinaryPublicIdFromUrl } from "../src/helpers/multerCloudinary.helper";
+import { validateBody } from "../src/middlewares/validate.middleware";
+import type { Request, Response, NextFunction } from "express";
 
 const validEmployee = {
   employeeCode: "NV-001",
@@ -18,6 +20,19 @@ const validEmployee = {
 };
 
 describe("employee validation", () => {
+  it("returns an actionable field error for an unrecognized legacy rank", () => {
+    const request = { body: { ...validEmployee, rank: "Manager" } } as Request;
+    const json = jest.fn();
+    const response = { status: jest.fn().mockReturnThis(), json } as unknown as Response;
+    const next = jest.fn() as NextFunction;
+    validateBody(createEmployeeSchema)(request, response, next);
+    expect(response.status).toHaveBeenCalledWith(400);
+    expect(json).toHaveBeenCalledWith(expect.objectContaining({
+      success: false,
+      fieldErrors: { rank: "Cấp bậc không hợp lệ. Vui lòng chọn lại cấp bậc trong danh sách." },
+    }));
+    expect(next).not.toHaveBeenCalled();
+  });
   it("chấp nhận hồ sơ nhân viên hợp lệ", () => {
     const result = createEmployeeSchema.validate(validEmployee, { abortEarly: false });
     expect(result.error).toBeUndefined();

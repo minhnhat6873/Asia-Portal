@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AlertCircle, ArrowLeft, Calendar, Check, RotateCcw, User } from "lucide-react";
 import { parseDate } from "@internationalized/date";
 
+import { EMPLOYEE_DEPARTMENT_OPTIONS, getEmployeeDepartmentLabel } from "@/components/ui/employee-department-options";
 import AvatarUploader from "@/components/ui/AvatarUploader";
 import DatePicker from "@/components/ui/DatePicker";
 import { hasRichTextContent, RichText } from "@/components/ui/RichText";
@@ -44,7 +45,7 @@ function initialForm(post?: MediaPost) {
     summary: post?.summary ?? "",
     content: post?.content ?? "",
     coverImage: post?.coverImage ?? "",
-    authorDepartment: post?.authorDepartment ?? "Phòng HR&AD",
+    authorDepartment: post?.authorDepartment ?? getEmployeeDepartmentLabel("HR_ADMIN"),
     publishDate: toPickerDate(post?.publishDate),
     expiryDate: post?.expiryDate ? toPickerDate(post.expiryDate) : "",
     publishIndefinitely: post ? post.publishIndefinitely ?? !post.expiryDate : false,
@@ -145,7 +146,7 @@ export function AddMediaPage({ mode = "create", initialPost, onBack, onSave }: A
             <div><label className="mb-1.5 block text-sm font-bold text-slate-700">Ngày hết hạn</label><DatePicker value={formData.expiryDate} minValue={minimumExpiryDate} onChange={(expiryDate) => setFormData({ ...formData, expiryDate })} ariaLabel="Ngày hết hạn bài" />{invalidExpiryDate && <p role="alert" className="mt-1.5 text-sm text-rose-600">Ngày hết hạn phải sau ngày đăng ít nhất 1 ngày.</p>}{formData.expiryDate && <button type="button" onClick={() => setFormData({ ...formData, expiryDate: "" })} className="mt-1.5 text-sm font-medium text-slate-600 underline hover:text-slate-900">Bỏ ngày hết hạn</button>}</div>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
-            <label className="text-sm font-bold text-slate-700">Đơn vị / Phòng ban<select value={formData.authorDepartment} onChange={(e) => setFormData({ ...formData, authorDepartment: e.target.value })} className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 font-medium"><option>Phòng HR&amp;AD</option><option>Phòng MKT</option></select></label>
+            <label className="text-sm font-bold text-slate-700">Đơn vị / Phòng ban<select value={formData.authorDepartment} onChange={(e) => setFormData({ ...formData, authorDepartment: e.target.value })} className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 font-medium">{formData.authorDepartment && !EMPLOYEE_DEPARTMENT_OPTIONS.some((option) => option.label === formData.authorDepartment) ? <option>{formData.authorDepartment}</option> : null}{EMPLOYEE_DEPARTMENT_OPTIONS.map((option) => <option key={option.value} value={option.label}>{option.label}</option>)}</select></label>
             <label className="flex min-h-12 cursor-pointer items-center gap-3 self-end rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700"><input type="checkbox" checked={formData.publishIndefinitely} onChange={(event) => setFormData({ ...formData, publishIndefinitely: event.target.checked })} className="h-5 w-5 shrink-0 rounded border-slate-300 accent-emerald-700" />Đăng tin vĩnh viễn</label>
           </div>
           <AvatarUploader key={uploaderKey} inputId="media-cover-upload" inputName="coverImage" initialAvatarUrl={coverRemoved ? "" : formData.coverImage} onFileChange={(file) => { setCoverFile(file); if (file) setCoverRemoved(false); }} onExistingAvatarRemove={() => setCoverRemoved(true)} label="Ảnh bìa" emptyHelperText="Thả tệp vào đây hoặc duyệt. JPEG, PNG, WebP tối đa 5 MB; khung 4:3." selectedHelperText="Ảnh bìa mới đã sẵn sàng." existingHelperText="Đang giữ ảnh bìa hiện tại." imageAlt="Xem trước ảnh bìa" changeLabel="Thay ảnh bìa" />

@@ -11,6 +11,7 @@ import {
   Search,
 } from "lucide-react";
 import { getEmployeeDepartmentLabel } from "@/components/ui/employee-department-options";
+import { normalizeSearchText } from "@/utils/normalizeSearchText";
 
 interface EmployeeFiltersProps {
   search: string;
@@ -58,7 +59,7 @@ function SelectFilter({
   }, [open]);
 
   const visibleOptions = options.filter((option) =>
-    getOptionLabel(option).toLowerCase().includes(keyword.trim().toLowerCase()),
+    normalizeSearchText(getOptionLabel(option)).includes(normalizeSearchText(keyword.trim())),
   );
 
   return (
@@ -72,7 +73,7 @@ function SelectFilter({
         }`}
       >
         <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${iconClass}`}><Icon size={17} /></span>
-        <span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-700">{getOptionLabel(value)}</span>
+        <span className="min-w-0 flex-1 break-words text-sm font-medium leading-snug text-slate-700">{getOptionLabel(value)}</span>
         <ChevronDown size={18} className={`shrink-0 text-[#0b4937] transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
 
@@ -97,7 +98,7 @@ function SelectFilter({
                   className={`flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-left transition-colors ${active ? "bg-gradient-to-r from-green-50 to-[#f5fbf6]" : "hover:bg-slate-50"}`}
                 >
                   <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${iconClass}`}><Icon size={19} /></span>
-                  <span className={`min-w-0 flex-1 truncate text-sm ${active ? "font-bold text-[#064c32]" : "font-medium text-slate-700"}`}>{getOptionLabel(option)}</span>
+                  <span className={`min-w-0 flex-1 break-words text-sm leading-snug ${active ? "font-bold text-[#064c32]" : "font-medium text-slate-700"}`}>{getOptionLabel(option)}</span>
                   {active && <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#16934b] text-white"><Check size={16} strokeWidth={3} /></span>}
                 </button>
               );

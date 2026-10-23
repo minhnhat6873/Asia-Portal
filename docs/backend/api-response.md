@@ -8,8 +8,10 @@ Cập nhật lần cuối: 2026-10-09. File nguồn đã đọc: `backend/index.
 | --- | --- |
 | Thành công có dữ liệu | `{ success: true, message?, data }` |
 | Thành công không dữ liệu | `{ success: true, message? }` (`/health`, logout, reset password) |
-| Lỗi | `{ success: false, message, errors? }` |
+| Lỗi | `{ success: false, message, errors?, fieldErrors? }` |
 | Phân trang | `data: { items, pagination: { page, limit, total, totalPages } }` |
+
+Validation body trả thêm `fieldErrors` theo tên trường API để frontend hiển thị lỗi cạnh ô nhập; `message` và danh sách `errors` vẫn được giữ. Ví dụ cấp bậc nhân viên không còn hợp lệ trả `fieldErrors.rank` và yêu cầu chọn lại từ danh sách.
 
 Phân trang được tạo tại các service employee, media và audit log. Không có wrapper response dùng chung; từng controller tự gọi `response.status().json()`.
 

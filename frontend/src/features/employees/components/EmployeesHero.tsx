@@ -1,9 +1,10 @@
 import Image from "next/image";
 import { Building2, LayoutGrid, Users } from "lucide-react";
+import { EMPLOYEE_DEPARTMENT_OPTIONS } from "@/components/ui/employee-department-options";
 
 const highlights = [
   { icon: Users, value: "500+", label: "Nhân viên" },
-  { icon: Building2, value: "12+", label: "Phòng ban" },
+  { icon: Building2, value: String(EMPLOYEE_DEPARTMENT_OPTIONS.length), label: "Phòng ban" },
   { icon: LayoutGrid, value: "3", label: "Văn phòng" },
 ];
 

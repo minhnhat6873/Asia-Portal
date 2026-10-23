@@ -129,6 +129,7 @@ export default function AdminDashboard(_props: AdminDashboardProps) {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [employeeTotal, setEmployeeTotal] = useState(0);
   const [employeeListParams, setEmployeeListParams] = useState<AdminEmployeeListParams>({ page: 1, limit: 10 });
+  const [areEmployeeParamsRestored, setAreEmployeeParamsRestored] = useState(false);
   const [employeesLoadError, setEmployeesLoadError] = useState<string | null>(null);
   const [areEmployeesLoading, setAreEmployeesLoading] = useState(true);
   const editingEmployeeId = pathname.match(/^\/admin\/employees\/([^/]+)\/edit$/)?.[1];
@@ -161,6 +162,33 @@ export default function AdminDashboard(_props: AdminDashboardProps) {
     || (activeTab === 'edit-employee' && isEditingEmployeeLoading)
     || (activeTab === 'edit-media' && isEditingMediaLoading);
   const showPageLoading = useDelayedLoading(isPageLoading, 1000, pathname);
+
+  useEffect(() => {
+    let active = true;
+    queueMicrotask(() => {
+      if (!active) return;
+      try {
+        const stored = JSON.parse(sessionStorage.getItem('asia.admin.employee-list-params') ?? 'null') as AdminEmployeeListParams | null;
+        if (stored && typeof stored === 'object') {
+          setEmployeeListParams({
+            search: typeof stored.search === 'string' ? stored.search : undefined,
+            department: typeof stored.department === 'string' ? stored.department : undefined,
+            rank: typeof stored.rank === 'string' ? stored.rank : undefined,
+            status: ['active', 'probation', 'inactive'].includes(stored.status ?? '') ? stored.status : undefined,
+            sort: stored.sort === 'oldest' ? 'oldest' : undefined,
+            page: typeof stored.page === 'number' && Number.isSafeInteger(stored.page) && stored.page > 0 ? stored.page : 1,
+            limit: 10,
+          });
+        }
+      } catch { sessionStorage.removeItem('asia.admin.employee-list-params'); }
+      setAreEmployeeParamsRestored(true);
+    });
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    if (areEmployeeParamsRestored) sessionStorage.setItem('asia.admin.employee-list-params', JSON.stringify(employeeListParams));
+  }, [areEmployeeParamsRestored, employeeListParams]);
 
   useLayoutEffect(() => {
     const desktop = window.matchMedia('(min-width: 992px)');
@@ -245,6 +273,7 @@ export default function AdminDashboard(_props: AdminDashboardProps) {
   }, []);
 
   const loadEmployees = useCallback(async (signal?: AbortSignal) => {
+    if (!areEmployeeParamsRestored) return;
     if (!canViewEmployees) { setEmployees([]); setAreEmployeesLoading(false); return; }
     setAreEmployeesLoading(true);
     try {
@@ -261,7 +290,7 @@ export default function AdminDashboard(_props: AdminDashboardProps) {
     } finally {
       if (!signal?.aborted) setAreEmployeesLoading(false);
     }
-  }, [employeeListParams, canViewEmployees]);
+  }, [employeeListParams, canViewEmployees, areEmployeeParamsRestored]);
 
   const loadMedia = useCallback(async (signal?: AbortSignal) => {
     if (!canViewMedia) { setMediaPosts([]); setAreMediaLoading(false); return; }
@@ -294,7 +323,10 @@ export default function AdminDashboard(_props: AdminDashboardProps) {
   }, [canViewDashboard]);
 
   const handleEmployeeFiltersChange = useCallback((filters: AdminEmployeeListParams) => {
-    setEmployeeListParams({ ...filters, page: 1, limit: 10 });
+    setEmployeeListParams((current) => {
+      const changed = current.search !== filters.search || current.department !== filters.department || current.rank !== filters.rank || current.status !== filters.status;
+      return changed ? { ...filters, page: 1, limit: 10 } : current;
+    });
   }, []);
 
   const handleEmployeePageChange = useCallback((page: number) => {

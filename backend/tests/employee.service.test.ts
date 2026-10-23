@@ -11,6 +11,8 @@ jest.mock("../src/repositories/admin/employee.repository", () => ({
     findAllForSearch: jest.fn(),
     findAll: jest.fn(),
     count: jest.fn(),
+    findById: jest.fn(),
+    updateById: jest.fn(),
   },
 }));
 
@@ -63,10 +65,37 @@ describe("admin employee CEO constraint", () => {
     jest.mocked(adminEmployeeRepository.findByEmployeeCode).mockResolvedValue(null);
     jest.mocked(adminEmployeeRepository.findActiveByRank).mockResolvedValue(employee as never);
 
-    await expect(adminEmployeeService.createEmployee({ rank: "CEO" } as never)).rejects.toMatchObject({
+    await expect(adminEmployeeService.createEmployee({ rank: "CEO", department: "BOD" } as never)).rejects.toMatchObject({
       statusCode: 409,
       message: "Công ty chỉ được có duy nhất một CEO",
     });
+  });
+
+  it("rejects a CEO outside BOD before creating", async () => {
+    await expect(adminEmployeeService.createEmployee({ rank: "CEO", department: "IT_ERP" } as never)).rejects.toMatchObject({ statusCode: 400 });
+    expect(adminEmployeeRepository.create).not.toHaveBeenCalled();
+  });
+
+  it("allows creating a CEO in BOD when none exists", async () => {
+    jest.mocked(adminEmployeeRepository.findActiveByRank).mockResolvedValue(null);
+    jest.mocked(adminEmployeeRepository.create).mockResolvedValue(employee as never);
+    await expect(adminEmployeeService.createEmployee({ rank: "CEO", department: "BOD" } as never)).resolves.toEqual(employee);
+  });
+
+  it.each([
+    [{ rank: "CEO", department: "BOD" }, { department: "IT_ERP" }],
+    [{ rank: "Staff", department: "IT_ERP" }, { rank: "CEO" }],
+  ])("checks merged rank and department on partial updates", async (current, changes) => {
+    jest.mocked(adminEmployeeRepository.findById).mockResolvedValue({ ...employee, ...current } as never);
+    await expect(adminEmployeeService.updateEmployee(employeeId, changes as never)).rejects.toMatchObject({ statusCode: 400 });
+    expect(adminEmployeeRepository.updateById).not.toHaveBeenCalled();
+  });
+
+  it("allows moving an employee into BOD while promoting them to CEO", async () => {
+    jest.mocked(adminEmployeeRepository.findById).mockResolvedValue({ ...employee, department: "IT_ERP" } as never);
+    jest.mocked(adminEmployeeRepository.findActiveByRank).mockResolvedValue(null);
+    jest.mocked(adminEmployeeRepository.updateById).mockResolvedValue(employee as never);
+    await expect(adminEmployeeService.updateEmployee(employeeId, { department: "BOD", rank: "CEO" })).resolves.toEqual(employee);
   });
 
   it("cho phép tạo cấp bậc khác khi đã có CEO", async () => {

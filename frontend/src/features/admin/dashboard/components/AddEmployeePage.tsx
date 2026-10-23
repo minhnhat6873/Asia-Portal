@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { 
   ArrowLeft, 
@@ -113,6 +113,7 @@ export const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({
   const canViewBirthDate = can("employees:view-birth-date");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<FormErrors>({});
+  const rankFieldRef = useRef<HTMLDivElement>(null);
   const [avatarUploaderKey, setAvatarUploaderKey] = useState(0);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -124,7 +125,7 @@ export const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({
     const isBod = normalizeEmployeeDepartment(formData.department) === 'BOD';
     return EMPLOYEE_RANK_OPTIONS_UI.filter((option) => {
       if (option.value === 'Senior Management') return isBod;
-      if (option.value === 'CEO') return ceoEmployeeId === null || isCurrentEmployeeCeo;
+      if (option.value === 'CEO') return isBod && (ceoEmployeeId === null || isCurrentEmployeeCeo);
       return true;
     });
   }, [ceoEmployeeId, initialEmployee, formData.department]);
@@ -190,9 +191,11 @@ export const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({
     if (!position) errors.position = "Vui lòng nhập chức vụ.";
     else if (position.length < 2 || position.length > 100) errors.position = "Chức vụ phải từ 2 đến 100 ký tự.";
     if (!formData.department) errors.department = "Vui lòng chọn phòng ban.";
+    else if (!EMPLOYEE_DEPARTMENT_OPTIONS.some((option) => option.value === formData.department)) errors.department = "Vui lòng chọn phòng ban trong danh mục mới.";
     if (!formData.rank) errors.rank = "Vui lòng chọn cấp bậc.";
-    else if (formData.rank === 'Senior Management' && normalizeEmployeeDepartment(formData.department) !== 'BOD') {
-      errors.rank = "Chỉ phòng BOD được chọn Quản lý cấp cao.";
+    else if (!EMPLOYEE_RANK_OPTIONS_UI.some((option) => option.value === formData.rank)) errors.rank = "Cấp bậc hiện tại không còn hợp lệ. Vui lòng chọn lại cấp bậc trong danh sách.";
+    else if ((formData.rank === 'CEO' || formData.rank === 'Senior Management') && normalizeEmployeeDepartment(formData.department) !== 'BOD') {
+      errors.rank = "Chỉ phòng BOD được chọn CEO hoặc Quản lý cấp cao.";
     }
     if (!formData.joinDate || !toDatePickerValue(formData.joinDate)) errors.joinDate = "Vui lòng chọn ngày gia nhập hợp lệ.";
     if (formData.birthDate && !toDatePickerValue(formData.birthDate)) errors.birthDate = "Ngày sinh không hợp lệ.";
@@ -217,7 +220,11 @@ export const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({
     const errors = validateForm();
     setFieldErrors(errors);
     if (Object.keys(errors).length > 0) {
-      setErrorMsg("Vui lòng kiểm tra các trường được đánh dấu trước khi lưu.");
+      setErrorMsg(Object.values(errors)[0] ?? "Vui lòng kiểm tra các trường được đánh dấu trước khi lưu.");
+      if (errors.rank) requestAnimationFrame(() => {
+        rankFieldRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+        rankFieldRef.current?.querySelector<HTMLButtonElement>("button")?.focus({ preventScroll: true });
+      });
       return;
     }
 
@@ -274,6 +281,16 @@ export const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({
         ? error.message
         : "Kh\u00f4ng th\u1ec3 l\u01b0u nh\u00e2n vi\u00ean. Vui l\u00f2ng th\u1eed l\u1ea1i.";
       setErrorMsg(message);
+      if (error instanceof ApiError && error.fieldErrors) {
+        const apiToForm: Record<string, FormField> = { employeeCode: "code", name: "fullName", position: "position", department: "department", rank: "rank", joinDate: "joinDate", birthDate: "birthDate", gender: "gender", location: "location", status: "status", email: "email", phone: "phone", description: "bio" };
+        const details: FormErrors = {};
+        for (const [key, detail] of Object.entries(error.fieldErrors)) {
+          if (apiToForm[key]) details[apiToForm[key]] = detail;
+        }
+        setFieldErrors((current) => ({ ...current, ...details }));
+        const firstDetail = Object.values(details)[0] ?? error.errors[0];
+        if (firstDetail) setErrorMsg(firstDetail);
+      }
       if (error instanceof ApiError && error.status === 409 && message.toLocaleLowerCase('vi').includes('email')) {
         setFieldErrors((current) => ({ ...current, email: message }));
       }
@@ -444,13 +461,13 @@ export const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({
                 <label className="block text-sm font-bold text-slate-700 mb-1.5">
                   Phòng ban <span className="text-rose-500">*</span>
                 </label>
-                <AdminSelect value={formData.department} onChange={(department) => setFormData({ ...formData, department, rank: formData.rank === "Senior Management" && normalizeEmployeeDepartment(department) !== "BOD" ? "" : formData.rank })} options={EMPLOYEE_DEPARTMENT_OPTIONS} placeholder="" className="w-full" searchable={false} showSelectionCheck={false} />
+                <AdminSelect value={formData.department} onChange={(department) => setFormData({ ...formData, department, rank: (formData.rank === "CEO" || formData.rank === "Senior Management") && normalizeEmployeeDepartment(department) !== "BOD" ? "" : formData.rank })} options={EMPLOYEE_DEPARTMENT_OPTIONS} placeholder="" className="w-full" searchable={false} showSelectionCheck={false} />
                 {fieldErrors.department && <p className="mt-1 text-xs text-rose-600">{fieldErrors.department}</p>}
               </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
+              <div ref={rankFieldRef}>
                 <label className="block text-sm font-bold text-slate-700 mb-1.5">
                   Cấp bậc <span className="text-rose-500">*</span>
                 </label>

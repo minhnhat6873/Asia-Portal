@@ -13,18 +13,25 @@ import EmployeeProfile from "./components/EmployeeProfile";
 import EmployeeStats from "./components/EmployeeStats";
 import EmployeesHero from "./components/EmployeesHero";
 import { normalizeSearchText } from "@/utils/normalizeSearchText";
+import { EMPLOYEE_DEPARTMENT_OPTIONS, normalizeEmployeeDepartment } from "@/components/ui/employee-department-options";
 
 const PAGE_LIMIT = 10;
+const ALL_DEPARTMENTS = "Tất cả phòng ban";
+const DEPARTMENT_FILTER_OPTIONS = [ALL_DEPARTMENTS, ...EMPLOYEE_DEPARTMENT_OPTIONS.map(({ value }) => value)];
+
 function EmployeesContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [search, setSearch] = useState(() => searchParams.get("search") ?? "");
-  const [department, setDepartment] = useState(() => searchParams.get("department") ?? "Tất cả phòng ban");
+  const [department, setDepartment] = useState(() => {
+    const value = normalizeEmployeeDepartment(searchParams.get("department") ?? "");
+    return DEPARTMENT_FILTER_OPTIONS.includes(value) ? value : ALL_DEPARTMENTS;
+  });
   const [position, setPosition] = useState(() => searchParams.get("position") ?? "Tất cả chức vụ");
   const [newestFirst, setNewestFirst] = useState(() => searchParams.get("sort") !== "oldest");
-  const [page, setPage] = useState(() => Math.max(Number(searchParams.get("page")) || 1, 1));
+  const [requestedPage, setPage] = useState(() => Math.max(Number(searchParams.get("page")) || 1, 1));
   const [allEmployees, setAllEmployees] = useState<Employee[]>([]);
-  const [selected, setSelected] = useState<Employee | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [profileOpen, setProfileOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
@@ -34,7 +41,7 @@ function EmployeesContent() {
     return allEmployees
       .filter((employee) => {
         const matchesSearch = !query || normalizeSearchText(`${employee.employeeCode} ${employee.name}`).includes(query);
-        const matchesDepartment = department === "Tất cả phòng ban" || employee.department === department;
+        const matchesDepartment = department === ALL_DEPARTMENTS || normalizeEmployeeDepartment(employee.department) === department;
         const matchesPosition = position === "Tất cả chức vụ" || employee.position === position;
         return matchesSearch && matchesDepartment && matchesPosition;
       })
@@ -45,7 +52,9 @@ function EmployeesContent() {
   }, [allEmployees, department, newestFirst, position, search]);
 
   const pageCount = Math.ceil(filteredEmployees.length / PAGE_LIMIT);
+  const page = isLoading ? requestedPage : Math.min(requestedPage, Math.max(pageCount, 1));
   const visibleEmployees = filteredEmployees.slice((page - 1) * PAGE_LIMIT, page * PAGE_LIMIT);
+  const selected = visibleEmployees.find((employee) => employee.id === selectedId) ?? visibleEmployees[0] ?? null;
   const paginationItems: (number | "ellipsis")[] = pageCount <= 5
     ? Array.from({ length: pageCount }, (_, index) => index + 1)
     : page <= 2
@@ -62,10 +71,8 @@ function EmployeesContent() {
     totalPages: pageCount,
   };
 
-  const departments = useMemo(
-    () => ["Tất cả phòng ban", ...Array.from(new Set(allEmployees.map((employee) => employee.department))).sort()],
-    [allEmployees],
-  );
+  const departmentCount = new Set(filteredEmployees.map((employee) => normalizeEmployeeDepartment(employee.department)).filter(Boolean)).size;
+  const positionCount = new Set(filteredEmployees.map((employee) => employee.position).filter(Boolean)).size;
   const positions = useMemo(
     () => ["Tất cả chức vụ", ...Array.from(new Set(allEmployees.map((employee) => employee.position))).sort()],
     [allEmployees],
@@ -105,17 +112,9 @@ function EmployeesContent() {
   }, []);
 
   useEffect(() => {
-    if (pageCount > 0 && page > pageCount) setPage(pageCount);
-  }, [page, pageCount]);
-
-  useEffect(() => {
-    setSelected((current) => visibleEmployees.find((employee) => employee.id === current?.id) ?? visibleEmployees[0] ?? null);
-  }, [visibleEmployees]);
-
-  useEffect(() => {
     const params = new URLSearchParams();
     if (search.trim()) params.set("search", search.trim());
-    if (department !== "Tất cả phòng ban") params.set("department", department);
+    if (department !== ALL_DEPARTMENTS) params.set("department", department);
     if (position !== "Tất cả chức vụ") params.set("position", position);
     if (!newestFirst) params.set("sort", "oldest");
     if (page > 1) params.set("page", String(page));
@@ -137,7 +136,7 @@ function EmployeesContent() {
     requestAnimationFrame(() => document.getElementById("employee-directory-results")?.scrollIntoView({ behavior: "smooth", block: "start" }));
   };
 
-  const hasActiveFilters = Boolean(search.trim()) || department !== "Tất cả phòng ban" || position !== "Tất cả chức vụ";
+  const hasActiveFilters = Boolean(search.trim()) || department !== ALL_DEPARTMENTS || position !== "Tất cả chức vụ";
   const employeePagination = visiblePagination.total > 0 ? (
     <div className="flex flex-wrap items-center justify-between gap-3 bg-white px-4 py-3">
       <p className="text-xs font-medium text-slate-600">Trang <strong className="text-emerald-700">{visiblePagination.page}</strong> / {visiblePagination.totalPages}</p>
@@ -159,7 +158,7 @@ function EmployeesContent() {
           search={search}
           department={department}
           position={position}
-          departments={departments}
+          departments={DEPARTMENT_FILTER_OPTIONS}
           positions={positions}
           newestFirst={newestFirst}
           onSearchChange={resetPage(setSearch)}
@@ -172,14 +171,14 @@ function EmployeesContent() {
           hasActiveFilters={hasActiveFilters}
           onClearFilters={() => {
             setSearch("");
-            setDepartment("Tất cả phòng ban");
+            setDepartment(ALL_DEPARTMENTS);
             setPosition("Tất cả chức vụ");
             setPage(1);
           }}
         />
         <div className="mt-4 grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
           <div className="min-w-0 space-y-4 sm:space-y-5">
-            <EmployeeStats total={visiblePagination.total} departments={Math.max(departments.length - 1, 0)} positions={Math.max(positions.length - 1, 0)} />
+            <EmployeeStats total={visiblePagination.total} departments={departmentCount} positions={positionCount} />
             {error ? (
               <div className="rounded-xl border border-rose-100 bg-rose-50 px-5 py-12 text-center text-sm text-rose-700">
                 <p>{error}</p>
@@ -196,7 +195,7 @@ function EmployeesContent() {
                   page={visiblePagination.page}
                   limit={visiblePagination.limit}
                   pagination={employeePagination}
-                  onSelect={setSelected}
+                  onSelect={(employee) => setSelectedId(employee.id)}
                   onOpenProfile={openMobileProfile}
                 />
               </>

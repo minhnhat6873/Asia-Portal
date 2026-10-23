@@ -9,10 +9,16 @@ export function validateBody(schema: ObjectSchema) {
     });
 
     if (error) {
+      const fieldErrors: Record<string, string> = {};
+      for (const detail of error.details) {
+        const field = detail.path[0];
+        if (typeof field === "string" && !fieldErrors[field]) fieldErrors[field] = detail.message;
+      }
       response.status(400).json({
         success: false,
         message: "Dữ liệu không hợp lệ",
         errors: error.details.map((detail) => detail.message),
+        fieldErrors,
       });
       return;
     }
