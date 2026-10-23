@@ -16,6 +16,12 @@ function ensureValidId(id: string): void {
   }
 }
 
+function ensureCeoDepartment(rank: Employee["rank"], department: string): void {
+  if (rank === "CEO" && department !== "BOD") {
+    throw new AppError(400, "Chỉ phòng BOD được chọn cấp bậc CEO");
+  }
+}
+
 export const adminEmployeeService = {
   async getEmployees(query: EmployeeListQuery) {
     const page = Math.max(Number(query.page) || 1, 1);
@@ -68,6 +74,7 @@ export const adminEmployeeService = {
   },
 
   async createEmployee(data: CreateEmployeeInput) {
+    ensureCeoDepartment(data.rank, data.department);
     const [emailExists, codeExists, ceoExists] = await Promise.all([
       adminEmployeeRepository.findByEmail(data.email),
       adminEmployeeRepository.findByEmployeeCode(data.employeeCode),
@@ -84,6 +91,12 @@ export const adminEmployeeService = {
 
   async updateEmployee(id: string, data: UpdateEmployeeInput) {
     ensureValidId(id);
+
+    if (data.rank !== undefined || data.department !== undefined) {
+      const current = await adminEmployeeRepository.findById(id);
+      if (!current) throw new AppError(404, "Không tìm thấy nhân viên");
+      ensureCeoDepartment(data.rank ?? current.rank, data.department ?? current.department);
+    }
 
     if (data.email) {
       const employee = await adminEmployeeRepository.findByEmail(data.email);

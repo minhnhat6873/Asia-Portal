@@ -69,6 +69,8 @@ Meeting là API public, không yêu cầu đăng nhập. Booking start/verify/re
 
 Tham số `search` của hai danh sách quản trị được trim, gộp khoảng trắng, chuyển về chữ thường và bỏ dấu tiếng Việt (`đ` thành `d`) trước khi partial match. `/admin/employees` chỉ áp dụng trên mã và tên nhân viên; `/admin/media` chỉ áp dụng trên tiêu đề và `summary` (Sapo). API public giữ cơ chế tìm kiếm hiện tại.
 
+Khi tạo/cập nhật nhân viên, cấp bậc `CEO` chỉ được dùng với phòng ban `BOD`; sai tổ hợp trả 400. Với PATCH chỉ gửi một trong hai trường, service kiểm tra tổ hợp sau khi ghép với dữ liệu hiện tại. Quy tắc chỉ có một CEO vẫn được giữ (409 khi trùng).
+
 `GET /admin/employees` mặc định sắp xếp theo `createdAt` giảm dần (mới nhất trước), tương đương `sort=latest`. `sort=oldest` sắp xếp theo `createdAt` tăng dần. Khi trùng thời điểm tạo, `_id` được dùng cùng chiều để ổn định thứ tự phân trang. Thứ tự này áp dụng trước khi phân trang, cả khi tìm kiếm/lọc; giao diện quản trị giữ nguyên thứ tự API trả về. Ngày vào làm (`joinDate`) và mã nhân viên không quyết định thứ tự danh sách này.
 
 Cấp bậc nhân viên gồm `CEO`, `Senior Management`, `Middle Management`, `Intermediate Personnel` và `Staff`. Chỉ có một hồ sơ CEO chưa bị xóa mềm tại một thời điểm; quy tắc này được kiểm tra khi tạo, cập nhật và khôi phục, đồng thời được bảo vệ bằng partial unique index trong MongoDB.

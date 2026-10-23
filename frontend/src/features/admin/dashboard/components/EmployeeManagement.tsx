@@ -190,7 +190,7 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
         const stored = JSON.parse(sessionStorage.getItem(EMPLOYEE_FILTER_STORAGE_KEY) ?? 'null') as Partial<StoredEmployeeFilters> | null;
         if (stored) {
           setSearchQuery(typeof stored.searchQuery === 'string' ? stored.searchQuery : '');
-          setSelectedDept(typeof stored.selectedDept === 'string' ? stored.selectedDept : 'all');
+          setSelectedDept(typeof stored.selectedDept === 'string' && EMPLOYEE_DEPARTMENT_OPTIONS.some((option) => option.value === stored.selectedDept) ? stored.selectedDept : 'all');
           setSelectedRank(typeof stored.selectedRank === 'string' ? stored.selectedRank : 'all');
           setSelectedStatus(typeof stored.selectedStatus === 'string' ? stored.selectedStatus : 'all');
           setViewMode(stored.viewMode === 'grid' ? 'grid' : 'table');

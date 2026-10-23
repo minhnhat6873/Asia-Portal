@@ -7,7 +7,10 @@ const employeeFields = {
   name: Joi.string().trim().min(2).max(100),
   position: Joi.string().trim().min(2).max(100),
   department: Joi.string().trim().min(2).max(100),
-  rank: Joi.string().trim().valid(...EMPLOYEE_RANKS),
+  rank: Joi.string().trim().valid(...EMPLOYEE_RANKS).messages({
+    "any.only": "Cấp bậc không hợp lệ. Vui lòng chọn lại cấp bậc trong danh sách.",
+    "string.empty": "Vui lòng chọn cấp bậc.",
+  }),
   email: Joi.string()
     .trim()
     .lowercase()
