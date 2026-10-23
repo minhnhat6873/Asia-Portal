@@ -412,7 +412,7 @@ export function ArticleReaderModal({ post, onClose, onEdit, onDelete, showAdminA
         role="dialog"
         aria-modal="true"
         aria-label={`Bài viết: ${post.title}`}
-        className={`flex ${isCssFullscreen ? "fixed inset-0 z-[100] h-screen max-h-none w-screen max-w-none rounded-none" : showAdminActions ? "h-[92vh] max-h-[100vh] max-w-5xl" : "h-auto max-h-[86vh] max-w-4xl translate-y-[4vh]"} w-full flex-col overflow-hidden rounded-3xl border shadow-2xl transition-colors bg-white text-slate-900`}
+        className={`flex ${(isFullscreen || isCssFullscreen) ? "fixed inset-0 z-[100] h-screen max-h-none w-screen max-w-none rounded-none" : showAdminActions ? "h-[92vh] max-h-[100vh] max-w-5xl" : "h-auto max-h-[86vh] max-w-4xl"} w-full flex-col overflow-hidden rounded-3xl border shadow-2xl transition-colors bg-white text-slate-900`}
       >
         <header data-reader-header className="shrink-0 border-b border-slate-200/80 bg-inherit">
           <div className="flex items-center justify-between gap-3 px-4 py-3 sm:px-6">
@@ -442,7 +442,7 @@ export function ArticleReaderModal({ post, onClose, onEdit, onDelete, showAdminA
           </div>
         </header>
         <div data-reader-progress className="h-1 shrink-0 bg-slate-100"><div className="h-full bg-emerald-500 transition-[width]" style={{ width: `${progress}%` }} /></div>
-        <div ref={scrollRef} data-reader-scroll data-reader-print-root onWheel={pauseForManualScroll} onTouchStart={pauseForManualScroll} onPointerDown={(event) => { if (event.clientX >= event.currentTarget.getBoundingClientRect().right - 16) pauseForManualScroll(); }} onKeyDown={(event) => { if (["ArrowDown", "ArrowUp", "PageDown", "PageUp", "Home", "End", " "].includes(event.key)) pauseForManualScroll(); }} tabIndex={0} className={`min-h-0 overflow-y-auto overscroll-contain bg-white ${showAdminActions ? "flex-1" : "max-h-[calc(86vh-140px)] flex-none"}`}>
+        <div ref={scrollRef} data-reader-scroll data-reader-print-root onWheel={pauseForManualScroll} onTouchStart={pauseForManualScroll} onPointerDown={(event) => { if (event.clientX >= event.currentTarget.getBoundingClientRect().right - 16) pauseForManualScroll(); }} onKeyDown={(event) => { if (["ArrowDown", "ArrowUp", "PageDown", "PageUp", "Home", "End", " "].includes(event.key)) pauseForManualScroll(); }} tabIndex={0} className={`min-h-0 overflow-y-auto overscroll-contain bg-white ${showAdminActions || isFullscreen || isCssFullscreen ? "flex-1" : "max-h-[calc(86vh-140px)] flex-none"}`}>
           <div data-reader-print-header className="mx-auto w-full max-w-4xl px-4 pt-5 sm:px-8">
             <img src="/assets/images/asia-logo.png" alt="Asia F&B" />
             <div><strong>Asia Food &amp; Beverage co.ltd</strong><span>BẢN TIN TRUYỀN THÔNG NỘI BỘ</span></div>

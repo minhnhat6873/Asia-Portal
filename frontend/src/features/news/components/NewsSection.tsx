@@ -6,14 +6,15 @@ import Link from "next/link";
 import { newsCategories, NewsItem } from "@/config/news";
 import { getPublicMedia } from "@/services/media.service";
 import MediaExpiryBadge from "@/components/ui/MediaExpiryBadge";
-import { ArrowRight, Calendar, User, ChevronRight, Search, ArrowDownUp, LayoutGrid, Newspaper, Users, Megaphone, X, RotateCcw, Eye } from "lucide-react";
-import { hasRichTextContent, RichText } from "@/components/ui/RichText";
+import { ArrowRight, Calendar, User, ChevronRight, Search, ArrowDownUp, LayoutGrid, Newspaper, Users, Megaphone, RotateCcw } from "lucide-react";
+import { RichText } from "@/components/ui/RichText";
 import { normalizeSearchText } from "@/utils/normalizeSearchText";
 import { ArticleReaderModal } from "@/features/admin/dashboard/components/ArticleReaderModal";
 import type { MediaPost } from "@/features/admin/dashboard/types";
 
 interface Props {
   preview?: boolean;
+  articleId?: string | null;
 }
 
 function SearchBox({ query, onChange }: { query: string; onChange: (value: string) => void }) {
@@ -73,75 +74,6 @@ function FeaturedEvent({ item, onSelect }: { item: NewsItem; onSelect: () => voi
   );
 }
 
-function NewsDetailPanel({ item, onClose, onOpenReader, panelRef }: { item: NewsItem; onClose: () => void; onOpenReader: () => void; panelRef: React.RefObject<HTMLElement | null> }) {
-  const contentBoxRef = useRef<HTMLDivElement>(null);
-  const [isContentTruncated, setIsContentTruncated] = useState(false);
-
-  useEffect(() => {
-    const box = contentBoxRef.current;
-    if (!box) return;
-    const update = () => {
-      const content = box.firstElementChild as HTMLElement | null;
-      setIsContentTruncated(Boolean(content && content.scrollHeight > box.clientHeight + 1));
-    };
-    const resizeObserver = new ResizeObserver(update);
-    resizeObserver.observe(box);
-    const content = box.firstElementChild;
-    if (content) resizeObserver.observe(content);
-    const mutationObserver = new MutationObserver(update);
-    mutationObserver.observe(box, { childList: true, subtree: true, characterData: true });
-    const frame = requestAnimationFrame(update);
-    return () => {
-      cancelAnimationFrame(frame);
-      resizeObserver.disconnect();
-      mutationObserver.disconnect();
-    };
-  }, [item.id, item.content]);
-
-  return (
-    <aside ref={panelRef} className="flex h-[620px] max-h-[calc(100vh-2rem)] min-h-0 scroll-mt-20 flex-col self-start overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm xl:sticky xl:top-6">
-      <div className="relative h-44 shrink-0">
-        <Image src={item.image} alt={item.title} fill sizes="360px" className="object-cover" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/45 to-transparent" />
-        <span className={`absolute bottom-3 left-4 text-xs px-2.5 py-1 rounded-full font-semibold ${categoryBadgeClass[item.category]}`}>
-          {item.category}
-        </span>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Đóng chi tiết bài viết"
-          className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-black/35 text-white backdrop-blur-sm transition-colors hover:bg-black/55 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
-        >
-          <X size={16} />
-        </button>
-      </div>
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-5">
-        <div className="mb-2"><MediaExpiryBadge isExpired={item.isExpired} /></div>
-        <h3 className="line-clamp-2 shrink-0 text-xl font-black leading-snug text-[#16241a]" title={item.title}>{item.title}</h3>
-        <RichText html={item.excerpt} className="mt-3 line-clamp-3 shrink-0 text-sm leading-relaxed text-slate-500 [&_p]:my-0 [&_p]:line-clamp-3" />
-        <div className="mt-5 shrink-0 border-t border-slate-100 pt-4 text-sm">
-          <div className="flex items-center gap-2 text-slate-400"><Calendar size={15} /> <span>{item.date}</span></div>
-          <div className="mt-3 flex items-center gap-2 text-slate-400"><User size={15} /> <span>{item.author}</span></div>
-        </div>
-        {hasRichTextContent(item.content) && (
-          <div ref={contentBoxRef} className="relative mt-4 min-h-0 flex-1 overflow-hidden rounded-xl bg-[#eff9f1]">
-            <RichText html={item.content} className="rich-content p-3 text-xs leading-relaxed text-[#287348]" />
-            {isContentTruncated && <span className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#eff9f1] via-[#eff9f1] to-transparent px-3 pb-2 pt-4 text-right text-lg font-bold text-[#287348]" aria-label="Nội dung còn tiếp">…</span>}
-          </div>
-        )}
-        <button
-          type="button"
-          onClick={onOpenReader}
-          className="mt-4 inline-flex min-h-11 w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-[#087a43] px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-[#066838] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#087a43]"
-        >
-          <Eye size={17} aria-hidden="true" />
-          Xem chi tiết bài viết
-        </button>
-      </div>
-    </aside>
-  );
-}
-
 const categoryIcons: Record<string, typeof LayoutGrid> = {
   "Tất cả": LayoutGrid,
   "Sự kiện": Calendar,
@@ -164,8 +96,9 @@ function parsePublishDate(value: string): number {
   return new Date(Number(year), Number(month) - 1, Number(day)).getTime();
 }
 
-export default function NewsSection({ preview = false }: Props) {
-  const detailPanelRef = useRef<HTMLElement>(null);
+export default function NewsSection({ preview = false, articleId = null }: Props) {
+  const pendingScrollRef = useRef<string | null>(null);
+  const appliedArticleRef = useRef<string | null>(null);
   const [news, setNews] = useState<NewsItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -174,6 +107,23 @@ export default function NewsSection({ preview = false }: Props) {
   const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
   const [selectedNews, setSelectedNews] = useState<NewsItem | null>(null);
   const [readerNews, setReaderNews] = useState<NewsItem | null>(null);
+
+  useEffect(() => {
+    if (preview || !articleId) {
+      appliedArticleRef.current = null;
+      return;
+    }
+    if (appliedArticleRef.current === articleId) return;
+    const item = news.find((entry) => String(entry.id) === articleId);
+    if (!item) return;
+    appliedArticleRef.current = articleId;
+    pendingScrollRef.current = articleId;
+    queueMicrotask(() => {
+      setActiveCategory(item.category);
+      setSearchQuery("");
+      setSelectedNews(item);
+    });
+  }, [articleId, news, preview]);
 
   const loadNews = useCallback(async (signal?: AbortSignal) => {
     try {
@@ -228,20 +178,12 @@ export default function NewsSection({ preview = false }: Props) {
     setActiveCategory(newsCategories[0]);
   };
 
-  /**
-   * Opening an article always does both things, in this order: move the
-   * category filter to the article's own category, then highlight it in the
-   * detail panel. The featured card has always behaved this way; applying it to
-   * the grid cards too keeps the two consistent — a grid card used to open the
-   * panel while leaving the chips on "Tất cả", which looked like the filter and
-   * the panel disagreed about what was being shown.
-   */
   const openArticle = (item: NewsItem) => {
     setActiveCategory(item.category);
     setSelectedNews(item);
+    setReaderNews(item);
   };
-  // While searching we drop the hero-style featured card so every result sits in
-  // the grid and can open the detail panel on the right.
+  // Keep search results in the grid instead of the featured layout.
   const showFeatured = !preview && !isSearching && activeCategory === newsCategories[0];
   const featuredEvent = showFeatured
     ? [...sortedItems]
@@ -249,26 +191,24 @@ export default function NewsSection({ preview = false }: Props) {
         .sort((first, second) => parsePublishDate(second.date) - parsePublishDate(first.date))[0] ?? null
     : null;
   const gridItems = featuredEvent ? sortedItems.filter((item) => item.id !== featuredEvent.id) : sortedItems;
-  // The panel opens on click and stays closed until then. It used to be forced
-  // open on the grid-only tabs, which meant clicking a card while the featured
-  // hero was showing (e.g. the "Thông báo" post) selected it but rendered
-  // nothing — the panel only existed when `showFeatured` was false.
   const selectedItem =
     !preview && selectedNews && sortedItems.some((item) => item.id === selectedNews.id)
       ? selectedNews
       : null;
-  const showDetailPanel = selectedItem !== null;
 
   useEffect(() => {
-    if (!showDetailPanel || preview || window.matchMedia("(min-width: 1280px)").matches) return;
-    const frame = requestAnimationFrame(() => {
-      detailPanelRef.current?.scrollIntoView({
-        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
-        block: "start",
+    if (pendingScrollRef.current && selectedItem && String(selectedItem.id) === pendingScrollRef.current) {
+      const frame = requestAnimationFrame(() => {
+        document.getElementById(`news-card-${selectedItem.id}`)?.scrollIntoView({
+          behavior: "instant",
+          block: "start",
+        });
+        pendingScrollRef.current = null;
+        setReaderNews(selectedItem);
       });
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [selectedItem, showDetailPanel, preview]);
+      return () => cancelAnimationFrame(frame);
+    }
+  }, [selectedItem]);
 
   return (
     <section className={preview ? "overflow-x-clip bg-white py-8 sm:py-12 xl:py-16" : "overflow-x-clip bg-white pb-8 sm:pb-12 xl:pb-16"}>
@@ -398,7 +338,7 @@ export default function NewsSection({ preview = false }: Props) {
         {featuredEvent && (
           <FeaturedEvent item={featuredEvent} onSelect={() => openArticle(featuredEvent)} />
         )}
-        <div className={showDetailPanel ? "grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_360px]" : ""}>
+        <div>
           <div
           className={`grid grid-cols-1 gap-4 sm:gap-5 ${
             preview ? "md:grid-cols-2 xl:grid-cols-4" : "md:grid-cols-3"
@@ -407,9 +347,18 @@ export default function NewsSection({ preview = false }: Props) {
             {gridItems.map((item, index) => (
               <div
                 key={item.id}
-                onClick={() => openArticle(item)}
-                className={`group relative h-56 sm:h-64 cursor-pointer overflow-hidden rounded-2xl shadow-md transition-all hover:-translate-y-1 hover:shadow-xl ${preview && index === 0 ? "xl:col-span-2" : ""}`}
+                id={`news-card-${item.id}`}
+                onClick={preview ? undefined : () => openArticle(item)}
+                className={`group relative h-56 sm:h-64 scroll-mt-24 cursor-pointer overflow-hidden rounded-2xl shadow-md transition-all hover:-translate-y-1 hover:shadow-xl ${preview && index === 0 ? "xl:col-span-2" : ""} ${!preview && selectedItem?.id === item.id ? "ring-2 ring-[#087a43] ring-offset-4" : ""}`}
               >
+                {preview && (
+                  <Link
+                    href={`/news?article=${encodeURIComponent(String(item.id))}`}
+                    scroll={false}
+                    aria-label={item.title}
+                    className="absolute inset-0 z-10 rounded-2xl focus-visible:outline-2 focus-visible:outline-offset-[-4px] focus-visible:outline-[#f5c800]"
+                  />
+                )}
                 <Image
                   src={item.image}
                   alt={item.title}
@@ -446,9 +395,6 @@ export default function NewsSection({ preview = false }: Props) {
               </div>
             ))}
           </div>
-          {showDetailPanel && selectedItem && (
-            <NewsDetailPanel item={selectedItem} panelRef={detailPanelRef} onClose={() => setSelectedNews(null)} onOpenReader={() => setReaderNews(selectedItem)} />
-          )}
         </div>
 
         {readerNews && <ArticleReaderModal
