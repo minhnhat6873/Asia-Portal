@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AlertCircle, ArrowLeft, Calendar, Check, RotateCcw, User } from "lucide-react";
 import { parseDate } from "@internationalized/date";
 
-import { EMPLOYEE_DEPARTMENT_OPTIONS, getEmployeeDepartmentLabel } from "@/components/ui/employee-department-options";
+import { getEmployeeDepartmentLabel } from "@/components/ui/employee-department-options";
 import AvatarUploader from "@/components/ui/AvatarUploader";
 import DatePicker from "@/components/ui/DatePicker";
 import { hasRichTextContent, RichText } from "@/components/ui/RichText";
@@ -22,6 +22,18 @@ interface AddMediaPageProps {
 }
 
 const CATEGORIES: MediaCategory[] = ["Sự kiện", "Tin tức", "Nhân sự", "Thông báo"];
+const AUTHOR_DEPARTMENTS = ["DESIGN", "MARKETING_COMMUNICATIONS", "HR_ADMIN"].map(getEmployeeDepartmentLabel);
+
+function initialAuthorDepartment(post?: MediaPost): string {
+  if (!post) return getEmployeeDepartmentLabel("HR_ADMIN");
+  const legacyLabels: Record<string, string> = {
+    "Phòng Design": getEmployeeDepartmentLabel("DESIGN"),
+    "Phòng MKT": getEmployeeDepartmentLabel("MARKETING_COMMUNICATIONS"),
+    "Phòng HR&AD": getEmployeeDepartmentLabel("HR_ADMIN"),
+  };
+  const department = legacyLabels[post.authorDepartment] ?? post.authorDepartment;
+  return AUTHOR_DEPARTMENTS.includes(department) ? department : "";
+}
 
 function today(): string {
   return new Date().toISOString().slice(0, 10);
@@ -45,7 +57,7 @@ function initialForm(post?: MediaPost) {
     summary: post?.summary ?? "",
     content: post?.content ?? "",
     coverImage: post?.coverImage ?? "",
-    authorDepartment: post?.authorDepartment ?? getEmployeeDepartmentLabel("HR_ADMIN"),
+    authorDepartment: initialAuthorDepartment(post),
     publishDate: toPickerDate(post?.publishDate),
     expiryDate: post?.expiryDate ? toPickerDate(post.expiryDate) : "",
     publishIndefinitely: post ? post.publishIndefinitely ?? !post.expiryDate : false,
@@ -75,6 +87,10 @@ export function AddMediaPage({ mode = "create", initialPost, onBack, onSave }: A
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (!AUTHOR_DEPARTMENTS.includes(formData.authorDepartment)) {
+      setErrorMsg("Vui lòng chọn phòng Thiết kế, Marketing & Truyền thông hoặc Nhân sự & Hành chính.");
+      return;
+    }
     if (!formData.publishDate) {
       setErrorMsg("Vui lòng chọn ngày đăng.");
       return;
@@ -146,7 +162,7 @@ export function AddMediaPage({ mode = "create", initialPost, onBack, onSave }: A
             <div><label className="mb-1.5 block text-sm font-bold text-slate-700">Ngày hết hạn</label><DatePicker value={formData.expiryDate} minValue={minimumExpiryDate} onChange={(expiryDate) => setFormData({ ...formData, expiryDate })} ariaLabel="Ngày hết hạn bài" />{invalidExpiryDate && <p role="alert" className="mt-1.5 text-sm text-rose-600">Ngày hết hạn phải sau ngày đăng ít nhất 1 ngày.</p>}{formData.expiryDate && <button type="button" onClick={() => setFormData({ ...formData, expiryDate: "" })} className="mt-1.5 text-sm font-medium text-slate-600 underline hover:text-slate-900">Bỏ ngày hết hạn</button>}</div>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
-            <label className="text-sm font-bold text-slate-700">Đơn vị / Phòng ban<select value={formData.authorDepartment} onChange={(e) => setFormData({ ...formData, authorDepartment: e.target.value })} className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 font-medium">{formData.authorDepartment && !EMPLOYEE_DEPARTMENT_OPTIONS.some((option) => option.label === formData.authorDepartment) ? <option>{formData.authorDepartment}</option> : null}{EMPLOYEE_DEPARTMENT_OPTIONS.map((option) => <option key={option.value} value={option.label}>{option.label}</option>)}</select></label>
+            <label className="text-sm font-bold text-slate-700">Đơn vị / Phòng ban<select required value={formData.authorDepartment} onChange={(e) => setFormData({ ...formData, authorDepartment: e.target.value })} className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 font-medium">{!formData.authorDepartment && <option value="" disabled>Chọn phòng ban</option>}{AUTHOR_DEPARTMENTS.map((department) => <option key={department} value={department}>{department}</option>)}</select></label>
             <label className="flex min-h-12 cursor-pointer items-center gap-3 self-end rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700"><input type="checkbox" checked={formData.publishIndefinitely} onChange={(event) => setFormData({ ...formData, publishIndefinitely: event.target.checked })} className="h-5 w-5 shrink-0 rounded border-slate-300 accent-emerald-700" />Đăng tin vĩnh viễn</label>
           </div>
           <AvatarUploader key={uploaderKey} inputId="media-cover-upload" inputName="coverImage" initialAvatarUrl={coverRemoved ? "" : formData.coverImage} onFileChange={(file) => { setCoverFile(file); if (file) setCoverRemoved(false); }} onExistingAvatarRemove={() => setCoverRemoved(true)} label="Ảnh bìa" emptyHelperText="Thả tệp vào đây hoặc duyệt. JPEG, PNG, WebP tối đa 5 MB; khung 4:3." selectedHelperText="Ảnh bìa mới đã sẵn sàng." existingHelperText="Đang giữ ảnh bìa hiện tại." imageAlt="Xem trước ảnh bìa" changeLabel="Thay ảnh bìa" />

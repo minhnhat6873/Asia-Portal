@@ -97,7 +97,6 @@ function parsePublishDate(value: string): number {
 }
 
 export default function NewsSection({ preview = false, articleId = null }: Props) {
-  const pendingScrollRef = useRef<string | null>(null);
   const appliedArticleRef = useRef<string | null>(null);
   const [news, setNews] = useState<NewsItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -117,11 +116,9 @@ export default function NewsSection({ preview = false, articleId = null }: Props
     const item = news.find((entry) => String(entry.id) === articleId);
     if (!item) return;
     appliedArticleRef.current = articleId;
-    pendingScrollRef.current = articleId;
     queueMicrotask(() => {
-      setActiveCategory(item.category);
-      setSearchQuery("");
       setSelectedNews(item);
+      setReaderNews(item);
     });
   }, [articleId, news, preview]);
 
@@ -179,7 +176,6 @@ export default function NewsSection({ preview = false, articleId = null }: Props
   };
 
   const openArticle = (item: NewsItem) => {
-    setActiveCategory(item.category);
     setSelectedNews(item);
     setReaderNews(item);
   };
@@ -196,25 +192,9 @@ export default function NewsSection({ preview = false, articleId = null }: Props
       ? selectedNews
       : null;
 
-  useEffect(() => {
-    if (pendingScrollRef.current && selectedItem && String(selectedItem.id) === pendingScrollRef.current) {
-      const frame = requestAnimationFrame(() => {
-        document.getElementById(`news-card-${selectedItem.id}`)?.scrollIntoView({
-          behavior: "instant",
-          block: "start",
-        });
-        pendingScrollRef.current = null;
-        setReaderNews(selectedItem);
-      });
-      return () => cancelAnimationFrame(frame);
-    }
-  }, [selectedItem]);
-
   return (
     <section className={preview ? "overflow-x-clip bg-white py-8 sm:py-12 xl:py-16" : "overflow-x-clip bg-white pb-8 sm:pb-12 xl:pb-16"}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
-        {isLoading && <div className="mb-8 grid gap-5 md:grid-cols-3">{[0, 1, 2].map((item) => <div key={item} className="h-64 animate-pulse rounded-2xl bg-slate-100" />)}</div>}
-        {!isLoading && loadError && <div className="mb-8 rounded-2xl border border-rose-200 bg-rose-50 p-8 text-center text-sm text-rose-700"><p>{loadError}</p><button type="button" onClick={() => { setIsLoading(true); void loadNews(); }} className="mt-3 rounded-xl bg-rose-600 px-4 py-2 font-bold text-white">Thử lại</button></div>}
         {/* Header */}
         {!preview && (
           <div className="relative left-1/2 mb-8 h-56 w-screen -translate-x-1/2 overflow-hidden sm:h-64 xl:h-75">
@@ -335,6 +315,8 @@ export default function NewsSection({ preview = false, articleId = null }: Props
           </div>
         )}
         {/* News Grid */}
+        {isLoading && <div role="status" className="mb-8 grid gap-5 md:grid-cols-3"><span className="sr-only">Đang tải tin tức...</span>{[0, 1, 2].map((item) => <div key={item} aria-hidden="true" className="h-64 animate-pulse rounded-2xl bg-slate-100" />)}</div>}
+        {!isLoading && loadError && <div role="alert" className="mb-8 rounded-2xl border border-rose-200 bg-rose-50 p-8 text-center text-sm text-rose-700"><p>{loadError}</p><button type="button" onClick={() => { setIsLoading(true); void loadNews(); }} className="mt-3 rounded-xl bg-rose-600 px-4 py-2 font-bold text-white">Thử lại</button></div>}
         {featuredEvent && (
           <FeaturedEvent item={featuredEvent} onSelect={() => openArticle(featuredEvent)} />
         )}
@@ -417,7 +399,7 @@ export default function NewsSection({ preview = false, articleId = null }: Props
         />}
 
         {/* No results */}
-        {searched.length === 0 && (
+        {!isLoading && !loadError && searched.length === 0 && (
           <div className="text-center py-16 text-gray-400">
             <p>Không có bài viết nào trong danh mục này</p>
           </div>

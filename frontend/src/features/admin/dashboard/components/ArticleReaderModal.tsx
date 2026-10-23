@@ -1,10 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import {
-  Calendar, Download, FileText, Focus, Maximize2, Minimize2, Moon,
-  Pause, Play, Printer, RotateCcw, Sun, X, ZoomIn, ZoomOut,
+  Building2, Calendar, Download, FileText, Focus, Maximize2, Minimize2, Minus, Moon,
+  Pause, Play, Plus, Printer, RotateCcw, Sun, X, ZoomIn, ZoomOut,
 } from "lucide-react";
 
 import { RichText } from "@/components/ui/RichText";
@@ -22,6 +22,9 @@ interface Props {
 const ZOOM_LEVELS = [80, 90, 100, 110, 125, 150, 175, 200] as const;
 const SPEEDS = [20, 40, 70] as const;
 const SPEED_LABELS = ["Chậm", "Vừa", "Nhanh"] as const;
+const subscribeToMount = () => () => {};
+const clientSnapshot = () => true;
+const serverSnapshot = () => false;
 
 function tooltip(label: string) {
   return { title: label, "aria-label": label };
@@ -145,11 +148,10 @@ export function ArticleReaderModal({ post, onClose, onEdit, onDelete, showAdminA
   const [paperSize, setPaperSize] = useState<"A4" | "Letter">("A4");
   const [progress, setProgress] = useState(0);
   const [isReducedMotion, setIsReducedMotion] = useState(false);
-  const [isMounted, setIsMounted] = useState(false);
+  const isMounted = useSyncExternalStore(subscribeToMount, clientSnapshot, serverSnapshot);
 
   useEffect(() => {
     aliveRef.current = true;
-    setIsMounted(true);
     return () => {
       aliveRef.current = false;
       if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
@@ -173,7 +175,7 @@ export function ArticleReaderModal({ post, onClose, onEdit, onDelete, showAdminA
     };
   }, [isMounted]);
 
-  closeRef.current = onClose;
+  useEffect(() => { closeRef.current = onClose; }, [onClose]);
   const stopAutoScroll = useCallback(() => {
     setIsAutoScrolling(false);
     lastFrameRef.current = null;
@@ -181,17 +183,13 @@ export function ArticleReaderModal({ post, onClose, onEdit, onDelete, showAdminA
     frameRef.current = null;
   }, []);
 
-  const scrollToPosition = useCallback((top: number, behavior: ScrollBehavior = "smooth") => {
-    const container = scrollRef.current;
-    if (!container) return;
-    const max = Math.max(0, container.scrollHeight - container.clientHeight);
-    container.scrollTo({ top: Math.max(0, Math.min(top, max)), behavior: isReducedMotion ? "auto" : behavior });
-  }, [isReducedMotion]);
-
   useEffect(() => {
     if (typeof window.matchMedia !== "function") return;
     const media = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const update = () => setIsReducedMotion(media.matches);
+    const update = () => {
+      setIsReducedMotion(media.matches);
+      if (media.matches) setIsAutoScrolling(false);
+    };
     update();
     if (typeof media.addEventListener === "function") {
       media.addEventListener("change", update);
@@ -230,7 +228,6 @@ export function ArticleReaderModal({ post, onClose, onEdit, onDelete, showAdminA
       if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
       frameRef.current = null;
       lastFrameRef.current = null;
-      if (isReducedMotion) setIsAutoScrolling(false);
       return;
     }
     const tick = (now: number) => {
@@ -331,6 +328,13 @@ export function ArticleReaderModal({ post, onClose, onEdit, onDelete, showAdminA
     closeRef.current();
   };
 
+  const toolbarActionClass = showAdminActions
+    ? "inline-flex items-center gap-2 rounded-xl bg-slate-100 p-2 text-xs text-slate-600 hover:bg-emerald-50"
+    : "inline-flex min-h-11 items-center gap-2 rounded-xl px-1 py-1 text-[13px] font-medium text-slate-600 hover:bg-emerald-50 sm:px-2";
+  const toolbarIconClass = showAdminActions
+    ? "contents"
+    : "grid h-9 w-9 shrink-0 place-items-center rounded-full border border-slate-200 bg-white shadow-sm [&>svg]:h-[18px] [&>svg]:w-[18px]";
+
   return isMounted ? createPortal(
     <div className={`fixed inset-0 z-[100] flex items-center justify-center p-2 transition-colors sm:p-4 ${isDark ? "bg-slate-950/90" : "bg-slate-950/60"}`} data-reader-overlay>
       <style>{`
@@ -358,6 +362,7 @@ export function ArticleReaderModal({ post, onClose, onEdit, onDelete, showAdminA
           body.article-reader-printing [data-reader-print-header] strong { display: block; font-size: 17pt; line-height: 1.2; color: #14532d !important; }
           body.article-reader-printing [data-reader-print-header] span { display: block; margin-top: 4px; font-size: 9pt; letter-spacing: .08em; color: #64748b !important; }
           body.article-reader-printing [data-reader-page] { zoom: 1 !important; width: 100% !important; max-width: none !important; }
+          body.article-reader-printing [data-reader-layout] { display: block !important; padding: 0 !important; }
           body.article-reader-printing [data-reader-toolbar], body.article-reader-printing [data-reader-close], body.article-reader-printing [data-reader-actions] { display: none !important; }
           body.article-reader-printing [data-reader-cover] { display: block !important; max-height: 70mm; object-fit: contain; break-inside: avoid; }
           body.article-reader-printing .reader-summary, body.article-reader-printing .reader-date { display: block !important; }
@@ -412,51 +417,60 @@ export function ArticleReaderModal({ post, onClose, onEdit, onDelete, showAdminA
         role="dialog"
         aria-modal="true"
         aria-label={`Bài viết: ${post.title}`}
-        className={`flex ${(isFullscreen || isCssFullscreen) ? "fixed inset-0 z-[100] h-screen max-h-none w-screen max-w-none rounded-none" : showAdminActions ? "h-[92vh] max-h-[100vh] max-w-5xl" : "h-auto max-h-[86vh] max-w-4xl"} w-full flex-col overflow-hidden rounded-3xl border shadow-2xl transition-colors bg-white text-slate-900`}
+        className={`flex ${(isFullscreen || isCssFullscreen) ? "fixed inset-0 z-[100] h-screen max-h-none w-screen max-w-none rounded-none" : showAdminActions ? "h-[92vh] max-h-[100vh] max-w-5xl" : "h-[92dvh] max-h-[calc(100dvh-1rem)] max-w-6xl"} w-full flex-col overflow-hidden rounded-3xl border shadow-2xl transition-colors bg-white text-slate-900`}
       >
         <header data-reader-header className="shrink-0 border-b border-slate-200/80 bg-inherit">
-          <div className="flex items-center justify-between gap-3 px-4 py-3 sm:px-6">
+          <div className={`flex items-center justify-between gap-3 ${showAdminActions ? "px-4 py-3 sm:px-6" : "px-4 py-4 sm:px-7 sm:py-5"}`}>
             <div className="min-w-0">
-              <p className={`text-xs font-bold uppercase tracking-wider ${isDark ? "text-emerald-300" : "text-emerald-700"}`}>Trình đọc bài viết</p>
-              <h2 className="truncate text-base font-black sm:text-lg">{post.title}</h2>
+              <p className={`${showAdminActions ? "text-xs" : "text-xs sm:text-sm"} font-bold uppercase tracking-wider ${isDark ? "text-emerald-300" : "text-emerald-700"}`}>Trình đọc bài viết</p>
+              <h2 className={`${showAdminActions ? "truncate text-base sm:text-lg" : "mt-3 break-words text-xl leading-tight tracking-tight sm:text-2xl lg:text-3xl"} font-black`}>{post.title}</h2>
             </div>
             <button type="button" data-reader-close onClick={closeReader} {...tooltip("Đóng bài viết")} className="shrink-0 rounded-full p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900"><X className="h-5 w-5" /></button>
           </div>
-          <div data-reader-toolbar className="hidden flex-wrap items-center gap-1.5 border-t border-slate-100 px-3 py-2 sm:flex sm:px-5">
-            <div className="flex items-center gap-1 rounded-xl bg-slate-100 p-1" aria-label="Điều chỉnh kích thước chữ">
-              <button type="button" onClick={() => setZoom((current) => ZOOM_LEVELS[Math.max(0, ZOOM_LEVELS.indexOf(current as (typeof ZOOM_LEVELS)[number]) - 1)])} disabled={zoom === ZOOM_LEVELS[0]} {...tooltip("Thu nhỏ toàn bộ bài viết")} className="rounded-lg p-1.5 hover:bg-white disabled:opacity-40"><ZoomOut className="h-4 w-4" /></button>
-              <span className="min-w-11 text-center text-xs font-semibold">{zoom}%</span>
-              <button type="button" onClick={() => setZoom((current) => ZOOM_LEVELS[Math.min(ZOOM_LEVELS.length - 1, ZOOM_LEVELS.indexOf(current as (typeof ZOOM_LEVELS)[number]) + 1)])} disabled={zoom === ZOOM_LEVELS[ZOOM_LEVELS.length - 1]} {...tooltip("Phóng to toàn bộ bài viết")} className="rounded-lg p-1.5 hover:bg-white disabled:opacity-40"><ZoomIn className="h-4 w-4" /></button>
-              <button type="button" onClick={() => setZoom(100)} {...tooltip("Đặt lại kích thước bài viết 100%")} className="rounded-lg p-1.5 text-xs font-semibold hover:bg-white"><RotateCcw className="h-3.5 w-3.5" /></button>
+          <div data-reader-toolbar className={`${showAdminActions ? "hidden gap-1.5 border-t border-slate-100 px-3 py-2 sm:flex sm:px-5" : "mx-3 mb-3 flex gap-2 rounded-2xl border border-slate-200/70 bg-slate-50/80 p-1.5 sm:mx-5 sm:gap-2 sm:px-2.5"} flex-wrap items-center`}>
+            <div className={showAdminActions ? "flex items-center gap-1 rounded-xl bg-slate-100 p-1" : "flex shrink-0 items-center gap-1 rounded-full border border-slate-200 bg-white p-1 shadow-sm"} aria-label="Điều chỉnh kích thước chữ">
+              <button type="button" onClick={() => setZoom((current) => ZOOM_LEVELS[Math.max(0, ZOOM_LEVELS.indexOf(current as (typeof ZOOM_LEVELS)[number]) - 1)])} disabled={zoom === ZOOM_LEVELS[0]} {...tooltip("Thu nhỏ toàn bộ bài viết")} className={`${showAdminActions ? "rounded-lg p-1.5 hover:bg-white" : "grid h-9 w-9 place-items-center rounded-full border border-slate-200 text-slate-600 shadow-sm hover:bg-emerald-50"} disabled:opacity-40`}>{showAdminActions ? <ZoomOut className="h-4 w-4" /> : <Minus className="h-5 w-5" />}</button>
+              {showAdminActions ? <span className="min-w-11 text-center text-xs font-semibold">{zoom}%</span> : <button type="button" onClick={() => setZoom(100)} {...tooltip("Đặt lại kích thước bài viết 100%")} className="min-h-9 min-w-12 rounded-full px-2 text-center text-[13px] font-bold text-slate-800 hover:bg-emerald-50">{zoom}%</button>}
+              <button type="button" onClick={() => setZoom((current) => ZOOM_LEVELS[Math.min(ZOOM_LEVELS.length - 1, ZOOM_LEVELS.indexOf(current as (typeof ZOOM_LEVELS)[number]) + 1)])} disabled={zoom === ZOOM_LEVELS[ZOOM_LEVELS.length - 1]} {...tooltip("Phóng to toàn bộ bài viết")} className={`${showAdminActions ? "rounded-lg p-1.5 hover:bg-white" : "grid h-9 w-9 place-items-center rounded-full border border-slate-200 text-slate-600 shadow-sm hover:bg-emerald-50"} disabled:opacity-40`}>{showAdminActions ? <ZoomIn className="h-4 w-4" /> : <Plus className="h-5 w-5" />}</button>
+              {showAdminActions && <button type="button" onClick={() => setZoom(100)} {...tooltip("Đặt lại kích thước bài viết 100%")} className="rounded-lg p-1.5 text-xs font-semibold hover:bg-white"><RotateCcw className="h-3.5 w-3.5" /></button>}
             </div>
-            <button type="button" onClick={() => setIsAutoScrolling((value) => !value)} disabled={isReducedMotion} {...tooltip(isAutoScrolling ? "Tạm dừng tự động cuộn" : "Tự động cuộn")} className={`inline-flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-xs font-semibold ${isAutoScrolling ? "bg-emerald-600 text-white" : "bg-slate-100 hover:bg-emerald-50"} disabled:cursor-not-allowed disabled:opacity-50`}>{isAutoScrolling ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}<span className="hidden sm:inline">{isAutoScrolling ? "Tạm dừng" : "Tự cuộn"}</span></button>
-            <label className="inline-flex items-center gap-1 rounded-xl bg-slate-100 px-2 py-1.5 text-xs" {...tooltip("Tốc độ tự động cuộn")}><span className="sr-only">Tốc độ cuộn</span><select aria-label="Tốc độ tự động cuộn" value={speedIndex} onChange={(event) => setSpeedIndex(Number(event.target.value))} className="max-w-20 bg-transparent outline-none">{SPEED_LABELS.map((label, index) => <option key={label} value={index}>{label}</option>)}</select></label>
-            <button type="button" onClick={() => void toggleFullscreen()} {...tooltip(isFullscreen || isCssFullscreen ? "Thoát toàn màn hình" : "Toàn màn hình")} className="rounded-xl bg-slate-100 p-2 hover:bg-emerald-50">{isFullscreen || isCssFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}</button>
-            <button type="button" onClick={() => setIsDark((value) => !value)} {...tooltip(isDark ? "Chế độ sáng" : "Chế độ tối")} className="rounded-xl bg-slate-100 p-2 hover:bg-emerald-50">{isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}</button>
-            <button type="button" onClick={() => setIsFocus((value) => !value)} {...tooltip(isFocus ? "Thoát chế độ tập trung" : "Chế độ tập trung")} className={`rounded-xl p-2 ${isFocus ? "bg-emerald-600 text-white" : "bg-slate-100 hover:bg-emerald-50"}`}><Focus className="h-4 w-4" /></button>
-            <button type="button" onClick={printArticle} {...tooltip("In bài viết")} className="rounded-xl bg-slate-100 p-2 hover:bg-emerald-50"><Printer className="h-4 w-4" /></button>
+            {!showAdminActions && <span aria-hidden="true" className="hidden h-7 w-px bg-slate-200 sm:block" />}
+            {showAdminActions && <>
+              <button type="button" onClick={() => setIsAutoScrolling((value) => !value)} disabled={isReducedMotion} {...tooltip(isAutoScrolling ? "Tạm dừng tự động cuộn" : "Tự động cuộn")} className={`inline-flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-xs font-semibold ${isAutoScrolling ? "bg-emerald-600 text-white" : "bg-slate-100 hover:bg-emerald-50"} disabled:cursor-not-allowed disabled:opacity-50`}>{isAutoScrolling ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}<span className="hidden sm:inline">{isAutoScrolling ? "Tạm dừng" : "Tự cuộn"}</span></button>
+              <label className="inline-flex items-center gap-1 rounded-xl bg-slate-100 px-2 py-1.5 text-xs" {...tooltip("Tốc độ tự động cuộn")}><span className="sr-only">Tốc độ cuộn</span><select aria-label="Tốc độ tự động cuộn" value={speedIndex} onChange={(event) => setSpeedIndex(Number(event.target.value))} className="max-w-20 bg-transparent outline-none">{SPEED_LABELS.map((label, index) => <option key={label} value={index}>{label}</option>)}</select></label>
+            </>}
+            <button type="button" onClick={() => void toggleFullscreen()} {...tooltip(isFullscreen || isCssFullscreen ? "Thoát toàn màn hình" : "Toàn màn hình")} className={toolbarActionClass}><span className={toolbarIconClass}>{isFullscreen || isCssFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}</span>{!showAdminActions && <span className="hidden sm:inline">{isFullscreen || isCssFullscreen ? "Thu gọn" : "Toàn màn hình"}</span>}</button>
+            {showAdminActions && <>
+              <button type="button" onClick={() => setIsDark((value) => !value)} {...tooltip(isDark ? "Chế độ sáng" : "Chế độ tối")} className="rounded-xl bg-slate-100 p-2 hover:bg-emerald-50">{isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}</button>
+              <button type="button" onClick={() => setIsFocus((value) => !value)} {...tooltip(isFocus ? "Thoát chế độ tập trung" : "Chế độ tập trung")} className={`rounded-xl p-2 ${isFocus ? "bg-emerald-600 text-white" : "bg-slate-100 hover:bg-emerald-50"}`}><Focus className="h-4 w-4" /></button>
+            </>}
+            {!showAdminActions && <span aria-hidden="true" className="hidden h-7 w-px bg-slate-200 sm:block" />}
+            <button type="button" onClick={printArticle} {...tooltip("In bài viết")} className={toolbarActionClass}><span className={toolbarIconClass}><Printer className="h-4 w-4" /></span>{!showAdminActions && <span className="hidden sm:inline">In bài viết</span>}</button>
             {showAdminActions && onEdit && onDelete && <div className="ml-auto flex items-center gap-2" data-reader-actions>
               <button type="button" onClick={onEdit} className="rounded-xl bg-emerald-600 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-700">Chỉnh sửa</button>
               <button type="button" onClick={onDelete} className="rounded-xl border border-rose-200 px-3 py-2 text-xs font-bold text-rose-700 hover:bg-rose-50">Xóa</button>
             </div>}
           </div>
         </header>
-        <div data-reader-progress className="h-1 shrink-0 bg-slate-100"><div className="h-full bg-emerald-500 transition-[width]" style={{ width: `${progress}%` }} /></div>
-        <div ref={scrollRef} data-reader-scroll data-reader-print-root onWheel={pauseForManualScroll} onTouchStart={pauseForManualScroll} onPointerDown={(event) => { if (event.clientX >= event.currentTarget.getBoundingClientRect().right - 16) pauseForManualScroll(); }} onKeyDown={(event) => { if (["ArrowDown", "ArrowUp", "PageDown", "PageUp", "Home", "End", " "].includes(event.key)) pauseForManualScroll(); }} tabIndex={0} className={`min-h-0 overflow-y-auto overscroll-contain bg-white ${showAdminActions || isFullscreen || isCssFullscreen ? "flex-1" : "max-h-[calc(86vh-140px)] flex-none"}`}>
+        {showAdminActions && <div data-reader-progress className="h-1 shrink-0 bg-slate-100"><div className="h-full bg-emerald-500 transition-[width]" style={{ width: `${progress}%` }} /></div>}
+        <div ref={scrollRef} data-reader-scroll data-reader-print-root onWheel={pauseForManualScroll} onTouchStart={pauseForManualScroll} onPointerDown={(event) => { if (event.clientX >= event.currentTarget.getBoundingClientRect().right - 16) pauseForManualScroll(); }} onKeyDown={(event) => { if (["ArrowDown", "ArrowUp", "PageDown", "PageUp", "Home", "End", " "].includes(event.key)) pauseForManualScroll(); }} tabIndex={0} className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-white">
           <div data-reader-print-header className="mx-auto w-full max-w-4xl px-4 pt-5 sm:px-8">
             <img src="/assets/images/asia-logo.png" alt="Asia F&B" />
             <div><strong>Asia Food &amp; Beverage co.ltd</strong><span>BẢN TIN TRUYỀN THÔNG NỘI BỘ</span></div>
           </div>
-          <article ref={articleRef} data-reader-page style={{ zoom: zoom / 100, width: `${10000 / zoom}%`, maxWidth: `${89600 / zoom}px` }} className={`mx-auto max-w-4xl ${showAdminActions ? "px-4 py-5 sm:px-8 sm:py-8" : "px-4 py-4 sm:px-6 sm:py-5"} ${isFocus ? "reader-focus" : ""}`}>
-            {post.coverImage && <img data-reader-cover src={post.coverImage} alt={post.title} className={`reader-cover mb-5 ${showAdminActions ? "max-h-[420px]" : "max-h-[280px]"} w-full rounded-2xl object-cover ${isFocus ? "hidden" : ""}`} />}
+          <div data-reader-layout className={showAdminActions ? "" : "px-4 py-5 sm:px-7 sm:py-6"}>
+          <article ref={articleRef} data-reader-page style={{ zoom: zoom / 100, width: `${10000 / zoom}%`, maxWidth: `${89600 / zoom}px` }} className={`mx-auto min-w-0 max-w-4xl ${showAdminActions ? "px-4 py-5 sm:px-8 sm:py-8" : "break-words"} ${isFocus ? "reader-focus" : ""}`}>
+            {post.coverImage && <img data-reader-cover src={post.coverImage} alt={post.title} className={`reader-cover mb-5 ${showAdminActions ? "max-h-[420px]" : "aspect-video sm:aspect-[16/5]"} w-full rounded-2xl object-cover ${isFocus ? "hidden" : ""}`} />}
             <h1 className="mb-4 text-2xl font-black leading-tight sm:text-3xl">{post.title}</h1>
-            <MediaExpiryBadge isExpired={post.isExpired} />
+            {showAdminActions && post.isExpired && <div className="mb-4"><MediaExpiryBadge isExpired /></div>}
             <div className={isFocus ? "hidden" : ""}>
-              <RichText html={post.summary} className="reader-copy reader-summary rich-content mb-4 text-base leading-7 text-slate-600" />
-              <p className="reader-date mb-6 flex items-center gap-2 text-sm text-slate-500"><Calendar className="h-4 w-4" />{post.publishDate}</p>
+              {!showAdminActions && <div className="reader-date mb-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-slate-500"><span className="inline-flex items-center gap-2"><Calendar className="h-4 w-4 shrink-0" />{post.publishDate}</span><span className="inline-flex min-w-0 items-center gap-2"><Building2 className="h-4 w-4 shrink-0" />{post.authorDepartment}</span><MediaExpiryBadge isExpired={post.isExpired} /></div>}
+              <RichText html={post.summary} className={`reader-copy reader-summary rich-content mb-4 text-slate-600 ${showAdminActions ? "text-base leading-7" : "text-sm leading-6"}`} />
+              {showAdminActions && <p className="reader-date mb-6 flex items-center gap-2 text-sm text-slate-500"><Calendar className="h-4 w-4" />{post.publishDate}</p>}
             </div>
-            <RichText html={post.content} className="reader-copy rich-content rounded-2xl bg-emerald-50 p-4 leading-relaxed text-slate-800 sm:p-6" />
+            <RichText html={post.content} className={`reader-copy rich-content text-slate-800 ${showAdminActions ? "rounded-2xl bg-emerald-50 p-4 leading-relaxed sm:p-6" : "text-sm leading-7 [&_h2]:border-l-4 [&_h2]:border-emerald-600 [&_h2]:pl-3 [&_h2]:text-lg"}`} />
           </article>
+          </div>
         </div>
           </section>}
     </div>

@@ -5,12 +5,24 @@ const validMedia = {
   category: "Tin tức",
   summary: "<p>Tóm tắt bài viết.</p>",
   content: "<p>Nội dung chi tiết.</p>",
-  authorDepartment: "Phòng MKT",
+  authorDepartment: "Phòng Marketing & Truyền thông",
   publishDate: "2026-10-07",
   status: "published",
 };
 
 describe("media validation", () => {
+  it.each(["Phòng Thiết kế", "Phòng Marketing & Truyền thông", "Phòng Nhân sự & Hành chính"])("cho phép đơn vị đăng bài %s khi tạo và sửa", (authorDepartment) => {
+    expect(createMediaSchema.validate({ ...validMedia, authorDepartment }).error).toBeUndefined();
+    expect(updateMediaSchema.validate({ authorDepartment }).error).toBeUndefined();
+  });
+
+  it.each(["Phòng BOD", "Phòng Kinh doanh quốc tế", "Phòng IT + ERP", "Khác"])("từ chối đơn vị đăng bài ngoài danh mục: %s", (authorDepartment) => {
+    for (const result of [createMediaSchema.validate({ ...validMedia, authorDepartment }), updateMediaSchema.validate({ authorDepartment })]) {
+      expect(result.error?.details[0]?.path[0]).toBe("authorDepartment");
+      expect(result.error?.message).toContain("Đơn vị đăng bài chỉ được");
+    }
+  });
+
   it("chấp nhận bài viết hợp lệ", () => {
     expect(createMediaSchema.validate(validMedia).error).toBeUndefined();
   });

@@ -1,6 +1,6 @@
 import Joi from "joi";
 
-import { MEDIA_CATEGORIES, MEDIA_STATUSES } from "../../interfaces/media.interface";
+import { MEDIA_AUTHOR_DEPARTMENTS, MEDIA_CATEGORIES, MEDIA_STATUSES } from "../../interfaces/media.interface";
 import { isMediaExpiryAfterPublication, MEDIA_EXPIRY_DATE_ERROR } from "../../utils/media/validateMediaDates";
 
 const mediaFields = {
@@ -9,7 +9,9 @@ const mediaFields = {
   summary: Joi.string().trim().min(1).max(2000),
   content: Joi.string().allow("").max(50000),
   coverImage: Joi.string().trim().allow("").max(500),
-  authorDepartment: Joi.string().trim().min(2).max(100),
+  authorDepartment: Joi.string().trim().valid(...MEDIA_AUTHOR_DEPARTMENTS).messages({
+    "any.only": "Đơn vị đăng bài chỉ được là phòng Thiết kế, Marketing & Truyền thông hoặc Nhân sự & Hành chính.",
+  }),
   publishDate: Joi.date().iso(),
   expiryDate: Joi.date().iso().allow(null).custom((value: Date | null) => value ? new Date(value.toISOString().slice(0, 10)) : null),
   publishIndefinitely: Joi.boolean(),

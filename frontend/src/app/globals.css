@@ -33,7 +33,7 @@
   --wana-yellow-dark: #d4aa00;
 }
 
-* {
+html {
   scroll-behavior: smooth;
 }
 
