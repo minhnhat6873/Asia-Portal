@@ -1,5 +1,10 @@
 export const MEDIA_CATEGORIES = ["Sự kiện", "Tin tức", "Nhân sự", "Thông báo"] as const;
 export const MEDIA_STATUSES = ["published", "draft"] as const;
+export const MEDIA_AUTHOR_DEPARTMENTS = [
+  "Phòng Thiết kế",
+  "Phòng Marketing & Truyền thông",
+  "Phòng Nhân sự & Hành chính",
+] as const;
 
 export type MediaCategory = (typeof MEDIA_CATEGORIES)[number];
 export type MediaStatus = (typeof MEDIA_STATUSES)[number];
