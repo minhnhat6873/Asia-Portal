@@ -2,18 +2,22 @@ import Link from "next/link";
 import { ArrowRight, CalendarDays, Download, Toolbox } from "lucide-react";
 import { RESOURCE_ITEMS, type ResourceItem } from "./resourceData";
 import EmailSystemPicker from "./EmailSystemPicker";
+import EmailSignatureDialog from "./EmailSignatureDialog";
 import { NetworkFolderCard } from "./NetworkFolderCard";
 
 function ResourceCard({ item }: { item: ResourceItem }) {
   if (item.networkFolder) return <NetworkFolderCard item={{ title: item.title, desc: item.desc, chipTone: item.chipTone, linkTone: item.linkTone, linkText: item.linkText }} />;
   const Icon = item.icon;
-  const content = (
-    <>
+  const header = (
       <div>
         <div className={`mb-4 flex h-12 w-12 items-center justify-center rounded-xl transition-transform group-hover:scale-110 ${item.chipTone}`}><Icon size={22} /></div>
         <h3 className="mb-1 text-base font-bold text-slate-900 group-hover:text-[#15803d]">{item.title}</h3>
         <p className="text-xs leading-relaxed text-slate-500">{item.desc}</p>
       </div>
+  );
+  const content = (
+    <>
+      {header}
       <div className={`mt-4 flex items-center gap-2 text-xs font-semibold ${item.linkTone}`}>
         <span>{item.linkText}</span>
         {item.showDownloadIcon ? <Download size={13} /> : <ArrowRight size={13} className="transition-transform group-hover:translate-x-1" />}
@@ -21,7 +25,15 @@ function ResourceCard({ item }: { item: ResourceItem }) {
     </>
   );
   const className = "group flex flex-col justify-between rounded-2xl border border-slate-100 bg-white p-6 shadow-lg shadow-slate-100 transition-all hover:border-[#bbf7d0] hover:shadow-xl";
-  if (item.emailPicker) return <EmailSystemPicker className={className}>{content}</EmailSystemPicker>;
+  if (item.emailPicker) return <article className={className}>
+    {header}
+    <div className="mt-4 flex flex-col items-start gap-1">
+      <EmailSystemPicker className={`inline-flex min-h-10 items-center gap-2 rounded-lg text-xs font-semibold ${item.linkTone}`}>
+        {item.linkText}<ArrowRight aria-hidden="true" size={13} />
+      </EmailSystemPicker>
+      <EmailSignatureDialog />
+    </div>
+  </article>;
   return item.href
     ? <Link id={item.anchor} href={item.href} className={className}>{content}</Link>
     : <div id={item.anchor} className={className}>{content}</div>;

@@ -46,14 +46,39 @@ function throwIfRequestFailed<T>(
 }
 
 export async function apiGet<T>(path: string, signal?: AbortSignal): Promise<T> {
-  const response = await fetch(`${API_URL}${path}`, {
-    credentials: "include",
-    signal,
-  });
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      const response = await fetch(`${API_URL}${path}`, {
+        credentials: "include",
+        signal,
+      });
 
-  const payload = await readPayload<T>(response);
-  throwIfRequestFailed(response, payload);
-  return payload.data;
+      const payload = await readPayload<T>(response);
+      throwIfRequestFailed(response, payload);
+      return payload.data;
+    } catch (error) {
+      if (signal?.aborted) throw error;
+      const isTransient = error instanceof TypeError ||
+        (error instanceof ApiError && [502, 503, 504].includes(error.status));
+      if (!isTransient || attempt >= 2) throw error;
+      await waitForRetry(400 * (attempt + 1), signal);
+    }
+  }
+}
+
+function waitForRetry(delay: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(signal?.reason ?? new DOMException("Request aborted", "AbortError"));
+    };
+    const timer = setTimeout(() => {
+      signal?.removeEventListener("abort", onAbort);
+      resolve();
+    }, delay);
+    signal?.addEventListener("abort", onAbort, { once: true });
+    if (signal?.aborted) onAbort();
+  });
 }
 
 export async function apiPost<T>(path: string, body: unknown): Promise<T> {
