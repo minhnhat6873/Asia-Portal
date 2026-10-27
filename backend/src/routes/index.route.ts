@@ -17,6 +17,8 @@ import adminMediaRouter from "./admin/media.route";
 import userMediaRouter from "./user/media.route";
 import userMeetingRouter from "./user/meeting.route";
 import adminMeetingRouter from "./admin/meeting.route";
+import adminSiteSettingsRouter from "./admin/site-settings.route";
+import publicSiteSettingsRouter from "./user/site-settings.route";
 import { securityConfig } from "../config/security.config";
 
 const router = Router();
@@ -37,10 +39,12 @@ router.use("/health", healthRouter);
 router.use("/user/employees", userEmployeeRouter);
 router.use("/user/media", userMediaRouter);
 router.use("/user/meetings", userMeetingRouter);
+router.use("/user/site-settings", publicSiteSettingsRouter);
 router.use("/admin/auth", adminAuthRouter);
 // Tất cả API /admin còn lại đều phải đi qua một cổng xác thực chung.
 router.use("/admin", requireAdminAuth, authenticatedAdminLimiter);
 router.use("/admin/dashboard", adminDashboardRouter);
+router.use("/admin/site-settings", adminSiteSettingsRouter);
 router.use("/admin/employees", adminEmployeeRouter);
 router.use("/admin/media", adminMediaRouter);
 router.use("/admin/meetings", adminMeetingRouter);

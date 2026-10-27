@@ -9,6 +9,7 @@ export async function getDashboardSummary(
 ): Promise<void> {
   try {
     const summary = await adminDashboardService.getSummary();
+    response.setHeader("Cache-Control", "no-store");
     response.status(200).json({ success: true, data: summary });
   } catch (error) {
     next(error);

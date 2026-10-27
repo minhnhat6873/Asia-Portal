@@ -7,7 +7,8 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
-import { getFutureMeetingTimes, getMeetingDurationOptions, getNextMeetingSlot, getVietnamBookingNow } from "@/lib/meetingSchedule";
+import { getAvailableMeetingDurations, getFutureMeetingTimes, getMeetingStartOptions, getNextMeetingSlot, getVietnamBookingNow } from "@/lib/meetingSchedule";
+import { ApiError } from "@/services/api";
 import MeetingDepartmentSelect from "@/components/ui/MeetingDepartmentSelect";
 import {
   getMeetingBookings,
@@ -235,6 +236,9 @@ export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: b
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState("");
+  const [refreshingAvailability, setRefreshingAvailability] = useState(false);
+  const availabilityRequestInFlight = useRef(false);
+  const bookingsRequestVersion = useRef(0);
   const [search, setSearch] = useState("");
   const [roomFilter, setRoomFilter] = useState<RoomId | "all">("all");
   const [departmentFilter, setDepartmentFilter] = useState("all");
@@ -283,17 +287,18 @@ export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: b
     let disposed = false;
     let inFlight = false;
     const refresh = () => {
-      if (disposed || inFlight || document.visibilityState === "hidden") return;
+      if (disposed || inFlight || availabilityRequestInFlight.current || document.visibilityState === "hidden") return;
       controller?.abort();
       controller = new AbortController();
       const requestController = controller;
       inFlight = true;
+      const version = ++bookingsRequestVersion.current;
       getMeetingBookings(requestController.signal)
-        .then((items) => { if (!disposed) { setBookings(items); setLoadError(""); } })
+        .then((items) => { if (!disposed && version === bookingsRequestVersion.current) { setBookings(items); setLoadError(""); } })
         .catch((error: unknown) => {
-          if (!disposed && !requestController.signal.aborted) setLoadError(error instanceof Error ? error.message : "Không thể tải lịch họp.");
+          if (!disposed && !requestController.signal.aborted && version === bookingsRequestVersion.current) setLoadError(error instanceof Error ? error.message : "Không thể tải lịch họp.");
         })
-        .finally(() => { inFlight = false; if (!disposed) setLoaded(true); });
+        .finally(() => { inFlight = false; if (!disposed && version === bookingsRequestVersion.current) setLoaded(true); });
     };
     const refreshWhenVisible = () => { if (document.visibilityState === "visible") refresh(); };
     refresh();
@@ -306,9 +311,9 @@ export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: b
 
   const currentDate = todayLocal();
   const currentTime = getVietnamBookingNow().time;
-  const futureStartTimes = getFutureMeetingTimes(date, bookingNow);
-  const validStart = futureStartTimes.includes(start);
-  const durationOptions = getMeetingDurationOptions(start);
+  const startOptions = getMeetingStartOptions(date, roomId, bookings, bookingNow);
+  const validStart = startOptions.some((option) => option.value === start && !option.disabled);
+  const durationOptions = getAvailableMeetingDurations(start, date, roomId, bookings);
   const minimumBookingDate = getNextMeetingSlot(bookingNow).date;
   const todayCount = bookings.filter((booking) => booking.date === currentDate).length;
   const selectedRoom = rooms.find((room) => room.id === roomId)!;
@@ -321,15 +326,16 @@ export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: b
   const overlapsLunchBreak = start < "13:00" && end > "12:00";
   const overlapsExistingBooking = bookings.some((booking) => booking.roomId === roomId && booking.date === date && start < addMinutes(booking.end, 15) && end > addMinutes(booking.start, -15));
   const validDuration = Number.isInteger(durationMinutes) && durationMinutes >= 30 && (durationMinutes - 30) % 15 === 0;
-  const selectedTimeAvailable = validStart && validDuration && durationOptions.includes(durationMinutes) && start < end && !overlapsLunchBreak && !overlapsExistingBooking;
-  const scheduleWarning = !validStart
+  const selectedTimeAvailable = loaded && !loadError && !refreshingAvailability && validStart && validDuration && durationOptions.includes(durationMinutes) && start < end && !overlapsLunchBreak && !overlapsExistingBooking;
+  const scheduleWarning = refreshingAvailability ? "Đang cập nhật khung giờ trống…"
+    : loadError ? "Không thể kiểm tra lịch trống. Vui lòng đóng và mở lại form để thử lại."
+    : overlapsExistingBooking ? "Phòng đã có lịch trùng hoặc chưa đủ 15 phút nghỉ giữa các cuộc họp. Vui lòng chọn giờ khác."
+    : !validStart
     ? "Hãy chọn ngày và giờ bắt đầu trong tương lai theo giờ Việt Nam."
     : !durationOptions.includes(durationMinutes)
-      ? "Cuộc họp phải kết thúc trước hoặc đúng 17:00 và không trùng giờ nghỉ trưa."
+      ? "Thời lượng này không còn phù hợp. Vui lòng chọn thời lượng khác để không trùng lịch, giờ nghỉ trưa hoặc vượt quá 17:00."
       : overlapsLunchBreak
         ? "Khung giờ họp không được trùng giờ nghỉ trưa (12:00–13:00)."
-        : overlapsExistingBooking
-          ? "Phòng đã có lịch trùng hoặc chưa đủ 15 phút nghỉ giữa các cuộc họp. Vui lòng chọn giờ khác."
           : !validDuration
             ? "Thời lượng phải từ 30 phút và tăng theo từng 15 phút (30, 45, 60, 75, 90...)."
             : `Khung giờ ${start} - ${end} (${formatDate(date)}) đang trống và sẵn sàng đặt.`;
@@ -358,8 +364,8 @@ export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: b
   }, [formOpen]);
 
   const changeBookingStart = (value: string) => {
-    const options = getMeetingDurationOptions(value);
-    const duration = options.includes(durationMinutes) ? durationMinutes : options.at(-1) ?? 30;
+    const options = getAvailableMeetingDurations(value, date, roomId, bookings);
+    const duration = options.includes(durationMinutes) ? durationMinutes : options.filter((option) => option <= durationMinutes).at(-1) ?? options[0] ?? 30;
     setStart(value);
     setDurationMinutes(duration);
     setEnd(value ? addMinutes(value, duration) : "");
@@ -367,8 +373,44 @@ export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: b
 
   const changeBookingDate = (value: string) => {
     setDate(value);
-    const options = getFutureMeetingTimes(value);
-    if (options.length && !options.includes(start)) changeBookingStart(options[0]);
+    selectScheduleFor(value, roomId);
+  };
+
+  const selectScheduleFor = (nextDate: string, nextRoomId: RoomId) => {
+    const available = getMeetingStartOptions(nextDate, nextRoomId, bookings).filter((option) => !option.disabled);
+    const nextStart = available.some((option) => option.value === start) ? start : available[0]?.value ?? "";
+    const durations = getAvailableMeetingDurations(nextStart, nextDate, nextRoomId, bookings);
+    const nextDuration = durations.includes(durationMinutes) ? durationMinutes : durations.filter((option) => option <= durationMinutes).at(-1) ?? durations[0] ?? 30;
+    setStart(nextStart);
+    setDurationMinutes(nextDuration);
+    setEnd(nextStart ? addMinutes(nextStart, nextDuration) : "");
+  };
+
+  const refreshAvailability = async () => {
+    if (availabilityRequestInFlight.current) return;
+    availabilityRequestInFlight.current = true;
+    const version = ++bookingsRequestVersion.current;
+    setRefreshingAvailability(true);
+    try {
+      const items = await getMeetingBookings();
+      if (version === bookingsRequestVersion.current) { setBookings(items); setLoadError(""); }
+    } catch {
+      if (version === bookingsRequestVersion.current) setLoadError("Không thể cập nhật lịch trống. Vui lòng thử lại.");
+    } finally {
+      if (version === bookingsRequestVersion.current) setLoaded(true);
+      availabilityRequestInFlight.current = false;
+      setRefreshingAvailability(false);
+    }
+  };
+
+  const recoverBookingConflict = async (message: string) => {
+    setFormStep("details");
+    setOtpReady(false);
+    setBookingRequestId("");
+    setOtp(Array(6).fill(""));
+    setResendSeconds(0);
+    setFormError(message);
+    await refreshAvailability();
   };
 
   useEffect(() => {
@@ -414,6 +456,7 @@ export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: b
 
   const createBooking = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (isSubmitting) return;
     const nextFieldErrors: Record<string, string> = {};
     if (title.trim().length < 3 || title.trim().length > 200) nextFieldErrors.title = "Tiêu đề phải từ 3 đến 200 ký tự.";
     if (organizer.trim().length < 2 || organizer.trim().length > 100) nextFieldErrors.organizer = "Tên người đặt phải từ 2 đến 100 ký tự.";
@@ -446,6 +489,10 @@ export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: b
     }
     if (!validDuration) {
       setFormError("Thời lượng chỉ được nhập từ 30 phút và theo bước 15 phút: 30, 45, 60, 75, 90...");
+      return;
+    }
+    if (!loaded || loadError || refreshingAvailability) {
+      setFormError("Chưa kiểm tra được khung giờ trống. Vui lòng đợi cập nhật lịch hoặc mở lại form để thử lại.");
       return;
     }
     if (start >= end || !getFutureMeetingTimes(date).includes(start)) {
@@ -492,7 +539,8 @@ export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: b
       setOtpReady(true);
       setFormStep("otp");
     } catch (error) {
-      setFormError(error instanceof Error ? error.message : "Không thể gửi mã OTP. Vui lòng thử lại sau.");
+      if (error instanceof ApiError && error.status === 409) await recoverBookingConflict(error.message);
+      else setFormError(error instanceof Error ? error.message : "Không thể gửi mã OTP. Vui lòng thử lại sau.");
     } finally {
       setIsSubmitting(false);
     }
@@ -500,6 +548,7 @@ export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: b
 
   const confirmOtp = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (isSubmitting) return;
     if (otp.join("").length !== 6) {
       setFormError("Vui lòng nhập đầy đủ mã OTP gồm 6 chữ số.");
       return;
@@ -531,7 +580,8 @@ export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: b
       setAttendees(1);
       openSchedule();
     } catch (error) {
-      setFormError(error instanceof Error ? error.message : "Không thể xác thực OTP. Vui lòng thử lại.");
+      if (otpAction === "create" && error instanceof ApiError && error.status === 409) await recoverBookingConflict(error.message);
+      else setFormError(error instanceof Error ? error.message : "Không thể xác thực OTP. Vui lòng thử lại.");
     } finally {
       setIsSubmitting(false);
     }
@@ -572,15 +622,16 @@ export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: b
   const openRoomBooking = (nextRoomId: RoomId) => {
     const now = new Date();
     const suggested = getNextMeetingSlot(now);
+    const suggestedStart = getMeetingStartOptions(suggested.date, nextRoomId, bookings, now).find((option) => !option.disabled)?.value ?? "";
     const duration = 30;
-    const availableEnd = addMinutes(suggested.start, duration);
-    setBookingFormBaseline(JSON.stringify([title, organizer, email, department, nextRoomId, suggested.date, suggested.start, duration, 1]));
+    const availableEnd = suggestedStart ? addMinutes(suggestedStart, duration) : "";
+    setBookingFormBaseline(JSON.stringify([title, organizer, email, department, nextRoomId, suggested.date, suggestedStart, duration, 1]));
     setClosePromptOpen(false);
     setAttendees(1);
     setRoomId(nextRoomId);
     setBookingNow(now);
     setDate(suggested.date);
-    setStart(suggested.start);
+    setStart(suggestedStart);
     setEnd(availableEnd);
     setDurationMinutes(duration);
     setFormStep("details");
@@ -594,6 +645,7 @@ export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: b
     setBookingRequestId("");
     setResendSeconds(0);
     setFormOpen(true);
+    void refreshAvailability();
   };
 
   const updateOtp = (index: number, value: string) => {
@@ -655,7 +707,6 @@ export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: b
           <>
             <nav aria-label="Breadcrumb" className="mb-7 flex items-center gap-2 text-sm text-slate-500">
               <Link href="/" className="hover:text-[#1a7a1a]">Trang chủ</Link><ChevronRight size={15} />
-              <Link href="/about-asia#resources" className="hover:text-[#1a7a1a]">Công cụ & Tài nguyên</Link><ChevronRight size={15} />
               <span className="font-semibold text-slate-800">Đặt phòng họp</span>
             </nav>
 
@@ -752,17 +803,18 @@ export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: b
             <Field label="Phòng ban" error={fieldErrors.department}><MeetingDepartmentSelect value={department} triggerClassName="h-10 py-0" onChange={(value) => { setDepartment(value); setFieldErrors((errors) => ({ ...errors, department: "" })); setFormError(""); }} /></Field>
 
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Phòng họp"><select value={roomId} onChange={(event) => { const nextId = event.target.value as RoomId; setRoomId(nextId); setAttendees((current) => Math.min(current, rooms.find((room) => room.id === nextId)?.capacity ?? current)); setFormError(""); }} className="form-input">{rooms.map((room) => <option key={room.id} value={room.id}>{room.name} · tối đa {room.capacity} người</option>)}</select></Field>
+              <Field label="Phòng họp"><select value={roomId} onChange={(event) => { const nextId = event.target.value as RoomId; setRoomId(nextId); selectScheduleFor(date, nextId); setAttendees((current) => Math.min(current, rooms.find((room) => room.id === nextId)?.capacity ?? current)); setFormError(""); }} className="form-input">{rooms.map((room) => <option key={room.id} value={room.id}>{room.name} · tối đa {room.capacity} người</option>)}</select></Field>
               <Field label="Ngày tổ chức"><input required type="date" min={minimumBookingDate} value={date} onChange={(event) => { changeBookingDate(event.target.value); setFormError(""); }} onBlur={() => { if (date && date < minimumBookingDate) changeBookingDate(minimumBookingDate); }} className="form-input" /></Field>
             </div>
             <div className="grid gap-4 sm:grid-cols-3">
-              <Field label="Giờ bắt đầu"><select required disabled={futureStartTimes.length === 0} value={start} onChange={(event) => { changeBookingStart(event.target.value); setFormError(""); }} className="form-input">{!futureStartTimes.includes(start) ? <option disabled value={start}>Chọn giờ tương lai</option> : null}{futureStartTimes.map((value) => <option key={value} value={value}>{value}</option>)}</select></Field>
-              <Field label="Thời lượng"><select required disabled={durationOptions.length === 0} value={durationMinutes} onChange={(event) => { const value = Number(event.target.value); setDurationMinutes(value); setEnd(addMinutes(start, value)); setFormError(""); }} className="form-input">{durationOptions.map((value) => <option key={value} value={value}>{value} phút</option>)}</select></Field>
+              <Field label="Giờ bắt đầu"><select required disabled={refreshingAvailability || !startOptions.some((option) => !option.disabled)} value={start} onChange={(event) => { changeBookingStart(event.target.value); setFormError(""); }} className="form-input">{!startOptions.some((option) => option.value === start) ? <option disabled value={start}>{startOptions.some((option) => !option.disabled) ? "Chọn giờ tương lai" : "Không còn khung giờ trống"}</option> : null}{startOptions.map((option) => <option key={option.value} value={option.value} disabled={option.disabled}>{option.label}</option>)}</select></Field>
+              <Field label="Thời lượng"><select required disabled={refreshingAvailability || durationOptions.length === 0} value={durationMinutes} onChange={(event) => { const value = Number(event.target.value); setDurationMinutes(value); setEnd(addMinutes(start, value)); setFormError(""); }} className="form-input">{!durationOptions.includes(durationMinutes) ? <option disabled value={durationMinutes}>{durationMinutes} phút — Không còn phù hợp</option> : null}{durationOptions.map((value) => <option key={value} value={value}>{value} phút</option>)}</select></Field>
               <div className="text-sm font-bold text-slate-700">Giờ kết thúc<div className="mt-1.5 flex h-10 items-center rounded-xl bg-slate-50 px-3 text-sm text-slate-600">{end}</div></div>
             </div>
             <Field label="Số người tham gia" error={fieldErrors.attendees}><input required type="number" min={1} max={selectedRoom.capacity} step={1} value={attendees} onChange={(event) => { setAttendees(Math.min(selectedRoom.capacity, Math.max(1, Number(event.target.value) || 1))); setFieldErrors((errors) => ({ ...errors, attendees: "" })); setFormError(""); }} className="form-input" /></Field>
             <section className="space-y-3 rounded-xl border border-slate-100 bg-white py-1">
               <p className="mt-2 text-[11px] text-slate-500">Thời lượng tối thiểu 30 phút, bắt đầu muộn nhất 16:30 và kết thúc trước hoặc đúng 17:00. Các cuộc họp cùng phòng cần cách nhau ít nhất 15 phút.</p>
+              <p className="text-[11px] text-slate-500">Giờ mờ đã có lịch hoặc không đủ thời gian phù hợp. Lịch chỉ được xác nhận sau khi nhập đúng OTP.</p>
               <p role="status" className={`mt-3 rounded-xl border px-3 py-2 text-xs ${selectedTimeAvailable ? "border-emerald-200 bg-emerald-50 text-[#08723d]" : "border-rose-200 bg-rose-50 text-rose-700"}`}>{scheduleWarning}</p>
             </section>
 
@@ -866,7 +918,6 @@ function BookedScheduleDashboard({
     <div className="mx-auto max-w-[1220px] px-5 py-4 pb-7">
       <nav aria-label="Breadcrumb" className="mb-4 flex flex-wrap items-center gap-2 text-sm text-slate-500">
         <Link href="/" className="transition hover:text-[#1a7a1a]">Trang chủ</Link><ChevronRight size={16} />
-        <Link href="/about-asia#resources" className="transition hover:text-[#1a7a1a]">Công cụ &amp; Tài nguyên</Link><ChevronRight size={16} />
         <Link href="/meeting" className="font-semibold text-slate-700 transition hover:text-[#1a7a1a]">Đặt phòng họp</Link><ChevronRight size={16} />
         <span className="font-bold text-[#0d5c0d]">Xem lịch phòng họp</span>
       </nav>

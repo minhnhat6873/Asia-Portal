@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import InternalSystemsMenu from "./InternalSystemsMenu";
+import { getPublicSiteSettings } from "@/services/site-settings.service";
 
 const navLinks = [
   { href: "/", label: "Trang chủ" },
@@ -19,6 +20,30 @@ const navLinks = [
 export default function Navbar() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [internalSystemsEnabled, setInternalSystemsEnabled] = useState(false);
+
+  useEffect(() => {
+    let controller: AbortController | null = null;
+    const refresh = () => {
+      if (document.visibilityState === "hidden") return;
+      controller?.abort();
+      const request = new AbortController();
+      controller = request;
+      void getPublicSiteSettings(request.signal).then((settings) => {
+        if (!request.signal.aborted) setInternalSystemsEnabled(settings.internalSystemsEnabled === true);
+      }).catch(() => { if (!request.signal.aborted) setInternalSystemsEnabled(false); });
+    };
+    refresh();
+    const timer = window.setInterval(refresh, 60_000);
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    window.addEventListener("asia-site-settings-updated", refresh);
+    return () => {
+      controller?.abort(); window.clearInterval(timer);
+      window.removeEventListener("focus", refresh); document.removeEventListener("visibilitychange", refresh);
+      window.removeEventListener("asia-site-settings-updated", refresh);
+    };
+  }, [pathname]);
 
   const isActive = (href: string) => pathname === href;
   const closeMobileMenu = () => {
@@ -68,7 +93,7 @@ export default function Navbar() {
                 </Link>
               ))}
             </nav>
-            <InternalSystemsMenu />
+            {internalSystemsEnabled ? <InternalSystemsMenu /> : null}
           </div>
 
           <div className="ml-auto flex items-center gap-2">
@@ -108,7 +133,7 @@ export default function Navbar() {
               </button>
             </div>
 
-            <nav className="flex flex-1 flex-col px-3 py-3">
+            <nav className="flex min-h-0 flex-1 flex-col overflow-y-auto px-3 py-3">
                 {navLinks.map((link) => (
                   <Link
                     key={link.href}
@@ -121,6 +146,7 @@ export default function Navbar() {
                     {link.label}
                   </Link>
                 ))}
+                {internalSystemsEnabled ? <InternalSystemsMenu mobile /> : null}
             </nav>
           </aside>
         </div>

@@ -24,8 +24,8 @@ import { navigateWithUnsavedChangesGuard } from '@/lib/unsavedChangesNavigation'
 interface SidebarProps {
   activeTab: ActiveTab;
   onTabChange: (tab: ActiveTab) => void;
-  employeeCount: number;
-  mediaCount: number;
+  employeeCount: number | null;
+  mediaCount: number | null;
   /** Registrations awaiting approval — drives the badge on "Phân quyền quản lý". */
   pendingUsersCount?: number;
   canViewMeetings?: boolean;

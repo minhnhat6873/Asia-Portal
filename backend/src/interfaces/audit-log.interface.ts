@@ -16,6 +16,7 @@ export const AUDIT_ACTIONS = [
   "media.soft_deleted",
   "media.restored",
   "media.permanently_deleted",
+  "site_settings.updated",
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
@@ -29,7 +30,7 @@ export interface AuditActor {
 export interface AuditLog {
   actor: AuditActor;
   action: AuditAction;
-  entityType: "employee" | "media" | "meeting" | "account" | "permission_group";
+  entityType: "employee" | "media" | "meeting" | "account" | "permission_group" | "site_settings";
   entityId: string;
   description: string;
   metadata?: Record<string, unknown>;

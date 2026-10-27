@@ -32,6 +32,27 @@ export function getFutureMeetingTimes(date: string, now = new Date()): string[] 
   return MEETING_START_TIMES.filter((time) => date > current.date || (date === current.date && time > current.time));
 }
 
+type MeetingBusyPeriod = { roomId: string; date: string; start: string; end: string };
+
+/** Fit the full meeting and its 15-minute gap, scoped to the selected room/day. */
+export function getAvailableMeetingDurations(start: string, date: string, roomId: string, bookings: readonly MeetingBusyPeriod[]): number[] {
+  const startMinutes = meetingMinutes(start);
+  const busy = bookings.filter((booking) => booking.roomId === roomId && booking.date === date);
+  return getMeetingDurationOptions(start).filter((duration) => {
+    const endMinutes = startMinutes + duration;
+    if (startMinutes < 13 * 60 && endMinutes > 12 * 60) return false;
+    return !busy.some((booking) => startMinutes < meetingMinutes(booking.end) + 15 && endMinutes + 15 > meetingMinutes(booking.start));
+  });
+}
+
+export function getMeetingStartOptions(date: string, roomId: string, bookings: readonly MeetingBusyPeriod[], now = new Date()) {
+  return getFutureMeetingTimes(date, now).map((value) => {
+    const durations = getAvailableMeetingDurations(value, date, roomId, bookings);
+    const reason = durations.length ? "" : value === "11:45" ? "Giờ nghỉ trưa" : "Đã có lịch";
+    return { value, disabled: durations.length === 0, label: reason ? `${value} — ${reason}` : value };
+  });
+}
+
 export function getNextMeetingSlot(now = new Date()): { date: string; start: string } {
   const { date } = getVietnamBookingNow(now);
   const start = getFutureMeetingTimes(date, now).find((time) => time <= "11:30" || time >= "13:00");

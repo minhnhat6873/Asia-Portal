@@ -154,12 +154,14 @@ export default function AdminDashboard(_props: AdminDashboardProps) {
   const canViewMedia = hasAdminPermission(sessionAccount, 'media:view');
   const canViewDashboard = hasAdminPermission(sessionAccount, 'dashboard:view');
   const [dashboardSummary, setDashboardSummary] = useState<DashboardSummary | null>(null);
+  const [summaryLoadError, setSummaryLoadError] = useState<string | null>(null);
+  const summaryRequestVersion = useRef(0);
   const [isSummaryLoading, setIsSummaryLoading] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const accountMenuRef = useRef<HTMLDivElement>(null);
   const isPageLoading = isNavigating
-    || (activeTab === 'overview' && (isSummaryLoading || areEmployeesLoading || areMediaLoading))
+    || (activeTab === 'overview' && (isSummaryLoading || areMediaLoading))
     || (activeTab === 'employees' && !isEmployeeTrashPage && areEmployeesLoading)
     || (activeTab === 'media' && !isMediaTrashPage && areMediaLoading)
     || (activeTab === 'edit-employee' && isEditingEmployeeLoading)
@@ -314,14 +316,16 @@ export default function AdminDashboard(_props: AdminDashboardProps) {
   }, [mediaListParams, canViewMedia]);
 
   const refreshDashboardSummary = useCallback(async (signal?: AbortSignal) => {
-    if (!canViewDashboard) { setIsSummaryLoading(false); return; }
+    if (signal?.aborted) return;
+    const version = ++summaryRequestVersion.current;
+    if (!canViewDashboard) { setDashboardSummary(null); setSummaryLoadError(null); setIsSummaryLoading(false); return; }
     try {
       const summary = await getDashboardSummary(signal);
-      setDashboardSummary(summary);
+      if (!signal?.aborted && version === summaryRequestVersion.current) { setDashboardSummary(summary); setSummaryLoadError(null); }
     } catch {
-      if (!signal?.aborted) setDashboardSummary(null);
+      if (!signal?.aborted && version === summaryRequestVersion.current) setSummaryLoadError("Không thể cập nhật thống kê. Vui lòng thử lại.");
     } finally {
-      if (!signal?.aborted) setIsSummaryLoading(false);
+      if (!signal?.aborted && version === summaryRequestVersion.current) setIsSummaryLoading(false);
     }
   }, [canViewDashboard]);
 
@@ -357,11 +361,23 @@ export default function AdminDashboard(_props: AdminDashboardProps) {
     return () => controller.abort();
   }, [loadMedia]);
   useEffect(() => {
-    const controller = new AbortController();
-    queueMicrotask(() => { if (!controller.signal.aborted) void refreshDashboardSummary(controller.signal); });
-
-    return () => controller.abort();
-  }, [refreshDashboardSummary]);
+    let disposed = false;
+    let controller: AbortController | null = null;
+    const refresh = () => {
+      if (disposed || document.visibilityState === 'hidden') return;
+      controller?.abort();
+      controller = new AbortController();
+      void refreshDashboardSummary(controller.signal);
+    };
+    queueMicrotask(refresh);
+    const timer = window.setInterval(refresh, 30_000);
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', refresh);
+    return () => {
+      disposed = true; controller?.abort(); window.clearInterval(timer);
+      window.removeEventListener('focus', refresh); document.removeEventListener('visibilitychange', refresh);
+    };
+  }, [refreshDashboardSummary, pathname]);
   useEffect(() => {
     if (!isAccountMenuOpen) return;
 
@@ -406,7 +422,7 @@ export default function AdminDashboard(_props: AdminDashboardProps) {
     const newEmployee = newEmpData;
     const updated = [newEmployee, ...employees];
     setEmployees(updated);
-    void refreshDashboardSummary();
+    void Promise.all([loadEmployees(), refreshDashboardSummary()]);
     addToast(`Đã thêm nhân viên ${newEmployee.fullName} (${newEmployee.code}) thành công!`);
   };
 
@@ -416,7 +432,7 @@ export default function AdminDashboard(_props: AdminDashboardProps) {
     if (selectedDossierEmployee?.id === updatedEmp.id) {
       setSelectedDossierEmployee(updatedEmp);
     }
-    void refreshDashboardSummary();
+    void Promise.all([loadEmployees(), refreshDashboardSummary()]);
     addToast(`Đã cập nhật thông tin nhân viên ${updatedEmp.fullName}!`);
   };
 
@@ -443,7 +459,7 @@ export default function AdminDashboard(_props: AdminDashboardProps) {
     }
     toast.dismiss(loadingToastId);
     toast.success('Đã xóa nhân viên thành công.');
-    void refreshDashboardSummary();
+    void Promise.all([loadEmployees(), refreshDashboardSummary()]);
     return true;
   };
 
@@ -552,8 +568,8 @@ export default function AdminDashboard(_props: AdminDashboardProps) {
             navigateToTab(tab);
             if (!window.matchMedia('(min-width: 992px)').matches) setIsSidebarOpen(false);
           }}
-          employeeCount={dashboardSummary?.totalEmployees ?? employeeTotal}
-          mediaCount={dashboardSummary?.totalMediaPosts ?? mediaTotal}
+          employeeCount={canViewDashboard ? dashboardSummary?.totalEmployees ?? null : employeeTotal}
+          mediaCount={canViewDashboard ? dashboardSummary?.totalMediaPosts ?? null : mediaTotal}
           pendingUsersCount={pendingUsersCount}
           canViewMeetings={sessionAccount?.role === "Toàn quyền Admin" || sessionAccount?.permissions.includes("meetings:view") === true}
           compact={false}
@@ -631,10 +647,11 @@ export default function AdminDashboard(_props: AdminDashboardProps) {
             {/* 1. Tổng quan Dashboard */}
             {activeTab === 'overview' && (
               <DashboardOverview
-                employees={employees}
                 mediaPosts={mediaPosts}
                 onNavigate={navigateToTab}
                 summary={dashboardSummary}
+                summaryError={summaryLoadError}
+                onRetrySummary={() => { void refreshDashboardSummary(); }}
                 onPreviewMedia={(post) => {
                   setPreviewMediaPost(post);
                   navigateToTab('media');

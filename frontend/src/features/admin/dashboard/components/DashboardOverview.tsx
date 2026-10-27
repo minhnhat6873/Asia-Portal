@@ -6,35 +6,37 @@ import {
   ArrowUpRight,
   Calendar
 } from 'lucide-react';
-import { Employee, MediaPost, ActiveTab } from '../types';
+import type { MediaPost, ActiveTab } from '../types';
 import { useAdminPermissions } from '@/lib/adminPermissions';
 import { stripHtml } from '@/utils/stripHtml';
+import { InternalSystemsVisibilityCard } from './InternalSystemsVisibilityCard';
 
 import type { DashboardSummary } from '../dashboard.service';
 interface DashboardOverviewProps {
-  employees: Employee[];
   mediaPosts: MediaPost[];
   summary: DashboardSummary | null;
+  summaryError?: string | null;
+  onRetrySummary?: () => void;
   onNavigate: (tab: ActiveTab) => void;
   onPreviewMedia: (post: MediaPost) => void;
 }
 
 export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
-  employees,
   mediaPosts,
   onNavigate,
   summary,
+  summaryError,
+  onRetrySummary,
   onPreviewMedia,
 }) => {
-  const { can } = useAdminPermissions();
-  const totalEmployees = summary?.totalEmployees ?? employees.length;
-  const totalDepartments = summary?.totalDepartments ?? new Set(employees.map((employee) => employee.department)).size;
-  const totalMediaPosts = summary?.totalMediaPosts ?? mediaPosts.length;
+  const { can, account } = useAdminPermissions();
+  const totalEmployees = summary?.totalEmployees ?? '—';
+  const totalDepartments = summary?.totalDepartments ?? '—';
+  const totalMediaPosts = summary?.totalMediaPosts ?? '—';
 
   return (
     <div className="space-y-6">
-
-
+      {summaryError ? <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"><p>{summaryError}{summary ? ' Số liệu đang hiển thị là lần cập nhật gần nhất.' : ''}</p><button type="button" onClick={onRetrySummary} className="shrink-0 rounded-lg border border-amber-300 bg-white px-3 py-1.5 font-semibold hover:bg-amber-100">Thử lại</button></div> : null}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
         <div
           onClick={can('employees:view') ? () => onNavigate('employees') : undefined}
@@ -59,6 +61,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
           <div>
             <p className="text-sm font-bold text-slate-600 xl:text-base">Số phòng ban</p>
             <p className="mt-2 text-4xl font-black tracking-tight text-slate-950">{totalDepartments}</p>
+            <p className="mt-1 text-xs text-slate-400">Phòng hiện có nhân viên</p>
           </div>
         </div>
 
@@ -75,6 +78,8 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
           </div>
         </div>
       </div>
+
+      {account?.role === "Toàn quyền Admin" ? <InternalSystemsVisibilityCard /> : null}
 
       {/* Recent media — full width now that the department panel is gone */}
       {can("media:view") && <div className="min-w-0 bg-white rounded-2xl border border-slate-200/90 shadow-2xs p-4 sm:rounded-3xl sm:p-6">

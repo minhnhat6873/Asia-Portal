@@ -24,7 +24,7 @@ import { compareTimes, getVietnamNow } from "../../utils/time/vietnamTime";
 import { remindMeetingBookingIfDue } from "../../jobs/meeting-booking-reminder.job";
 
 const BOOKING_CONFLICT_MESSAGE =
-  "Phòng đã có lịch trùng hoặc chưa đủ 15 phút nghỉ giữa các cuộc họp. Vui lòng chọn giờ khác.";
+  "Khung giờ này vừa được người khác đặt. Vui lòng chọn giờ khác hoặc đổi phòng họp.";
 
 interface PublicMeetingBooking extends Omit<MeetingBooking, "email"> {
   id: string;

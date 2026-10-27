@@ -33,7 +33,7 @@ export const adminEmployeeRepository = {
 
   async countDistinctDepartments(filter: QueryFilter<Employee>) {
     const departments = await EmployeeModel.distinct("department", filter);
-    return departments.filter((department) => typeof department === "string" && department.trim()).length;
+    return new Set(departments.filter((department): department is string => typeof department === "string" && Boolean(department.trim())).map((department) => department.trim())).size;
   },
 
   findById(id: string) {
