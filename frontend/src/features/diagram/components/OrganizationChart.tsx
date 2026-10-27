@@ -1,21 +1,13 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import {
   ChevronDown,
   ChevronRight,
-  CircleUserRound,
+  ShieldCheck,
 } from "lucide-react";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { ORGANIZATION_DEPARTMENTS, ORGANIZATION_DIVISIONS } from "@/config/diagramDepartments";
-import { getPublicEmployees } from "@/services/employee.service";
-
-type Executive = {
-  role: string;
-  name: string;
-  avatar?: string;
-};
 
 type Department = (typeof ORGANIZATION_DEPARTMENTS)[number];
 type Division = (typeof ORGANIZATION_DIVISIONS)[number];
@@ -44,42 +36,21 @@ function LeadershipIcon({ kind }: { kind: "board" | "ceo" }) {
   );
 }
 
-function LeadershipPlaceholder({ label, kind }: { label: string; kind: "board" | "ceo" }) {
+function LeadershipPlaceholder({ label, kind }: { label: string; kind: "board" | "ceo" | "supervisory" }) {
+  const supervisory = kind === "supervisory";
   return (
-    <article className="relative flex h-[102px] w-[470px] items-center gap-5 overflow-hidden rounded-2xl border-[1.5px] border-[#88d597] bg-gradient-to-br from-white via-white to-[#f3faf5] px-6 shadow-[0_8px_24px_rgba(15,118,65,0.10)]">
+    <article className={`relative flex h-[102px] items-center overflow-hidden rounded-2xl border-[1.5px] shadow-[0_8px_24px_rgba(15,118,65,0.10)] ${supervisory ? "w-[300px] gap-3 border-amber-300 bg-gradient-to-br from-amber-50 to-[#fff9df] px-4" : "w-[470px] gap-5 border-[#88d597] bg-gradient-to-br from-white via-white to-[#f3faf5] px-6"}`}>
       <svg aria-hidden="true" viewBox="0 0 110 102" preserveAspectRatio="none" className="pointer-events-none absolute inset-y-0 right-0 h-full w-[90px]">
         <path d="M0 102c60-3 94-42 110-85v85z" fill="#188744" />
         <path d="M0 102c55-3 91-33 110-67v14c-22 29-51 49-87 53z" fill="#dfbb35" />
         <path d="M0 102C13 56 78 28 110 0c-1 60-43 97-110 102" fill="#e7f5eb" />
         <path d="M0 102c65-5 102-44 110-88" fill="none" stroke="#d4eddd" strokeWidth="2" />
       </svg>
-      <div aria-hidden="true" className="relative flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#eff9f2] to-[#e1f3e8]">
-        <LeadershipIcon kind={kind} />
+      <div aria-hidden="true" className={`relative flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded-full ${supervisory ? "bg-amber-100" : "bg-gradient-to-br from-[#eff9f2] to-[#e1f3e8]"}`}>
+        {supervisory ? <ShieldCheck size={43} strokeWidth={2} className="text-[#0b6435]" /> : <LeadershipIcon kind={kind} />}
       </div>
       <div aria-hidden="true" className="relative h-[52px] w-px shrink-0 bg-[#d2e5d8]" />
-      <h2 className="relative min-w-0 flex-1 whitespace-nowrap text-left text-[20px] font-black uppercase tracking-tight text-[#182433]">{label}</h2>
-    </article>
-  );
-}
-
-function ExecutiveCard({ executive, primary = false }: { executive: Executive; primary?: boolean }) {
-  return (
-    <article className={`flex overflow-hidden rounded-2xl border-[1.5px] shadow-[0_8px_20px_rgba(15,118,65,0.10)] ${primary ? "h-[102px] w-[470px] border-[#43cf87] bg-emerald-600" : "h-[92px] w-full items-center justify-center gap-3 border-[#72dfa7] bg-emerald-50"}`}>
-      <div className={`flex shrink-0 items-center justify-center bg-emerald-50 ${primary ? "w-[116px]" : "w-[78px]"}`}>
-        <div className={`relative overflow-hidden rounded-full border-4 border-white shadow-sm ${primary ? "h-[92px] w-[92px]" : "h-[78px] w-[78px]"}`}>
-          {executive.avatar ? (
-            <Image src={executive.avatar} alt={executive.name} fill sizes={primary ? "92px" : "78px"} className="object-cover object-center" />
-          ) : (
-            <span className="flex h-full w-full flex-col items-center justify-center gap-1 bg-emerald-100 text-emerald-700"><CircleUserRound size={primary ? 32 : 26} /><span className="text-[9px]">Chưa có ảnh</span></span>
-          )}
-        </div>
-      </div>
-      <div className={`flex min-w-0 flex-col justify-center ${primary ? "flex-1 items-center px-5 text-center" : "w-[190px] shrink-0 items-start text-left"} ${primary ? "bg-gradient-to-r from-[#159947] to-[#0f8a3e] text-white" : "bg-emerald-50"}`}>
-        <p className={`font-black uppercase tracking-[0.035em] ${primary ? "text-[14px] text-white" : "w-full text-[11px] leading-none text-emerald-700"}`}>
-          {executive.role}
-        </p>
-        <p className={`mt-1.5 whitespace-nowrap font-semibold ${primary ? "text-[17px] text-white" : "w-full text-[14px] text-emerald-900"}`}>{executive.name}</p>
-      </div>
+      <h2 className={`relative min-w-0 flex-1 whitespace-nowrap text-left font-black uppercase tracking-tight text-[#182433] ${supervisory ? "text-[18px]" : "text-[20px]"}`}>{label}</h2>
     </article>
   );
 }
@@ -149,13 +120,10 @@ function DivisionCard({ division, expanded, onToggle }: { division: Division; ex
 export default function OrganizationChart() {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const chartContentRef = useRef<HTMLDivElement>(null);
-  const [ceo, setCeo] = useState<Executive | null>(null);
-  const [seniorManagers, setSeniorManagers] = useState<Executive[]>([]);
   const [expandedDivisionId, setExpandedDivisionId] = useState<Division["id"] | null>(null);
-  const managerCount = Math.max(seniorManagers.length, 1);
+  // Reserve space for the board's side branch while keeping the hierarchy centered.
   const chartMinWidth = Math.max(
-    470,
-    managerCount * 330 + (managerCount - 1) * 64,
+    1118,
     ORGANIZATION_DIVISIONS.length * 260 + (ORGANIZATION_DIVISIONS.length - 1) * 24,
   ) + 48;
 
@@ -183,61 +151,28 @@ export default function OrganizationChart() {
     return () => observer.disconnect();
   }, []);
 
-  useEffect(() => {
-    const controller = new AbortController();
-    Promise.all([
-      getPublicEmployees({ rank: "CEO", limit: 1 }, controller.signal),
-      getPublicEmployees({ rank: "Senior Management", limit: 100 }, controller.signal),
-    ]).then(([ceoResult, seniorManagementResult]) => {
-      if (controller.signal.aborted) return;
-      const ceoEmployee = ceoResult.items[0];
-      setCeo(ceoEmployee ? {
-        role: ceoEmployee.position,
-        name: ceoEmployee.name,
-        avatar: ceoEmployee.chartAvatar?.trim(),
-      } : null);
-      setSeniorManagers(seniorManagementResult.items.map((employee) => ({
-        role: employee.position,
-        name: employee.name,
-        avatar: employee.chartAvatar || employee.avatar,
-      })));
-    }).catch((error) => {
-      if (!(error instanceof DOMException && error.name === "AbortError")) console.error("Không thể tải nhân sự sơ đồ", error);
-    });
-    return () => controller.abort();
-  }, []);
   return (
     <div className="pb-6">
       <div ref={scrollContainerRef} className="overflow-x-auto">
         <div ref={chartContentRef} className="w-full px-6 pt-3" style={{ minWidth: chartMinWidth }}>
-        <div className="mx-auto w-fit">
-          <LeadershipPlaceholder label="Hội đồng quản trị" kind="board" />
-        </div>
-
-        <div className="mx-auto h-10 w-[2px] bg-[#24934d]" />
-
-        <div className="mx-auto w-fit">
-          {ceo?.avatar ? <ExecutiveCard executive={ceo} primary /> : <LeadershipPlaceholder label="Ban giám đốc / CEO" kind="ceo" />}
-        </div>
-
-        <div className="relative mx-auto h-10 w-[2px] bg-[#24934d]">
-        </div>
-
-        <div className="relative mx-auto w-fit pt-10">
-          {seniorManagers.length > 1 ? <div className="absolute top-0 h-[2px] bg-[#24934d]" style={{ left: "165px", right: "165px" }} /> : null}
-          <div className="grid gap-16" style={{ gridTemplateColumns: `repeat(${Math.max(seniorManagers.length, 1)}, 330px)` }}>
-            {seniorManagers.map((executive) => (
-              <div key={executive.name} className="relative">
-                <div className="absolute -top-10 left-1/2 h-10 w-[2px] -translate-x-1/2 bg-[#24934d]">
-                </div>
-                <ExecutiveCard executive={executive} />
-              </div>
-            ))}
-            {seniorManagers.length === 0 ? <p className="w-[330px] text-center text-sm text-slate-500">Chưa có Quản lý cấp cao</p> : null}
+        <div className="relative">
+          <div className="mx-auto w-fit">
+            <LeadershipPlaceholder label="Hội đồng quản trị" kind="board" />
+          </div>
+          <div aria-hidden="true" className="absolute left-[calc(50%+235px)] top-1/2 h-[2px] w-6 -translate-y-1/2 bg-[#24934d]" />
+          <div className="absolute left-[calc(50%+259px)] top-0">
+            <span aria-hidden="true" className="absolute -left-1 top-1/2 z-10 h-2 w-2 -translate-y-1/2 rounded-full border-2 border-amber-100 bg-[#24934d]" />
+            <LeadershipPlaceholder label="Ban kiểm soát" kind="supervisory" />
           </div>
         </div>
 
-        <div className="relative mx-auto h-10 w-[2px] bg-[#24934d]" />
+        <div aria-hidden="true" className="mx-auto h-10 w-[2px] bg-[#24934d]" />
+
+        <Link href="/diagram/ban-giam-doc" aria-label="Xem nhân sự Ban giám đốc / CEO" className="mx-auto block w-fit rounded-2xl transition-shadow hover:shadow-lg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-emerald-600">
+          <LeadershipPlaceholder label="Ban giám đốc / CEO" kind="ceo" />
+        </Link>
+
+        <div aria-hidden="true" className="mx-auto h-10 w-[2px] bg-[#24934d]" />
 
         <div className="relative mx-auto w-fit pt-8">
           <div className="absolute top-0 h-[2px] bg-[#24934d]" style={{ left: "130px", right: "130px" }} />

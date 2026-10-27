@@ -1,5 +1,5 @@
 import type { MediaPost } from "@/features/admin/dashboard/types";
-import { apiDelete, apiGet, apiPatchFormData, apiPostFormData } from "./api";
+import { apiDelete, apiGet, apiPost, apiPatchFormData, apiPostFormData } from "./api";
 
 export interface AdminMediaInput {
   title: string;
@@ -95,6 +95,21 @@ export async function updateAdminMedia(id: string, input: Partial<AdminMediaInpu
 }
 
 export async function permanentlyDeleteAdminMedia(id: string): Promise<MediaPost> {
+  return mapMedia(await apiDelete<ApiMedia>(`/admin/media/${encodeURIComponent(id)}/permanent`));
+}
+
+export async function softDeleteAdminMedia(id: string): Promise<MediaPost> {
   return mapMedia(await apiDelete<ApiMedia>(`/admin/media/${encodeURIComponent(id)}`));
+}
+
+export async function getDeletedAdminMedia(params: AdminMediaListParams = {}, signal?: AbortSignal): Promise<AdminMediaListResult> {
+  const query = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => { if (value !== undefined && value !== "") query.set(key, String(value)); });
+  const result = await apiGet<{ items: ApiMedia[]; pagination: AdminMediaListResult["pagination"] }>(`/admin/media/trash?${query}`, signal);
+  return { ...result, items: result.items.map(mapMedia) };
+}
+
+export async function restoreAdminMedia(id: string): Promise<MediaPost> {
+  return mapMedia(await apiPost<ApiMedia>(`/admin/media/${encodeURIComponent(id)}/restore`, {}));
 }
 

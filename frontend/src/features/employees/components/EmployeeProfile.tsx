@@ -6,13 +6,15 @@ import EmployeeProfileCard from "@/components/ui/EmployeeProfileCard";
 import { formatJoinDate, getEmployeeAvatar } from "../utils/employeeUtils";
 import { getEmployeeDepartmentLabel } from "@/components/ui/employee-department-options";
 import { getEmployeeGenderLabel } from "@/components/ui/employee-gender-options";
+import { getEmployeeRankLabel } from "@/components/ui/employee-rank-options";
 
-export default function EmployeeProfile({ employee }: { employee: Employee }) {
+export default function EmployeeProfile({ employee, className = "xl:sticky xl:top-24", imageSizes = "360px" }: { employee: Employee; className?: string; imageSizes?: string }) {
   const details = [
     { icon: UserRound, label: "M\u00e3 nh\u00e2n vi\u00ean", value: employee.employeeCode },
     { icon: UserRound, label: "Gi\u1edbi t\u00ednh", value: getEmployeeGenderLabel(employee.gender) },
     { icon: CalendarDays, label: "Ng\u00e0y gia nh\u1eadp", value: formatJoinDate(employee.joinDate) },
     { icon: BriefcaseBusiness, label: "Ch\u1ee9c v\u1ee5", value: employee.position },
+    { icon: BriefcaseBusiness, label: "Cấp bậc", value: getEmployeeRankLabel(employee.rank) },
     { icon: Building2, label: "Ph\u00f2ng ban", value: getEmployeeDepartmentLabel(employee.department) },
     { icon: MapPin, label: "V\u0103n ph\u00f2ng", value: employee.location },
     { icon: Mail, label: "Email", value: employee.email },
@@ -27,8 +29,8 @@ export default function EmployeeProfile({ employee }: { employee: Employee }) {
       status={employee.status}
       details={details}
       description={employee.description}
-      imageSizes="360px"
-      className="xl:sticky xl:top-24"
+      imageSizes={imageSizes}
+      className={className}
     />
   );
 }

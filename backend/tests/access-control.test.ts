@@ -22,7 +22,7 @@ afterEach(() => jest.restoreAllMocks());
 
 describe("permission catalog", () => {
   it("exposes the supported actions and rejects obsolete actions", () => {
-    expect(PERMISSION_CATALOG).toHaveLength(16);
+    expect(PERMISSION_CATALOG).toHaveLength(17);
     expect(new Set(PERMISSION_CATALOG.map((p) => p.id))).toEqual(new Set(PERMISSION_ACTIONS));
     expect(filterPermissionActions(["employees:deactivate", "employees:view", "employees:view", "unknown"])).toEqual(["employees:view"]);
     expect(createPermissionGroupSchema.validate({ name: "HR", description: "Real description", actions: ["employees:view-birth-date", "employees:trash"] }).error).toBeUndefined();

@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 
-import { deleteCloudinaryAsset, getCloudinaryPublicIdFromUrl, uploadTinyMceImageToCloudinary } from "../../helpers/multerCloudinary.helper";
+import { deleteCloudinaryAsset, uploadTinyMceImageToCloudinary } from "../../helpers/multerCloudinary.helper";
 import { AppError } from "../../utils/errors/AppError";
 import type { AuditAction } from "../../interfaces/audit-log.interface";
 import type { CreateMediaInput, MediaListQuery, UpdateMediaInput } from "../../interfaces/media.interface";
@@ -100,10 +100,7 @@ export async function updateMedia(request: Request<{ id: string }, unknown, Upda
         ? { ...request.body, coverImage: uploadedFile.secure_url ?? uploadedFile.path, coverImagePublicId: uploadedFile.filename }
         : request.body,
     );
-    const previousPublicId = previous?.coverImagePublicId || getCloudinaryPublicIdFromUrl(previous?.coverImage);
-    if (uploadedFile && previousPublicId) {
-      try { await deleteCloudinaryAsset(previousPublicId); } catch (cleanupError) { console.error("Không thể xóa ảnh bìa cũ trên Cloudinary", cleanupError); }
-    }
+    if (uploadedFile && previous) await adminMediaService.cleanupCover(previous);
     await recordMediaAudit(request.admin, "media.updated", post, { changedFields: Object.keys(request.body), coverImageChanged: Boolean(uploadedFile) });
     response.status(200).json({ success: true, message: "Cập nhật bài viết thành công", data: post });
   } catch (error) {
@@ -112,13 +109,32 @@ export async function updateMedia(request: Request<{ id: string }, unknown, Upda
   }
 }
 
+export async function getDeletedMedia(request: Request<unknown, unknown, unknown, MediaListQuery>, response: Response, next: NextFunction): Promise<void> {
+  try { response.status(200).json({ success: true, data: await adminMediaService.getMedia(request.query, true) }); }
+  catch (error) { next(error); }
+}
+
+export async function softDeleteMedia(request: Request<{ id: string }>, response: Response, next: NextFunction): Promise<void> {
+  try {
+    const admin = request.admin!;
+    const post = await adminMediaService.softDeleteMedia(request.params.id, { accountId: admin.id, name: admin.name, email: admin.email });
+    await recordMediaAudit(admin, "media.soft_deleted", post);
+    response.status(200).json({ success: true, message: "Đã chuyển bài viết vào thùng rác", data: post });
+  } catch (error) { next(error); }
+}
+
+export async function restoreMedia(request: Request<{ id: string }>, response: Response, next: NextFunction): Promise<void> {
+  try {
+    const post = await adminMediaService.restoreMedia(request.params.id);
+    await recordMediaAudit(request.admin, "media.restored", post);
+    response.status(200).json({ success: true, message: "Đã khôi phục bài viết về trạng thái Ẩn tin", data: post });
+  } catch (error) { next(error); }
+}
+
 export async function permanentlyDeleteMedia(request: Request<{ id: string }>, response: Response, next: NextFunction): Promise<void> {
   try {
     const post = await adminMediaService.permanentlyDeleteMedia(request.params.id);
-    const publicId = post.coverImagePublicId || getCloudinaryPublicIdFromUrl(post.coverImage);
-    if (publicId) {
-      try { await deleteCloudinaryAsset(publicId); } catch (cleanupError) { console.error("Không thể xóa ảnh bìa trên Cloudinary", cleanupError); }
-    }
+    await adminMediaService.cleanupCover(post);
     await recordMediaAudit(request.admin, "media.permanently_deleted", post);
     response.status(200).json({ success: true, message: "Đã xóa vĩnh viễn bài viết", data: post });
   } catch (error) { next(error); }

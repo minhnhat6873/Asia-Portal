@@ -15,6 +15,7 @@ export const PERMISSION_ACTIONS = [
   "media:update",
   "media:publish",
   "media:delete",
+  "media:trash",
 ] as const;
 
 export const PERMISSION_GROUP_STATUSES = ["active", "inactive"] as const;

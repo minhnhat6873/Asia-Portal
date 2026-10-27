@@ -7,6 +7,7 @@ const validMedia = {
   content: "<p>Nội dung chi tiết.</p>",
   authorDepartment: "Phòng Marketing & Truyền thông",
   publishDate: "2026-10-07",
+  expiryDate: "2026-10-08",
   status: "published",
 };
 
@@ -54,6 +55,19 @@ describe("media validation", () => {
     expect(result.error).toBeUndefined();
     expect(result.value).not.toHaveProperty("expiryDate");
     expect(result.value).not.toHaveProperty("publishIndefinitely");
-    expect(updateMediaSchema.validate({ expiryDate: null }).value.expiryDate).toBeNull();
+    expect(updateMediaSchema.validate({ expiryDate: null }).error).toBeUndefined();
+  });
+
+  it("bắt buộc ngày hết hạn khi không đăng vĩnh viễn", () => {
+    for (const expiryDate of [undefined, null, ""]) {
+      const result = createMediaSchema.validate({ ...validMedia, expiryDate, publishIndefinitely: false });
+      expect(result.error?.details[0]?.path).toEqual(["expiryDate"]);
+      expect(result.error?.message).toContain("ngày hết hạn");
+    }
+  });
+
+  it.each([undefined, null])("cho tạo và sửa bài vĩnh viễn không có ngày hết hạn: %s", (expiryDate) => {
+    expect(createMediaSchema.validate({ ...validMedia, expiryDate, publishIndefinitely: true }).error).toBeUndefined();
+    expect(updateMediaSchema.validate({ expiryDate, publishIndefinitely: true }).error).toBeUndefined();
   });
 });

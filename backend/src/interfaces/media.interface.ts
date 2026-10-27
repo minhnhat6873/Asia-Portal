@@ -57,8 +57,8 @@ export interface Media {
 
 export type CreateMediaInput = Omit<
   Media,
-  "createdAt" | "updatedAt" | "isDeleted" | "deletedAt" | "deletedBy" | "contentAssetPublicIds"
->;
+  "createdAt" | "updatedAt" | "isDeleted" | "deletedAt" | "deletedBy" | "contentAssetPublicIds" | "expiryDate"
+> & { expiryDate?: Date | null };
 
 export type UpdateMediaInput = Partial<CreateMediaInput>;
 

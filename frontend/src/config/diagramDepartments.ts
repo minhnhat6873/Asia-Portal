@@ -61,7 +61,16 @@ export type DiagramDepartment = {
 };
 
 /** Routes and employee filters derive from the same department catalogue. */
-export const DIAGRAM_DEPARTMENTS: DiagramDepartment[] = ORGANIZATION_DEPARTMENTS.map((department) => ({
+export const DIAGRAM_DEPARTMENTS: DiagramDepartment[] = [{
+  slug: "ban-giam-doc",
+  name: "Ban giám đốc / CEO",
+  employeeDepartments: ["BOD"],
+  staff: 0,
+  icon: UsersRound,
+  tone: "bg-emerald-50 text-emerald-600",
+  surface: "bg-slate-50",
+  roles: [],
+}, ...ORGANIZATION_DEPARTMENTS.map((department) => ({
   slug: department.slug,
   divisionId: ORGANIZATION_DIVISIONS.find((division) => division.departmentIds.some((id) => id === department.id))?.id,
   name: `Phòng ${department.name}`,
@@ -71,7 +80,7 @@ export const DIAGRAM_DEPARTMENTS: DiagramDepartment[] = ORGANIZATION_DEPARTMENTS
   surface: "bg-slate-50",
   staff: 0,
   roles: [],
-}));
+}))];
 
 export function findDiagramDepartment(slug: string | undefined): DiagramDepartment | undefined {
   if (!slug) return undefined;

@@ -11,7 +11,7 @@ interface FindMediaOptions {
   sort: Record<string, SortOrder>;
 }
 
-const publicSelection = "-createdBy -coverImagePublicId -contentAssetPublicIds -deletedBy -deletedAt -isDeleted";
+const publicSelection = { createdBy: 0, coverImagePublicId: 0, contentAssetPublicIds: 0, deletedBy: 0, deletedAt: 0, isDeleted: 0 } as const;
 
 function visibleMediaFilter(filter: QueryFilter<Media> = {}): QueryFilter<Media> {
   return {

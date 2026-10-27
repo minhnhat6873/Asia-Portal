@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, LayoutGrid, List, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
@@ -14,9 +14,11 @@ import EmployeeStats from "./components/EmployeeStats";
 import EmployeesHero from "./components/EmployeesHero";
 import { normalizeSearchText } from "@/utils/normalizeSearchText";
 import { EMPLOYEE_DEPARTMENT_OPTIONS, normalizeEmployeeDepartment } from "@/components/ui/employee-department-options";
+import { EMPLOYEE_SELECTABLE_RANK_OPTIONS } from "@/components/ui/employee-rank-options";
 
 const PAGE_LIMIT = 10;
 const ALL_DEPARTMENTS = "Tất cả phòng ban";
+const ALL_RANKS = "Tất cả cấp bậc";
 const DEPARTMENT_FILTER_OPTIONS = [ALL_DEPARTMENTS, ...EMPLOYEE_DEPARTMENT_OPTIONS.map(({ value }) => value)];
 
 function EmployeesContent() {
@@ -27,8 +29,12 @@ function EmployeesContent() {
     const value = normalizeEmployeeDepartment(searchParams.get("department") ?? "");
     return DEPARTMENT_FILTER_OPTIONS.includes(value) ? value : ALL_DEPARTMENTS;
   });
-  const [position, setPosition] = useState(() => searchParams.get("position") ?? "Tất cả chức vụ");
+  const [rank, setRank] = useState(() => {
+    const value = searchParams.get("rank");
+    return EMPLOYEE_SELECTABLE_RANK_OPTIONS.find((option) => option.value === value)?.value ?? ALL_RANKS;
+  });
   const [newestFirst, setNewestFirst] = useState(() => searchParams.get("sort") !== "oldest");
+  const [viewMode, setViewMode] = useState<"list" | "grid">(() => searchParams.get("view") === "grid" ? "grid" : "list");
   const [requestedPage, setPage] = useState(() => Math.max(Number(searchParams.get("page")) || 1, 1));
   const [allEmployees, setAllEmployees] = useState<Employee[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -42,14 +48,14 @@ function EmployeesContent() {
       .filter((employee) => {
         const matchesSearch = !query || normalizeSearchText(`${employee.employeeCode} ${employee.name}`).includes(query);
         const matchesDepartment = department === ALL_DEPARTMENTS || normalizeEmployeeDepartment(employee.department) === department;
-        const matchesPosition = position === "Tất cả chức vụ" || employee.position === position;
-        return matchesSearch && matchesDepartment && matchesPosition;
+        const matchesRank = rank === ALL_RANKS || employee.rank === rank;
+        return matchesSearch && matchesDepartment && matchesRank;
       })
       .sort((left, right) => {
         const dateDifference = new Date(left.joinDate).getTime() - new Date(right.joinDate).getTime();
         return newestFirst ? -dateDifference : dateDifference;
       });
-  }, [allEmployees, department, newestFirst, position, search]);
+  }, [allEmployees, department, newestFirst, rank, search]);
 
   const pageCount = Math.ceil(filteredEmployees.length / PAGE_LIMIT);
   const page = isLoading ? requestedPage : Math.min(requestedPage, Math.max(pageCount, 1));
@@ -73,10 +79,7 @@ function EmployeesContent() {
 
   const departmentCount = new Set(filteredEmployees.map((employee) => normalizeEmployeeDepartment(employee.department)).filter(Boolean)).size;
   const positionCount = new Set(filteredEmployees.map((employee) => employee.position).filter(Boolean)).size;
-  const positions = useMemo(
-    () => ["Tất cả chức vụ", ...Array.from(new Set(allEmployees.map((employee) => employee.position))).sort()],
-    [allEmployees],
-  );
+  const ranks = [ALL_RANKS, ...EMPLOYEE_SELECTABLE_RANK_OPTIONS.map((option) => option.value)];
 
   useEffect(() => {
     const controller = new AbortController();
@@ -115,12 +118,13 @@ function EmployeesContent() {
     const params = new URLSearchParams();
     if (search.trim()) params.set("search", search.trim());
     if (department !== ALL_DEPARTMENTS) params.set("department", department);
-    if (position !== "Tất cả chức vụ") params.set("position", position);
+    if (rank !== ALL_RANKS) params.set("rank", rank);
     if (!newestFirst) params.set("sort", "oldest");
+    if (viewMode === "grid") params.set("view", "grid");
     if (page > 1) params.set("page", String(page));
     const query = params.toString();
     router.replace(query ? `/employees?${query}` : "/employees", { scroll: false });
-  }, [department, newestFirst, page, position, router, search]);
+  }, [department, newestFirst, page, rank, router, search, viewMode]);
 
   const openMobileProfile = () => {
     if (window.matchMedia("(max-width: 1199px)").matches) setProfileOpen(true);
@@ -136,7 +140,7 @@ function EmployeesContent() {
     requestAnimationFrame(() => document.getElementById("employee-directory-results")?.scrollIntoView({ behavior: "smooth", block: "start" }));
   };
 
-  const hasActiveFilters = Boolean(search.trim()) || department !== ALL_DEPARTMENTS || position !== "Tất cả chức vụ";
+  const hasActiveFilters = Boolean(search.trim()) || department !== ALL_DEPARTMENTS || rank !== ALL_RANKS;
   const employeePagination = visiblePagination.total > 0 ? (
     <div className="flex flex-wrap items-center justify-between gap-3 bg-white px-4 py-3">
       <p className="text-xs font-medium text-slate-600">Trang <strong className="text-emerald-700">{visiblePagination.page}</strong> / {visiblePagination.totalPages}</p>
@@ -157,13 +161,13 @@ function EmployeesContent() {
         <EmployeeFilters
           search={search}
           department={department}
-          position={position}
+          rank={rank}
           departments={DEPARTMENT_FILTER_OPTIONS}
-          positions={positions}
+          ranks={ranks}
           newestFirst={newestFirst}
           onSearchChange={resetPage(setSearch)}
           onDepartmentChange={resetPage(setDepartment)}
-          onPositionChange={resetPage(setPosition)}
+          onRankChange={resetPage(setRank)}
           onToggleSort={() => {
             setNewestFirst((current) => !current);
             setPage(1);
@@ -172,13 +176,28 @@ function EmployeesContent() {
           onClearFilters={() => {
             setSearch("");
             setDepartment(ALL_DEPARTMENTS);
-            setPosition("Tất cả chức vụ");
+            setRank(ALL_RANKS);
             setPage(1);
           }}
         />
-        <div className="mt-4 grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
-          <div className="min-w-0 space-y-4 sm:space-y-5">
+        <div className="mt-4 flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+          <div className="min-w-0 flex-1">
             <EmployeeStats total={visiblePagination.total} departments={departmentCount} positions={positionCount} />
+          </div>
+          <div role="group" aria-label="Cách xem nhân viên" className="inline-flex w-fit shrink-0 self-end rounded-xl border border-slate-200 bg-white p-1 shadow-sm sm:self-auto">
+            <button type="button" aria-pressed={viewMode === "list"} onClick={() => { setViewMode("list"); setProfileOpen(false); }} className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${viewMode === "list" ? "bg-emerald-50 text-emerald-800" : "text-slate-500 hover:bg-slate-50"}`}>
+              <List size={17} aria-hidden="true" /> Danh sách
+            </button>
+            <button type="button" aria-pressed={viewMode === "grid"} onClick={() => { setViewMode("grid"); setProfileOpen(false); }} className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${viewMode === "grid" ? "bg-emerald-50 text-emerald-800" : "text-slate-500 hover:bg-slate-50"}`}>
+              <LayoutGrid size={17} aria-hidden="true" /> Thẻ hồ sơ
+            </button>
+          </div>
+        </div>
+        <p className="mb-3 mt-4 text-sm font-medium text-slate-500 sm:mb-4">
+          Hiển thị <span className="font-semibold text-slate-600">{visiblePagination.total ? (page - 1) * PAGE_LIMIT + 1 : 0} - {visiblePagination.total ? (page - 1) * PAGE_LIMIT + visibleEmployees.length : 0}</span> trong <span className="font-semibold text-slate-600">{visiblePagination.total}</span> nhân viên
+        </p>
+        <div className={`grid min-w-0 items-start gap-4 ${viewMode === "list" ? "xl:grid-cols-[minmax(0,1fr)_360px]" : ""}`}>
+          <div className="min-w-0">
             {error ? (
               <div className="rounded-xl border border-rose-100 bg-rose-50 px-5 py-12 text-center text-sm text-rose-700">
                 <p>{error}</p>
@@ -191,17 +210,15 @@ function EmployeesContent() {
                 <EmployeeDirectory
                   employees={visibleEmployees}
                   selectedId={selected?.id}
-                  total={visiblePagination.total}
-                  page={visiblePagination.page}
-                  limit={visiblePagination.limit}
                   pagination={employeePagination}
+                  viewMode={viewMode}
                   onSelect={(employee) => setSelectedId(employee.id)}
                   onOpenProfile={openMobileProfile}
                 />
               </>
             )}
           </div>
-          <div className="hidden xl:block">{selected ? <EmployeeProfile employee={selected} /> : <EmptyProfile />}</div>
+          {viewMode === "list" && <div className="hidden xl:block">{selected ? <EmployeeProfile employee={selected} /> : <EmptyProfile />}</div>}
         </div>
       </div>
 

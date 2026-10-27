@@ -2,6 +2,7 @@ import { AppError } from "../errors/AppError";
 import { getVietnamNow } from "../time/vietnamTime";
 
 export const MEDIA_EXPIRY_DATE_ERROR = "Ngày hết hạn phải sau ngày đăng ít nhất 1 ngày.";
+export const MEDIA_EXPIRED_PUBLISH_ERROR = "Bài viết đã hết hạn. Để đăng lại, vui lòng chọn Đăng tin vĩnh viễn hoặc đặt ngày hết hạn mới.";
 
 export function isMediaExpiryAfterPublication(publishDate: Date, expiryDate?: Date | null): boolean {
   return !expiryDate || expiryDate.toISOString().slice(0, 10) > publishDate.toISOString().slice(0, 10);
@@ -17,6 +18,6 @@ export function getMediaExpiryCutoff(now = new Date()): Date {
   return new Date(`${getVietnamNow(now).date}T00:00:00.000Z`);
 }
 
-export function withMediaExpiry<T extends { expiryDate?: Date | null }>(post: T): T & { isExpired: boolean } {
-  return { ...post, isExpired: Boolean(post.expiryDate && post.expiryDate < getMediaExpiryCutoff()) };
+export function withMediaExpiry<T extends { expiryDate?: Date | null; publishIndefinitely?: boolean }>(post: T): T & { isExpired: boolean } {
+  return { ...post, isExpired: Boolean(!post.publishIndefinitely && post.expiryDate && post.expiryDate < getMediaExpiryCutoff()) };
 }

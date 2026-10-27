@@ -49,7 +49,10 @@ Tất cả endpoint đi qua middleware toàn cục tại `backend/index.ts`: Hel
 | GET | `/admin/media/:id` | ADMIN GATE, `media:view` | `getMediaById` | `adminMediaService.getMediaById` | bài viết |
 | POST | `/admin/media` | ADMIN GATE, `media:create`, Cloudinary, multipart cover, validate upload | `createMedia` | `adminMediaService.createMedia` + audit | bài viết (201) |
 | PATCH | `/admin/media/:id` | ADMIN GATE, Cloudinary, multipart cover, validate upload, quyền update/publish | `updateMedia` | `adminMediaService.updateMedia` + audit | bài viết |
-| DELETE | `/admin/media/:id` | ADMIN GATE, `media:delete` | `permanentlyDeleteMedia` | `adminMediaService.permanentlyDeleteMedia` + audit | bài viết đã xóa vĩnh viễn |
+| DELETE | `/admin/media/:id` | ADMIN GATE, `media:delete` | `softDeleteMedia` | `adminMediaService.softDeleteMedia` + audit | bài viết đã chuyển vào thùng rác |
+| GET | `/admin/media/trash` | ADMIN GATE, `media:trash`, validate query | `getDeletedMedia` | `adminMediaService.getMedia(query, true)` | bài trong thùng rác + pagination |
+| POST | `/admin/media/:id/restore` | ADMIN GATE, `media:trash`, body rỗng | `restoreMedia` | `adminMediaService.restoreMedia` + audit | bài khôi phục ở trạng thái draft |
+| DELETE | `/admin/media/:id/permanent` | ADMIN GATE, `media:trash` | `permanentlyDeleteMedia` | `adminMediaService.permanentlyDeleteMedia` + audit | chỉ xóa vĩnh viễn bài trong thùng rác |
 | GET | `/admin/audit-logs` | ADMIN GATE, role `admin`, validate query | `getAuditLogs` | `auditLogService.getAuditLogs` | audit logs + pagination |
 | DELETE | `/admin/accounts/:id` | ADMIN GATE, role `admin` | `deleteAccount` | `adminAccountService.deleteAccount` + audit | `{ id }`; gồm Admin khác, chặn tự xóa/Admin active cuối cùng |
 | GET | `/admin/accounts` | ADMIN GATE, role `admin` | `getAccounts` | `adminAccountService.getAccounts` | account[] |
@@ -63,7 +66,7 @@ Tất cả endpoint đi qua middleware toàn cục tại `backend/index.ts`: Hel
 | PATCH | `/admin/permission-groups/:id` | ADMIN GATE, role `admin`, validate body | `updateGroup` | `permissionGroupService.updateGroup` | group |
 | DELETE | `/admin/permission-groups/:id` | ADMIN GATE, role `admin` | `deleteGroup` | `permissionGroupService.deleteGroup` + audit | `{ id }`; xóa nhóm và gỡ nhóm khỏi tài khoản |
 
-Media không có thùng rác: `DELETE /admin/media/:id` xóa document khỏi MongoDB ngay và cố gắng dọn ảnh Cloudinary. Nguồn route trực tiếp: [admin auth](/D:/Vscode/Asia-Portal/backend/src/routes/admin/auth.route.ts:78), [admin employee](/D:/Vscode/Asia-Portal/backend/src/routes/admin/employee.route.ts:30), [admin media](/D:/Vscode/Asia-Portal/backend/src/routes/admin/media.route.ts), [account](/D:/Vscode/Asia-Portal/backend/src/routes/admin/account.route.ts:18), [permission group](/D:/Vscode/Asia-Portal/backend/src/routes/admin/permission-group.route.ts:16), [user employee](/D:/Vscode/Asia-Portal/backend/src/routes/user/employee.route.ts:12), [user media](/D:/Vscode/Asia-Portal/backend/src/routes/user/media.route.ts).
+Media có thùng rác: `DELETE /admin/media/:id` là xóa mềm, giữ nội dung và ảnh để khôi phục. Các thao tác xem thùng rác, khôi phục và xóa vĩnh viễn cần quyền `media:trash`. Khôi phục luôn về Ẩn tin. Chi tiết tại [media-trash.md](media-trash.md).
 
 Meeting là API public, không yêu cầu đăng nhập. Booking start/verify/resend nhận JSON body; cancel start/resend nhận `{ bookingId }`, cancel verify nhận `{ bookingId, code }`. GET hỗ trợ `dateFrom`, `dateTo`, `roomId`, `department`, `search`, `page`, `limit`. Payload chi tiết ở `api-response.md`.
 

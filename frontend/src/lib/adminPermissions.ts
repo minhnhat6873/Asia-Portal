@@ -28,6 +28,7 @@ export function canAccessAdminPath(account: AdminUser | null, pathname: string):
   if (/^\/admin\/employees\/[^/]+\/edit$/.test(pathname)) return can("employees:view") && can("employees:update");
   if (pathname.startsWith("/admin/employees")) return can("employees:view");
   if (pathname === "/admin/media/new") return can("media:create");
+  if (pathname === "/admin/media/trash") return can("media:trash");
   if (/^\/admin\/media\/[^/]+\/edit$/.test(pathname)) return can("media:view") && can("media:update");
   if (pathname.startsWith("/admin/media")) return can("media:view");
   if (pathname.startsWith("/admin/meetings")) return can("meetings:view");
@@ -36,5 +37,5 @@ export function canAccessAdminPath(account: AdminUser | null, pathname: string):
 }
 
 export function getAdminLandingPath(account: AdminUser | null): string {
-  return ["/admin/dashboard", "/admin/employees", "/admin/employees/trash", "/admin/media", "/admin/meetings", "/admin/employees/new", "/admin/media/new", "/admin/account"].find((path) => canAccessAdminPath(account, path)) ?? "/admin/account";
+  return ["/admin/dashboard", "/admin/employees", "/admin/employees/trash", "/admin/media", "/admin/media/trash", "/admin/meetings", "/admin/employees/new", "/admin/media/new", "/admin/account"].find((path) => canAccessAdminPath(account, path)) ?? "/admin/account";
 }

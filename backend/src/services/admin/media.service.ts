@@ -3,6 +3,7 @@ import mongoose, { type QueryFilter } from "mongoose";
 import type {
   CreateMediaInput,
   Media,
+  MediaActor,
   MediaListQuery,
   UpdateMediaInput,
 } from "../../interfaces/media.interface";
@@ -11,7 +12,8 @@ import { mediaAssetService } from "./media-asset.service";
 import { AppError } from "../../utils/errors/AppError";
 import { sanitizeRichText, richTextToPlainText } from "../../utils/html/sanitizeRichText";
 import { normalizeSearchText } from "../../utils/text/normalizeSearchText";
-import { validateMediaDates, withMediaExpiry } from "../../utils/media/validateMediaDates";
+import { MEDIA_EXPIRED_PUBLISH_ERROR, validateMediaDates, withMediaExpiry } from "../../utils/media/validateMediaDates";
+import { deleteCloudinaryAsset } from "../../helpers/multerCloudinary.helper";
 
 function ensureValidId(id: string): void {
   if (!mongoose.isValidObjectId(id)) {
@@ -46,15 +48,16 @@ function storedAssetIds(media: Pick<Media, "contentAssetPublicIds" | "summary" |
 }
 
 export const adminMediaService = {
-  async getMedia(query: MediaListQuery) {
+  async getMedia(query: MediaListQuery, deleted = false) {
+    await adminMediaRepository.hideExpiredPosts();
     const page = Math.max(Number(query.page) || 1, 1);
     const limit = Math.min(Math.max(Number(query.limit) || 12, 1), 100);
-    const filter: QueryFilter<Media> = { isDeleted: { $ne: true } };
+    const filter: QueryFilter<Media> = { isDeleted: deleted ? true : { $ne: true } };
 
     if (query.category) filter.category = query.category;
-    if (query.status) filter.status = query.status;
+    if (!deleted && query.status) filter.status = query.status;
 
-    const sort = { publishDate: query.sort === "oldest" ? 1 as const : -1 as const };
+    const sort = { [deleted ? "deletedAt" : "publishDate"]: query.sort === "oldest" ? 1 as const : -1 as const };
     const normalizedSearch = normalizeSearchText(query.search);
     if (normalizedSearch) {
       const matchingItems = (await adminMediaRepository.findAllForSearch(filter, sort)).filter((post) =>
@@ -75,14 +78,19 @@ export const adminMediaService = {
 
   async getMediaById(id: string) {
     ensureValidId(id);
+    await adminMediaRepository.hideExpiredPosts();
     const post = await adminMediaRepository.findById(id);
     if (!post) throw new AppError(404, "Không tìm thấy bài viết");
     return withoutInternalAssetReferences(post);
   },
 
   async createMedia(data: CreateMediaInput) {
-    validateMediaDates(data.publishDate, data.expiryDate);
-    const sanitized = sanitizeContent(data);
+    if (!data.publishIndefinitely && !data.expiryDate) throw new AppError(400, "Vui lòng chọn ngày hết hạn hoặc chọn Đăng tin vĩnh viễn.");
+    if (!data.publishIndefinitely) validateMediaDates(data.publishDate, data.expiryDate);
+    if (data.status === "published" && withMediaExpiry(data).isExpired) {
+      throw new AppError(400, MEDIA_EXPIRED_PUBLISH_ERROR);
+    }
+    const sanitized = sanitizeContent({ ...data, ...(data.publishIndefinitely ? { expiryDate: null } : {}) });
     const contentAssetPublicIds = await getContentAssetIds(sanitized.summary, sanitized.content);
     await mediaAssetService.prepareForReference(contentAssetPublicIds);
     const post = await adminMediaRepository.create({ ...sanitized, contentAssetPublicIds });
@@ -97,10 +105,21 @@ export const adminMediaService = {
       const previous = await adminMediaRepository.findById(id);
       if (!previous) throw new AppError(404, "Không tìm thấy bài viết");
 
+      const publishIndefinitely = sanitized.publishIndefinitely ?? previous.publishIndefinitely ?? false;
+      const expiryDate = publishIndefinitely ? null : sanitized.expiryDate !== undefined ? sanitized.expiryDate : previous.expiryDate;
+      // Old undated posts can still be hidden; saving or publishing requires a date.
+      if (!publishIndefinitely && !expiryDate && !(Object.keys(sanitized).length === 1 && sanitized.status === "draft")) {
+        throw new AppError(400, "Vui lòng chọn ngày hết hạn hoặc chọn Đăng tin vĩnh viễn.");
+      }
+
       validateMediaDates(
         sanitized.publishDate ?? previous.publishDate,
-        sanitized.expiryDate !== undefined ? sanitized.expiryDate : previous.expiryDate,
+        expiryDate,
       );
+      const isExpired = withMediaExpiry({ expiryDate, publishIndefinitely }).isExpired;
+      if (sanitized.status === "published" && isExpired) {
+        throw new AppError(400, MEDIA_EXPIRED_PUBLISH_ERROR);
+      }
 
       const summary = sanitized.summary ?? previous.summary;
       const content = sanitized.content ?? previous.content;
@@ -112,7 +131,7 @@ export const adminMediaService = {
       await mediaAssetService.prepareForReference(contentAssetPublicIds);
       const post = await adminMediaRepository.updateById(
         id,
-        { ...sanitized, contentAssetPublicIds },
+        { ...sanitized, ...(publishIndefinitely ? { expiryDate: null } : {}), ...(isExpired ? { status: "draft" as const } : {}), contentAssetPublicIds },
         previous.updatedAt,
       );
       if (!post) continue;
@@ -125,15 +144,42 @@ export const adminMediaService = {
     throw new AppError(409, "Bài viết vừa được cập nhật ở nơi khác. Vui lòng tải lại rồi thử lại.");
   },
 
+  async softDeleteMedia(id: string, actor: MediaActor) {
+    ensureValidId(id);
+    const post = await adminMediaRepository.softDeleteById(id, actor);
+    if (!post) throw new AppError(404, "Không tìm thấy bài viết hoặc bài đã ở trong thùng rác");
+    return withoutInternalAssetReferences(post);
+  },
+
+  async restoreMedia(id: string) {
+    ensureValidId(id);
+    const post = await adminMediaRepository.restoreById(id);
+    if (!post) throw new AppError(404, "Không tìm thấy bài viết trong thùng rác");
+    return withoutInternalAssetReferences(post);
+  },
+
+  async cleanupCover(post: Pick<Media, "coverImagePublicId" | "coverImage">): Promise<void> {
+    // Only delete a server-recorded upload from the media folder, never an ID parsed from a client URL.
+    const publicId = post.coverImagePublicId;
+    if (!publicId?.startsWith("asia-portal/media/") || publicId.includes("..")) return;
+    try {
+      if (!await adminMediaRepository.hasCoverReference(publicId, post.coverImage)) await deleteCloudinaryAsset(publicId);
+    } catch {
+      console.error("Không thể dọn ảnh bìa; cần kiểm tra asset Cloudinary.");
+    }
+  },
+
   async permanentlyDeleteMedia(id: string) {
     ensureValidId(id);
-    const previous = await adminMediaRepository.findById(id);
     const post = await adminMediaRepository.permanentlyDeleteById(id);
-    if (!post) throw new AppError(404, "Không tìm thấy bài viết");
-    const legacyIds = previous
-      ? await getContentAssetIds(previous.summary, previous.content)
-      : [];
-    await mediaAssetService.synchronizeReferenceStatuses([...storedAssetIds(post), ...legacyIds]);
+    if (!post) throw new AppError(404, "Chỉ có thể xóa vĩnh viễn bài viết trong thùng rác");
+    try {
+      const legacyIds = await getContentAssetIds(post.summary, post.content);
+      await mediaAssetService.synchronizeReferenceStatuses([...storedAssetIds(post), ...legacyIds]);
+    } catch {
+      // The atomic deletion already succeeded; reconciliation can retry asset cleanup.
+      console.error("Bài viết đã được xóa; cần đồng bộ lại tài nguyên truyền thông.");
+    }
     return withoutInternalAssetReferences(post);
   },
 };

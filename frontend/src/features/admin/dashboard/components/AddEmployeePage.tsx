@@ -22,13 +22,16 @@ import DatePicker from "@/components/ui/DatePicker";
 import EmployeeProfileCard from "@/components/ui/EmployeeProfileCard";
 import AvatarUploader from "@/components/ui/AvatarUploader";
 import { EMPLOYEE_DEPARTMENT_OPTIONS, getEmployeeDepartmentLabel, normalizeEmployeeDepartment } from '@/components/ui/employee-department-options';
-import { EMPLOYEE_RANK_OPTIONS_UI, getEmployeeRankLabel } from '@/components/ui/employee-rank-options';
+import { EMPLOYEE_RANK_OPTIONS_UI, EMPLOYEE_SELECTABLE_RANK_OPTIONS, getEmployeeRankLabel } from '@/components/ui/employee-rank-options';
 import { EMPLOYEE_STATUS_OPTIONS_UI } from '@/components/ui/employee-status-options';
 import { EMPLOYEE_GENDER_OPTIONS, getEmployeeGenderLabel } from '@/components/ui/employee-gender-options';
-import { createAdminEmployee, getAdminEmployees, updateAdminEmployee } from '@/services/admin-employee.service';
+import { createAdminEmployee, updateAdminEmployee } from '@/services/admin-employee.service';
 import { ApiError } from '@/services/api';
 
 import { useAdminPermissions } from "@/lib/adminPermissions";
+import { useUnsavedChanges } from "@/lib/useUnsavedChanges";
+import UnsavedChangesDialog from "@/components/ui/UnsavedChangesDialog";
+import { navigateWithUnsavedChangesGuard } from "@/lib/unsavedChangesNavigation";
 
 type FormField = "code" | "fullName" | "position" | "department" | "rank" | "joinDate" | "birthDate" | "gender" | "location" | "status" | "email" | "phone" | "bio";
 type FormErrors = Partial<Record<FormField, string>>;
@@ -93,7 +96,7 @@ export const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({
     status: '' as EmployeeStatus, joinDate: '', birthDate: '', gender: '', location: '',
     email: '', phone: '', avatar: '', bio: ''
   };
-  const [formData, setFormData] = useState<EmployeeFormDraft>(() => initialEmployee ? {
+  const [initialForm] = useState<EmployeeFormDraft>(() => initialEmployee ? {
     code: initialEmployee.code,
     fullName: initialEmployee.fullName,
     position: initialEmployee.position,
@@ -109,6 +112,7 @@ export const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({
     avatar: initialEmployee.avatar,
     bio: initialEmployee.bio ?? '',
   } : emptyForm);
+  const [formData, setFormData] = useState(initialForm);
 
   const canViewBirthDate = can("employees:view-birth-date");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -118,33 +122,22 @@ export const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isDraftRestored, setIsDraftRestored] = useState(false);
-  const [ceoEmployeeId, setCeoEmployeeId] = useState<string | null | undefined>(undefined);
-
+  const draftClosed = useRef(false);
+  const savingRef = useRef(false);
+  const hasChanges = avatarFile !== null || (Object.keys(initialForm) as (keyof EmployeeFormDraft)[])
+    .some((field) => (field !== "birthDate" || canViewBirthDate) && formData[field] !== initialForm[field]);
+  const navigation = useUnsavedChanges(hasChanges, isSaving);
   const rankOptions = useMemo(() => {
-    const isCurrentEmployeeCeo = initialEmployee?.rank === 'CEO';
     const isBod = normalizeEmployeeDepartment(formData.department) === 'BOD';
-    return EMPLOYEE_RANK_OPTIONS_UI.filter((option) => {
-      if (option.value === 'Senior Management') return isBod;
-      if (option.value === 'CEO') return isBod && (ceoEmployeeId === null || isCurrentEmployeeCeo);
-      return true;
-    });
-  }, [ceoEmployeeId, initialEmployee, formData.department]);
-
+    return EMPLOYEE_SELECTABLE_RANK_OPTIONS.filter((option) =>
+      option.value !== 'Senior Management' || isBod,
+    );
+  }, [formData.department]);
 
   const avatarPreview = useMemo(
     () => (avatarFile ? URL.createObjectURL(avatarFile) : formData.avatar),
     [avatarFile, formData.avatar],
   );
-
-  useEffect(() => {
-    const controller = new AbortController();
-    getAdminEmployees({ rank: 'CEO', limit: 1 }, controller.signal)
-      .then((result) => setCeoEmployeeId(result.items[0]?._id ?? null))
-      .catch((error) => {
-        if (!(error instanceof DOMException && error.name === 'AbortError')) setCeoEmployeeId(undefined);
-      });
-    return () => controller.abort();
-  }, []);
 
   useEffect(() => {
     return () => {
@@ -156,7 +149,7 @@ export const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({
     const timer = window.setTimeout(() => {
       try {
         const draft = JSON.parse(sessionStorage.getItem(draftStorageKey) ?? 'null') as Partial<EmployeeFormDraft> | null;
-        if (draft) setFormData((current) => ({ ...current, ...draft, birthDate: canViewBirthDate ? draft.birthDate ?? current.birthDate : "" }));
+        if (draft) setFormData((current) => ({ ...current, ...draft, birthDate: canViewBirthDate ? current.birthDate : "" }));
       } catch {
         sessionStorage.removeItem(draftStorageKey);
       } finally {
@@ -168,13 +161,15 @@ export const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({
   }, [draftStorageKey, canViewBirthDate]);
 
   useEffect(() => {
-    if (!isDraftRestored) return;
+    if (!isDraftRestored || draftClosed.current) return;
     const timer = window.setTimeout(() => {
-      sessionStorage.setItem(draftStorageKey, JSON.stringify({...formData, birthDate: ""}));
+      if (draftClosed.current) return;
+      if (!hasChanges) { sessionStorage.removeItem(draftStorageKey); return; }
+      sessionStorage.setItem(draftStorageKey, JSON.stringify({ ...formData, birthDate: undefined }));
     }, 250);
 
     return () => window.clearTimeout(timer);
-  }, [draftStorageKey, formData, isDraftRestored]);
+  }, [draftStorageKey, formData, hasChanges, isDraftRestored]);
 
   const validateForm = (): FormErrors => {
     const errors: FormErrors = {};
@@ -193,6 +188,7 @@ export const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({
     if (!formData.department) errors.department = "Vui lòng chọn phòng ban.";
     else if (!EMPLOYEE_DEPARTMENT_OPTIONS.some((option) => option.value === formData.department)) errors.department = "Vui lòng chọn phòng ban trong danh mục mới.";
     if (!formData.rank) errors.rank = "Vui lòng chọn cấp bậc.";
+    else if (formData.rank === "CEO" && initialEmployee?.rank !== "CEO") errors.rank = "Vui lòng chọn cấp bậc trong danh sách hiện tại.";
     else if (!EMPLOYEE_RANK_OPTIONS_UI.some((option) => option.value === formData.rank)) errors.rank = "Cấp bậc hiện tại không còn hợp lệ. Vui lòng chọn lại cấp bậc trong danh sách.";
     else if ((formData.rank === 'CEO' || formData.rank === 'Senior Management') && normalizeEmployeeDepartment(formData.department) !== 'BOD') {
       errors.rank = "Chỉ phòng BOD được chọn CEO hoặc Quản lý cấp cao.";
@@ -213,9 +209,9 @@ export const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({
   const inputClassName = (field: FormField, extra = "") =>
     `w-full px-4 py-3 text-sm bg-slate-50/70 border rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all ${fieldErrors[field] ? "border-rose-400 bg-rose-50/60" : "border-slate-200"} ${extra}`;
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (isSaving) return;
+  const handleSubmit = async (e?: React.FormEvent): Promise<boolean> => {
+    e?.preventDefault();
+    if (savingRef.current) return false;
 
     const errors = validateForm();
     setFieldErrors(errors);
@@ -225,10 +221,11 @@ export const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({
         rankFieldRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
         rankFieldRef.current?.querySelector<HTMLButtonElement>("button")?.focus({ preventScroll: true });
       });
-      return;
+      return false;
     }
 
     setErrorMsg(null);
+    savingRef.current = true;
     setIsSaving(true);
 
     try {
@@ -255,6 +252,7 @@ export const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({
         avatarFile,
       );
 
+      draftClosed.current = true;
       setIsDraftRestored(false);
       sessionStorage.removeItem(draftStorageKey);
       onSave({
@@ -276,6 +274,8 @@ export const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({
         createdAt: employee.createdAt ?? initialEmployee?.createdAt,
         updatedAt: employee.updatedAt ?? initialEmployee?.updatedAt,
       });
+      await navigation.leave(onBack);
+      return true;
     } catch (error) {
       const message = error instanceof Error
         ? error.message
@@ -297,17 +297,14 @@ export const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({
       if (error instanceof ApiError && error.status === 409 && message.includes('CEO')) {
         setFieldErrors((current) => ({ ...current, rank: message }));
       }
+      return false;
     } finally {
+      savingRef.current = false;
       setIsSaving(false);
     }
   };
   const handleReset = () => {
-    setFormData(initialEmployee ? {
-      code: initialEmployee.code, fullName: initialEmployee.fullName, position: initialEmployee.position,
-      department: normalizeEmployeeDepartment(initialEmployee.department), rank: initialEmployee.rank ?? '', status: initialEmployee.status,
-      joinDate: initialEmployee.joinDate, birthDate: initialEmployee.birthDate, gender: initialEmployee.gender ?? '', location: initialEmployee.location,
-      email: initialEmployee.email, phone: initialEmployee.phone, avatar: initialEmployee.avatar, bio: initialEmployee.bio ?? '',
-    } : emptyForm);
+    setFormData(initialForm);
     setErrorMsg(null);
     setFieldErrors({});
     setAvatarFile(null);
@@ -318,6 +315,15 @@ export const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({
 
   return (
     <div className="space-y-6 pb-12">
+      <UnsavedChangesDialog open={navigation.isPromptOpen} saving={isSaving}
+        onContinue={navigation.cancelNavigation}
+        onDiscard={() => {
+          draftClosed.current = true;
+          sessionStorage.removeItem(draftStorageKey);
+          void navigation.leave(onBack);
+        }}
+        onSave={() => { void handleSubmit().then((saved) => { if (!saved) navigation.cancelNavigation(); }); }}
+      />
       {isSaving && typeof document !== 'undefined' && createPortal(
         <div
           className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/35 p-4 backdrop-blur-sm"
@@ -337,7 +343,7 @@ export const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-3xl border border-slate-200/90 shadow-2xs">
         <div className="flex min-w-0 items-start gap-3.5 sm:items-center">
           <button
-            onClick={onBack}
+            onClick={() => navigateWithUnsavedChangesGuard(onBack)}
             className="shrink-0 p-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors"
             title="Quay lại danh sách"
           >
@@ -369,7 +375,7 @@ export const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({
             className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs font-semibold transition-colors"
           >
             <RotateCcw className="w-3.5 h-3.5" />
-            <span>Đặt lại form</span>
+            <span>Hoàn tác thay đổi</span>
           </button>
           <button
             type="button"
@@ -478,7 +484,7 @@ export const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({
                     if (fieldErrors.rank) setFieldErrors((current) => ({ ...current, rank: undefined }));
                   }}
                   options={rankOptions}
-                  placeholder="Chọn cấp bậc"
+                  placeholder={formData.rank === "CEO" ? "CEO (dữ liệu hiện tại)" : "Chọn cấp bậc"}
                   className="w-full"
                   searchable={false}
                   showSelectionCheck={false}
@@ -607,7 +613,7 @@ export const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({
             <div className="pt-4 border-t border-slate-100 flex flex-wrap gap-3 items-center justify-between">
               <button
                 type="button"
-                onClick={onBack}
+                onClick={() => navigateWithUnsavedChangesGuard(onBack)}
                 className="text-sm text-slate-500 hover:text-slate-700 font-medium"
               >
                 ← Quay lại danh sách nhân sự

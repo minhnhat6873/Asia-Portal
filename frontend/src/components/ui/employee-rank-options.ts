@@ -3,7 +3,7 @@
  * `label`: tên hiển thị trên frontend.
  * `value`: giá trị hiện được backend chấp nhận và lưu trong database.
  *
- * Chưa nối vào form và bộ lọc cho đến khi mapping được duyệt.
+ * Giữ CEO để đọc dữ liệu cũ; các lựa chọn hiện tại dùng danh sách bên dưới.
  */
 export const EMPLOYEE_RANK_OPTIONS_UI = [
   { value: "CEO", label: "CEO" },
@@ -12,6 +12,10 @@ export const EMPLOYEE_RANK_OPTIONS_UI = [
   { value: "Intermediate Personnel", label: "Nhân sự cấp trung" },
   { value: "Staff", label: "Chuyên viên/Nhân viên" },
 ] as const;
+
+export const EMPLOYEE_SELECTABLE_RANK_OPTIONS = EMPLOYEE_RANK_OPTIONS_UI.filter(
+  (option) => option.value !== "CEO",
+);
 
 export type EmployeeRankValue =
   (typeof EMPLOYEE_RANK_OPTIONS_UI)[number]["value"];

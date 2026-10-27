@@ -16,6 +16,7 @@ export interface DashboardSummary {
 
 export const adminDashboardService = {
   async getSummary(): Promise<DashboardSummary> {
+    await adminMediaRepository.hideExpiredPosts();
     const [
       totalEmployees,
       activeEmployees,

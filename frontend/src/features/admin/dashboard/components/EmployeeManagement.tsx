@@ -1,6 +1,5 @@
 import { useDelayedLoading } from "@/lib/useDelayedLoading";
-import React, { useEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
+import React, { useEffect, useState } from 'react';
 import { hasRichTextContent, RichText } from '@/components/ui/RichText';
 import { 
   Plus, 
@@ -22,17 +21,15 @@ import {
   LayoutGrid,
   List,
   LoaderCircle,
-  ImagePlus,
   X
 } from 'lucide-react';
-import { toast } from 'sonner';
 import { Employee, EmployeeStatus } from '../types';
-import { AdminSelect } from './AdminSelect';
+import EmployeeSelectFilter from '@/components/ui/EmployeeSelectFilter';
 import { EMPLOYEE_DEPARTMENT_OPTIONS, getEmployeeDepartmentLabel } from '@/components/ui/employee-department-options';
-import { EMPLOYEE_RANK_OPTIONS_UI, getEmployeeRankLabel } from '@/components/ui/employee-rank-options';
+import { EMPLOYEE_SELECTABLE_RANK_OPTIONS, getEmployeeRankLabel } from '@/components/ui/employee-rank-options';
 import { EMPLOYEE_STATUS_OPTIONS_UI } from '@/components/ui/employee-status-options';
 import { getEmployeeGenderLabel } from '@/components/ui/employee-gender-options';
-import { updateAdminEmployeeChartAvatar, type AdminEmployeeListParams } from '@/services/admin-employee.service';
+import type { AdminEmployeeListParams } from '@/services/admin-employee.service';
 import { useAdminPermissions } from '@/lib/adminPermissions';
 import EmployeeProfileCard from '@/components/ui/EmployeeProfileCard';
 
@@ -75,7 +72,6 @@ interface EmployeeManagementProps {
   onNavigateToAdd: () => void;
   onNavigateToEdit?: (employee: Employee) => void;
   onNavigateToTrash?: () => void;
-  onChartAvatarUpdated?: () => void | Promise<void>;
 }
 
 export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
@@ -94,7 +90,6 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
   onNavigateToAdd,
   onNavigateToEdit,
   onNavigateToTrash,
-  onChartAvatarUpdated,
 }) => {
   const { can } = useAdminPermissions();
   const showLoading = useDelayedLoading(isLoading);
@@ -111,79 +106,6 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
 
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [isDeleteSubmitting, setIsDeleteSubmitting] = useState(false);
-  const [chartAvatarEmployee, setChartAvatarEmployee] = useState<Employee | null>(null);
-  const [chartAvatarFile, setChartAvatarFile] = useState<File | null>(null);
-  const [chartAvatarPreview, setChartAvatarPreview] = useState('');
-  const [isChartAvatarSaving, setIsChartAvatarSaving] = useState(false);
-  const [chartAvatarZoom, setChartAvatarZoom] = useState(1);
-  const [chartAvatarOffset, setChartAvatarOffset] = useState({ x: 0, y: 0 });
-  const [chartAvatarSize, setChartAvatarSize] = useState({ width: 0, height: 0 });
-  const chartAvatarImageRef = useRef<HTMLImageElement>(null);
-  const dragStartRef = useRef<{ pointerX: number; pointerY: number; imageX: number; imageY: number } | null>(null);
-
-  useEffect(() => () => {
-    if (chartAvatarPreview.startsWith('blob:')) URL.revokeObjectURL(chartAvatarPreview);
-  }, [chartAvatarPreview]);
-
-  const chooseChartAvatar = (file?: File) => {
-    if (!file) return;
-    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 5 * 1024 * 1024) {
-      toast.error('Chỉ nhận ảnh JPEG, PNG hoặc WebP tối đa 5 MB.');
-      return;
-    }
-    setChartAvatarFile(file);
-    setChartAvatarPreview(URL.createObjectURL(file));
-    setChartAvatarZoom(1);
-    setChartAvatarOffset({ x: 0, y: 0 });
-  };
-
-  const clampChartAvatarOffset = (x: number, y: number, zoom = chartAvatarZoom) => {
-    if (!chartAvatarSize.width || !chartAvatarSize.height) return { x: 0, y: 0 };
-    const baseScale = Math.max(224 / chartAvatarSize.width, 224 / chartAvatarSize.height);
-    const maxX = Math.max(0, (chartAvatarSize.width * baseScale * zoom - 224) / 2);
-    const maxY = Math.max(0, (chartAvatarSize.height * baseScale * zoom - 224) / 2);
-    return { x: Math.max(-maxX, Math.min(maxX, x)), y: Math.max(-maxY, Math.min(maxY, y)) };
-  };
-
-  const createCroppedChartAvatar = async (): Promise<File> => {
-    const image = chartAvatarImageRef.current;
-    if (!image || !chartAvatarFile) throw new Error('Không thể xử lý ảnh đã chọn.');
-    const viewportSize = 224;
-    const outputSize = 600;
-    const baseScale = Math.max(viewportSize / image.naturalWidth, viewportSize / image.naturalHeight);
-    const renderedScale = baseScale * chartAvatarZoom;
-    const sourceSize = viewportSize / renderedScale;
-    const sourceX = image.naturalWidth / 2 - (viewportSize / 2 + chartAvatarOffset.x) / renderedScale;
-    const sourceY = image.naturalHeight / 2 - (viewportSize / 2 + chartAvatarOffset.y) / renderedScale;
-    const canvas = document.createElement('canvas');
-    canvas.width = outputSize;
-    canvas.height = outputSize;
-    const context = canvas.getContext('2d');
-    if (!context) throw new Error('Trình duyệt không hỗ trợ xử lý ảnh.');
-    context.drawImage(image, sourceX, sourceY, sourceSize, sourceSize, 0, 0, outputSize, outputSize);
-    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.9));
-    if (!blob) throw new Error('Không thể tạo ảnh đã cắt.');
-    return new File([blob], `chart-avatar-${chartAvatarEmployee?.id ?? 'employee'}.jpg`, { type: 'image/jpeg' });
-  };
-
-  const saveChartAvatar = async () => {
-    if (!can("employees:update") || !chartAvatarEmployee || !chartAvatarFile || isChartAvatarSaving) return;
-    setIsChartAvatarSaving(true);
-    try {
-      const croppedFile = await createCroppedChartAvatar();
-      await updateAdminEmployeeChartAvatar(chartAvatarEmployee.id, croppedFile);
-      toast.success('Đã lưu ảnh sơ đồ');
-      setChartAvatarEmployee(null);
-      setChartAvatarFile(null);
-      setChartAvatarPreview('');
-      await onChartAvatarUpdated?.();
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Không thể lưu ảnh sơ đồ.');
-    } finally {
-      setIsChartAvatarSaving(false);
-    }
-  };
-
   useEffect(() => {
     const timer = window.setTimeout(() => {
       try {
@@ -191,7 +113,7 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
         if (stored) {
           setSearchQuery(typeof stored.searchQuery === 'string' ? stored.searchQuery : '');
           setSelectedDept(typeof stored.selectedDept === 'string' && EMPLOYEE_DEPARTMENT_OPTIONS.some((option) => option.value === stored.selectedDept) ? stored.selectedDept : 'all');
-          setSelectedRank(typeof stored.selectedRank === 'string' ? stored.selectedRank : 'all');
+          setSelectedRank(EMPLOYEE_SELECTABLE_RANK_OPTIONS.find((option) => option.value === stored.selectedRank)?.value ?? 'all');
           setSelectedStatus(typeof stored.selectedStatus === 'string' ? stored.selectedStatus : 'all');
           setViewMode(stored.viewMode === 'grid' ? 'grid' : 'table');
         }
@@ -246,10 +168,10 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
 
 
   // Helper status label
-  const renderStatusPill = (status: EmployeeStatus) => {
+  const renderStatusPill = (status: EmployeeStatus, large = false) => {
     if (status === 'active') {
       return (
-        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-600 border border-emerald-100">
+        <span style={{ fontSize: large ? 13 : 12 }} className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full whitespace-nowrap text-xs font-semibold bg-emerald-50 text-emerald-600 border border-emerald-100">
           <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
           Đang làm việc
         </span>
@@ -257,14 +179,14 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
     }
     if (status === 'probation') {
       return (
-        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-600 border border-amber-100">
+        <span style={{ fontSize: large ? 13 : 12 }} className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-600 border border-amber-100">
           <span className="w-2 h-2 rounded-full bg-amber-500"></span>
           Thử việc
         </span>
       );
     }
     return (
-      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-500 border border-slate-200">
+      <span style={{ fontSize: large ? 13 : 12 }} className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-500 border border-slate-200">
         <span className="w-2 h-2 rounded-full bg-slate-400"></span>
         Đã nghỉ
       </span>
@@ -329,12 +251,12 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
 
         {/* Filters */}
         <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
-          <div className="grid min-w-0 flex-1 grid-cols-1 gap-2 sm:grid-cols-3 xl:min-w-[590px] min-[1600px]:w-[620px] min-[1600px]:flex-none [&>div]:!w-full [&>div>button]:h-12 [&>div>button]:rounded-xl [&>div>button]:px-3">
-          <AdminSelect value={selectedDept} onChange={setSelectedDept} className="w-full min-w-0 sm:w-52" searchPlaceholder="Tìm kiếm phòng ban..." options={[{ value: 'all', label: 'Tất cả phòng ban' }, ...EMPLOYEE_DEPARTMENT_OPTIONS]} />
+          <div className="grid min-w-0 flex-1 grid-cols-1 gap-3 sm:grid-cols-3 xl:min-w-[590px]">
+          <EmployeeSelectFilter value={selectedDept} onChange={setSelectedDept} label="phòng ban" icon={Building} iconClass="bg-green-100 text-[#08723d]" options={['all', ...EMPLOYEE_DEPARTMENT_OPTIONS.map((option) => option.value)]} getOptionLabel={(value) => value === 'all' ? 'Tất cả phòng ban' : getEmployeeDepartmentLabel(value)} />
 
-          <AdminSelect value={selectedRank} onChange={setSelectedRank} className="w-full min-w-0 sm:w-44" searchPlaceholder="Tìm kiếm cấp bậc..." options={[{ value: 'all', label: 'Tất cả cấp bậc' }, ...EMPLOYEE_RANK_OPTIONS_UI]} />
+          <EmployeeSelectFilter value={selectedRank} onChange={setSelectedRank} label="cấp bậc" icon={Briefcase} iconClass="bg-blue-50 text-blue-700" options={['all', ...EMPLOYEE_SELECTABLE_RANK_OPTIONS.map((option) => option.value)]} getOptionLabel={(value) => value === 'all' ? 'Tất cả cấp bậc' : getEmployeeRankLabel(value)} />
 
-          <AdminSelect value={selectedStatus} onChange={(value) => setSelectedStatus(value as 'all' | EmployeeStatus)} className="w-full min-w-0 sm:w-44" searchPlaceholder="Tìm kiếm trạng thái..." options={[{ value: 'all', label: 'Tất cả trạng thái' }, ...EMPLOYEE_STATUS_OPTIONS_UI]} />
+          <EmployeeSelectFilter value={selectedStatus} onChange={setSelectedStatus} label="trạng thái" icon={User} iconClass="bg-amber-50 text-amber-700" options={['all', ...EMPLOYEE_STATUS_OPTIONS_UI.map((option) => option.value)]} getOptionLabel={(value) => value === 'all' ? 'Tất cả trạng thái' : EMPLOYEE_STATUS_OPTIONS_UI.find((option) => option.value === value)?.label ?? value} />
 
           {/* Toggle View Mode (Image 5) */}
           </div>
@@ -517,6 +439,14 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
 
                         <div className="flex items-center">
                           <span className="w-8 flex items-center justify-start text-slate-400">
+                            <Briefcase className="w-4 h-4" />
+                          </span>
+                          <span className="w-36 text-slate-500 font-normal">Cấp bậc</span>
+                          <span className="font-bold text-slate-900">{getEmployeeRankLabel(emp.rank)}</span>
+                        </div>
+
+                        <div className="flex items-center">
+                          <span className="w-8 flex items-center justify-start text-slate-400">
                             <Building className="w-4 h-4" />
                           </span>
                           <span className="w-36 text-slate-500 font-normal">Phòng ban</span>
@@ -617,8 +547,8 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
         /* VIEW: TABLE */
         <div className="bg-white rounded-2xl border border-slate-200/80 shadow-2xs overflow-hidden">
           <div className="employee-table-scroll overflow-x-auto overscroll-x-contain">
-            <table className="w-full min-w-[1020px] table-auto text-xs text-slate-600">
-              <thead className="border-b border-slate-200 bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+            <table className="w-full min-w-[1020px] table-auto text-[13px] text-slate-600">
+              <thead className="border-b border-slate-200 bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-500">
                 <tr>
                   <th className="whitespace-nowrap px-2.5 py-2 text-center">Mã nhân viên</th>
                   <th className="px-2.5 py-2 text-left">Họ và tên</th>
@@ -627,21 +557,20 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
                   <th className="whitespace-nowrap px-2.5 py-2 text-left">Cấp bậc</th>
                   <th className="whitespace-nowrap px-2.5 py-2 text-center">Trạng thái</th>
                   <th className="px-2.5 py-2 text-left">Người tạo</th>
-                  <th className="whitespace-nowrap px-2.5 py-2 text-center">Ảnh sơ đồ</th>
                   <th className="whitespace-nowrap px-2.5 py-2 text-center">Thao tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filteredEmployees.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="px-3 py-10 text-left text-sm text-slate-400">
+                    <td colSpan={8} className="px-3 py-10 text-left text-[13px] text-slate-400">
                       {!isLoading && "Không tìm thấy nhân viên nào phù hợp."}
                     </td>
                   </tr>
                 ) : (
                   filteredEmployees.map((emp) => (
                     <tr key={emp.id} className="transition-colors hover:bg-emerald-50/35">
-                      <td className="whitespace-nowrap px-2.5 py-2 text-center font-mono text-xs font-bold text-emerald-700">
+                      <td className="whitespace-nowrap px-2.5 py-2 text-center font-mono text-[13px] font-bold text-emerald-700">
                         {emp.code}
                       </td>
                       <td className="break-words px-2.5 py-2 text-left">
@@ -656,34 +585,15 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
                       <td className="break-words px-2.5 py-2 text-left text-slate-600">{getEmployeeDepartmentLabel(emp.department)}</td>
                       <td className="break-words px-2.5 py-2 text-left font-medium text-slate-800">{emp.position}</td>
                       <td className="break-words px-2.5 py-2 text-left font-medium text-slate-700">{getEmployeeRankLabel(emp.rank)}</td>
-                      <td className="px-2.5 py-2 text-center">{renderStatusPill(emp.status)}</td>
+                      <td className="px-2.5 py-2 text-center">{renderStatusPill(emp.status, true)}</td>
                       <td className="px-2.5 py-2 text-left">
-                        <div className="space-y-0 text-left text-[11px] leading-4">
+                        <div className="space-y-0 text-left text-xs leading-4">
                           <p className="break-words font-semibold text-slate-800">
                             {emp.createdBy?.name ?? "Ch\u01b0a c\u00f3 d\u1eef li\u1ec7u"}
                           </p>
                           <p className="break-all text-slate-500">{emp.createdBy?.email ?? "—"}</p>
-                          <p className="text-[11px] text-slate-400">{formatCreatedAt(emp.createdAt)}</p>
+                          <p className="text-xs text-slate-400">{formatCreatedAt(emp.createdAt)}</p>
                         </div>
-                      </td>
-                      <td className="px-2.5 py-2 text-center">
-                        {['CEO', 'Senior Management'].includes(emp.rank ?? '') ? (
-                          <button
-                            type="button"
-                            hidden={!can("employees:update")} onClick={() => {
-                              if (!can("employees:update")) return;
-                              setChartAvatarEmployee(emp);
-                              setChartAvatarFile(null);
-                              setChartAvatarPreview(emp.chartAvatar || emp.avatar || '');
-                              setChartAvatarZoom(1);
-                              setChartAvatarOffset({ x: 0, y: 0 });
-                            }}
-                            className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1.5 font-semibold text-emerald-700 transition-colors hover:bg-emerald-100"
-                          >
-                            <ImagePlus className="h-4 w-4" />
-                            {emp.chartAvatar ? 'Thay ảnh' : 'Thêm ảnh'}
-                          </button>
-                        ) : <span className="text-slate-300">—</span>}
                       </td>
                       <td className="px-2.5 py-2 text-center">
                         <div className="flex items-center justify-center gap-0.5">
@@ -767,82 +677,6 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
       )}
 
       {/* DETAIL DOSSIER POPUP MODAL */}
-      {chartAvatarEmployee && typeof document !== 'undefined' && createPortal(
-        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h3 className="text-lg font-bold text-slate-900">Ảnh sơ đồ</h3>
-                <p className="mt-1 text-sm text-slate-500">{chartAvatarEmployee.fullName}</p>
-              </div>
-              <button type="button" disabled={isChartAvatarSaving} onClick={() => setChartAvatarEmployee(null)} className="rounded-full p-2 text-slate-500 hover:bg-slate-100"><X className="h-5 w-5" /></button>
-            </div>
-            <div
-              className="relative mx-auto mt-6 h-56 w-56 touch-none overflow-hidden rounded-full border-4 border-white bg-slate-100 shadow-[0_0_0_1px_#cbd5e1]"
-              onPointerDown={(event) => {
-                if (!chartAvatarFile) return;
-                event.currentTarget.setPointerCapture(event.pointerId);
-                dragStartRef.current = { pointerX: event.clientX, pointerY: event.clientY, imageX: chartAvatarOffset.x, imageY: chartAvatarOffset.y };
-              }}
-              onPointerMove={(event) => {
-                const start = dragStartRef.current;
-                if (!start) return;
-                setChartAvatarOffset(clampChartAvatarOffset(start.imageX + event.clientX - start.pointerX, start.imageY + event.clientY - start.pointerY));
-              }}
-              onPointerUp={() => { dragStartRef.current = null; }}
-              onPointerCancel={() => { dragStartRef.current = null; }}
-            >
-              {chartAvatarPreview ? (
-                <img
-                  ref={chartAvatarImageRef}
-                  src={chartAvatarPreview}
-                  alt="Xem trước ảnh sơ đồ"
-                  draggable={false}
-                  onLoad={(event) => setChartAvatarSize({ width: event.currentTarget.naturalWidth, height: event.currentTarget.naturalHeight })}
-                  className={`absolute max-w-none select-none ${chartAvatarFile ? 'cursor-grab active:cursor-grabbing' : ''}`}
-                  style={chartAvatarSize.width && chartAvatarSize.height ? (() => {
-                    const scale = Math.max(224 / chartAvatarSize.width, 224 / chartAvatarSize.height) * chartAvatarZoom;
-                    const width = chartAvatarSize.width * scale;
-                    const height = chartAvatarSize.height * scale;
-                    return { width, height, left: (224 - width) / 2 + chartAvatarOffset.x, top: (224 - height) / 2 + chartAvatarOffset.y };
-                  })() : { width: '100%', height: '100%', objectFit: 'cover' }}
-                />
-              ) : <div className="flex h-full items-center justify-center text-slate-400"><User className="h-16 w-16" /></div>}
-            </div>
-            <p className="mt-4 text-center text-xs text-slate-500">Chọn ảnh rồi kéo để căn khuôn mặt trong khung tròn.</p>
-            {chartAvatarFile ? (
-              <label className="mt-4 flex items-center gap-3 text-xs font-semibold text-slate-600">
-                Thu phóng
-                <input
-                  type="range"
-                  min="1"
-                  max="3"
-                  step="0.01"
-                  value={chartAvatarZoom}
-                  onChange={(event) => {
-                    const zoom = Number(event.target.value);
-                    setChartAvatarZoom(zoom);
-                    setChartAvatarOffset((current) => clampChartAvatarOffset(current.x, current.y, zoom));
-                  }}
-                  className="flex-1 accent-emerald-600"
-                />
-              </label>
-            ) : null}
-            <label className="mt-5 flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-emerald-300 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700 hover:bg-emerald-100">
-              <ImagePlus className="h-4 w-4" /> Chọn ảnh sơ đồ
-              <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(event) => chooseChartAvatar(event.target.files?.[0])} />
-            </label>
-            <div className="mt-6 flex justify-end gap-3">
-              <button type="button" disabled={isChartAvatarSaving} onClick={() => setChartAvatarEmployee(null)} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 disabled:opacity-50">Hủy</button>
-              <button type="button" disabled={!chartAvatarFile || isChartAvatarSaving} onClick={saveChartAvatar} className="inline-flex min-w-32 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50">
-                {isChartAvatarSaving ? <><LoaderCircle className="h-4 w-4 animate-spin" /> Đang lưu...</> : 'Lưu ảnh'}
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body,
-      )}
-
       {selectedEmployeeForDossier && (
         <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-900/60 p-4 backdrop-blur-xs">
           <div className="relative my-auto w-full max-w-[360px]">
@@ -864,6 +698,7 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
                 ...(can("employees:view-birth-date") ? [{ icon: Cake, label: '\u004e\u0067\u00e0\u0079 \u0073\u0069\u006e\u0068', value: selectedEmployeeForDossier.birthDate || '\u0043\u0068\u01b0\u0061 \u0063\u00f3 \u0064\u1eef \u006c\u0069\u1ec7\u0075' }] : []),
                 { icon: Calendar, label: 'Ngày gia nhập', value: selectedEmployeeForDossier.joinDate },
                 { icon: Briefcase, label: 'Chức vụ', value: selectedEmployeeForDossier.position },
+                { icon: Briefcase, label: 'Cấp bậc', value: getEmployeeRankLabel(selectedEmployeeForDossier.rank) },
                 { icon: Building, label: 'Phòng ban', value: getEmployeeDepartmentLabel(selectedEmployeeForDossier.department) },
                 { icon: MapPin, label: 'Văn phòng', value: selectedEmployeeForDossier.location },
                 { icon: Mail, label: 'Email', value: selectedEmployeeForDossier.email },

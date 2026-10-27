@@ -127,9 +127,7 @@ export default function DepartmentDiagramPage({ department, employeeDepartments 
           ),
         );
         const allEmployees = sortEmployeesByRank(
-          // Company leaders appear on the main chart, not in the department hierarchy.
-          [...firstPages, ...remainingPages].flatMap((result) => result.items)
-            .filter((employee) => employee.rank !== "CEO" && employee.rank !== "Senior Management"),
+          [...firstPages, ...remainingPages].flatMap((result) => result.items),
         );
         const total = allEmployees.length;
         const totalPages = Math.ceil(total / PAGE_LIMIT);

@@ -1,22 +1,19 @@
 import type { ReactNode } from "react";
 import type { Employee } from "@/types/employee";
 import EmployeeList from "./EmployeeList";
+import EmployeeProfile from "./EmployeeProfile";
 
 interface EmployeeDirectoryProps {
   employees: Employee[];
   selectedId?: string;
-  total: number;
-  page: number;
-  limit: number;
   pagination?: ReactNode;
+  viewMode: "list" | "grid";
   onSelect: (employee: Employee) => void;
   onOpenProfile: () => void;
 }
 
-export default function EmployeeDirectory({ employees, selectedId, total, page, limit, pagination, onSelect, onOpenProfile }: EmployeeDirectoryProps) {
+export default function EmployeeDirectory({ employees, selectedId, pagination, viewMode, onSelect, onOpenProfile }: EmployeeDirectoryProps) {
   const displayedEmployees = employees;
-  const from = total ? (page - 1) * limit + 1 : 0;
-  const to = total ? from + displayedEmployees.length - 1 : 0;
   const selectEmployee = (employee: Employee) => {
     onSelect(employee);
     onOpenProfile();
@@ -24,14 +21,12 @@ export default function EmployeeDirectory({ employees, selectedId, total, page, 
 
   return (
     <section id="employee-directory-results" className="w-full min-w-0 max-w-full scroll-mt-6">
-      <div className="mb-3 sm:mb-4">
-        <p className="text-sm font-medium text-slate-500">
-          Hiển thị <span className="font-semibold text-slate-600">{from} - {to}</span> trong <span className="font-semibold text-slate-600">{total}</span> nhân viên
-        </p>
-      </div>
-
-      <div className="overflow-hidden rounded-xl border border-slate-100 bg-white shadow-sm">
-        {displayedEmployees.length ? <EmployeeList employees={displayedEmployees} selectedId={selectedId} onSelect={selectEmployee} /> : <EmptyState />}
+      <div className={viewMode === "list" ? "overflow-hidden rounded-xl border border-slate-100 bg-white shadow-sm" : "space-y-4"}>
+        {displayedEmployees.length ? viewMode === "grid" ? (
+          <div className="grid grid-cols-1 items-start gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {displayedEmployees.map((employee) => <EmployeeProfile key={employee.id} employee={employee} className="min-w-0" imageSizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw" />)}
+          </div>
+        ) : <EmployeeList employees={displayedEmployees} selectedId={selectedId} onSelect={selectEmployee} /> : <EmptyState />}
         {pagination ? <div className="border-t border-slate-100">{pagination}</div> : null}
       </div>
     </section>

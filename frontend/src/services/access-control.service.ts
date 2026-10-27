@@ -12,7 +12,7 @@ export type PermissionAction =
   | "employees:update"
   | "employees:delete"
   | "employees:trash"
-  | "media:view" | "media:create" | "media:update" | "media:publish" | "media:delete"
+  | "media:view" | "media:create" | "media:update" | "media:publish" | "media:delete" | "media:trash"
   | "meetings:view" | "meetings:create" | "meetings:update" | "meetings:delete";
 
 export interface ApiAccount {

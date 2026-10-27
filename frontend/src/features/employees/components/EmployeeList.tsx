@@ -1,5 +1,6 @@
 import type { Employee } from "@/types/employee";
 import { getEmployeeDepartmentLabel } from "@/components/ui/employee-department-options";
+import { getEmployeeRankLabel } from "@/components/ui/employee-rank-options";
 import { getEmployeeCode } from "../utils/employeeUtils";
 
 interface EmployeeListProps {
@@ -30,6 +31,7 @@ export default function EmployeeList({ employees, selectedId, onSelect }: Employ
                   </div>
                   <p className="mt-0.5 text-xs text-slate-400">{getEmployeeCode(employee)}</p>
                   <p className="mt-2 break-words text-xs font-medium leading-snug text-slate-600">{employee.position} · {getEmployeeDepartmentLabel(employee.department)}</p>
+                  <p className="mt-1 text-xs font-semibold text-emerald-700">{getEmployeeRankLabel(employee.rank)}</p>
                   <span className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-green-50 px-2.5 py-1 text-[10px] font-semibold text-[#159447]"><span className="h-1.5 w-1.5 rounded-full bg-[#16b85c]" />Đang làm việc</span>
                 </div>
               </div>
@@ -66,7 +68,7 @@ export default function EmployeeList({ employees, selectedId, onSelect }: Employ
                     <p className="mt-1 text-xs text-slate-400">{getEmployeeCode(employee)}</p>
                   </div>
                 </td>
-                <td className="px-3 py-3 text-sm font-medium text-slate-600">{employee.position}</td>
+                <td className="px-3 py-3 text-sm font-medium text-slate-600"><p>{employee.position}</p><p className="mt-1 text-xs font-semibold text-emerald-700">{getEmployeeRankLabel(employee.rank)}</p></td>
                 <td className="px-3 py-3 text-sm text-slate-600">{getEmployeeDepartmentLabel(employee.department)}</td>
                 <td className="px-5 py-3"><span className="inline-flex items-center gap-2 rounded-full bg-green-50 px-3 py-1.5 text-xs font-semibold text-[#159447]"><span className="h-2.5 w-2.5 rounded-full bg-[#16b85c]" />Đang làm việc</span></td>
               </tr>

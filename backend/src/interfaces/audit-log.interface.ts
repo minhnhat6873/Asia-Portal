@@ -13,6 +13,8 @@ export const AUDIT_ACTIONS = [
   "employee.permanently_deleted",
   "media.created",
   "media.updated",
+  "media.soft_deleted",
+  "media.restored",
   "media.permanently_deleted",
 ] as const;
 

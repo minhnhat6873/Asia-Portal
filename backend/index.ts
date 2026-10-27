@@ -17,6 +17,7 @@ import routes from "./src/routes/index.route";
 import { startMeetingBookingArchiveJob } from "./src/jobs/meeting-booking-archive.job";
 import { startMeetingBookingReminderJob } from "./src/jobs/meeting-booking-reminder.job";
 import { startTinyMceImageCleanupJob } from "./src/jobs/tinyMceImageCleanup.job";
+import { startMediaExpiryJob } from "./src/jobs/media-expiry.job";
 
 const app = express();
 const port = Number(process.env.PORT) || 4000;
@@ -86,6 +87,7 @@ async function startServer(): Promise<void> {
   startMeetingBookingArchiveJob();
   startMeetingBookingReminderJob();
   startTinyMceImageCleanupJob();
+  startMediaExpiryJob();
 
   app.listen(port, () => {
     console.log(`Asia API đang chạy tại http://localhost:${port}`);

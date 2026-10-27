@@ -73,11 +73,15 @@ export function getCloudinaryPublicIdFromUrl(url?: string): string | undefined {
   }
 }
 
-function createImageUploader(storage: CloudinaryStorage, checkConfiguration = false) {
+function createImageUploader(storage: CloudinaryStorage, checkConfiguration = false, canUpload?: (request: Request) => boolean) {
   return multer({
     storage,
     limits: { fileSize: 5 * 1024 * 1024 },
-    fileFilter: (_request, file, callback) => {
+    fileFilter: (request, file, callback) => {
+      if (canUpload && !canUpload(request)) {
+        callback(new AppError(403, "Tài khoản chưa được cấp quyền tải ảnh bìa."));
+        return;
+      }
       if (checkConfiguration && !hasCloudinaryConfiguration()) {
         callback(new AppError(503, "Cloudinary chưa được cấu hình trên máy chủ."));
         return;
@@ -92,7 +96,9 @@ function createImageUploader(storage: CloudinaryStorage, checkConfiguration = fa
 }
 
 export const uploadAvatar = createImageUploader(avatarStorage);
-export const uploadMediaCover = createImageUploader(mediaCoverStorage, true);
+export const uploadMediaCover = createImageUploader(mediaCoverStorage, true, (request) =>
+  Boolean(request.admin?.permissions.includes(request.method === "POST" ? "media:create" : "media:update")),
+);
 export const uploadChartAvatar = createImageUploader(chartAvatarStorage);
 
 export const uploadTinyMceImage = multer({

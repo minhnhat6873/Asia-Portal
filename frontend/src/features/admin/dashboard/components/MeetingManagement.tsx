@@ -15,7 +15,8 @@ import {
   type MeetingStatus,
 } from "@/services/admin-meeting.service";
 import { ApiError } from "@/services/api";
-import { EMPLOYEE_DEPARTMENT_OPTIONS, getEmployeeDepartmentLabel } from "@/components/ui/employee-department-options";
+import { getMeetingDepartmentName } from "@/config/meetingDepartments";
+import MeetingDepartmentSelect from "@/components/ui/MeetingDepartmentSelect";
 import { getFutureMeetingTimes, getMeetingDurationOptions, getNextMeetingSlot, getVietnamBookingNow } from "@/lib/meetingSchedule";
 
 const ROOMS = [
@@ -439,7 +440,7 @@ function MeetingFormModal({ meeting, saving, onClose, onSave }: {
   const [title, setTitle] = useState(meeting?.title ?? "");
   const [organizer, setOrganizer] = useState(meeting?.organizer ?? "");
   const [email, setEmail] = useState(meeting?.email ?? "");
-  const [department, setDepartment] = useState(meeting?.department ? getEmployeeDepartmentLabel(meeting.department) : "");
+  const [department, setDepartment] = useState(getMeetingDepartmentName(meeting?.department));
   const [roomId, setRoomId] = useState<AdminMeetingInput["roomId"]>(meeting?.roomId ?? "room-01");
   const [date, setDate] = useState(meeting?.date ?? initialSlot.date);
   const [start, setStart] = useState(meeting?.start ?? initialSlot.start);
@@ -524,7 +525,7 @@ function MeetingFormModal({ meeting, saving, onClose, onSave }: {
         {readOnlyBooking ? <p className="rounded-xl bg-amber-50 px-3.5 py-3 text-sm leading-5 text-amber-800">Cuộc họp đang diễn ra. Backend chỉ cho phép sửa tiêu đề, người chủ trì, email và phòng ban.</p> : null}
         <label className="block text-sm font-bold text-slate-700">Tiêu đề cuộc họp<input required minLength={3} maxLength={200} value={title} onChange={(event) => setTitle(event.target.value)} className={inputClass} /></label>
         <div className="grid gap-4 sm:grid-cols-2"><label className="block text-sm font-bold text-slate-700">Người đặt / chủ trì<input id="meeting-organizer" name="organizer" autoComplete="name" minLength={2} maxLength={100} required value={organizer} onChange={(event) => setOrganizer(event.target.value)} className={inputClass} /></label><label className="block text-sm font-bold text-slate-700">Email @asiafnb.com<input required type="email" value={email} onChange={(event) => setEmail(event.target.value)} className={inputClass} /></label></div>
-        <label className="block text-sm font-bold text-slate-700">Phòng ban<select required value={department} onChange={(event) => setDepartment(event.target.value)} className={inputClass}><option value="">Chọn phòng ban</option>{department && !EMPLOYEE_DEPARTMENT_OPTIONS.some((item) => item.label === department) ? <option value={department}>{department}</option> : null}{EMPLOYEE_DEPARTMENT_OPTIONS.map(({ value, label }) => <option key={value} value={label}>{label}</option>)}</select></label>
+        <div className="text-sm font-bold text-slate-700"><p>Phòng ban</p><MeetingDepartmentSelect value={department} onChange={setDepartment} triggerClassName="mt-1.5 h-10 py-0" /></div>
         <div className="grid gap-4 sm:grid-cols-2"><label className="block text-sm font-bold text-slate-700">Phòng họp<select disabled={readOnlyBooking} value={roomId} onChange={(event) => { setRoomId(event.target.value as AdminMeetingInput["roomId"]); setAttendees((current) => Math.min(current, ROOMS.find((item) => item.id === event.target.value)?.capacity ?? 12)); }} className={inputClass}>{ROOMS.map((item) => <option key={item.id} value={item.id}>{item.name} · tối đa {item.capacity} người</option>)}</select></label><label className="block text-sm font-bold text-slate-700">Ngày tổ chức<input required type="date" min={minimumDate} disabled={readOnlyBooking} value={date} onChange={(event) => changeDate(event.target.value)} onBlur={() => { if (date && date < minimumDate) changeDate(minimumDate); }} className={inputClass} /></label></div>
         <div className="grid gap-4 sm:grid-cols-3"><label className="block text-sm font-bold text-slate-700">Giờ bắt đầu<select required disabled={readOnlyBooking || timeOptions.length === 0} value={start} onChange={(event) => changeStart(event.target.value)} className={inputClass}>{!timeOptions.includes(start) ? <option value={start} disabled>{readOnlyBooking ? start : "Chọn giờ tương lai"}</option> : null}{timeOptions.map((value) => <option key={value} value={value}>{value}</option>)}</select></label><label className="block text-sm font-bold text-slate-700">Thời lượng<select disabled={readOnlyBooking} value={durationMinutes} onChange={(event) => setDurationMinutes(Number(event.target.value))} className={inputClass}>{!durationOptions.includes(durationMinutes) ? <option value={durationMinutes} disabled>{durationMinutes} phút</option> : null}{durationOptions.map((value) => <option key={value} value={value}>{value} phút</option>)}</select></label><div className="text-sm font-bold text-slate-700">Giờ kết thúc<div className="mt-1.5 flex h-10 items-center rounded-xl bg-slate-50 px-3 text-sm text-slate-600">{end}</div></div></div>
         <label className="block text-sm font-bold text-slate-700">Số người tham gia<input required type="number" min={1} max={room.capacity} disabled={readOnlyBooking} value={attendees} onChange={(event) => setAttendees(Number(event.target.value))} className={inputClass} /></label>

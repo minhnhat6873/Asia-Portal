@@ -12,7 +12,7 @@ jest.mock("../src/repositories/admin/account.repository", () => ({
 }));
 
 jest.mock("../src/repositories/admin/media.repository", () => ({
-  adminMediaRepository: { count: jest.fn() },
+  adminMediaRepository: { count: jest.fn(), hideExpiredPosts: jest.fn().mockResolvedValue({ modifiedCount: 0 }) },
 }));
 
 import { adminAccountRepository } from "../src/repositories/admin/account.repository";

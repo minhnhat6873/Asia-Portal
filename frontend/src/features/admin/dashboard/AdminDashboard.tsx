@@ -1,6 +1,7 @@
 "use client";
 
 import { useDelayedLoading } from "@/lib/useDelayedLoading";
+import { navigateWithUnsavedChangesGuard } from "@/lib/unsavedChangesNavigation";
 import React, { useState, useEffect, useLayoutEffect, useRef, useCallback, useTransition } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import type { Employee, MediaPost, ActiveTab } from './types';
@@ -9,6 +10,7 @@ import { DashboardOverview } from './components/DashboardOverview';
 import { EmployeeManagement } from './components/EmployeeManagement';
 import { EmployeeTrashPage } from './components/EmployeeTrashPage';
 import { MediaManagement } from './components/MediaManagement';
+import { MediaTrashPage } from './components/MediaTrashPage';
 import { AddEmployeePage } from './components/AddEmployeePage';
 import { AddMediaPage } from './components/AddMediaPage';
 import { AccessControlTabs, type AccessControlPage } from '@/features/access-control/AccessControlTabs';
@@ -119,13 +121,14 @@ export default function AdminDashboard(_props: AdminDashboardProps) {
   const router = useRouter();
   const [isNavigating, startNavigation] = useTransition();
   const navigateToPage = (href: string) => {
-    startNavigation(() => router.push(href));
+    navigateWithUnsavedChangesGuard(() => startNavigation(() => router.push(href)));
   };
   const pathname = usePathname();
   const activeTab = getTabFromPath(pathname);
   const accessControlPage = getAccessControlPage(pathname);
   const editingRoleId = pathname.match(/^\/admin\/access-control\/roles\/([^/]+)\/edit$/)?.[1];
   const isEmployeeTrashPage = pathname === '/admin/employees/trash';
+  const isMediaTrashPage = pathname === '/admin/media/trash';
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [employeeTotal, setEmployeeTotal] = useState(0);
   const [employeeListParams, setEmployeeListParams] = useState<AdminEmployeeListParams>({ page: 1, limit: 10 });
@@ -158,7 +161,7 @@ export default function AdminDashboard(_props: AdminDashboardProps) {
   const isPageLoading = isNavigating
     || (activeTab === 'overview' && (isSummaryLoading || areEmployeesLoading || areMediaLoading))
     || (activeTab === 'employees' && !isEmployeeTrashPage && areEmployeesLoading)
-    || (activeTab === 'media' && areMediaLoading)
+    || (activeTab === 'media' && !isMediaTrashPage && areMediaLoading)
     || (activeTab === 'edit-employee' && isEditingEmployeeLoading)
     || (activeTab === 'edit-media' && isEditingMediaLoading);
   const showPageLoading = useDelayedLoading(isPageLoading, 1000, pathname);
@@ -388,7 +391,7 @@ export default function AdminDashboard(_props: AdminDashboardProps) {
   }, [sessionAccount?.role]);
 
   const navigateToTab = (tab: ActiveTab) => {
-    const target = ADMIN_TAB_ROUTES[tab];
+    const target = tab === 'media' && !canViewMedia && hasAdminPermission(sessionAccount, 'media:trash') ? '/admin/media/trash' : ADMIN_TAB_ROUTES[tab];
     navigateToPage(canAccessAdminPath(sessionAccount, target) ? target : "/admin/account");
     if (!window.matchMedia('(min-width: 992px)').matches) setIsSidebarOpen(false);
   };
@@ -523,7 +526,7 @@ export default function AdminDashboard(_props: AdminDashboardProps) {
               </div>
 
               <div className="my-2 border-t border-slate-100" />
-              <button type="button" role="menuitem" onClick={() => { setIsAccountMenuOpen(false); void logoutAdmin().finally(() => { clearAdminSession(); router.replace("/admin/login"); }); }} className="flex w-full items-center gap-3 rounded-xl bg-rose-50 px-3 py-2.5 text-left text-sm font-semibold text-rose-600 transition-colors hover:bg-rose-100">
+              <button type="button" role="menuitem" onClick={() => { setIsAccountMenuOpen(false); navigateWithUnsavedChangesGuard(() => { void logoutAdmin().finally(() => { clearAdminSession(); router.replace("/admin/login"); }); }); }} className="flex w-full items-center gap-3 rounded-xl bg-rose-50 px-3 py-2.5 text-left text-sm font-semibold text-rose-600 transition-colors hover:bg-rose-100">
                 <LogOut className="h-4 w-4" />Đăng xuất
               </button>
             </div>
@@ -604,7 +607,7 @@ export default function AdminDashboard(_props: AdminDashboardProps) {
               {activeTab === 'overview' && 'Bảng Điều Khiển'}
               {activeTab === 'employees' && (isEmployeeTrashPage ? 'Thùng Rác Nhân Viên' : 'Quản Lý Nhân Sự')}
               {activeTab === 'add-employee' && 'Thêm Nhân Viên Mới'}
-              {activeTab === 'media' && 'Quản Lý Truyền Thông'}
+              {activeTab === 'media' && (isMediaTrashPage ? 'Thùng Rác Truyền Thông' : 'Quản Lý Truyền Thông')}
               {activeTab === 'meetings' && 'Quản Lý Đặt Phòng Họp'}
               {activeTab === 'add-media' && 'Đăng Tin Truyền Thông'}
               {activeTab === 'edit-media' && 'Chỉnh Sửa Tin Truyền Thông'}
@@ -659,7 +662,6 @@ export default function AdminDashboard(_props: AdminDashboardProps) {
                 onNavigateToAdd={() => navigateToTab('add-employee')}
                 onNavigateToEdit={(employee) => navigateToPage(`/admin/employees/${encodeURIComponent(employee.id)}/edit`)}
                 onNavigateToTrash={() => navigateToPage('/admin/employees/trash')}
-                onChartAvatarUpdated={() => loadEmployees()}
               />
             )}
 
@@ -678,7 +680,6 @@ export default function AdminDashboard(_props: AdminDashboardProps) {
                 onBack={() => navigateToTab('employees')}
                 onSave={(newEmp) => {
                   handleAddEmployee(newEmp);
-                  navigateToTab('employees');
                 }}
                 existingCount={employees.length}
               />
@@ -696,7 +697,6 @@ export default function AdminDashboard(_props: AdminDashboardProps) {
                   onBack={() => navigateToPage('/admin/employees')}
                   onSave={(updatedEmployee) => {
                     handleUpdateEmployee(updatedEmployee);
-                    navigateToPage('/admin/employees');
                   }}
                   existingCount={employees.length}
                 />
@@ -707,7 +707,7 @@ export default function AdminDashboard(_props: AdminDashboardProps) {
               )
             )}
 
-            {activeTab === 'media' && (
+            {activeTab === 'media' && !isMediaTrashPage && (
               <MediaManagement
                 mediaPosts={mediaPosts}
                 total={mediaTotal}
@@ -727,7 +727,12 @@ export default function AdminDashboard(_props: AdminDashboardProps) {
                 onSelectPreview={(post) => setPreviewMediaPost(post)}
                 onNavigateToAdd={() => navigateToTab('add-media')}
                 onNavigateToEdit={(post) => navigateToPage(`/admin/media/${encodeURIComponent(post.id)}/edit`)}
+                onNavigateToTrash={() => navigateToPage('/admin/media/trash')}
               />
+            )}
+
+            {activeTab === 'media' && isMediaTrashPage && (
+              <MediaTrashPage onBack={() => navigateToPage(canViewMedia ? '/admin/media' : '/admin/account')} onChanged={async () => { await Promise.all([loadMedia(), refreshDashboardSummary()]); }} />
             )}
 
             {activeTab === 'meetings' && (

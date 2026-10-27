@@ -11,7 +11,7 @@ services:
       - key: NODE_ENV
         value: production
       - key: NODE_VERSION
-        value: 20
+        value: 22
       - key: AUTH_COOKIE_SECURE
         value: true
       - key: TRUST_PROXY_HOPS
@@ -29,7 +29,7 @@ services:
       - key: NODE_ENV
         value: production
       - key: NODE_VERSION
-        value: 20
+        value: 22
       - key: BACKEND_API_URL
         value: https://asia-portal-api.onrender.com
       - key: NEXT_PUBLIC_TINYMCE_API_KEY

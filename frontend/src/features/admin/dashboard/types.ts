@@ -26,6 +26,9 @@ export interface Employee {
 export type MediaCategory = 'Sự kiện' | 'Tin tức' | 'Nhân sự' | 'Thông báo';
 
 export interface MediaPost {
+  isDeleted?: boolean;
+  deletedAt?: string | null;
+  deletedBy?: { accountId: string; name: string; email: string };
   id: string;
   title: string;
   category: MediaCategory;

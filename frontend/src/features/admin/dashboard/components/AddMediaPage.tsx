@@ -59,7 +59,7 @@ function initialForm(post?: MediaPost) {
     coverImage: post?.coverImage ?? "",
     authorDepartment: initialAuthorDepartment(post),
     publishDate: toPickerDate(post?.publishDate),
-    expiryDate: post?.expiryDate ? toPickerDate(post.expiryDate) : "",
+    expiryDate: post?.expiryDate && !post.publishIndefinitely ? toPickerDate(post.expiryDate) : "",
     publishIndefinitely: post ? post.publishIndefinitely ?? !post.expiryDate : false,
   };
 }
@@ -72,7 +72,7 @@ export function AddMediaPage({ mode = "create", initialPost, onBack, onSave }: A
   const [isSaving, setIsSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const minimumExpiryDate = formData.publishDate ? parseDate(formData.publishDate).add({ days: 1 }).toString() : undefined;
-  const invalidExpiryDate = Boolean(formData.expiryDate && formData.publishDate && formData.expiryDate <= formData.publishDate);
+  const invalidExpiryDate = Boolean(!formData.publishIndefinitely && formData.expiryDate && formData.publishDate && formData.expiryDate <= formData.publishDate);
 
   const previewUrl = useMemo(() => coverFile ? URL.createObjectURL(coverFile) : "", [coverFile]);
   useEffect(() => () => { if (previewUrl) URL.revokeObjectURL(previewUrl); }, [previewUrl]);
@@ -99,8 +99,8 @@ export function AddMediaPage({ mode = "create", initialPost, onBack, onSave }: A
       setErrorMsg("Ngày hết hạn phải sau ngày đăng ít nhất 1 ngày.");
       return;
     }
-    if (!formData.expiryDate && !formData.publishIndefinitely) {
-      setErrorMsg("Vui lòng chọn ngày hết hạn hoặc tích Đăng tin vĩnh viễn.");
+    if (!formData.publishIndefinitely && !formData.expiryDate) {
+      setErrorMsg("Vui lòng chọn ngày hết hạn.");
       return;
     }
     if (!formData.title.trim() || !hasRichTextContent(formData.summary)) {
@@ -118,7 +118,7 @@ export function AddMediaPage({ mode = "create", initialPost, onBack, onSave }: A
         content: formData.content,
         authorDepartment: formData.authorDepartment,
         publishDate: toDisplayDate(formData.publishDate),
-        expiryDate: formData.expiryDate ? toDisplayDate(formData.expiryDate) : null,
+        expiryDate: formData.publishIndefinitely ? null : toDisplayDate(formData.expiryDate),
         publishIndefinitely: formData.publishIndefinitely,
         ...(mode === "create" ? { status: "draft" as const } : {}),
         ...(coverRemoved ? { coverImage: "" } : {}),
@@ -159,11 +159,16 @@ export function AddMediaPage({ mode = "create", initialPost, onBack, onSave }: A
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div><label className="mb-1.5 block text-sm font-bold text-slate-700">Ngày đăng</label><DatePicker value={formData.publishDate} onChange={(publishDate) => setFormData({ ...formData, publishDate })} ariaLabel="Ngày đăng bài" /></div>
-            <div><label className="mb-1.5 block text-sm font-bold text-slate-700">Ngày hết hạn</label><DatePicker value={formData.expiryDate} minValue={minimumExpiryDate} onChange={(expiryDate) => setFormData({ ...formData, expiryDate })} ariaLabel="Ngày hết hạn bài" />{invalidExpiryDate && <p role="alert" className="mt-1.5 text-sm text-rose-600">Ngày hết hạn phải sau ngày đăng ít nhất 1 ngày.</p>}{formData.expiryDate && <button type="button" onClick={() => setFormData({ ...formData, expiryDate: "" })} className="mt-1.5 text-sm font-medium text-slate-600 underline hover:text-slate-900">Bỏ ngày hết hạn</button>}</div>
+            <div className={formData.publishIndefinitely ? "opacity-50" : ""}>
+              <label className="mb-1.5 block text-sm font-bold text-slate-700">Ngày hết hạn {!formData.publishIndefinitely && <span className="text-rose-500">*</span>}</label>
+              <DatePicker value={formData.expiryDate} minValue={minimumExpiryDate} disabled={formData.publishIndefinitely} onChange={(expiryDate) => setFormData({ ...formData, expiryDate })} ariaLabel={formData.publishIndefinitely ? "Ngày hết hạn không áp dụng cho tin vĩnh viễn" : "Ngày hết hạn bài (bắt buộc)"} />
+              {invalidExpiryDate && <p role="alert" className="mt-1.5 text-sm text-rose-600">Ngày hết hạn phải sau ngày đăng ít nhất 1 ngày.</p>}
+              <p className="mt-1.5 text-xs text-slate-500">{formData.publishIndefinitely ? "Tin vĩnh viễn không có ngày hết hạn." : "Bắt buộc chọn ngày hết hạn nếu không đăng vĩnh viễn."}</p>
+            </div>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="text-sm font-bold text-slate-700">Đơn vị / Phòng ban<select required value={formData.authorDepartment} onChange={(e) => setFormData({ ...formData, authorDepartment: e.target.value })} className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 font-medium">{!formData.authorDepartment && <option value="" disabled>Chọn phòng ban</option>}{AUTHOR_DEPARTMENTS.map((department) => <option key={department} value={department}>{department}</option>)}</select></label>
-            <label className="flex min-h-12 cursor-pointer items-center gap-3 self-end rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700"><input type="checkbox" checked={formData.publishIndefinitely} onChange={(event) => setFormData({ ...formData, publishIndefinitely: event.target.checked })} className="h-5 w-5 shrink-0 rounded border-slate-300 accent-emerald-700" />Đăng tin vĩnh viễn</label>
+            <label className="flex min-h-12 cursor-pointer items-center gap-3 self-end rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700"><input type="checkbox" checked={formData.publishIndefinitely} onChange={(event) => setFormData({ ...formData, publishIndefinitely: event.target.checked, expiryDate: "" })} className="h-5 w-5 shrink-0 rounded border-slate-300 accent-emerald-700" />Đăng tin vĩnh viễn</label>
           </div>
           <AvatarUploader key={uploaderKey} inputId="media-cover-upload" inputName="coverImage" initialAvatarUrl={coverRemoved ? "" : formData.coverImage} onFileChange={(file) => { setCoverFile(file); if (file) setCoverRemoved(false); }} onExistingAvatarRemove={() => setCoverRemoved(true)} label="Ảnh bìa" emptyHelperText="Thả tệp vào đây hoặc duyệt. JPEG, PNG, WebP tối đa 5 MB; khung 4:3." selectedHelperText="Ảnh bìa mới đã sẵn sàng." existingHelperText="Đang giữ ảnh bìa hiện tại." imageAlt="Xem trước ảnh bìa" changeLabel="Thay ảnh bìa" />
           <div><label className="mb-1.5 block text-sm font-bold text-slate-700">Tóm tắt ngắn (Sapo) *</label><RichTextEditor value={formData.summary} onChange={(summary) => setFormData({ ...formData, summary })} placeholder="Nhập tóm tắt bài viết..." enableImageInsert uploadImage={uploadAdminMediaContentImage} /></div>

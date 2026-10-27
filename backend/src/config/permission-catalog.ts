@@ -23,7 +23,8 @@ const definitions: PermissionDefinition[] = [
   { id: "media:create", name: "Thêm bài viết", description: "Tạo bài viết mới ở trạng thái Ẩn Tin.", module: "media", riskLevel: "medium" },
   { id: "media:update", name: "Chỉnh sửa bài viết", description: "Chỉnh sửa nội dung và ngày hết hạn bài viết.", module: "media", riskLevel: "medium" },
   { id: "media:publish", name: "Đăng tin / Ẩn Tin", description: "Thay đổi trạng thái hiển thị bài viết.", module: "media", riskLevel: "high" },
-  { id: "media:delete", name: "Xóa bài viết", description: "Xóa bài viết khỏi hệ thống.", module: "media", riskLevel: "high" },
+  { id: "media:delete", name: "Chuyển bài vào thùng rác", description: "Xóa mềm bài viết; vẫn giữ nội dung và ảnh để khôi phục.", module: "media", riskLevel: "high" },
+  { id: "media:trash", name: "Quản lý thùng rác truyền thông", description: "Xem thùng rác, khôi phục về Ẩn tin và xóa vĩnh viễn bài viết.", module: "media", riskLevel: "high" },
   { id: "dashboard:view", name: "Xem bảng điều khiển", description: "Xem số liệu tổng quan quản trị.", module: "dashboard", riskLevel: "low" },
 ];
 export const PERMISSION_CATALOG = definitions.map((permission) => ({ ...permission, code: permission.id.toUpperCase().replace(/[:-]/g, "_") }));

@@ -1,5 +1,7 @@
 import { userMediaRepository } from "../src/repositories/user/media.repository";
 import { getMediaExpiryCutoff, withMediaExpiry } from "../src/utils/media/validateMediaDates";
+import { adminMediaRepository } from "../src/repositories/admin/media.repository";
+import MediaModel from "../src/models/media.model";
 
 describe("media expiry visibility", () => {
   beforeEach(() => { jest.useFakeTimers(); jest.setSystemTime(new Date("2026-10-19T17:00:00Z")); });
@@ -24,9 +26,19 @@ describe("media expiry visibility", () => {
     expect(withMediaExpiry({ expiryDate: new Date("2026-10-20") }).isExpired).toBe(isExpired);
   });
 
-  it("marks permanent expired posts without changing their publication status", () => {
+  it("keeps permanent posts published even after their old expiry date", () => {
     const post = { status: "published", expiryDate: new Date("2026-10-19"), publishIndefinitely: true };
-    expect(withMediaExpiry(post)).toEqual({ ...post, isExpired: true });
+    expect(withMediaExpiry(post)).toEqual({ ...post, isExpired: false });
+  });
+
+  it("auto-hides only expired published posts, excluding permanent and deleted posts", async () => {
+    const update = jest.spyOn(MediaModel, "updateMany").mockResolvedValue({ modifiedCount: 1 } as never);
+    await adminMediaRepository.hideExpiredPosts();
+    expect(update).toHaveBeenCalledWith({
+      status: "published", isDeleted: { $ne: true }, publishIndefinitely: { $ne: true },
+      expiryDate: { $lt: new Date("2026-10-20") },
+    }, { $set: { status: "draft" } });
+    update.mockRestore();
   });
 
   it("applies the same visibility rule to lists, search, counts, and direct URLs", () => {

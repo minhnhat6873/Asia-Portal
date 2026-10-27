@@ -19,6 +19,7 @@ import { ActiveTab } from '../types';
 import { AdminUser, clearAdminSession, getAdminSession } from '@/lib/adminSession';
 import { hasAdminPermission } from '@/lib/adminPermissions';
 import { logoutAdmin } from '@/features/admin/login/auth.service';
+import { navigateWithUnsavedChangesGuard } from '@/lib/unsavedChangesNavigation';
 
 interface SidebarProps {
   activeTab: ActiveTab;
@@ -79,10 +80,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
   }, [isAccountMenuOpen]);
 
   const handleLogout = () => {
-    void logoutAdmin().finally(() => {
+    navigateWithUnsavedChangesGuard(() => { void logoutAdmin().finally(() => {
       clearAdminSession();
       router.push('/admin/login');
-    });
+    }); });
   };
 
   const navItems = [
@@ -156,7 +157,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Navigation */}
       <nav className="flex-1 p-3 space-y-1.5 overflow-y-auto">
-{navItems.filter((item) => item.id === 'permissions' ? account?.role === 'Toàn quyền Admin' : hasAdminPermission(account, ({overview:'dashboard:view',employees:'employees:view',media:'media:view',meetings:'meetings:view'} as const)[item.id as 'overview'|'employees'|'media'|'meetings'])).map((item) => {
+{navItems.filter((item) => {
+  if (item.id === 'permissions') return account?.role === 'Toàn quyền Admin';
+  if (item.id === 'media') return hasAdminPermission(account, 'media:view') || hasAdminPermission(account, 'media:trash');
+  return hasAdminPermission(account, ({overview:'dashboard:view',employees:'employees:view',meetings:'meetings:view'} as const)[item.id as 'overview'|'employees'|'meetings']);
+}).map((item) => {
           const Icon = item.icon;
           const isActive =
             activeTab === item.id ||

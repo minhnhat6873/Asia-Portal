@@ -13,7 +13,12 @@ const mediaFields = {
     "any.only": "Đơn vị đăng bài chỉ được là phòng Thiết kế, Marketing & Truyền thông hoặc Nhân sự & Hành chính.",
   }),
   publishDate: Joi.date().iso(),
-  expiryDate: Joi.date().iso().allow(null).custom((value: Date | null) => value ? new Date(value.toISOString().slice(0, 10)) : null),
+  expiryDate: Joi.date().iso().allow(null).custom((value: Date | null) => value ? new Date(value.toISOString().slice(0, 10)) : null).messages({
+    "any.required": "Vui lòng chọn ngày hết hạn.",
+    "any.invalid": "Vui lòng chọn ngày hết hạn.",
+    "date.base": "Vui lòng chọn ngày hết hạn hợp lệ.",
+    "date.format": "Vui lòng chọn ngày hết hạn hợp lệ.",
+  }),
   publishIndefinitely: Joi.boolean(),
   status: Joi.string().valid(...MEDIA_STATUSES),
 };
@@ -26,11 +31,15 @@ export const createMediaSchema = Joi.object({
   coverImage: mediaFields.coverImage.default(""),
   authorDepartment: mediaFields.authorDepartment.required(),
   publishDate: mediaFields.publishDate.required(),
-  expiryDate: mediaFields.expiryDate.default(null),
+  expiryDate: mediaFields.expiryDate.when("publishIndefinitely", {
+    is: true,
+    then: Joi.optional().allow(null).default(null),
+    otherwise: Joi.required().invalid(null),
+  }),
   publishIndefinitely: mediaFields.publishIndefinitely.default(false),
   status: mediaFields.status.default("draft"),
 }).custom((value, helpers) => {
-  if (!isMediaExpiryAfterPublication(value.publishDate, value.expiryDate)) {
+  if (!value.publishIndefinitely && !isMediaExpiryAfterPublication(value.publishDate, value.expiryDate)) {
     return helpers.message({ custom: MEDIA_EXPIRY_DATE_ERROR });
   }
   return value;
@@ -40,7 +49,7 @@ export const createMediaSchema = Joi.object({
 });
 
 export const updateMediaSchema = Joi.object(mediaFields).min(1).custom((value, helpers) => {
-  if (value.publishDate && !isMediaExpiryAfterPublication(value.publishDate, value.expiryDate)) {
+  if (value.publishIndefinitely !== true && value.publishDate && !isMediaExpiryAfterPublication(value.publishDate, value.expiryDate)) {
     return helpers.message({ custom: MEDIA_EXPIRY_DATE_ERROR });
   }
   return value;
@@ -56,3 +65,5 @@ export const mediaListQuerySchema = Joi.object({
   limit: Joi.number().integer().min(1).max(100),
   sort: Joi.string().valid("latest", "oldest"),
 });
+
+export const mediaTrashActionSchema = Joi.object({}).unknown(false).default({});
