@@ -66,14 +66,14 @@ const milestones = [
 
 function AboutJourneyHero() {
   return (
-    <section className="relative isolate overflow-hidden bg-[#fffdf7] lg:aspect-[3/2]">
+    <section className="relative isolate overflow-hidden bg-[#fffdf7]">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src="/assets/images/bannersumenhtamnhin.png"
         alt="Trụ sở Asia Food & Beverage co.ltd và phong cảnh Việt Nam"
-        className="absolute inset-x-0 top-0 -z-20 h-full w-full object-cover object-top lg:h-auto"
+        className="absolute inset-x-0 top-0 -z-20 h-full w-full object-cover object-top"
       />
-      <div className="relative mx-auto flex min-h-[440px] max-w-[1318px] items-start justify-between gap-10 px-6 pt-12 sm:px-10 lg:absolute lg:inset-x-0 lg:top-0 lg:min-h-0 lg:px-8 lg:pt-[4.1%] xl:px-0">
+      <div className="relative mx-auto flex min-h-[440px] max-w-[1318px] items-start justify-between gap-10 px-6 pt-12 sm:px-10 lg:min-h-[clamp(380px,27.4vw,560px)] lg:px-8 lg:pt-[4.1%] xl:px-0">
         <div className="max-w-[470px] text-white lg:w-[36%]">
           <p className="mb-5 text-[12px] font-black uppercase tracking-[0.17em] text-[#ffd400]">About Asia</p>
           <h1 className="font-sans text-[42px] font-black uppercase leading-[1.02] tracking-[-0.035em] sm:text-[54px] lg:text-[clamp(40px,3.9vw,64px)]">
@@ -104,7 +104,7 @@ function AboutJourneyHero() {
         </div>
       </div>
 
-      <div className="relative mx-auto px-6 pb-12 pt-12 sm:px-10 lg:absolute lg:inset-x-0 lg:top-[41.1%] lg:max-w-[1370px] lg:px-7 lg:pb-0 lg:pt-0 xl:px-0">
+      <div className="relative mx-auto px-6 pb-12 pt-12 sm:px-10 lg:max-w-[1370px] lg:px-7 lg:pt-8 xl:px-0">
         <header className="mt-36 text-center sm:mt-0">
           <div className="flex items-center justify-center gap-4 font-sans text-[10px] font-black uppercase tracking-[0.3em] text-[#125d4d] sm:text-[12px]">
             <span className="h-px w-12 bg-[#c58a32]" />

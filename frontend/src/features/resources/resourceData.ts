@@ -53,8 +53,8 @@ export const RESOURCE_ITEMS: ResourceItem[] = [
     networkFolder: true,
   },
   {
-    title: "Hệ thống Email & Slack",
-    desc: "Kết nối nhanh channel thảo luận chung và trao đổi công việc nội bộ.",
+    title: "Cổng Thông Tin Email",
+    desc: "Toàn bộ hệ thống email",
     icon: MessagesSquare,
     chipTone: "bg-blue-50 text-blue-600",
     linkTone: "text-blue-600",
