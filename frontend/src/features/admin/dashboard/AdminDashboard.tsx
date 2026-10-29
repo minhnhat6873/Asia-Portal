@@ -671,6 +671,7 @@ export default function AdminDashboard(_props: AdminDashboardProps) {
                 loadError={employeesLoadError}
                 isLoading={areEmployeesLoading}
                 onDeleteEmployee={handleDeleteEmployee}
+                onImported={async () => { await Promise.all([loadEmployees(), refreshDashboardSummary()]); }}
                 onFiltersChange={handleEmployeeFiltersChange}
                 onPageChange={handleEmployeePageChange}
                 selectedEmployeeForDossier={selectedDossierEmployee}

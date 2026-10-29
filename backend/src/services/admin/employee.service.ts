@@ -23,6 +23,39 @@ function ensureCeoDepartment(rank: Employee["rank"], department: string): void {
 }
 
 export const adminEmployeeService = {
+  async importEmployees(rows: (CreateEmployeeInput & { importRow: number })[], createdBy: NonNullable<Employee["createdBy"]>) {
+    const ceos = rows.filter((row) => row.rank === "CEO");
+    if (ceos.length > 1) throw new AppError(409, "File chỉ được có một CEO.");
+    try {
+      await adminEmployeeRepository.ensureImportIndexes();
+    } catch (error) {
+      if ((error as { code?: number }).code === 11000) throw new AppError(409, "Dữ liệu hiện có bị trùng mã, email hoặc số điện thoại; cần xử lý dữ liệu trùng trước khi nhập. Không có nhân viên nào được nhập.");
+      throw error;
+    }
+    const session = await mongoose.startSession();
+    try {
+      let inserted: Awaited<ReturnType<typeof adminEmployeeRepository.insertImportedEmployees>> = [];
+      await session.withTransaction(async () => {
+        const conflicts = await adminEmployeeRepository.findImportConflicts(rows.map((row) => row.employeeCode), rows.map((row) => row.email), rows.map((row) => row.phone), session);
+        const errors: string[] = [];
+        for (const row of rows) {
+          const conflict = conflicts.find((item) => item.employeeCode === row.employeeCode || item.email === row.email || item.phone === row.phone);
+          if (conflict) {
+            const fields = [conflict.employeeCode === row.employeeCode && "mã nhân viên", conflict.email === row.email && "email", conflict.phone === row.phone && "số điện thoại"].filter(Boolean).join(", ");
+            errors.push(`Dòng ${row.importRow}: ${fields} đã tồn tại${conflict.isDeleted ? " trong thùng rác" : ""}.`);
+          }
+        }
+        if (ceos.length && await adminEmployeeRepository.findActiveCeoForImport(session)) errors.push(`Dòng ${ceos[0].importRow}: công ty đã có CEO.`);
+        if (errors.length) throw new AppError(409, errors.slice(0, 30).join("\n"));
+        inserted = await adminEmployeeRepository.insertImportedEmployees(rows.map(({ importRow: _importRow, ...row }) => ({ ...row, createdBy })), session);
+      });
+      return inserted;
+    } catch (error) {
+      if ((error as { code?: number }).code === 11000) throw new AppError(409, "Mã nhân viên, email hoặc số điện thoại vừa bị trùng. Không có nhân viên nào được nhập; vui lòng kiểm tra lại.");
+      if ((error as { code?: number }).code === 20 || (error as Error).message?.includes("Transaction numbers are only allowed")) throw new AppError(503, "Cơ sở dữ liệu chưa hỗ trợ giao dịch an toàn; chưa nhập dữ liệu. Vui lòng cấu hình MongoDB replica set.");
+      throw error;
+    } finally { await session.endSession(); }
+  },
   async getEmployees(query: EmployeeListQuery) {
     const page = Math.max(Number(query.page) || 1, 1);
     const limit = Math.min(Math.max(Number(query.limit) || 12, 1), 100);

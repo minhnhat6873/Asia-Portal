@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { hasRichTextContent, RichText } from '@/components/ui/RichText';
 import { 
   Plus, 
+  Upload,
   Search, 
   RotateCcw, 
   Edit3, 
@@ -30,8 +31,10 @@ import { EMPLOYEE_SELECTABLE_RANK_OPTIONS, getEmployeeRankLabel } from '@/compon
 import { EMPLOYEE_STATUS_OPTIONS_UI } from '@/components/ui/employee-status-options';
 import { getEmployeeGenderLabel } from '@/components/ui/employee-gender-options';
 import type { AdminEmployeeListParams } from '@/services/admin-employee.service';
+import { importAdminEmployees } from '@/services/admin-employee.service';
 import { useAdminPermissions } from '@/lib/adminPermissions';
 import EmployeeProfileCard from '@/components/ui/EmployeeProfileCard';
+import { toast } from 'sonner';
 
 const EMPLOYEE_FILTER_STORAGE_KEY = 'asia.admin.employee-filters';
 
@@ -64,6 +67,7 @@ interface EmployeeManagementProps {
   loadError?: string | null;
   isLoading?: boolean;
   onDeleteEmployee: (id: string) => boolean | Promise<boolean>;
+  onImported: () => Promise<void>;
   onFiltersChange: (filters: AdminEmployeeListParams) => void;
   onPageChange: (page: number) => void;
   selectedEmployeeForDossier: Employee | null;
@@ -82,6 +86,7 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
   loadError,
   isLoading = false,
   onDeleteEmployee,
+  onImported,
   onFiltersChange,
   onPageChange,
   selectedEmployeeForDossier,
@@ -106,6 +111,10 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
 
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [isDeleteSubmitting, setIsDeleteSubmitting] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [importMessage, setImportMessage] = useState('');
   useEffect(() => {
     const timer = window.setTimeout(() => {
       try {
@@ -303,6 +312,9 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
           </button>
 
 
+          <button type="button" hidden={!can("employees:create")} onClick={() => { setImportFile(null); setImportMessage(''); setImportOpen(true); }} className="flex h-10 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-emerald-200 bg-white px-3 text-xs font-semibold text-emerald-700 hover:bg-emerald-50">
+            <Upload className="h-4 w-4" /> Nhập Excel
+          </button>
           {/* Add Employee Button */}
           <button
             hidden={!can("employees:create")} onClick={onNavigateToAdd}
@@ -314,6 +326,32 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
           </div>
         </div>
       </div>
+
+      {importOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4" role="dialog" aria-modal="true" aria-labelledby="employee-import-title">
+          <div className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl">
+            <h3 id="employee-import-title" className="text-lg font-bold text-slate-900">Nhập nhân viên từ Excel</h3>
+            <p className="mt-2 text-sm text-slate-600">Tải mẫu, điền tối đa 500 nhân viên rồi chọn file .xlsx (tối đa 2 MB). Mã, email và số điện thoại phải duy nhất, kể cả trong thùng rác. Nếu có lỗi, toàn bộ file sẽ không được nhập.</p>
+            <a href="/Mau_nhap_nhan_vien_AsiaPortal.xlsx" download className="mt-3 inline-block text-sm font-semibold text-emerald-700 underline">Tải mẫu Excel</a>
+            <input type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" disabled={importing} onChange={(event) => { setImportFile(event.target.files?.[0] ?? null); setImportMessage(''); }} className="mt-4 block w-full text-sm text-slate-700" />
+            {importMessage && <p role="alert" className="mt-3 max-h-48 overflow-auto whitespace-pre-line rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{importMessage}</p>}
+            <div className="mt-5 flex justify-end gap-2">
+              <button type="button" disabled={importing} onClick={() => setImportOpen(false)} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold disabled:opacity-50">Đóng</button>
+              <button type="button" disabled={importing || !importFile} onClick={async () => {
+                if (!importFile || importing) return;
+                setImporting(true); setImportMessage('');
+                try {
+                  const result = await importAdminEmployees(importFile);
+                  setImportOpen(false);
+                  await onImported();
+                  toast.success(`Đã nhập thành công ${result.count} nhân viên.`);
+                } catch (error) { setImportMessage(error instanceof Error ? error.message : 'Không thể nhập nhân viên.'); }
+                finally { setImporting(false); }
+              }} className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-50">{importing ? 'Đang nhập...' : 'Nhập nhân viên'}</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {loadError && (
         <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">

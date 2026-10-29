@@ -1,4 +1,4 @@
-import type { QueryFilter, SortOrder } from "mongoose";
+import type { ClientSession, QueryFilter, SortOrder } from "mongoose";
 
 import type {
   CreateEmployeeInput,
@@ -15,6 +15,25 @@ interface FindEmployeesOptions {
 }
 
 export const adminEmployeeRepository = {
+  ensureImportIndexes() {
+    return Promise.all([
+      EmployeeModel.collection.createIndex({ employeeCode: 1 }, { unique: true }),
+      EmployeeModel.collection.createIndex({ email: 1 }, { unique: true }),
+      EmployeeModel.collection.createIndex({ phone: 1 }, { unique: true, name: "unique_employee_phone" }),
+    ]);
+  },
+
+  findImportConflicts(codes: string[], emails: string[], phones: string[], session: ClientSession) {
+    return EmployeeModel.find({ $or: [{ employeeCode: { $in: codes } }, { email: { $in: emails } }, { phone: { $in: phones } }] }).session(session).lean();
+  },
+
+  findActiveCeoForImport(session: ClientSession) {
+    return EmployeeModel.findOne({ rank: "CEO", isDeleted: { $ne: true } }).session(session).lean();
+  },
+
+  insertImportedEmployees(data: CreateEmployeeInput[], session: ClientSession) {
+    return EmployeeModel.insertMany(data, { session, ordered: true });
+  },
   create(data: CreateEmployeeInput) {
     return EmployeeModel.create(data);
   },

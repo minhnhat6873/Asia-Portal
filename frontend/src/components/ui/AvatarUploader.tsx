@@ -6,6 +6,7 @@ import { X } from "lucide-react";
 import { defineFilePond, type FilePondEntry } from "filepond";
 import { locale } from "filepond/locales/vi-vn.js";
 import "filepond/types/react";
+import AvatarCropDialog from "./AvatarCropDialog";
 
 const avatarLocale = {
   ...locale,
@@ -30,6 +31,7 @@ interface AvatarUploaderProps {
   changeLabel?: string;
   inputId?: string;
   inputName?: string;
+  enableCrop?: boolean;
 }
 
 export default function AvatarUploader({
@@ -46,15 +48,19 @@ export default function AvatarUploader({
   changeLabel = "Thay ảnh",
   inputId = "employee-avatar-upload",
   inputName = "avatar",
+  enableCrop = false,
 }: AvatarUploaderProps) {
   const [message, setMessage] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [originalFile, setOriginalFile] = useState<File | null>(null);
+  const [cropOpen, setCropOpen] = useState(false);
   const nativeInputRef = useRef<HTMLInputElement>(null);
   const previewUrl = useMemo(
     () => (selectedFile ? URL.createObjectURL(selectedFile) : ""),
     [selectedFile],
   );
   const visibleAvatarUrl = previewUrl || initialAvatarUrl;
+  const originalUrl = useMemo(() => originalFile ? URL.createObjectURL(originalFile) : "", [originalFile]);
   const hasAvatar = Boolean(visibleAvatarUrl);
 
   useEffect(() => {
@@ -69,8 +75,11 @@ export default function AvatarUploader({
     };
   }, [previewUrl]);
 
+  useEffect(() => () => { if (originalUrl) URL.revokeObjectURL(originalUrl); }, [originalUrl]);
+
   const clearSelectedFile = (errorMessage = "") => {
     setSelectedFile(null);
+    setOriginalFile(null);
     setMessage(errorMessage);
     onFileChange(null);
   };
@@ -92,8 +101,10 @@ export default function AvatarUploader({
     }
 
     setSelectedFile(file);
+    setOriginalFile(file);
     setMessage("");
     onFileChange(file);
+    if (enableCrop) setCropOpen(true);
   };
 
   const handleEntriesChange = (event: CustomEvent<FilePondEntry[]>) => {
@@ -174,7 +185,8 @@ export default function AvatarUploader({
                 <X size={16} strokeWidth={2.5} />
               </button>
             </div>
-            <div className="flex justify-end border-t border-slate-100 px-3 py-2.5">
+            <div className="flex justify-end gap-2 border-t border-slate-100 px-3 py-2.5">
+              {enableCrop && <button type="button" onClick={() => setCropOpen(true)} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50">Điều chỉnh ảnh</button>}
               <button
                 type="button"
                 onClick={() => nativeInputRef.current?.click()}
@@ -207,6 +219,9 @@ export default function AvatarUploader({
           ? (selectedFile ? selectedHelperText : existingHelperText)
           : emptyHelperText)}
       </p>
+      {enableCrop && cropOpen && (originalUrl || visibleAvatarUrl) && (
+        <AvatarCropDialog source={originalUrl || visibleAvatarUrl} fileName={originalFile?.name ?? 'avatar.jpg'} onCancel={() => setCropOpen(false)} onApply={(file) => { setSelectedFile(file); onFileChange(file); setMessage(''); setCropOpen(false); }} />
+      )}
     </div>
   );
 }

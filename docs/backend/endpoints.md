@@ -41,6 +41,7 @@ Tất cả endpoint đi qua middleware toàn cục tại `backend/index.ts`: Hel
 | GET | `/admin/employees/trash` | ADMIN GATE, `employees:trash`, validate query | `getDeletedEmployees` | `adminEmployeeService.getDeletedEmployees` | thùng rác + pagination |
 | GET | `/admin/employees/:id` | ADMIN GATE, `employees:view` | `getEmployeeById` | `adminEmployeeService.getEmployeeById` | nhân viên |
 | POST | `/admin/employees` | ADMIN GATE, `employees:create`, Cloudinary, multipart avatar, validate upload | `createEmployee` | `adminEmployeeService.createEmployee` + audit | nhân viên (201) |
+| POST | `/admin/employees/import` | ADMIN GATE, `employees:create`, multipart `file` .xlsx tối đa 2 MB | `importEmployees` | kiểm tra toàn bộ, giao dịch MongoDB + audit | `{ count }` (201) |
 | PATCH | `/admin/employees/:id` | ADMIN GATE, Cloudinary, multipart avatar, validate upload, `employees:update` | `updateEmployee` | `adminEmployeeService.updateEmployee` + audit | nhân viên |
 | POST | `/admin/employees/:id/restore` | ADMIN GATE, `employees:trash` | `restoreEmployee` | `adminEmployeeService.restoreEmployee` + audit | nhân viên |
 | DELETE | `/admin/employees/:id/permanent` | ADMIN GATE, `employees:trash` | `permanentlyDeleteEmployee` | `adminEmployeeService.permanentlyDeleteEmployee` + audit | nhân viên |

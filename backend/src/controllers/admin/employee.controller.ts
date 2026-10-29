@@ -22,6 +22,16 @@ interface AuditedEmployee {
   name: string;
 }
 
+export async function importEmployees(request: Request, response: Response, next: NextFunction): Promise<void> {
+  try {
+    if (!request.admin) throw new AppError(401, "Vui lòng đăng nhập lại.");
+    const actor = { accountId: request.admin.id, name: request.admin.name, email: request.admin.email };
+    const employees = await adminEmployeeService.importEmployees(request.body.rows, actor);
+    for (const employee of employees) await recordEmployeeAudit(request.admin, "employee.created", employee, { source: "excel_import" });
+    response.status(201).json({ success: true, message: "Nhập nhân viên thành công", data: { count: employees.length } });
+  } catch (error) { next(error); }
+}
+
 async function recordEmployeeAudit(
   admin: Request["admin"],
   action: AuditAction,

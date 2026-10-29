@@ -5,6 +5,7 @@ import {
   getDeletedEmployees,
   getEmployeeById,
   getEmployees,
+  importEmployees,
   permanentlyDeleteEmployee,
   restoreEmployee,
   softDeleteEmployee,
@@ -25,12 +26,14 @@ import {
   validateEmployeeUpdateUpload,
 } from "../../middlewares/employee-upload.middleware";
 import { validateQuery } from "../../middlewares/validate.middleware";
+import { uploadEmployeeImport, validateEmployeeImport } from "../../middlewares/employee-import.middleware";
 import { employeeListQuerySchema } from "../../validates/admin/employee.validate";
 
 const router = Router();
 
 router.get("/", requirePermissions("employees:view"), validateQuery(employeeListQuerySchema), getEmployees);
 router.get("/trash", requirePermissions("employees:trash"), validateQuery(employeeListQuerySchema), getDeletedEmployees);
+router.post("/import", requirePermissions("employees:create"), uploadEmployeeImport, validateEmployeeImport, importEmployees);
 router.get("/:id", requirePermissions("employees:view"), getEmployeeById);
 router.post(
   "/",

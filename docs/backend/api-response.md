@@ -13,6 +13,8 @@ Cập nhật lần cuối: 2026-10-09. File nguồn đã đọc: `backend/index.
 
 Validation body trả thêm `fieldErrors` theo tên trường API để frontend hiển thị lỗi cạnh ô nhập; `message` và danh sách `errors` vẫn được giữ. Ví dụ cấp bậc nhân viên không còn hợp lệ trả `fieldErrors.rank` và yêu cầu chọn lại từ danh sách.
 
+Nhập Excel nhân viên (`POST /admin/employees/import`) nhận multipart `file`, tối đa 2 MB, tối đa 500 dòng theo mẫu trong `frontend/public/Mau_nhap_nhan_vien_AsiaPortal.xlsx`. Thành công trả `{ success: true, data: { count } }`. Lỗi kiểm tra trả 400 hoặc 409, `message` mô tả dòng lỗi; không có dòng nào được ghi. Không nhập ảnh. Người tạo được lấy từ phiên admin, không lấy từ file. Mã, email và số điện thoại được kiểm tra với mọi hồ sơ, kể cả thùng rác. Lần nhập đầu tạo unique index cho ba trường; nếu dữ liệu cũ trùng thì từ chối nhập và cần xử lý trùng trước. Import yêu cầu MongoDB replica set hoặc sharded cluster hỗ trợ transaction; nếu không hỗ trợ trả 503, không nhập dữ liệu. Unique index số điện thoại tiếp tục bảo vệ cả thao tác tạo và sửa thông thường.
+
 Phân trang được tạo tại các service employee, media và audit log. Không có wrapper response dùng chung; từng controller tự gọi `response.status().json()`.
 
 ## Mã HTTP đang dùng

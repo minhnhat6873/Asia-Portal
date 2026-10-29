@@ -107,6 +107,12 @@ export function createAdminEmployee(
   return apiPostFormData<AdminEmployeeResult>("/admin/employees", body);
 }
 
+export function importAdminEmployees(file: File): Promise<{ count: number }> {
+  const body = new FormData();
+  body.append("file", file);
+  return apiPostFormData<{ count: number }>("/admin/employees/import", body);
+}
+
 
 export function updateAdminEmployee(
   id: string,

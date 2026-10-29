@@ -27,7 +27,7 @@ export function globalErrorHandler(
     response.status(400).json({
       success: false,
       message: error.code === "LIMIT_FILE_SIZE"
-        ? "Ảnh đại diện tối đa 5 MB."
+        ? (error.field === "file" ? "File Excel tối đa 2 MB." : "Ảnh đại diện tối đa 5 MB.")
         : "Tải ảnh lên không thành công.",
     });
     return;
@@ -52,7 +52,7 @@ export function globalErrorHandler(
 
   if ((error as MongoDuplicateError)?.code === 11000) {
     const duplicateError = error as MongoDuplicateError;
-    const field = duplicateError.keyPattern?.phoneKey ? "phone" : duplicateError.keyPattern?.email ? "email" : null;
+    const field = duplicateError.keyPattern?.phoneKey || duplicateError.keyPattern?.phone ? "phone" : duplicateError.keyPattern?.email ? "email" : null;
     if (field) {
       const message = field === "phone" ? "Số điện thoại đã được sử dụng." : "Email đã được sử dụng.";
       response.status(409).json({ success: false, message, fieldErrors: { [field]: message } });

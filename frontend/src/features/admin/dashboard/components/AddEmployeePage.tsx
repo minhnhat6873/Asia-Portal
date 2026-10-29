@@ -592,6 +592,7 @@ export const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({
             {/* Row 6: Avatar upload */}
             <AvatarUploader
               key={avatarUploaderKey}
+              enableCrop
               initialAvatarUrl={formData.avatar}
               onExistingAvatarRemove={() => setFormData((current) => ({ ...current, avatar: "" }))}
               onFileChange={setAvatarFile}
