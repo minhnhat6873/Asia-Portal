@@ -24,6 +24,25 @@ async function validate(rows: unknown[][]) {
 const row = ["000123", "Nguyễn Văn An", "Chuyên viên", "Phòng Nhân sự & Hành chính", "Chuyên viên/Nhân viên", "Nam", "01/10/2026", "", "Văn Phòng Á Châu Dĩ An", "Đang làm việc", "AN@asiafnb.com", "0901234567", "", ""];
 
 describe("employee Excel import validation", () => {
+  it("uses text cells and custom date validation in the downloadable template", async () => {
+    const workbook = new ExcelJS.Workbook();
+    const template = await readFile(path.resolve(__dirname, "../../frontend/public/Mau_nhap_nhan_vien_AsiaPortal.xlsx"));
+    await workbook.xlsx.load(template as unknown as ExcelJS.Buffer);
+    const sheet = workbook.getWorksheet("Nhập nhân viên")!;
+    for (const address of ["G2", "H2"]) {
+      expect(sheet.getCell(address).numFmt).toBe("@");
+      expect(sheet.getCell(address).dataValidation.type).toBe("custom");
+    }
+  });
+
+  it("imports day/month/year without swapping ambiguous dates", async () => {
+    const input = [...row]; input[6] = "01/02/2026"; input[7] = "25/10/2005";
+    const { request, error } = await validate([input]);
+    expect(error).toBeUndefined();
+    expect(request.body.rows[0].joinDate.toISOString()).toBe("2026-02-01T00:00:00.000Z");
+    expect(request.body.rows[0].birthDate.toISOString()).toBe("2005-10-25T00:00:00.000Z");
+  });
+
   it("accepts a completed copy of the actual downloadable template", async () => {
     const workbook = new ExcelJS.Workbook();
     const template = await readFile(path.resolve(__dirname, "../../frontend/public/Mau_nhap_nhan_vien_AsiaPortal.xlsx"));

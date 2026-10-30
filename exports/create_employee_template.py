@@ -34,18 +34,25 @@ for col,(formula,message) in rules.items():
     validation(col,'custom',formula,message,col==14)
     letter=get_column_letter(col);s.conditional_formatting.add(f'{letter}2:{letter}501',FormulaRule(formula=[f'AND({letter}2<>"",NOT({formula}))'],fill=PatternFill('solid',fgColor='FFC7CE')))
 for col in (7,8):
-    v=validation(col,'date','DATE(1900,1,1)','Nhập ngày hợp lệ theo DD/MM/YYYY.',col==8);v.operator='between';v.formula2='DATE(2100,12,31)'
+    letter=get_column_letter(col)
+    cell=f'{letter}2'
+    day=f'VALUE(LEFT({cell},2))'
+    month=f'VALUE(MID({cell},4,2))'
+    year=f'VALUE(RIGHT({cell},4))'
+    date=f'DATE({year},{month},{day})'
+    formula=f'IFERROR(AND(ISTEXT({cell}),LEN({cell})=10,MID({cell},3,1)="/",MID({cell},6,1)="/",{year}>=1900,{year}<=2100,TEXT({date},"dd/mm/yyyy")={cell}),FALSE)'
+    validation(col,'custom',formula,'Nhập ngày dưới dạng DD/MM/YYYY, ví dụ 25/10/2005.',col==8)
+    s.conditional_formatting.add(f'{letter}2:{letter}501',FormulaRule(formula=[f'AND({cell}<>"",NOT({formula}))'],fill=PatternFill('solid',fgColor='FFC7CE')))
 for col in [1,2,3,4,5,6,7,9,10,11,12]:
     letter=get_column_letter(col);s.conditional_formatting.add(f'{letter}2:{letter}501',FormulaRule(formula=[f'AND(COUNTA($A2:$N2)>0,{letter}2="")'],fill=PatternFill('solid',fgColor='FFEB9C')))
 s.conditional_formatting.add('E2:E501',FormulaRule(formula=['OR(AND(E2="CEO",D2<>"Phòng BOD"),AND(E2="CEO",COUNTIF($E$2:$E$501,"CEO")>1))'],fill=PatternFill('solid',fgColor='FFC7CE')))
 for row in s.iter_rows(min_row=2,max_row=501,max_col=14):
     for c in row:
-        c.number_format='dd/mm/yyyy' if c.column in (7,8) else '@'
+        c.number_format='@'
         if c.column in choices:c.fill=PatternFill('solid',fgColor='EAF4FC')
-for row in [('HƯỚNG DẪN NHẬP NHÂN VIÊN','ASIA PORTAL'),('Cách dùng','Điền sheet Nhập nhân viên từ dòng 2. Mỗi dòng một người. Không sửa tên hoặc thứ tự cột. Tối đa 500 nhân viên.'),('Danh sách chọn','Chọn phòng ban, cấp bậc, giới tính, địa điểm và trạng thái từ danh sách trong ô.'),('Kiểm tra','Dấu * là bắt buộc. Mã, email và số điện thoại không được trùng nhau hoặc trùng hồ sơ hiện có, kể cả thùng rác. Nếu một dòng sai, toàn bộ file không được nhập.'),('Mã và điện thoại','Nhập dưới dạng văn bản để giữ số 0 đầu. Mã nhân viên chỉ gồm chữ số.'),('Ngày tháng','Nhập DD/MM/YYYY. Ngày gia nhập bắt buộc; ngày sinh tùy chọn.'),('Cấp bậc','CEO phải thuộc Phòng BOD. Công ty chỉ có một CEO.'),('Ảnh','Để trống cột ảnh; cập nhật ảnh trong trang chỉnh sửa sau khi nhập.'),('Mô tả','Văn bản thuần, tối đa 2.000 ký tự.'),('Ví dụ','Sheet Ví dụ chỉ minh họa, không được nhập. Điền dữ liệu vào sheet Nhập nhân viên.')]:g.append(row)
+for row in [('HƯỚNG DẪN NHẬP NHÂN VIÊN','ASIA PORTAL'),('Cách dùng','Điền sheet Nhập nhân viên từ dòng 2. Mỗi dòng một người. Không sửa tên hoặc thứ tự cột. Tối đa 500 nhân viên.'),('Danh sách chọn','Chọn phòng ban, cấp bậc, giới tính, địa điểm và trạng thái từ danh sách trong ô.'),('Kiểm tra','Dấu * là bắt buộc. Mã, email và số điện thoại không được trùng nhau hoặc trùng hồ sơ hiện có, kể cả thùng rác. Nếu một dòng sai, toàn bộ file không được nhập.'),('Mã và điện thoại','Nhập dưới dạng văn bản để giữ số 0 đầu. Mã nhân viên chỉ gồm chữ số.'),('Ngày tháng','Nhập trực tiếp dưới dạng văn bản DD/MM/YYYY, ví dụ 25/10/2005 hoặc 01/02/2026. Không đổi định dạng ô sang Date. Ngày gia nhập bắt buộc; ngày sinh tùy chọn.'),('Cấp bậc','CEO phải thuộc Phòng BOD. Công ty chỉ có một CEO.'),('Ảnh','Để trống cột ảnh; cập nhật ảnh trong trang chỉnh sửa sau khi nhập.'),('Mô tả','Văn bản thuần, tối đa 2.000 ký tự.'),('Ví dụ','Sheet Ví dụ chỉ minh họa, không được nhập. Điền dữ liệu vào sheet Nhập nhân viên.')]:g.append(row)
 e.append(['000123','Nguyễn Văn An','Chuyên viên nhân sự','Phòng Nhân sự & Hành chính','Chuyên viên/Nhân viên','Nam',None,None,'Văn Phòng Á Châu Dĩ An','Đang làm việc','nguyenvanan@asiafnb.com','0901234567',None,'Phụ trách tuyển dụng.'])
-from datetime import datetime
-e['G2']=datetime(2026,10,1);e['G2'].number_format='dd/mm/yyyy'
+e['G2']='01/10/2026';e['G2'].number_format='@'
 for sheet in w:
     for row in sheet:
         for c in row:c.font=Font(name='Arial',size=11);c.alignment=Alignment(wrap_text=True,vertical='top')
@@ -59,4 +66,8 @@ for i in range(2,g.max_row+1):g.row_dimensions[i].height=60
 for col,width in zip('ABC',[32,42,50]):d.column_dimensions[col].width=width
 out=root/'frontend/public/Mau_nhap_nhan_vien_AsiaPortal.xlsx';w.save(out)
 check=load_workbook(out);assert check.worksheets[0]['A1'].value=='Mã nhân viên *';assert len(check.defined_names)==5;assert len(check.worksheets[0].data_validations.dataValidation)==13
+for col in ('G','H'):
+    assert check.worksheets[0][f'{col}2'].number_format == '@'
+    rule=next(v for v in check.worksheets[0].data_validations.dataValidation if f'{col}2' in v)
+    assert rule.type == 'custom' and len(rule.formula1) <= 255
 print('Created and validated: '+str(out))
