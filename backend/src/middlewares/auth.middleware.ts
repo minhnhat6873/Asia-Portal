@@ -4,6 +4,8 @@ import mongoose from "mongoose";
 
 import { deleteCloudinaryAsset } from "../helpers/multerCloudinary.helper";
 import { AUTH_COOKIE_NAME } from "../config/auth.config";
+import { authSessionRepository } from "../repositories/admin/auth-session.repository";
+import { normalizeSessionIp } from "../utils/account/sessionClient";
 import {
   type AccountRole,
 } from "../interfaces/account.interface";
@@ -20,6 +22,8 @@ interface AdminTokenPayload extends JwtPayload {
   email?: string;
   role?: AccountRole;
   tokenType?: "access" | "refresh";
+  sid?: string;
+  version?: number;
 }
 
 export async function requireAdminAuth(
@@ -39,8 +43,8 @@ export async function requireAdminAuth(
       return;
     }
 
-    const payload = jwt.verify(token, secret) as AdminTokenPayload;
-    if (payload.tokenType === "refresh" || !payload.sub || !mongoose.isValidObjectId(payload.sub)) {
+    const payload = jwt.verify(token, secret, { algorithms: ["HS256"] }) as AdminTokenPayload;
+    if (payload.tokenType !== "access" || !payload.sid || !Number.isInteger(payload.version) || !payload.sub || !mongoose.isValidObjectId(payload.sub)) {
       response.status(401).json({
         success: false,
         message: "Phiên đăng nhập không hợp lệ",
@@ -49,7 +53,8 @@ export async function requireAdminAuth(
     }
 
     const account = await adminAccountRepository.findActiveById(payload.sub);
-    if (!account) {
+    const session = await authSessionRepository.findActive(payload.sid, payload.sub);
+    if (!account || !session || session.authVersion !== (account.authVersion ?? 0) || payload.version !== session.authVersion) {
       response.status(401).json({
         success: false,
         message: "Tài khoản không tồn tại hoặc đã bị khóa",
@@ -82,6 +87,13 @@ export async function requireAdminAuth(
       permissions,
     };
 
+    request.adminSessionId = payload.sid;
+    const lastSeen = session.lastSeenAt ?? session.createdAt;
+    if (lastSeen && Date.now() - new Date(lastSeen).getTime() >= 60_000) {
+      // Metadata is best-effort; a failure must not bypass auth or block users.
+      void authSessionRepository.touch(payload.sid, payload.sub, normalizeSessionIp(request.ip))
+        .catch(() => undefined);
+    }
     next();
   } catch {
     response.status(401).json({

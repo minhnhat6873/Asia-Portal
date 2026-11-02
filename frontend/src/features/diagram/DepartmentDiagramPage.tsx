@@ -1,8 +1,9 @@
 "use client";
 
+import EmployeeStatusBadge from "@/components/ui/EmployeeStatusBadge";
 import Image from "next/image";
 import Link from "next/link";
-import { Building2, ChevronLeft, Circle, CircleUserRound, MapPin, RefreshCw, UsersRound } from "lucide-react";
+import { Building2, ChevronLeft, CircleUserRound, MapPin, RefreshCw, UsersRound } from "lucide-react";
 import { useEffect, useState } from "react";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
@@ -59,7 +60,7 @@ function EmployeeCard({ employee }: { employee: Employee }) {
           <div className="mt-3 space-y-1 text-xs font-medium text-slate-600">
             <p className="flex items-center gap-1.5"><Building2 size={14} className="shrink-0 text-[#1a7a1a]" />{getEmployeeDepartmentLabel(employee.department)}</p>
             <p className="flex items-center gap-1.5"><MapPin size={14} className="shrink-0 text-[#1a7a1a]" />{employee.location}</p>
-            <p className="flex items-center gap-1.5 font-semibold text-[#16883b]"><Circle size={9} fill="currentColor" className="shrink-0" />Đang làm việc</p>
+            <EmployeeStatusBadge status={employee.status} size="xs" />
           </div>
         </div>
       </div>

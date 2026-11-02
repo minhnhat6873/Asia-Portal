@@ -17,14 +17,14 @@ export const userEmployeeRepository = {
 
   findAllForSearch(filter: QueryFilter<Employee>, sort: Record<string, SortOrder>) {
     return EmployeeModel.find(filter)
-      .select("-birthDate -createdBy -avatarPublicId -chartAvatarPublicId")
+      .select("-birthDate -createdBy -avatarPublicId -chartAvatarPublicId -avatarOriginal -avatarOriginalPublicId")
       .sort(sort)
       .lean();
   },
 
   findAll({ filter, skip, limit, sort }: FindEmployeesOptions) {
     return EmployeeModel.find(filter)
-      .select("-birthDate -createdBy -avatarPublicId -chartAvatarPublicId")
+      .select("-birthDate -createdBy -avatarPublicId -chartAvatarPublicId -avatarOriginal -avatarOriginalPublicId")
       .sort(sort)
       .skip(skip)
       .limit(limit)
@@ -37,7 +37,7 @@ export const userEmployeeRepository = {
 
   findById(id: string) {
     return EmployeeModel.findOne({ _id: id, isDeleted: { $ne: true } })
-      .select("-birthDate -createdBy -avatarPublicId -chartAvatarPublicId")
+      .select("-birthDate -createdBy -avatarPublicId -chartAvatarPublicId -avatarOriginal -avatarOriginalPublicId")
       .lean();
   },
 };

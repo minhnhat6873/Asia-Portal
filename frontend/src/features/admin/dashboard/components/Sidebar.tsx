@@ -13,6 +13,7 @@ import {
   ShieldCheck,
   UserCheck,
   LogOut,
+  Monitor,
   X,
 } from 'lucide-react';
 import { ActiveTab } from '../types';
@@ -80,10 +81,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
   }, [isAccountMenuOpen]);
 
   const handleLogout = () => {
-    navigateWithUnsavedChangesGuard(() => { void logoutAdmin().finally(() => {
+    navigateWithUnsavedChangesGuard(() => { void logoutAdmin().then(() => {
       clearAdminSession();
       router.push('/admin/login');
-    }); });
+    }, () => { window.alert("Không thể xác nhận đăng xuất với máy chủ. Vui lòng kiểm tra kết nối và thử lại."); }); });
   };
 
   const navItems = [
@@ -219,6 +220,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* Footer account actions and profile */}
       <div className="mt-2 shrink-0 border-t border-slate-200 px-4 pb-4 pt-3">
         <div className="space-y-1">
+          <button type="button" onClick={() => onTabChange('sessions')} className={`flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-left text-sm font-medium transition-all ${activeTab === 'sessions' ? 'bg-gradient-to-r from-[#0d5c0d] to-[#1a7a1a] text-white font-semibold shadow-sm' : 'text-slate-700 hover:bg-emerald-50 hover:text-emerald-700'}`}>
+            <Monitor className="h-4 w-4" />Phiên đăng nhập
+          </button>
           <button
             type="button"
             onClick={() => onTabChange('account')}

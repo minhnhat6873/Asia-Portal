@@ -44,6 +44,8 @@ export interface User {
   accountRole: 'admin' | 'manager' | 'user';
   status: 'active' | 'suspended' | 'pending' | 'rejected';
   avatar?: string;
+  notes?: string;
+  updatedAt?: string;
   createdAt?: string;
   /** Only present while creating an account; never persisted in frontend state. */
   password?: string;

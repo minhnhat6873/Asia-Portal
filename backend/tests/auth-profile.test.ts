@@ -1,3 +1,4 @@
+import { authSessionRepository } from "../src/repositories/admin/auth-session.repository";
 import type { Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import { requireAdminAuth } from "../src/middlewares/auth.middleware";
@@ -12,14 +13,15 @@ describe("current account profile", () => {
     process.env.JWT_SECRET = "profile-test-only-secret";
     const id = "507f1f77bcf86cd799439012";
     try {
+      jest.spyOn(authSessionRepository, "findActive").mockResolvedValue({ authVersion: 0 } as never);
       jest.spyOn(adminAccountRepository, "findActiveById").mockResolvedValue({
         _id: id, name: "Current name", email: "current@asiafnb.com", phone: "0901234567", status: "active", role,
         password: "private-hash", phoneKey: "private-index", permissionGroupIds: [],
       } as never);
       jest.spyOn(permissionGroupRepository, "findActiveByIds").mockResolvedValue([]);
-      const token = jwt.sign({ tokenType: "access", phone: "old-phone", name: "Old name", status: "pending" }, process.env.JWT_SECRET, { subject: id });
+      const token = jwt.sign({ tokenType: "access", sid: "test-session", version: 0, phone: "old-phone", name: "Old name", status: "pending" }, process.env.JWT_SECRET, { subject: id });
       const request = { cookies: { [AUTH_COOKIE_NAME]: token } } as unknown as Request;
-      const response = { status: jest.fn(), json: jest.fn() };
+      const response = { status: jest.fn(), json: jest.fn(), setHeader: jest.fn() };
       response.status.mockReturnValue(response);
       const next = jest.fn();
       await requireAdminAuth(request, response as unknown as Response, next);

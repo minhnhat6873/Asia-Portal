@@ -1,4 +1,6 @@
 export interface PasswordResetOtp {
+  /** Internal generation ID. Optional only for pre-existing OTP records. */
+  requestId?: string;
   email: string;
   otpHash: string;
   otpExpiresAt: Date;
@@ -8,6 +10,8 @@ export interface PasswordResetOtp {
   createdAt?: Date;
   updatedAt?: Date;
 }
+
+export type PasswordResetOtpSnapshot = Pick<PasswordResetOtp, "email" | "requestId" | "otpHash">;
 
 export interface StartPasswordResetInput {
   email: string;

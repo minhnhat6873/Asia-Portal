@@ -24,6 +24,14 @@ async function validate(rows: unknown[][]) {
 const row = ["000123", "Nguyễn Văn An", "Chuyên viên", "Phòng Nhân sự & Hành chính", "Chuyên viên/Nhân viên", "Nam", "01/10/2026", "", "Văn Phòng Á Châu Dĩ An", "Đang làm việc", "AN@asiafnb.com", "0901234567", "", ""];
 
 describe("employee Excel import validation", () => {
+  it("accepts department names without the old Phòng prefix", async () => {
+    const input = [...row];
+    input[3] = "Nhân sự & Hành chính";
+    const { request, error } = await validate([input]);
+    expect(error).toBeUndefined();
+    expect(request.body.rows[0].department).toBe("HR_ADMIN");
+  });
+
   it("accepts a completed copy of the actual downloadable template", async () => {
     const workbook = new ExcelJS.Workbook();
     const template = await readFile(path.resolve(__dirname, "../../frontend/public/Mau_nhap_nhan_vien_AsiaPortal.xlsx"));

@@ -1,3 +1,6 @@
+import { getPasswordValidationError } from "@/lib/password-validation";
+export { getPasswordValidationError } from "@/lib/password-validation";
+
 export interface RegisterFormValues {
   fullName: string;
   email: string;
@@ -12,29 +15,6 @@ export type RegisterFormErrors = Partial<Record<keyof RegisterFormValues, string
 const VIETNAM_PHONE_PATTERN = /^0(?:3|5|7|8|9)\d{8}$/;
 const VIETNAMESE_NAME_PATTERN = /^[\p{L}][\p{L}\p{M}'’.-]*(?:\s+[\p{L}][\p{L}\p{M}'’.-]*)*$/u;
 const COMPANY_EMAIL_PATTERN = /^[A-Z0-9._%+-]+@asiafnb\.com$/i;
-
-function formatVietnameseList(items: string[]): string {
-  if (items.length === 1) return items[0];
-  if (items.length === 2) return `${items[0]} và ${items[1]}`;
-
-  return `${items.slice(0, -1).join(", ")} và ${items[items.length - 1]}`;
-}
-
-export function getPasswordValidationError(password: string): string | undefined {
-  if (!password) return "Vui lòng nhập mật khẩu.";
-  if (password.length < 4) return "Mật khẩu phải có ít nhất 4 ký tự.";
-  if (password.length > 50) return "Mật khẩu không được vượt quá 50 ký tự.";
-
-  const missingRequirements: string[] = [];
-  if (!/[a-z]/.test(password)) missingRequirements.push("chữ thường");
-  if (!/[A-Z]/.test(password)) missingRequirements.push("chữ hoa");
-  if (!/\d/.test(password)) missingRequirements.push("chữ số");
-  if (!/[^A-Za-z0-9\s]/.test(password)) missingRequirements.push("ký tự đặc biệt");
-
-  return missingRequirements.length > 0
-    ? `Mật khẩu còn thiếu: ${formatVietnameseList(missingRequirements)}.`
-    : undefined;
-}
 
 export function normalizeVietnamPhone(value: string): string {
   return value.trim().replace(/[\s.-]/g, "");

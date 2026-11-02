@@ -10,6 +10,13 @@ import type { ClientSession } from "mongoose";
 import { accountPhonePattern, normalizeAccountPhone } from "../../utils/account/normalizeContact";
 
 export const adminAccountRepository = {
+  findForSessions(id: string) {
+    return AccountModel.findById(id).select("+authVersion").lean();
+  },
+  revokeAllSessions(id: string) {
+    return AccountModel.findByIdAndUpdate(id, { $inc: { authVersion: 1 } }, { returnDocument: "after" })
+      .select("+authVersion").lean();
+  },
   removePermissionGroup(groupId: string) {
     return AccountModel.updateMany(
       { permissionGroupIds: groupId, role: { $ne: "admin" } },
@@ -18,7 +25,7 @@ export const adminAccountRepository = {
   },
 
   findByEmailWithPassword(email: string) {
-    return AccountModel.findOne({ email: email.toLowerCase() }).select("+password");
+    return AccountModel.findOne({ email: email.toLowerCase() }).select("+password +authVersion");
   },
 
   findByIdWithPassword(id: string) {
@@ -28,7 +35,7 @@ export const adminAccountRepository = {
   changePasswordIfUnchanged(id: string, email: string, currentPasswordHash: string, newPasswordHash: string, session: ClientSession) {
     return AccountModel.findOneAndUpdate(
       { _id: id, email, password: currentPasswordHash, status: "active", role: { $in: ["admin", "manager"] } },
-      { $set: { password: newPasswordHash } }, { session, returnDocument: "after", runValidators: true },
+      { $set: { password: newPasswordHash }, $inc: { authVersion: 1 } }, { session, returnDocument: "after", runValidators: true },
     ).lean();
   },
 
@@ -40,7 +47,7 @@ export const adminAccountRepository = {
   },
 
   findActiveById(id: string, session?: ClientSession) {
-    return AccountModel.findOne({ _id: id, status: "active" }).session(session ?? null).lean();
+    return AccountModel.findOne({ _id: id, status: "active" }).select("+authVersion").session(session ?? null).lean();
   },
 
   findByEmail(email: string, session?: ClientSession) {
@@ -85,7 +92,11 @@ export const adminAccountRepository = {
   },
 
   updateById(id: string, data: UpdateAdminAccountInput, expectedRole: AccountRole, session?: ClientSession) {
-    return AccountModel.findOneAndUpdate({ _id: id, role: expectedRole }, data, {
+    const update = { ...data, ...(data.phone !== undefined ? { phoneKey: normalizeAccountPhone(data.phone) } : {}) };
+    return AccountModel.findOneAndUpdate({ _id: id, role: expectedRole }, {
+      $set: update,
+      ...(data.status !== undefined && data.status !== "active" ? { $inc: { authVersion: 1 } } : {}),
+    }, {
       returnDocument: "after",
       runValidators: true,
       session,
@@ -95,7 +106,7 @@ export const adminAccountRepository = {
   resetManagedPassword(id: string, passwordHash: string, session: ClientSession) {
     return AccountModel.findOneAndUpdate(
       { _id: id },
-      { $set: { password: passwordHash } },
+      { $set: { password: passwordHash }, $inc: { authVersion: 1 } },
       { returnDocument: "after", runValidators: true, session },
     ).lean();
   },
@@ -104,12 +115,10 @@ export const adminAccountRepository = {
     return AccountModel.findByIdAndDelete(id, { session }).lean();
   },
 
-  async resetPassword(id: string, password: string) {
-    const account = await AccountModel.findById(id).select("+password");
-    if (!account) return null;
-
-    account.password = password;
-    await account.save();
-    return account;
+  resetPassword(id: string, passwordHash: string, session?: ClientSession, expectedEmail?: string) {
+    return AccountModel.findOneAndUpdate(
+      { _id: id, ...(expectedEmail ? { email: expectedEmail } : {}) }, { $set: { password: passwordHash }, $inc: { authVersion: 1 } },
+      { returnDocument: "after", runValidators: true, ...(session ? { session } : {}) },
+    ).lean();
   },
 };

@@ -36,11 +36,14 @@ export async function login(
   next: NextFunction,
 ): Promise<void> {
   try {
-    const { admin, token, refreshToken } = await adminAuthService.login(request.body);
-    response.cookie(AUTH_COOKIE_NAME, token, getAuthCookieOptions(Boolean(refreshToken)));
+    const { admin, token, refreshToken } = await adminAuthService.login(request.body, {
+      ipAddress: request.ip, userAgent: request.get("User-Agent"),
+    });
+    response.setHeader("Cache-Control", "no-store");
+    response.cookie(AUTH_COOKIE_NAME, token, getAuthCookieOptions(Boolean(request.body.rememberMe)));
 
     if (refreshToken) {
-      response.cookie(AUTH_REFRESH_COOKIE_NAME, refreshToken, getRememberCookieOptions());
+      response.cookie(AUTH_REFRESH_COOKIE_NAME, refreshToken, request.body.rememberMe ? getRememberCookieOptions() : getAuthCookieOptions());
     } else {
       clearAuthCookie(response, AUTH_REFRESH_COOKIE_NAME);
     }
@@ -67,21 +70,28 @@ export async function refreshLogin(
       return;
     }
 
-    const { admin, token } = await adminAuthService.refresh(refreshToken);
-    response.cookie(AUTH_COOKIE_NAME, token, getAuthCookieOptions(true));
+    const { admin, token, refreshToken: rotatedToken, persistent, remainingMs } = await adminAuthService.refresh(refreshToken);
+    response.setHeader("Cache-Control", "no-store");
+    response.cookie(AUTH_COOKIE_NAME, token, getAuthCookieOptions(persistent));
+    response.cookie(AUTH_REFRESH_COOKIE_NAME, rotatedToken, persistent ? { ...getRememberCookieOptions(), maxAge: remainingMs } : getAuthCookieOptions());
     response.status(200).json({ success: true, data: admin });
   } catch (error) {
     next(error);
   }
 }
 
-export function logout(_request: Request, response: Response): void {
-  clearAuthCookie(response, AUTH_COOKIE_NAME);
-  clearAuthCookie(response, AUTH_REFRESH_COOKIE_NAME);
-  response.status(200).json({ success: true, message: "Đăng xuất thành công" });
+export async function logout(request: Request, response: Response, next: NextFunction): Promise<void> {
+  try {
+    await adminAuthService.logout([request.cookies?.[AUTH_COOKIE_NAME], request.cookies?.[AUTH_REFRESH_COOKIE_NAME]]);
+    clearAuthCookie(response, AUTH_COOKIE_NAME);
+    clearAuthCookie(response, AUTH_REFRESH_COOKIE_NAME);
+    response.setHeader("Cache-Control", "no-store");
+    response.status(200).json({ success: true, message: "Đăng xuất thành công" });
+  } catch (error) { next(error); }
 }
 
 export function getCurrentAccount(request: Request, response: Response): void {
+  response.setHeader("Cache-Control", "no-store");
   response.status(200).json({ success: true, data: request.admin });
 }
 
@@ -209,6 +219,8 @@ export async function resendPasswordChangeOtp(request: Request<unknown, unknown,
 export async function changePassword(request: Request<unknown, unknown, ConfirmPasswordChangeInput>, response: Response, next: NextFunction): Promise<void> {
   try {
     await passwordChangeOtpService.confirm(request.admin!.id, request.body);
+    clearAuthCookie(response, AUTH_COOKIE_NAME);
+    clearAuthCookie(response, AUTH_REFRESH_COOKIE_NAME);
     response.status(200).json({success: true, message: "Đổi mật khẩu thành công."});
   } catch (error) { next(error); }
 }

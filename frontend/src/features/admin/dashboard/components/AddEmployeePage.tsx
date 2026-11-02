@@ -120,6 +120,7 @@ export const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({
   const rankFieldRef = useRef<HTMLDivElement>(null);
   const [avatarUploaderKey, setAvatarUploaderKey] = useState(0);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarOriginalFile, setAvatarOriginalFile] = useState<File | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isDraftRestored, setIsDraftRestored] = useState(false);
   const draftClosed = useRef(false);
@@ -191,7 +192,7 @@ export const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({
     else if (formData.rank === "CEO" && initialEmployee?.rank !== "CEO") errors.rank = "Vui lòng chọn cấp bậc trong danh sách hiện tại.";
     else if (!EMPLOYEE_RANK_OPTIONS_UI.some((option) => option.value === formData.rank)) errors.rank = "Cấp bậc hiện tại không còn hợp lệ. Vui lòng chọn lại cấp bậc trong danh sách.";
     else if ((formData.rank === 'CEO' || formData.rank === 'Senior Management') && normalizeEmployeeDepartment(formData.department) !== 'BOD') {
-      errors.rank = "Chỉ phòng BOD được chọn CEO hoặc Quản lý cấp cao.";
+      errors.rank = "Chỉ BOD được chọn CEO hoặc Quản lý cấp cao.";
     }
     if (!formData.joinDate || !toDatePickerValue(formData.joinDate)) errors.joinDate = "Vui lòng chọn ngày gia nhập hợp lệ.";
     if (formData.birthDate && !toDatePickerValue(formData.birthDate)) errors.birthDate = "Ngày sinh không hợp lệ.";
@@ -250,6 +251,7 @@ export const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({
           avatar: isEditing ? formData.avatar : undefined,
         },
         avatarFile,
+        avatarOriginalFile,
       );
 
       draftClosed.current = true;
@@ -264,6 +266,7 @@ export const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({
         department: employee.department,
         rank: employee.rank ?? formData.rank,
         avatar: employee.avatar || formData.avatar,
+        avatarOriginal: employee.avatarOriginal ?? "",
         status: employee.status,
         email: employee.email,
         phone: employee.phone,
@@ -308,6 +311,7 @@ export const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({
     setErrorMsg(null);
     setFieldErrors({});
     setAvatarFile(null);
+    setAvatarOriginalFile(null);
     sessionStorage.removeItem(draftStorageKey);
     setAvatarUploaderKey((value) => value + 1);
   };
@@ -594,6 +598,8 @@ export const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({
               key={avatarUploaderKey}
               enableCrop
               initialAvatarUrl={formData.avatar}
+              initialOriginalAvatarUrl={initialEmployee?.avatarOriginal}
+              onOriginalFileChange={setAvatarOriginalFile}
               onExistingAvatarRemove={() => setFormData((current) => ({ ...current, avatar: "" }))}
               onFileChange={setAvatarFile}
             />

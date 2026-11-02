@@ -16,6 +16,7 @@ import { AddMediaPage } from './components/AddMediaPage';
 import { AccessControlTabs, type AccessControlPage } from '@/features/access-control/AccessControlTabs';
 import { AccessControlHome } from '@/features/access-control/AccessControlHome';
 import AccountPage from '@/features/admin/account/AccountPage';
+import SessionsPage from '@/features/admin/sessions/SessionsPage';
 import Image from 'next/image';
 import Link from 'next/link';
 import { clearAdminSession, getAdminSession, type AdminUser } from '@/lib/adminSession';
@@ -41,8 +42,9 @@ export const ADMIN_TAB_ROUTES: Record<ActiveTab, string> = {
   permissions: '/admin/access-control',
   'system-settings': '/admin/settings',
   account: '/admin/account',
+  sessions: '/admin/sessions',
 };
-const ACCESS_CONTROL_PAGE_ROUTES: Record<Exclude<AccessControlPage, "edit-role">, string> = {
+const ACCESS_CONTROL_PAGE_ROUTES: Record<Exclude<AccessControlPage, "edit-role" | "edit-account">, string> = {
   overview: '/admin/access-control',
   accounts: '/admin/access-control/accounts',
   'new-account': '/admin/access-control/accounts/new',
@@ -56,6 +58,7 @@ interface AdminDashboardProps {
 }
 
 function getTabFromPath(pathname: string): ActiveTab {
+  if (pathname === '/admin/sessions') return 'sessions';
   if (pathname === "/admin/employees/new") return "add-employee";
   if (/^\/admin\/employees\/[^/]+\/edit$/.test(pathname)) return "edit-employee";
   if (pathname.startsWith("/admin/employees")) return "employees";
@@ -95,6 +98,7 @@ function mapApiEmployeeToDashboardEmployee(employee: AdminEmployeeResult): Emplo
     phone: employee.phone,
     location: employee.location,
     avatar: employee.avatar ?? "",
+    avatarOriginal: employee.avatarOriginal ?? "",
     chartAvatar: employee.chartAvatar ?? "",
     joinDate: formatEmployeeDate(employee.joinDate),
     birthDate: formatEmployeeDate(employee.birthDate),
@@ -109,6 +113,7 @@ function mapApiEmployeeToDashboardEmployee(employee: AdminEmployeeResult): Emplo
 
 function getAccessControlPage(pathname: string): AccessControlPage {
   if (pathname === '/admin/access-control/accounts/new') return 'new-account';
+  if (/^\/admin\/access-control\/accounts\/[^/]+\/edit$/.test(pathname)) return 'edit-account';
   if (pathname === '/admin/access-control/roles/new') return 'new-role';
   if (/^\/admin\/access-control\/roles\/[^/]+\/edit$/.test(pathname)) return 'edit-role';
   if (pathname === '/admin/access-control/roles') return 'roles';
@@ -127,6 +132,7 @@ export default function AdminDashboard(_props: AdminDashboardProps) {
   const activeTab = getTabFromPath(pathname);
   const accessControlPage = getAccessControlPage(pathname);
   const editingRoleId = pathname.match(/^\/admin\/access-control\/roles\/([^/]+)\/edit$/)?.[1];
+  const editingAccountId = pathname.match(/^\/admin\/access-control\/accounts\/([^/]+)\/edit$/)?.[1];
   const isEmployeeTrashPage = pathname === '/admin/employees/trash';
   const isMediaTrashPage = pathname === '/admin/media/trash';
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -542,7 +548,7 @@ export default function AdminDashboard(_props: AdminDashboardProps) {
               </div>
 
               <div className="my-2 border-t border-slate-100" />
-              <button type="button" role="menuitem" onClick={() => { setIsAccountMenuOpen(false); navigateWithUnsavedChangesGuard(() => { void logoutAdmin().finally(() => { clearAdminSession(); router.replace("/admin/login"); }); }); }} className="flex w-full items-center gap-3 rounded-xl bg-rose-50 px-3 py-2.5 text-left text-sm font-semibold text-rose-600 transition-colors hover:bg-rose-100">
+              <button type="button" role="menuitem" onClick={() => { setIsAccountMenuOpen(false); navigateWithUnsavedChangesGuard(() => { void logoutAdmin().then(() => { clearAdminSession(); router.replace("/admin/login"); }, () => { window.alert("Không thể xác nhận đăng xuất với máy chủ. Vui lòng kiểm tra kết nối và thử lại."); }); }); }} className="flex w-full items-center gap-3 rounded-xl bg-rose-50 px-3 py-2.5 text-left text-sm font-semibold text-rose-600 transition-colors hover:bg-rose-100">
                 <LogOut className="h-4 w-4" />Đăng xuất
               </button>
             </div>
@@ -627,9 +633,10 @@ export default function AdminDashboard(_props: AdminDashboardProps) {
               {activeTab === 'meetings' && 'Quản Lý Đặt Phòng Họp'}
               {activeTab === 'add-media' && 'Đăng Tin Truyền Thông'}
               {activeTab === 'edit-media' && 'Chỉnh Sửa Tin Truyền Thông'}
-              {activeTab === 'permissions' && ({ overview: 'Phân Quyền & Quản Lý Tài Khoản', accounts: 'Quản Lý Tài Khoản', 'new-account': 'Thêm Tài Khoản', roles: 'Nhóm Quyền Đã Tạo', 'new-role': 'Tạo Nhóm Quyền', 'edit-role': 'Chỉnh Sửa Nhóm Quyền' }[accessControlPage])}
+              {activeTab === 'permissions' && ({ overview: 'Phân Quyền & Quản Lý Tài Khoản', accounts: 'Quản Lý Tài Khoản', 'new-account': 'Thêm Tài Khoản', 'edit-account': 'Chỉnh Sửa Tài Khoản', roles: 'Nhóm Quyền Đã Tạo', 'new-role': 'Tạo Nhóm Quyền', 'edit-role': 'Chỉnh Sửa Nhóm Quyền' }[accessControlPage])}
               {activeTab === 'system-settings' && 'Cài Đặt Hệ Thống'}
               {activeTab === 'account' && 'Thông Tin Tài Khoản'}
+              {activeTab === 'sessions' && 'Phiên Đăng Nhập'}
             </span>
 
           </div>
@@ -643,7 +650,7 @@ export default function AdminDashboard(_props: AdminDashboardProps) {
           </div>
         )}
         <div hidden={showPageLoading} className={activeTab === 'meetings' ? 'p-3 sm:p-4 lg:p-[18px]' : 'p-3 sm:p-4 md:p-6 lg:p-8'}>
-          <div className={activeTab === 'meetings' ? 'mx-0 w-full min-w-0 max-w-none' : 'mx-auto w-full min-w-0 max-w-7xl'}>
+          <div className={activeTab === 'meetings' || pathname === '/admin/employees' || isEmployeeTrashPage ? 'mx-0 w-full min-w-0 max-w-none' : 'mx-auto w-full min-w-0 max-w-7xl'}>
             {/* 1. Tổng quan Dashboard */}
             {activeTab === 'overview' && (
               <DashboardOverview
@@ -660,6 +667,7 @@ export default function AdminDashboard(_props: AdminDashboardProps) {
             )}
 
             {activeTab === 'account' && <AccountPage embedded initialAdminUser={sessionAccount} />}
+            {activeTab === 'sessions' && <SessionsPage account={sessionAccount} />}
 
             {/* 2. Danh sách Quản lý Nhân sự */}
             {activeTab === 'employees' && !isEmployeeTrashPage && (
@@ -767,7 +775,6 @@ export default function AdminDashboard(_props: AdminDashboardProps) {
                 onBack={() => navigateToTab('media')}
                 onSave={(newPost) => {
                   handleAddMedia(newPost);
-                  navigateToTab('media');
                 }}
               />
             )}
@@ -783,7 +790,6 @@ export default function AdminDashboard(_props: AdminDashboardProps) {
                   onBack={() => navigateToPage('/admin/media')}
                   onSave={(updatedPost) => {
                     handleUpdateMedia(updatedPost);
-                    navigateToPage('/admin/media');
                   }}
                 />
               ) : (
@@ -798,6 +804,7 @@ export default function AdminDashboard(_props: AdminDashboardProps) {
                   activeTab={activeTab}
                   page={accessControlPage}
                   editingRoleId={editingRoleId}
+                  editingAccountId={editingAccountId}
                   onNavigateToPage={(page) => navigateToPage(ACCESS_CONTROL_PAGE_ROUTES[page])}
                   onAccountsChanged={setPendingUsersCount}
                 />

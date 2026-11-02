@@ -12,6 +12,7 @@ export default function EmployeeSelectFilter({
   icon: Icon,
   iconClass,
   getOptionLabel = (option) => option,
+  singleLine = false,
 }: {
   value: string;
   options: string[];
@@ -20,6 +21,7 @@ export default function EmployeeSelectFilter({
   icon: typeof Building2;
   iconClass: string;
   getOptionLabel?: (option: string) => string;
+  singleLine?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [keyword, setKeyword] = useState("");
@@ -44,12 +46,12 @@ export default function EmployeeSelectFilter({
         type="button"
         onClick={() => setOpen((current) => !current)}
         aria-expanded={open}
-        className={`flex min-h-14 w-full items-center gap-2.5 rounded-xl border bg-white px-3 py-2.5 text-left sm:px-4 sm:py-3 shadow-[0_2px_8px_rgba(15,23,42,0.04)] transition-colors ${
+        className={`flex min-h-14 w-full items-center gap-2.5 rounded-xl border bg-white px-3 py-2.5 text-left sm:px-4 sm:py-3 shadow-[0_2px_8px_rgba(15,23,42,0.04)] transition-colors ${singleLine ? "h-full" : ""} ${
           open ? "border-[#29a96a] ring-1 ring-[#29a96a]" : "border-slate-200 hover:border-[#29a96a]"
         }`}
       >
         <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${iconClass}`}><Icon size={17} /></span>
-        <span className="min-w-0 flex-1 break-words text-sm font-medium leading-snug text-slate-700">{getOptionLabel(value)}</span>
+        <span title={singleLine ? getOptionLabel(value) : undefined} className={`min-w-0 flex-1 text-sm font-medium leading-snug text-slate-700 ${singleLine ? "truncate" : "break-words"}`}>{getOptionLabel(value)}</span>
         <ChevronDown size={18} className={`shrink-0 text-[#0b4937] transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
 

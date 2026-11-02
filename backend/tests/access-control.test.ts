@@ -1,3 +1,4 @@
+import { authSessionRepository } from "../src/repositories/admin/auth-session.repository";
 import type { Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import { PERMISSION_ACTIONS, filterPermissionActions } from "../src/interfaces/permission-group.interface";
@@ -69,9 +70,10 @@ describe("live group resolution", () => {
     const previousSecret = process.env.JWT_SECRET;
     process.env.JWT_SECRET = "test-only-jwt-secret";
     try {
+      jest.spyOn(authSessionRepository, "findActive").mockResolvedValue({ authVersion: 0 } as never);
       jest.spyOn(adminAccountRepository, "findActiveById").mockResolvedValue({ _id: employee._id, name: "Manager", email: "manager@asiafnb.com", role: "manager", permissionGroupIds: [employee._id] } as never);
       const groups = jest.spyOn(permissionGroupRepository, "findActiveByIds").mockResolvedValue([{ actions: ["employees:view", "employees:deactivate"] }, { actions: ["employees:view-birth-date", "employees:view"] }] as never);
-      const token = jwt.sign({ tokenType: "access" }, process.env.JWT_SECRET, { subject: employee._id });
+      const token = jwt.sign({ tokenType: "access", sid: "test-session", version: 0 }, process.env.JWT_SECRET, { subject: employee._id });
       const request = { cookies: { [AUTH_COOKIE_NAME]: token } } as unknown as Request;
       const next = jest.fn();
       await requireAdminAuth(request, responseMock(), next);

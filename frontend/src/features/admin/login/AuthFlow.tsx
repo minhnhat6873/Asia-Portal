@@ -21,6 +21,7 @@ import { getAdminLandingPath } from "@/lib/adminPermissions";
 import { getAdminSession, setAdminSession } from "@/lib/adminSession";
 import { getAdminRoleLabel, loginAdmin } from "@/features/admin/login/auth.service";
 import { getPasswordValidationError, normalizeVietnamPhone, validateRegisterForm } from "@/features/admin/register/register.validation";
+import { PASSWORD_MAX_LENGTH, PASSWORD_REQUIREMENTS } from "@/lib/password-validation";
 import { resendRegistrationOtp, startRegistration, verifyRegistrationOtp } from "@/features/admin/register/register.service";
 import { requestPasswordResetOtp, resendPasswordResetOtp, resetPasswordWithOtp, verifyPasswordResetOtp } from "@/features/admin/login/password-reset.service";
 import { ApiError } from "@/services/api";
@@ -111,6 +112,7 @@ function FloatingField({
   invalid,
   autoComplete,
   inputMode,
+  maxLength,
 }: {
   id: string;
   type?: string;
@@ -125,6 +127,7 @@ function FloatingField({
   invalid?: boolean;
   autoComplete?: string;
   inputMode?: React.HTMLAttributes<HTMLInputElement>["inputMode"];
+  maxLength?: number;
 }) {
   const [focused, setFocused] = useState(false);
   // The hint hides as soon as the field is active OR already filled.
@@ -149,6 +152,7 @@ function FloatingField({
         aria-label={label}
         autoComplete={autoComplete}
         inputMode={inputMode}
+        maxLength={maxLength}
         className={`${INPUT} ${trailing ? "pr-11" : "pr-4"} ${invalid ? INPUT_ERROR : ""}`}
       />
 
@@ -556,10 +560,11 @@ function RegisterScreen({
               value={form.password}
               onChange={set("password")}
               label="Mật khẩu"
-              placeholder="4–50 ký tự, chữ hoa, chữ thường, số & ký tự đặc biệt"
+              placeholder="8–32 ký tự, không chứa khoảng trắng"
               icon={<Lock className="h-4 w-4" />}
               invalid={Boolean(errors.password)}
               autoComplete="new-password"
+              maxLength={PASSWORD_MAX_LENGTH}
               trailing={
                 <button
                   type="button"
@@ -572,6 +577,7 @@ function RegisterScreen({
               }
             />
             {errors.password && <p className={ERROR_TEXT}>{errors.password}</p>}
+            <p className="mt-2 text-xs leading-5 text-zinc-400">{PASSWORD_REQUIREMENTS}</p>
           </div>
 
           <div>
@@ -586,6 +592,7 @@ function RegisterScreen({
               icon={<ShieldCheck className="h-4 w-4" />}
               invalid={Boolean(errors.confirmPassword)}
               autoComplete="new-password"
+              maxLength={PASSWORD_MAX_LENGTH}
             />
             {errors.confirmPassword && <p className={ERROR_TEXT}>{errors.confirmPassword}</p>}
           </div>
@@ -947,6 +954,9 @@ function OtpScreen({
                 <input
                   type="password"
                   value={newPassword}
+                  maxLength={PASSWORD_MAX_LENGTH}
+                  autoComplete="new-password"
+                  aria-label="Mật khẩu mới"
                   onChange={(e) => setNewPassword(e.target.value)}
                   placeholder="Nhập mật khẩu mới..."
                   className={`${INPUT} pl-3.5`}
@@ -954,11 +964,15 @@ function OtpScreen({
                 <input
                   type="password"
                   value={confirmNewPassword}
+                  maxLength={PASSWORD_MAX_LENGTH}
+                  autoComplete="new-password"
+                  aria-label="Xác nhận mật khẩu mới"
                   onChange={(e) => setConfirmNewPassword(e.target.value)}
                   placeholder="Xác nhận lại mật khẩu mới..."
                   className={`${INPUT} pl-3.5`}
                 />
                 {passwordResetError && <p className="text-xs font-medium text-rose-400">{passwordResetError}</p>}
+                <p className="text-xs leading-5 text-zinc-400">{PASSWORD_REQUIREMENTS}</p>
               </div>
             )}
             <div className="space-y-2.5">

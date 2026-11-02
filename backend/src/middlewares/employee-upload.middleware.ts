@@ -1,13 +1,27 @@
 import type { NextFunction, Request, Response } from "express";
 
-import { deleteCloudinaryAsset } from "../helpers/multerCloudinary.helper";
+import { uploadAvatar } from "../helpers/multerCloudinary.helper";
+import { deleteEmployeeAvatarUploads, getEmployeeAvatarUploads } from "../utils/employee/avatarUploads";
 import { createEmployeeSchema, updateEmployeeSchema } from "../validates/admin/employee.validate";
+
+export function uploadEmployeeAvatars(request: Request, response: Response, next: NextFunction): void {
+  uploadAvatar.fields([{ name: "avatar", maxCount: 1 }, { name: "avatarOriginal", maxCount: 1 }])(request, response, next);
+}
+
+async function rejectOriginalWithoutAvatar(request: Request, response: Response): Promise<boolean> {
+  const { avatar, original } = getEmployeeAvatarUploads(request);
+  if (!original || avatar) return false;
+  await deleteEmployeeAvatarUploads(request);
+  response.status(400).json({ success: false, message: "Ảnh gốc phải được gửi cùng ảnh đại diện." });
+  return true;
+}
 
 export async function validateEmployeeCreateUpload(
   request: Request,
   response: Response,
   next: NextFunction,
 ): Promise<void> {
+  if (await rejectOriginalWithoutAvatar(request, response)) return;
   const { error, value } = createEmployeeSchema.validate(request.body, {
     abortEarly: false,
     stripUnknown: true,
@@ -19,11 +33,7 @@ export async function validateEmployeeCreateUpload(
     return;
   }
 
-  try {
-    await deleteCloudinaryAsset(request.file?.filename);
-  } catch {
-    // Validation must still return the original 400 response.
-  }
+  await deleteEmployeeAvatarUploads(request);
 
   response.status(400).json({
     success: false,
@@ -38,6 +48,7 @@ export async function validateEmployeeUpdateUpload(
   response: Response,
   next: NextFunction,
 ): Promise<void> {
+  if (await rejectOriginalWithoutAvatar(request, response)) return;
   const { error, value } = updateEmployeeSchema.validate(request.body, {
     abortEarly: false,
     stripUnknown: true,
@@ -49,11 +60,7 @@ export async function validateEmployeeUpdateUpload(
     return;
   }
 
-  try {
-    await deleteCloudinaryAsset(request.file?.filename);
-  } catch {
-    // Validation must still return the original 400 response.
-  }
+  await deleteEmployeeAvatarUploads(request);
 
   response.status(400).json({
     success: false,

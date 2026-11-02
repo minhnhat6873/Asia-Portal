@@ -40,6 +40,8 @@ Theo [backend/src/routes/index.route.ts](/D:/Vscode/Asia-Portal/backend/src/rout
 
 ## Quy ước đặt tên
 
+Module quản lý phiên gồm `auth-session.interface.ts`, `auth-session.model.ts` (collection authsessions, TTL expiresAt), `repositories/admin/auth-session.repository.ts`, `services/admin/auth-session.service.ts`, `controllers/admin/auth-session.controller.ts` và `validates/admin/auth-session.validate.ts`. Router auth mount API danh sách/thu hồi sau requireAdminAuth và limiter. `utils/account/sessionClient.ts` chuẩn hóa IP và suy nhãn thiết bị từ User-Agent, không dùng metadata để cấp quyền. Middleware auth gắn mã phiên vào request nội bộ và cập nhật hoạt động có giới hạn tần suất.
+
 - Phân tầng hậu tố: `*.route.ts`, `*.controller.ts`, `*.service.ts`, `*.repository.ts`, `*.model.ts`, `*.interface.ts`, `*.validate.ts`.
 - Module admin/user theo thư mục; export object như `adminEmployeeService`, `adminEmployeeRepository`, `userEmployeeService`.
 - Controller là hàm named export; model default export. Hằng giá trị hữu hạn dùng `as const`, ví dụ `EMPLOYEE_STATUSES` tại [backend/src/interfaces/employee.interface.ts](/D:/Vscode/Asia-Portal/backend/src/interfaces/employee.interface.ts:1).

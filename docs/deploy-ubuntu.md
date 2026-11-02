@@ -74,6 +74,8 @@ sudo systemctl reload nginx
 
 Nếu file cấu hình/symlink đã có, kiểm tra trước khi ghi đè. Không xóa site của dịch vụ khác. Nếu cổng 80 đang dùng, kiểm tra bằng `sudo ss -ltnp`; không dừng dịch vụ khác tùy tiện. `nginx -t` phải thành công trước khi reload.
 
+Upload ảnh nhân viên gửi cả ảnh gốc và ảnh đã cắt (tối đa 5 MB/file). Đặt `client_max_body_size 12m;` trong site Nginx đang dùng để chứa hai file và phần multipart; sau đó `sudo nginx -t && sudo systemctl reload nginx`. Cập nhật frontend và backend cùng phiên bản để nhận được trường file `avatarOriginal`.
+
 Kiểm tra trên Ubuntu rồi trên máy Windows cùng LAN:
 
 ```bash

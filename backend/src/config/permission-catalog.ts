@@ -15,7 +15,7 @@ const definitions: PermissionDefinition[] = [
   { id: "meetings:delete", name: "Xóa lịch và thu hồi yêu cầu", description: "Xóa lịch hoặc thu hồi yêu cầu xác thực.", module: "meetings", riskLevel: "high" },
   { id: "employees:view", name: "Xem danh sách nhân viên", description: "Xem danh sách và hồ sơ nhân viên.", module: "employees", riskLevel: "low" },
   { id: "employees:view-birth-date", name: "Xem ngày sinh", description: "Xem ngày sinh trong danh sách, hồ sơ và form chỉnh sửa.", module: "employees", riskLevel: "high" },
-  { id: "employees:create", name: "Thêm nhân viên", description: "Tạo hồ sơ nhân viên.", module: "employees", riskLevel: "medium" },
+  { id: "employees:create", name: "Thêm nhân viên / Nhập Excel", description: "Tạo hồ sơ nhân viên và nhập danh sách nhân viên từ Excel.", module: "employees", riskLevel: "medium" },
   { id: "employees:update", name: "Chỉnh sửa nhân viên", description: "Sửa thông tin, trạng thái làm việc và ảnh sơ đồ.", module: "employees", riskLevel: "medium" },
   { id: "employees:delete", name: "Chuyển vào thùng rác", description: "Chuyển hồ sơ nhân viên vào thùng rác.", module: "employees", riskLevel: "high" },
   { id: "employees:trash", name: "Quản lý thùng rác", description: "Xem thùng rác, khôi phục và xóa vĩnh viễn nhân viên.", module: "employees", riskLevel: "high" },

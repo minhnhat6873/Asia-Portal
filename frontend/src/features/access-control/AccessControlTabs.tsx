@@ -3,7 +3,8 @@
 import { useDelayedLoading } from "@/lib/useDelayedLoading";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { UserManagementView, type AccountAccess } from "./components/UserManagementView";
+import { UserManagementView } from "./components/UserManagementView";
+import { EditAccountPage } from "./components/EditAccountPage";
 import { SystemSettingsView } from "./components/SystemSettingsView";
 import { PermissionGroupForm } from "./components/PermissionGroupForm";
 import { CreateAccountPage } from "./components/CreateAccountPage";
@@ -15,11 +16,12 @@ import {
 import { getAdminSession } from "@/lib/adminSession";
 
 type AccessControlTab = "permissions" | "system-settings";
-export type AccessControlPage = "overview" | "accounts" | "new-account" | "roles" | "new-role" | "edit-role";
+export type AccessControlPage = "overview" | "accounts" | "new-account" | "edit-account" | "roles" | "new-role" | "edit-role";
 interface AccessControlTabsProps {
   page: AccessControlPage;
-  onNavigateToPage: (page: Exclude<AccessControlPage, "edit-role">) => void;
+  onNavigateToPage: (page: Exclude<AccessControlPage, "edit-role" | "edit-account">) => void;
   editingRoleId?: string;
+  editingAccountId?: string;
   activeTab: AccessControlTab;
   onAccountsChanged?: (pendingCount: number) => void;
 }
@@ -38,10 +40,12 @@ function toUser(account: ApiAccount): User {
     accountRole: account.role, roleIds: account.permissionGroupIds,
     status: account.status === "inactive" ? "suspended" : account.status,
     createdAt: account.createdAt ? new Date(account.createdAt).toLocaleDateString("vi-VN") : "",
+    updatedAt: account.updatedAt ? new Date(account.updatedAt).toLocaleString("vi-VN") : "",
+    notes: account.notes ?? "",
   };
 }
 
-export function AccessControlTabs({ activeTab, page, editingRoleId, onNavigateToPage, onAccountsChanged }: AccessControlTabsProps) {
+export function AccessControlTabs({ activeTab, page, editingRoleId, editingAccountId, onNavigateToPage, onAccountsChanged }: AccessControlTabsProps) {
   const [users, setUsers] = useState<User[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [modules, setModules] = useState<ModuleCategory[]>([]);
@@ -76,13 +80,6 @@ export function AccessControlTabs({ activeTab, page, editingRoleId, onNavigateTo
     } finally { setSaving(false); }
   };
 
-  const saveAccountAccess = (userId: string, access: AccountAccess) => {
-    return mutate(() => updateAccount(userId, {
-      role: access.accountRole,
-      status: access.status === "suspended" ? "inactive" : "active", permissionGroupIds: access.accountRole === "admin" ? [] : access.roleIds,
-    }), "Đã cập nhật loại tài khoản, trạng thái và nhóm quyền.");
-  };
-
   if (isLoading) return <div hidden={!showLoading} role="status" className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500">Đang tải dữ liệu phân quyền...</div>;
   if (loadError) return <div role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-sm text-rose-700">{loadError}<button type="button" onClick={() => void reload().catch((error: Error) => setLoadError(error.message))} className="ml-3 font-bold underline">Thử lại</button></div>;
 
@@ -95,14 +92,18 @@ export function AccessControlTabs({ activeTab, page, editingRoleId, onNavigateTo
     }), "Đã tạo tài khoản.", true)}
   />;
 
+  if (page === "edit-account") {
+    const user = users.find((item) => item.id === editingAccountId);
+    if (!user) return <div role="alert" className="rounded-2xl border border-slate-200 bg-white p-6 text-sm"><p>Không tìm thấy tài khoản.</p><button type="button" onClick={() => onNavigateToPage("accounts")} className="mt-3 font-bold text-emerald-700">Quay lại quản lý tài khoản</button></div>;
+    return <EditAccountPage key={user.id} user={user} roles={roles} currentUserId={getAdminSession()?.id ?? ""} onBack={() => onNavigateToPage("accounts")} onSaved={reload} />;
+  }
+
   if (activeTab === "permissions" && page === "accounts") return <UserManagementView
     users={users} roles={roles}
     currentUserId={getAdminSession()?.id ?? ""} saving={saving}
     canManageAccountTypes={getAdminSession()?.role === "Toàn quyền Admin"}
-    onSaveUserAccess={saveAccountAccess}
     onDeleteUser={(userId) => mutate(() => deleteAccount(userId), "Đã xóa tài khoản.")}
     onRejectUser={(userId) => void mutate(() => updateAccount(userId, { status: "inactive", permissionGroupIds: [] }), "Đã từ chối tài khoản.")}
-    onNavigateToCreateRole={() => onNavigateToPage("new-role")}
   />;
 
   if (page === "edit-role") {

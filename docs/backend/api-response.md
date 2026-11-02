@@ -4,6 +4,10 @@ Cập nhật lần cuối: 2026-10-09. File nguồn đã đọc: `backend/index.
 
 ## Dạng trả về
 
+OTP quên mật khẩu giữ contract email/code và message hiện tại. Nhập sai đến ngưỡng 5 trả 429; yêu cầu mới/gửi lại trong cooldown trả 429, generation bị thay thế khi xử lý trả 400/409. `verify-otp` chỉ kiểm tra, không tiêu thụ mã; `forgot-password/reset` tiêu thụ và đổi mật khẩu trong một transaction. OTP dùng lại/hết hạn/thay thế không được cập nhật password; lỗi ghi account rollback tiêu thụ mã. Không trả requestId nội bộ, OTP hoặc hash trong response.
+
+API phiên `/admin/auth/sessions` trả `{ account: { id, name, email }, items, pagination: { page, limit, total, totalPages } }` trong data. Mỗi item chỉ có `id` (ID bản ghi), `isCurrent`, `browser`, `operatingSystem`, `ipAddress`, `lastIpAddress`, `createdAt`, `lastSeenAt`, `expiresAt`, `persistent`; metadata cũ có thể null/Chưa xác định. Không trả sessionId JWT, token/hash, nonce hoặc authVersion. DELETE một/nhiều phiên trả `{ signedOut: boolean }`; true nghĩa là thu hồi phiên người gọi, clear cookie và frontend về đăng nhập. Response no-store. Manager chỉ được dùng accountId của chính mình; Admin gốc được chọn tài khoản khác.
+
 | Trường hợp | Hình dạng thực tế |
 | --- | --- |
 | Thành công có dữ liệu | `{ success: true, message?, data }` |
@@ -14,6 +18,8 @@ Cập nhật lần cuối: 2026-10-09. File nguồn đã đọc: `backend/index.
 Validation body trả thêm `fieldErrors` theo tên trường API để frontend hiển thị lỗi cạnh ô nhập; `message` và danh sách `errors` vẫn được giữ. Ví dụ cấp bậc nhân viên không còn hợp lệ trả `fieldErrors.rank` và yêu cầu chọn lại từ danh sách.
 
 Nhập Excel nhân viên (`POST /admin/employees/import`) nhận multipart `file`, tối đa 2 MB, tối đa 500 dòng theo mẫu trong `frontend/public/Mau_nhap_nhan_vien_AsiaPortal.xlsx`. Thành công trả `{ success: true, data: { count } }`. Lỗi kiểm tra trả 400 hoặc 409, `message` mô tả dòng lỗi; không có dòng nào được ghi. Không nhập ảnh. Người tạo được lấy từ phiên admin, không lấy từ file. Mã, email và số điện thoại được kiểm tra với mọi hồ sơ, kể cả thùng rác. Lần nhập đầu tạo unique index cho ba trường; nếu dữ liệu cũ trùng thì từ chối nhập và cần xử lý trùng trước. Import yêu cầu MongoDB replica set hoặc sharded cluster hỗ trợ transaction; nếu không hỗ trợ trả 503, không nhập dữ liệu. Unique index số điện thoại tiếp tục bảo vệ cả thao tác tạo và sửa thông thường.
+
+Phản hồi nhân viên cho admin có thêm `avatarOriginal?: string` là URL ảnh gốc để chỉnh/cắt lại sau khi lưu. `avatar` vẫn là URL ảnh hiển thị. Các API `/user/employees*` loại bỏ `avatarOriginal` và `avatarOriginalPublicId`, cùng các trường riêng tư đã có. URL/asset ID ảnh gốc do máy chủ lấy từ file upload, không nhận từ trường text trong body.
 
 Phân trang được tạo tại các service employee, media và audit log. Không có wrapper response dùng chung; từng controller tự gọi `response.status().json()`.
 
@@ -70,7 +76,7 @@ Meeting rate limit mặc định 10 start/resend và 30 verify mỗi IP trong 15
 
 Payload tài khoản xác thực từ login/refresh và GET `/admin/auth/me` gồm `id`, `name`, `email`, `phone` (nếu có), `status`, `role`, `permissions`. Phone/status lấy từ account hiện tại trong MongoDB, không lấy từ JWT. Response không có password hoặc phoneKey. Trang Tài khoản của tôi hiển thị họ tên, email, số điện thoại và trạng thái này; loại tài khoản dùng nhãn Admin gốc/Quản lý. Không hiển thị mã tài khoản, phòng ban hay danh sách quyền hạn.
 
-Login set access `asia_admin_token`; khi có `rememberMe`, set refresh `asia_admin_refresh_token`, nếu không thì clear refresh. Refresh đọc refresh cookie và set lại access cookie; logout clear cả hai ([auth.controller.ts](/D:/Vscode/Asia-Portal/backend/src/controllers/admin/auth.controller.ts:29)). Cookie có `httpOnly`, `sameSite: "lax"`, `path: "/"`, `secure` theo `AUTH_COOKIE_SECURE`; access persistent 10 giờ, refresh 3 ngày ([auth.config.ts](/D:/Vscode/Asia-Portal/backend/src/config/auth.config.ts:3)).
+Login luôn set access asia_admin_token và refresh asia_admin_refresh_token. rememberMe=true dùng cookie bền (access 15 phút, refresh tối đa 3 ngày); false dùng session cookies với hạn phiên server tối đa 10 giờ. Refresh thay cả hai cookie, không kéo dài hạn phiên tuyệt đối. Logout thu hồi phiên server rồi clear cả hai cookie. Cookie HttpOnly, SameSite=Lax, path=/, Secure theo AUTH_COOKIE_SECURE. Auth responses no-store. Các request ghi /admin cần X-Requested-With: AsiaPortal; xem auth-and-permissions.md.
 
 Hợp đồng Admin Meeting (ID gốc, source/status, thống kê và OTP metadata): [admin-meetings.md](admin-meetings.md).
 
@@ -86,7 +92,7 @@ Employee response admin không có trường birthDate khi người gọi thiế
 
 ### Tạo tài khoản quản trị
 
-POST `/admin/accounts` yêu cầu name (họ tên 2–100 ký tự, không có số), email đúng định dạng thuộc `@asiafnb.com`, phone, password (8–100 ký tự) và confirmPassword khớp password. Số điện thoại di động Việt Nam có 10 chữ số, đầu 03/05/07/08/09; chấp nhận +84 và dấu phân cách khoảng trắng, chấm, gạch nối rồi chuẩn hóa về đầu 0. Email được trim và chuyển chữ thường. confirmPassword được kiểm tra rồi loại bỏ trước service/repository; không lưu hoặc trả lại mật khẩu/xác nhận. Lỗi trả HTTP 400 với danh sách errors bằng tiếng Việt.
+POST `/admin/accounts` yêu cầu name (họ tên 2–100 ký tự, không có số), email đúng định dạng thuộc `@asiafnb.com`, phone, password (8–32 ký tự, có chữ hoa/chữ thường/số/ký tự đặc biệt, không có khoảng trắng) và confirmPassword khớp password. Số điện thoại di động Việt Nam có 10 chữ số, đầu 03/05/07/08/09; chấp nhận +84 và dấu phân cách khoảng trắng, chấm, gạch nối rồi chuẩn hóa về đầu 0. Email được trim và chuyển chữ thường. confirmPassword được kiểm tra rồi loại bỏ trước service/repository; không lưu hoặc trả lại mật khẩu/xác nhận. Lỗi trả HTTP 400 với danh sách errors bằng tiếng Việt.
 
 `role` nhận `admin` (Admin gốc) hoặc `manager` (Quản lý), mặc định `manager`; role `user` vẫn có thể tồn tại trong dữ liệu cũ nhưng không được chọn khi tạo mới. Chỉ Admin gốc đang hoạt động được tạo/đổi loại tài khoản. Chọn `admin` tự có toàn bộ quyền và luôn lưu `permissionGroupIds: []`, kể cả body gửi nhóm quyền. PATCH đổi sang manager có thể gửi nhóm quyền mới; nếu không có nhóm thì tài khoản không có quyền từ nhóm.
 
@@ -125,3 +131,9 @@ Cả ba cần cookie đăng nhập, cho Admin gốc/Quản lý đổi email củ
 HTTP 400: email không hợp lệ/không đổi, UUID/code sai, OTP sai/hết hạn/đã dùng hoặc không thuộc chủ tài khoản; 401/403: chưa đăng nhập hoặc tài khoản không đủ điều kiện; 409: email đã có chủ (kể cả race khi confirm), tài khoản/email/password thay đổi; 429: cooldown, số lần sai/gửi lại/rate limit; 503: gửi SMTP thất bại. OTP có hạn 180 giây, tối đa 5 lần sai/yêu cầu, gửi lại sau 60 giây và tối đa 3 lần.
 
 Validation đổi email từ chối body thiếu/null/sai kiểu, email không phải chuỗi, phần trước @ quá 64 ký tự, dữ liệu lồng dạng object/array, UUID không hợp lệ và OTP không phải chuỗi đúng 6 chữ số ASCII. Giao diện kiểm tra email rỗng/độ dài/định dạng trước khi gửi và hiển thị danh sách errors cụ thể từ API bằng tiếng Việt.
+
+## Chỉnh sửa tài khoản quản trị
+
+Response tài khoản ở `/admin/accounts` có `notes`. Response đăng nhập, refresh và `/admin/auth/me` không trả mật khẩu hay khóa OTP. Không còn trường hoặc cơ chế bắt buộc đổi mật khẩu khi đăng nhập.
+
+PATCH `/admin/accounts/:id/password` trả `data: { notificationSent: boolean }`. `false` có thể là không yêu cầu gửi email hoặc gửi email thất bại sau khi mật khẩu đã được lưu; giao diện kết hợp lựa chọn `notifyUser` để thông báo đúng.

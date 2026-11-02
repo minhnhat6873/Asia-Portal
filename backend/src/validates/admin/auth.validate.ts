@@ -1,9 +1,11 @@
 import Joi from "joi";
+import { newPasswordSchema } from "./password.validate";
 import { accountEmailSchema } from "./account.validate";
 
 export const loginSchema = Joi.object({
   email: Joi.string().trim().lowercase().email().max(150).required(),
-  password: Joi.string().min(8).max(100).required(),
+  // Validate existing credentials verbatim; new password policy is enforced when setting passwords.
+  password: Joi.string().max(100).required(),
   rememberMe: Joi.boolean().default(false),
 });
 
@@ -39,38 +41,7 @@ const phoneSchema = Joi.string()
     "any.required": "Số điện thoại là bắt buộc.",
   });
 
-function formatVietnameseList(items: string[]): string {
-  if (items.length === 1) return items[0];
-  if (items.length === 2) return `${items[0]} và ${items[1]}`;
-
-  return `${items.slice(0, -1).join(", ")} và ${items[items.length - 1]}`;
-}
-
-const passwordSchema = Joi.string()
-  .custom((value, helpers) => {
-    if (value.length < 4) return helpers.error("password.tooShort");
-    if (value.length > 50) return helpers.error("password.tooLong");
-
-    const missingRequirements: string[] = [];
-    if (!/[a-z]/.test(value)) missingRequirements.push("chữ thường");
-    if (!/[A-Z]/.test(value)) missingRequirements.push("chữ hoa");
-    if (!/\d/.test(value)) missingRequirements.push("chữ số");
-    if (!/[^A-Za-z0-9\s]/.test(value)) missingRequirements.push("ký tự đặc biệt");
-
-    return missingRequirements.length > 0
-      ? helpers.error("password.missingRequirements", {
-          missing: formatVietnameseList(missingRequirements),
-        })
-      : value;
-  }, "password validation")
-  .required()
-  .messages({
-    "string.empty": "Mật khẩu là bắt buộc.",
-    "password.tooShort": "Mật khẩu phải có ít nhất 4 ký tự.",
-    "password.tooLong": "Mật khẩu không được vượt quá 50 ký tự.",
-    "password.missingRequirements": "Mật khẩu còn thiếu: {{#missing}}.",
-    "any.required": "Mật khẩu là bắt buộc.",
-  });
+const passwordSchema = newPasswordSchema.required();
 const registrationEmailSchema = Joi.string().trim().lowercase().pattern(/^[a-z0-9._%+-]+@asiafnb\.com$/).max(150).required().messages({
   "string.empty": "Email là bắt buộc.",
   "string.min": "Email là bắt buộc.",
@@ -163,7 +134,7 @@ export const resetPasswordWithOtpSchema = Joi.object({
 });
 export const requestPasswordChangeOtpSchema = Joi.object({
   currentPassword: Joi.string().max(100).required(),
-  newPassword: Joi.string().min(8).max(100).pattern(/\S/).required(),
+  newPassword: newPasswordSchema.required(),
 });
 export const resendPasswordChangeOtpSchema = Joi.object({
   requestId: Joi.string().uuid().required(),

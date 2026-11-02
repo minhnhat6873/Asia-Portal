@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertCircle, ArrowLeft, Calendar, Check, RotateCcw, User } from "lucide-react";
 import { parseDate } from "@internationalized/date";
 
@@ -13,6 +13,9 @@ import { ApiError } from "@/services/api";
 import { createAdminMedia, updateAdminMedia, uploadAdminMediaContentImage } from "@/services/admin-media.service";
 import type { MediaCategory, MediaPost } from "../types";
 import { AdminSelect } from "./AdminSelect";
+import UnsavedChangesDialog from "@/components/ui/UnsavedChangesDialog";
+import { useUnsavedChanges } from "@/lib/useUnsavedChanges";
+import { navigateWithUnsavedChangesGuard } from "@/lib/unsavedChangesNavigation";
 
 interface AddMediaPageProps {
   mode?: "create" | "edit";
@@ -22,14 +25,14 @@ interface AddMediaPageProps {
 }
 
 const CATEGORIES: MediaCategory[] = ["Sự kiện", "Tin tức", "Nhân sự", "Thông báo"];
-const AUTHOR_DEPARTMENTS = ["DESIGN", "MARKETING_COMMUNICATIONS", "HR_ADMIN"].map(getEmployeeDepartmentLabel);
+const AUTHOR_DEPARTMENTS = ["DESIGN", "MARKETING_COMMUNICATIONS", "HR_ADMIN"].map((code) => `Phòng ${getEmployeeDepartmentLabel(code)}`);
 
 function initialAuthorDepartment(post?: MediaPost): string {
-  if (!post) return getEmployeeDepartmentLabel("HR_ADMIN");
+  if (!post) return `Phòng ${getEmployeeDepartmentLabel("HR_ADMIN")}`;
   const legacyLabels: Record<string, string> = {
-    "Phòng Design": getEmployeeDepartmentLabel("DESIGN"),
-    "Phòng MKT": getEmployeeDepartmentLabel("MARKETING_COMMUNICATIONS"),
-    "Phòng HR&AD": getEmployeeDepartmentLabel("HR_ADMIN"),
+    "Phòng Design": `Phòng ${getEmployeeDepartmentLabel("DESIGN")}`,
+    "Phòng MKT": `Phòng ${getEmployeeDepartmentLabel("MARKETING_COMMUNICATIONS")}`,
+    "Phòng HR&AD": `Phòng ${getEmployeeDepartmentLabel("HR_ADMIN")}`,
   };
   const department = legacyLabels[post.authorDepartment] ?? post.authorDepartment;
   return AUTHOR_DEPARTMENTS.includes(department) ? department : "";
@@ -65,12 +68,16 @@ function initialForm(post?: MediaPost) {
 }
 
 export function AddMediaPage({ mode = "create", initialPost, onBack, onSave }: AddMediaPageProps) {
-  const [formData, setFormData] = useState(() => initialForm(initialPost));
+  const [baseline] = useState(() => initialForm(initialPost));
+  const [formData, setFormData] = useState(baseline);
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [coverRemoved, setCoverRemoved] = useState(false);
   const [uploaderKey, setUploaderKey] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const savingRef = useRef(false);
+  const hasChanges = coverFile !== null || coverRemoved || JSON.stringify(formData) !== JSON.stringify(baseline);
+  const navigation = useUnsavedChanges(hasChanges, isSaving);
   const minimumExpiryDate = formData.publishDate ? parseDate(formData.publishDate).add({ days: 1 }).toString() : undefined;
   const invalidExpiryDate = Boolean(!formData.publishIndefinitely && formData.expiryDate && formData.publishDate && formData.expiryDate <= formData.publishDate);
 
@@ -78,36 +85,38 @@ export function AddMediaPage({ mode = "create", initialPost, onBack, onSave }: A
   useEffect(() => () => { if (previewUrl) URL.revokeObjectURL(previewUrl); }, [previewUrl]);
 
   const reset = () => {
-    setFormData(initialForm(initialPost));
+    setFormData(baseline);
     setCoverFile(null);
     setCoverRemoved(false);
     setErrorMsg(null);
     setUploaderKey((value) => value + 1);
   };
 
-  const submit = async (event: React.FormEvent) => {
-    event.preventDefault();
+  const submit = async (event?: React.FormEvent): Promise<boolean> => {
+    event?.preventDefault();
+    if (savingRef.current) return false;
     if (!AUTHOR_DEPARTMENTS.includes(formData.authorDepartment)) {
       setErrorMsg("Vui lòng chọn phòng Thiết kế, Marketing & Truyền thông hoặc Nhân sự & Hành chính.");
-      return;
+      return false;
     }
     if (!formData.publishDate) {
       setErrorMsg("Vui lòng chọn ngày đăng.");
-      return;
+      return false;
     }
     if (invalidExpiryDate) {
       setErrorMsg("Ngày hết hạn phải sau ngày đăng ít nhất 1 ngày.");
-      return;
+      return false;
     }
     if (!formData.publishIndefinitely && !formData.expiryDate) {
       setErrorMsg("Vui lòng chọn ngày hết hạn.");
-      return;
+      return false;
     }
     if (!formData.title.trim() || !hasRichTextContent(formData.summary)) {
       setErrorMsg("Vui lòng nhập Tiêu đề bài viết và Tóm tắt ngắn.");
-      return;
+      return false;
     }
 
+    savingRef.current = true;
     setIsSaving(true);
     setErrorMsg(null);
     try {
@@ -127,10 +136,14 @@ export function AddMediaPage({ mode = "create", initialPost, onBack, onSave }: A
         ? await updateAdminMedia(initialPost.id, input, coverFile)
         : await createAdminMedia(input, coverFile);
       onSave(saved);
+      await navigation.leave(onBack);
+      return true;
     } catch (error) {
       setErrorMsg(error instanceof ApiError ? error.errors[0] ?? error.message : error instanceof Error ? error.message : "Không thể lưu bài viết.");
+      return false;
     } finally {
       setIsSaving(false);
+      savingRef.current = false;
     }
   };
 
@@ -138,9 +151,15 @@ export function AddMediaPage({ mode = "create", initialPost, onBack, onSave }: A
 
   return (
     <div className="space-y-6 pb-12">
+      <UnsavedChangesDialog open={navigation.isPromptOpen} saving={isSaving}
+        description="Bạn muốn lưu thay đổi trước khi rời trang bài viết?"
+        onContinue={navigation.cancelNavigation}
+        onDiscard={() => { void navigation.leave(onBack); }}
+        onSave={() => { void submit().then((saved) => { if (!saved) navigation.cancelNavigation(); }); }}
+      />
       <div className="flex flex-col gap-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
-          <button type="button" onClick={onBack} className="rounded-2xl bg-slate-100 p-2.5 text-slate-700 hover:bg-slate-200"><ArrowLeft className="h-5 w-5" /></button>
+          <button type="button" onClick={() => navigateWithUnsavedChangesGuard(onBack)} aria-label="Quay lại danh sách bài viết" className="rounded-2xl bg-slate-100 p-2.5 text-slate-700 hover:bg-slate-200"><ArrowLeft className="h-5 w-5" /></button>
           <div><p className="text-xs font-semibold text-sky-700">Asia F&amp;B Media &amp; Events</p><h1 className="text-xl font-extrabold text-slate-900">{mode === "edit" ? "Chỉnh sửa bài viết" : "Đăng bài truyền thông mới"}</h1></div>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -167,7 +186,7 @@ export function AddMediaPage({ mode = "create", initialPost, onBack, onSave }: A
             </div>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
-            <label className="text-sm font-bold text-slate-700">Đơn vị / Phòng ban<select required value={formData.authorDepartment} onChange={(e) => setFormData({ ...formData, authorDepartment: e.target.value })} className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 font-medium">{!formData.authorDepartment && <option value="" disabled>Chọn phòng ban</option>}{AUTHOR_DEPARTMENTS.map((department) => <option key={department} value={department}>{department}</option>)}</select></label>
+            <label className="text-sm font-bold text-slate-700">Đơn vị / Phòng ban<select required value={formData.authorDepartment} onChange={(e) => setFormData({ ...formData, authorDepartment: e.target.value })} className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 font-medium">{!formData.authorDepartment && <option value="" disabled>Chọn phòng ban</option>}{AUTHOR_DEPARTMENTS.map((department) => <option key={department} value={department}>{getEmployeeDepartmentLabel(department)}</option>)}</select></label>
             <label className="flex min-h-12 cursor-pointer items-center gap-3 self-end rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700"><input type="checkbox" checked={formData.publishIndefinitely} onChange={(event) => setFormData({ ...formData, publishIndefinitely: event.target.checked, expiryDate: "" })} className="h-5 w-5 shrink-0 rounded border-slate-300 accent-emerald-700" />Đăng tin vĩnh viễn</label>
           </div>
           <AvatarUploader key={uploaderKey} inputId="media-cover-upload" inputName="coverImage" initialAvatarUrl={coverRemoved ? "" : formData.coverImage} onFileChange={(file) => { setCoverFile(file); if (file) setCoverRemoved(false); }} onExistingAvatarRemove={() => setCoverRemoved(true)} label="Ảnh bìa" emptyHelperText="Thả tệp vào đây hoặc duyệt. JPEG, PNG, WebP tối đa 5 MB; khung 4:3." selectedHelperText="Ảnh bìa mới đã sẵn sàng." existingHelperText="Đang giữ ảnh bìa hiện tại." imageAlt="Xem trước ảnh bìa" changeLabel="Thay ảnh bìa" />
@@ -177,7 +196,7 @@ export function AddMediaPage({ mode = "create", initialPost, onBack, onSave }: A
 
         <aside className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm min-w-0 min-[1440px]:col-span-5">
           <div className="relative aspect-[4/3] bg-slate-100">{visibleCover ? <img src={visibleCover} alt={formData.title || "Ảnh xem trước"} className="h-full w-full object-cover" /> : null}<span className="absolute bottom-4 left-4 rounded-full bg-rose-800 px-3.5 py-1 text-xs font-bold text-white">{formData.category}</span></div>
-          <div className="space-y-4 p-6"><h2 className="text-2xl font-black text-slate-900">{formData.title || "Tiêu đề bài viết"}</h2>{hasRichTextContent(formData.summary) && <RichText html={formData.summary} className="rich-content text-sm text-slate-500" />}<div className="border-t border-slate-100 pt-3 text-sm text-slate-400"><p className="flex items-center gap-2"><Calendar className="h-4 w-4" />{toDisplayDate(formData.publishDate)}</p><p className="mt-2 flex items-center gap-2"><User className="h-4 w-4" />{formData.authorDepartment}</p></div>{hasRichTextContent(formData.content) && <RichText html={formData.content} className="rich-content rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-sm text-emerald-950" />}</div>
+          <div className="space-y-4 p-6"><h2 className="text-2xl font-black text-slate-900">{formData.title || "Tiêu đề bài viết"}</h2>{hasRichTextContent(formData.summary) && <RichText html={formData.summary} className="rich-content text-sm text-slate-500" />}<div className="border-t border-slate-100 pt-3 text-sm text-slate-400"><p className="flex items-center gap-2"><Calendar className="h-4 w-4" />{toDisplayDate(formData.publishDate)}</p><p className="mt-2 flex items-center gap-2"><User className="h-4 w-4" />{getEmployeeDepartmentLabel(formData.authorDepartment)}</p></div>{hasRichTextContent(formData.content) && <RichText html={formData.content} className="rich-content rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-sm text-emerald-950" />}</div>
         </aside>
       </div>
     </div>

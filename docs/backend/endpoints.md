@@ -2,7 +2,7 @@
 
 Cập nhật lần cuối: 2026-10-19. File nguồn đã đọc: `backend/src/routes/**`, `backend/src/controllers/**`, `backend/src/services/**`, `backend/src/middlewares/**`, `backend/src/validates/**`.
 
-Tất cả endpoint đi qua middleware toàn cục tại `backend/index.ts`: Helmet, CORS, limiter public (trừ health/admin), parser, cookie parser và sanitize. `ADMIN GATE` bên dưới nghĩa là `requireAdminAuth` + limiter theo account do [index.route.ts](/D:/Vscode/Asia-Portal/backend/src/routes/index.route.ts:36) mount sẵn. Response đều bọc `success`; chi tiết tại `api-response.md`.
+Tất cả endpoint đi qua middleware toàn cục tại `backend/index.ts`: Helmet, CORS, limiter public (trừ health/admin), parser, cookie parser, sanitize và CSRF cho mọi request ghi /admin (X-Requested-With: AsiaPortal + kiểm tra nguồn). `ADMIN GATE` bên dưới nghĩa là `requireAdminAuth` + limiter theo account do [index.route.ts](/D:/Vscode/Asia-Portal/backend/src/routes/index.route.ts:36) mount sẵn. Response đều bọc `success`; chi tiết tại `api-response.md`.
 
 | Method | Path | Middleware route (ngoài global) | Controller | Service | Response data |
 | --- | --- | --- | --- | --- | --- |
@@ -25,10 +25,10 @@ Tất cả endpoint đi qua middleware toàn cục tại `backend/index.ts`: Hel
 | POST | `/admin/auth/register/resend-otp` | register limiter, body email | `resendRegistrationOtp` | `registrationOtpService.resend` | `expiresInSeconds` |
 | POST | `/admin/auth/forgot-password` | register limiter, body email | `requestPasswordResetOtp` | `passwordResetOtpService.start` | email, `expiresInSeconds` (202) |
 | POST | `/admin/auth/forgot-password/verify-otp` | register limiter, body OTP | `verifyPasswordResetOtp` | `passwordResetOtpService.verify` | message |
-| POST | `/admin/auth/forgot-password/reset` | register limiter, body reset | `resetPasswordWithOtp` | `passwordResetOtpService.reset` | message |
+| POST | `/admin/auth/forgot-password/reset` | register limiter, body reset | `resetPasswordWithOtp` | `passwordResetOtpService.reset` | message; consume OTP + password/authVersion trong cùng transaction, một lần dùng |
 | POST | `/admin/auth/forgot-password/resend-otp` | register limiter, body email | `resendPasswordResetOtp` | `passwordResetOtpService.resend` | `expiresInSeconds` |
-| POST | `/admin/auth/refresh` | refresh limiter | `refreshLogin` | `adminAuthService.refresh` | admin; set access cookie |
-| POST | `/admin/auth/logout` | — | `logout` | — | message; clear cookies |
+| POST | `/admin/auth/refresh` | refresh limiter | `refreshLogin` | `adminAuthService.refresh` | admin; thay access và refresh cookie |
+| POST | `/admin/auth/logout` | — | `logout` | `adminAuthService.logout` | message; thu hồi phiên và clear cookies |
 | POST | `/admin/auth/password/request-otp` | auth, OTP send limiter, body currentPassword/newPassword | `requestPasswordChangeOtp` | `passwordChangeOtpService.request` | requestId, email, expiresInSeconds, resendAfterSeconds (202) |
 | POST | `/admin/auth/password/resend-otp` | auth, OTP send limiter, body requestId | `resendPasswordChangeOtp` | `passwordChangeOtpService.resend` | requestId, email, expiresInSeconds, resendAfterSeconds |
 | PATCH | `/admin/auth/password` | auth, OTP verify limiter, body requestId/code | `changePassword` | `passwordChangeOtpService.confirm` | message; đổi mật khẩu khi OTP đúng |
@@ -36,6 +36,9 @@ Tất cả endpoint đi qua middleware toàn cục tại `backend/index.ts`: Hel
 | POST | `/admin/auth/email/resend-otp` | auth, email OTP send limiter, body requestId | `resendEmailChangeOtp` | `emailChangeOtpService.resend` | metadata OTP mới |
 | PATCH | `/admin/auth/email` | auth, email OTP verify limiter, body requestId/code | `changeEmail` | `emailChangeOtpService.confirm` | `{ email }`; chỉ đổi sau xác nhận OTP |
 | GET | `/admin/auth/me` | auth, session limiter | `getCurrentAccount` | — | `request.admin` |
+| GET | `/admin/auth/sessions` | auth, session limiter, validate query | `listSessions` | `adminSessionService.list` | account + items + pagination; query accountId (mặc định chính mình), page, limit tối đa 100 |
+| DELETE | `/admin/auth/sessions/:id` | auth, session limiter, validate query + ID | `revokeSession` | `adminSessionService.revokeOne` | `{ signedOut }`; id là ID bản ghi, accountId tùy chọn, chỉ Admin gốc thao tác tài khoản khác |
+| DELETE | `/admin/auth/sessions` | auth, session limiter, validate query | `revokeSessions` | `adminSessionService.revokeMany` | `{ signedOut }`; scope=others/all bắt buộc, accountId tùy chọn; others chỉ áp dụng chính mình |
 | GET | `/admin/dashboard/summary` | ADMIN GATE, `dashboard:view` | `getDashboardSummary` | `adminDashboardService.getSummary` | các số tổng hợp |
 | GET | `/admin/employees` | ADMIN GATE, `employees:view`, validate query | `getEmployees` | `adminEmployeeService.getEmployees` | danh sách + pagination |
 | GET | `/admin/employees/trash` | ADMIN GATE, `employees:trash`, validate query | `getDeletedEmployees` | `adminEmployeeService.getDeletedEmployees` | thùng rác + pagination |
@@ -69,6 +72,8 @@ Tất cả endpoint đi qua middleware toàn cục tại `backend/index.ts`: Hel
 
 Media có thùng rác: `DELETE /admin/media/:id` là xóa mềm, giữ nội dung và ảnh để khôi phục. Các thao tác xem thùng rác, khôi phục và xóa vĩnh viễn cần quyền `media:trash`. Khôi phục luôn về Ẩn tin. Chi tiết tại [media-trash.md](media-trash.md).
 
+POST/PATCH nhân viên nhận hai file multipart tùy chọn: `avatar` (ảnh hiển thị) và `avatarOriginal` (ảnh gốc để cắt lại), mỗi file JPEG/PNG/WebP tối đa 5 MB. File gốc phải đi cùng ảnh hiển thị. Khi chỉ cắt lại, gửi `avatar` mới và giữ nguyên nguồn đã lưu. Khi thay ảnh gốc, gửi cả hai file. API admin trả URL `avatarOriginal`; API public không trả URL/asset ID ảnh gốc. Xóa ảnh hoặc xóa vĩnh viễn hồ sơ sẽ dọn cả hai asset; xóa mềm vẫn giữ ảnh để khôi phục. Hồ sơ cũ chưa có ảnh gốc dùng ảnh hiện có làm nguồn dự phòng, không thể phục hồi phần đã bị cắt mất.
+
 Meeting là API public, không yêu cầu đăng nhập. Booking start/verify/resend nhận JSON body; cancel start/resend nhận `{ bookingId }`, cancel verify nhận `{ bookingId, code }`. GET hỗ trợ `dateFrom`, `dateTo`, `roomId`, `department`, `search`, `page`, `limit`. Payload chi tiết ở `api-response.md`.
 
 Tham số `search` của hai danh sách quản trị được trim, gộp khoảng trắng, chuyển về chữ thường và bỏ dấu tiếng Việt (`đ` thành `d`) trước khi partial match. `/admin/employees` chỉ áp dụng trên mã và tên nhân viên; `/admin/media` chỉ áp dụng trên tiêu đề và `summary` (Sapo). API public giữ cơ chế tìm kiếm hiện tại.
@@ -82,3 +87,6 @@ Khi tạo/cập nhật nhân viên, cấp bậc `CEO` chỉ được dùng với
 Cấp bậc nhân viên gồm `CEO`, `Senior Management`, `Middle Management`, `Intermediate Personnel` và `Staff`. Chỉ có một hồ sơ CEO chưa bị xóa mềm tại một thời điểm; quy tắc này được kiểm tra khi tạo, cập nhật và khôi phục, đồng thời được bảo vệ bằng partial unique index trong MongoDB.
 
 API quản trị lịch họp: xem [admin-meetings.md](admin-meetings.md) để biết 10 endpoint, quyền, bộ lọc và quy tắc cập nhật.
+# Tên đơn vị khi nhập Excel
+
+Mẫu Excel hiển thị tên đơn vị không có tiền tố “Phòng” (ví dụ “Thiết kế”). API nhập nhân viên chấp nhận cả tên mới và tên có tiền tố trong mẫu cũ, cùng ánh xạ về mã đơn vị hiện có; không thay đổi mã lưu trong cơ sở dữ liệu.

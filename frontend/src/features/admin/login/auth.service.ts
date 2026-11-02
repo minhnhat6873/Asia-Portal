@@ -1,4 +1,4 @@
-import { apiGet, apiPost, apiPatch } from "@/services/api";
+import { apiGet, apiPost, apiPatch, refreshApiSession } from "@/services/api";
 
 export interface AuthenticatedAdmin {
   id: string;
@@ -24,8 +24,8 @@ export function getCurrentAdmin(signal?: AbortSignal): Promise<AuthenticatedAdmi
   return apiGet<AuthenticatedAdmin>("/admin/auth/me", signal);
 }
 
-export function refreshAdminSession(): Promise<AuthenticatedAdmin> {
-  return apiPost<AuthenticatedAdmin>("/admin/auth/refresh", {});
+export function refreshAdminSession(signal?: AbortSignal): Promise<AuthenticatedAdmin> {
+  return refreshApiSession<AuthenticatedAdmin>(signal);
 }
 
 export function logoutAdmin(): Promise<void> {

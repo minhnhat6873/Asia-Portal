@@ -21,6 +21,8 @@ interface AvatarUploaderProps {
   onExistingAvatarRemove?: () => void;
   /** Avatar URL already saved for the employee being edited. */
   initialAvatarUrl?: string;
+  initialOriginalAvatarUrl?: string;
+  onOriginalFileChange?: (file: File | null) => void;
   label?: string;
   emptyHelperText?: string;
   selectedHelperText?: string;
@@ -38,6 +40,8 @@ export default function AvatarUploader({
   onFileChange,
   onExistingAvatarRemove,
   initialAvatarUrl = "",
+  initialOriginalAvatarUrl = "",
+  onOriginalFileChange,
   label = "Ảnh đại diện",
   emptyHelperText = "Kéo thả hoặc chọn ảnh JPEG, PNG, WebP (tối đa 5 MB). Ảnh hiển thị theo khung 4:3.",
   selectedHelperText = "Ảnh mới sẽ thay thế khi lưu hồ sơ.",
@@ -80,6 +84,7 @@ export default function AvatarUploader({
   const clearSelectedFile = (errorMessage = "") => {
     setSelectedFile(null);
     setOriginalFile(null);
+    onOriginalFileChange?.(null);
     setMessage(errorMessage);
     onFileChange(null);
   };
@@ -102,6 +107,7 @@ export default function AvatarUploader({
 
     setSelectedFile(file);
     setOriginalFile(file);
+    onOriginalFileChange?.(file);
     setMessage("");
     onFileChange(file);
     if (enableCrop) setCropOpen(true);
@@ -140,6 +146,7 @@ export default function AvatarUploader({
 
     setMessage("");
     onExistingAvatarRemove?.();
+    onOriginalFileChange?.(null);
     onFileChange(null);
   };
 
@@ -219,8 +226,8 @@ export default function AvatarUploader({
           ? (selectedFile ? selectedHelperText : existingHelperText)
           : emptyHelperText)}
       </p>
-      {enableCrop && cropOpen && (originalUrl || visibleAvatarUrl) && (
-        <AvatarCropDialog source={originalUrl || visibleAvatarUrl} fileName={originalFile?.name ?? 'avatar.jpg'} onCancel={() => setCropOpen(false)} onApply={(file) => { setSelectedFile(file); onFileChange(file); setMessage(''); setCropOpen(false); }} />
+      {enableCrop && cropOpen && (originalUrl || initialOriginalAvatarUrl || visibleAvatarUrl) && (
+        <AvatarCropDialog source={originalUrl || initialOriginalAvatarUrl || visibleAvatarUrl} fileName={originalFile?.name ?? 'avatar.jpg'} onCancel={() => setCropOpen(false)} onApply={(file) => { setSelectedFile(file); onFileChange(file); setMessage(''); setCropOpen(false); }} />
       )}
     </div>
   );

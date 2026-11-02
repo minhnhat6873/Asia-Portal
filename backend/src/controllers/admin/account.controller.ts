@@ -56,6 +56,11 @@ export async function updateAccount(
       request.body,
       request.admin!.id,
     );
+    await auditLogService.record({
+      actor: { accountId: request.admin!.id, name: request.admin!.name, email: request.admin!.email },
+      action: "account.updated", entityType: "account", entityId: account.id,
+      description: `Cập nhật tài khoản ${account.name} (${account.email}): ${Object.keys(request.body).join(", ")}`,
+    });
     response.status(200).json({
       success: true,
       message: "Đã cập nhật tài khoản",
@@ -72,10 +77,16 @@ export async function resetPassword(
   next: NextFunction,
 ): Promise<void> {
   try {
-    await adminAccountService.resetPassword(request.params.id, request.body, request.admin!.id);
+    const result = await adminAccountService.resetPassword(request.params.id, request.body, request.admin!.id);
+    await auditLogService.record({
+      actor: { accountId: request.admin!.id, name: request.admin!.name, email: request.admin!.email },
+      action: "account.password_reset", entityType: "account", entityId: request.params.id,
+      description: "Quản trị viên đặt lại mật khẩu tài khoản.",
+    });
     response.status(200).json({
       success: true,
       message: "Đã đặt lại mật khẩu tài khoản",
+      data: result,
     });
   } catch (error) {
     next(error);

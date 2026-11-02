@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { AlertCircle, CheckCircle2, Eye, EyeOff, Lock, Mail, ShieldCheck } from "lucide-react";
+import { getPasswordValidationError, PASSWORD_MAX_LENGTH, PASSWORD_REQUIREMENTS } from "@/lib/password-validation";
 import { changeAdminPassword, requestAdminPasswordChangeOtp, resendAdminPasswordChangeOtp, type PasswordChangeOtpRequest } from "@/features/admin/login/auth.service";
 
 type PasswordField = "currentPassword" | "newPassword" | "confirmPassword";
@@ -44,7 +45,8 @@ export function PasswordChangeForm() {
     if (busy) return;
     setError(""); setSuccess("");
     if (!passwords.currentPassword) { setError("Vui lòng nhập mật khẩu hiện tại."); return; }
-    if (passwords.newPassword.length < 8 || passwords.newPassword.length > 100 || !passwords.newPassword.trim()) { setError("Mật khẩu mới phải từ 8 đến 100 ký tự và không được chỉ gồm khoảng trắng."); return; }
+    const passwordError = getPasswordValidationError(passwords.newPassword);
+    if (passwordError) { setError(passwordError); return; }
     if (passwords.newPassword === passwords.currentPassword) { setError("Mật khẩu mới phải khác mật khẩu hiện tại."); return; }
     if (passwords.confirmPassword !== passwords.newPassword) { setError("Mật khẩu xác nhận không khớp."); return; }
     setBusy(true);
@@ -65,6 +67,7 @@ export function PasswordChangeForm() {
     setBusy(true);
     try {
       await changeAdminPassword(pending.requestId, code);
+      window.dispatchEvent(new Event("focus"));
       setPending(null); setCode(""); setSuccess("Đổi mật khẩu thành công!");
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Không thể xác nhận đổi mật khẩu."); }
     finally { setBusy(false); }
@@ -101,13 +104,13 @@ export function PasswordChangeForm() {
     </> : <>
       <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
         <p className="font-semibold">Xác nhận bảo mật</p>
-        <p className="mt-1">Mật khẩu mới phải khác mật khẩu hiện tại và có ít nhất 8 ký tự. Bạn cần xác nhận mã OTP gửi đến email của mình để hoàn tất.</p>
+        <p className="mt-1">{PASSWORD_REQUIREMENTS} Mật khẩu mới phải khác mật khẩu hiện tại. Bạn cần xác nhận mã OTP gửi đến email của mình để hoàn tất.</p>
       </div>
       <form noValidate onSubmit={(event) => void requestOtp(event)} className="space-y-5">
         {FIELDS.map((field) => <div key={field.key}>
           <label htmlFor={field.key} className="mb-1.5 block text-sm font-semibold text-slate-600">{field.label}</label>
           <div className="relative">
-            <input id={field.key} name={field.key} type={visible[field.key] ? "text" : "password"} disabled={busy} value={passwords[field.key]} maxLength={100} autoComplete={field.autoComplete} onChange={(event) => { setPasswords((current) => ({ ...current, [field.key]: event.target.value })); setError(""); setSuccess(""); }} placeholder={field.placeholder} className="min-h-12 w-full rounded-xl border border-slate-200 bg-white py-3 pl-10 pr-12 text-sm outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100 disabled:opacity-50" />
+            <input id={field.key} name={field.key} type={visible[field.key] ? "text" : "password"} disabled={busy} value={passwords[field.key]} maxLength={field.key === "currentPassword" ? 100 : PASSWORD_MAX_LENGTH} autoComplete={field.autoComplete} onChange={(event) => { setPasswords((current) => ({ ...current, [field.key]: event.target.value })); setError(""); setSuccess(""); }} placeholder={field.placeholder} className="min-h-12 w-full rounded-xl border border-slate-200 bg-white py-3 pl-10 pr-12 text-sm outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100 disabled:opacity-50" />
             <Lock aria-hidden="true" className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
             <button type="button" disabled={busy} aria-label={`${visible[field.key] ? "Ẩn" : "Hiện"} ${field.label.toLocaleLowerCase("vi")}`} aria-pressed={visible[field.key]} onClick={() => setVisible((current) => ({ ...current, [field.key]: !current[field.key] }))} className="absolute right-1 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-lg text-slate-500 hover:text-emerald-700">{visible[field.key] ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}</button>
           </div>

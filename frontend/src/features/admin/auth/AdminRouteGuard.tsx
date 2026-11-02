@@ -14,6 +14,7 @@ import {
   type AuthenticatedAdmin,
 } from "@/features/admin/login/auth.service";
 import { ApiError } from "@/services/api";
+import { createSessionVerifier, SessionVerificationTimeoutError } from "./session-verification";
 
 const PUBLIC_ADMIN_PATHS = new Set(["/admin/login", "/admin/forgot-password", "/admin/register"]);
 
@@ -29,26 +30,11 @@ function storeSession(admin: AuthenticatedAdmin): AdminUser {
   });
 }
 
-let pendingSessionVerification: Promise<AuthenticatedAdmin> | null = null;
-
-function verifyAuthenticatedAdmin(): Promise<AuthenticatedAdmin> {
-  if (pendingSessionVerification) return pendingSessionVerification;
-
-  pendingSessionVerification = (async () => {
-    try {
-      return await getCurrentAdmin();
-    } catch (error) {
-      if (error instanceof ApiError && error.status === 401) {
-        return refreshAdminSession();
-      }
-      throw error;
-    }
-  })().finally(() => {
-    pendingSessionVerification = null;
-  });
-
-  return pendingSessionVerification;
-}
+const verifyAuthenticatedAdmin = createSessionVerifier({
+  getCurrentAdmin,
+  refreshAdminSession,
+  isUnauthorized: (error) => error instanceof ApiError && error.status === 401,
+});
 
 export default function AdminRouteGuard({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -74,22 +60,24 @@ export default function AdminRouteGuard({ children }: { children: React.ReactNod
         ["asia_fnb_users_v2", "asia_fnb_current_user_v2", "asia_fnb_trash_v1", "asia_fnb_access_control_users_v1", "asia_fnb_access_control_roles_v1"].forEach((key) => localStorage.removeItem(key));
 
       } catch (error) {
+        if (!active) return;
         const sessionRejected = error instanceof ApiError
           && (error.status === 401 || error.status === 403);
 
         if (sessionRejected) {
           clearAdminSession();
-          if (!active) return;
+          setVerified(null);
+          setErrorMessage("");
           router.replace(`/admin/login?next=${encodeURIComponent(window.location.pathname)}`);
           return;
         }
 
-        if (!active) return;
-        setVerified(null);
         setErrorMessage(
           error instanceof ApiError && error.status === 429
             ? "Hệ thống đang nhận nhiều yêu cầu. Phiên đăng nhập của bạn vẫn được giữ."
-            : "Không thể kiểm tra phiên đăng nhập. Vui lòng thử lại sau.",
+            : error instanceof SessionVerificationTimeoutError
+              ? error.message
+              : "Không thể kiểm tra phiên đăng nhập. Vui lòng kiểm tra kết nối và thử lại.",
         );
       }
     }
@@ -98,12 +86,13 @@ export default function AdminRouteGuard({ children }: { children: React.ReactNod
     void verifySession();
     const refresh = () => { if (document.visibilityState === "visible") void verifySession(); };
     window.addEventListener("focus", refresh);
+    window.addEventListener("online", refresh);
     const timer = window.setInterval(refresh, 60000);
-    return () => { active = false; window.removeEventListener("focus", refresh); window.clearInterval(timer); };
+    return () => { active = false; window.removeEventListener("focus", refresh); window.removeEventListener("online", refresh); window.clearInterval(timer); };
   }, [isPublicPage, router, retry]);
 
   if (isPublicPage) return <>{children}</>;
-  if (errorMessage) return <div className="p-8 text-slate-700"><p>{errorMessage}</p><button onClick={() => { setErrorMessage(""); setRetry((value) => value + 1); }} className="mt-4 rounded-xl bg-emerald-700 px-5 py-3 text-white">Thử lại</button></div>;
+  if (errorMessage && !verified) return <div role="alert" className="p-8 text-slate-700"><p>{errorMessage}</p><button onClick={() => { setErrorMessage(""); setRetry((value) => value + 1); }} className="mt-4 rounded-xl bg-emerald-700 px-5 py-3 text-white">Thử lại</button></div>;
   if (!verified) return (
     <div role="status" aria-live="polite" aria-busy="true" className="flex h-dvh items-center justify-center gap-2.5 bg-admin-main text-sm text-slate-500">
       <LoaderCircle aria-hidden="true" className="h-5 w-5 animate-spin text-emerald-600 motion-reduce:animate-none" />
@@ -112,5 +101,5 @@ export default function AdminRouteGuard({ children }: { children: React.ReactNod
   );
 
   if (!canAccessAdminPath(verified, pathname)) return <AccessDenied returnHref={getAdminLandingPath(verified)} />;
-  return <>{children}</>;
+  return <>{errorMessage && <div role="alert" className="flex flex-wrap items-center gap-3 border-b border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"><p>{errorMessage}</p><button type="button" onClick={() => { setErrorMessage(""); setRetry((value) => value + 1); }} className="font-bold underline">Thử lại</button></div>}{children}</>;
 }

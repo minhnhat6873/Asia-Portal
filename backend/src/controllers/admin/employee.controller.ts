@@ -11,6 +11,7 @@ import { adminEmployeeService } from "../../services/admin/employee.service";
 import { auditLogService } from "../../services/admin/audit-log.service";
 import { AppError } from "../../utils/errors/AppError";
 import { presentEmployee } from "../../utils/employee/presentEmployee";
+import { deleteEmployeeAvatarUploads, employeeAvatarAssetIds, getEmployeeAvatarUploads } from "../../utils/employee/avatarUploads";
 
 type CloudinaryUploadedFile = Express.Multer.File & {
   secure_url?: string;
@@ -97,18 +98,22 @@ export async function createEmployee(
   response: Response,
   next: NextFunction,
 ): Promise<void> {
-  const uploadedFile = request.file as CloudinaryUploadedFile | undefined;
+  const { avatar: uploadedFile, original: originalFile } = getEmployeeAvatarUploads(request);
   const avatar = uploadedFile?.secure_url ?? uploadedFile?.path ?? "";
+  let uploadPersisted = false;
 
   try {
     const employee = await adminEmployeeService.createEmployee({
       ...request.body,
       avatar,
       avatarPublicId: uploadedFile?.filename ?? "",
+      avatarOriginal: originalFile?.secure_url ?? originalFile?.path ?? avatar,
+      avatarOriginalPublicId: originalFile?.filename ?? uploadedFile?.filename ?? "",
       createdBy: request.admin
         ? { accountId: request.admin.id, name: request.admin.name, email: request.admin.email }
         : undefined,
     });
+    uploadPersisted = true;
     await recordEmployeeAudit(request.admin, "employee.created", employee);
     response.status(201).json({
       success: true,
@@ -116,11 +121,7 @@ export async function createEmployee(
       data: presentEmployee(employee, request.admin?.permissions),
     });
   } catch (error) {
-    try {
-      await deleteCloudinaryAsset(uploadedFile?.filename);
-    } catch {
-      // Keep the original create error as the API response.
-    }
+    if (!uploadPersisted) await deleteEmployeeAvatarUploads(request);
     next(error);
   }
 }
@@ -130,31 +131,53 @@ export async function updateEmployee(
   response: Response,
   next: NextFunction,
 ): Promise<void> {
-  const uploadedFile = request.file as CloudinaryUploadedFile | undefined;
+  const { avatar: uploadedFile, original: originalFile } = getEmployeeAvatarUploads(request);
   const avatar = uploadedFile?.secure_url ?? uploadedFile?.path;
+  const removingAvatar = !uploadedFile && request.body.avatar === "";
+  let uploadPersisted = false;
 
   try {
-    const previousEmployee = uploadedFile
+    const previousEmployee = uploadedFile || removingAvatar
       ? await adminEmployeeService.getEmployeeById(request.params.id)
       : undefined;
+    const changes: UpdateEmployeeInput = { ...request.body };
+    if (avatar) {
+      changes.avatar = avatar;
+      changes.avatarPublicId = uploadedFile?.filename ?? "";
+      if (originalFile) {
+        changes.avatarOriginal = originalFile.secure_url ?? originalFile.path;
+        changes.avatarOriginalPublicId = originalFile.filename;
+      } else if (!previousEmployee?.avatarOriginal) {
+        // Preserve the best available source for old records before replacing the crop.
+        changes.avatarOriginal = previousEmployee?.avatar || avatar;
+        changes.avatarOriginalPublicId = previousEmployee?.avatarPublicId
+          || getCloudinaryPublicIdFromUrl(previousEmployee?.avatar)
+          || uploadedFile?.filename || "";
+      }
+    } else if (removingAvatar) {
+      changes.avatarPublicId = "";
+      changes.avatarOriginal = "";
+      changes.avatarOriginalPublicId = "";
+    }
     const employee = await adminEmployeeService.updateEmployee(
       request.params.id,
-      avatar
-        ? { ...request.body, avatar, avatarPublicId: uploadedFile?.filename ?? "" }
-        : request.body,
+      changes,
     );
-    const previousAvatarPublicId = previousEmployee?.avatarPublicId
-      || getCloudinaryPublicIdFromUrl(previousEmployee?.avatar);
-    if (uploadedFile && previousAvatarPublicId) {
-      try {
-        await deleteCloudinaryAsset(previousAvatarPublicId);
-      } catch (cleanupError) {
-        console.error("Không thể xóa ảnh đại diện cũ trên Cloudinary", cleanupError);
+    uploadPersisted = true;
+    if (previousEmployee) {
+      const retained = new Set(employeeAvatarAssetIds(employee));
+      for (const id of employeeAvatarAssetIds(previousEmployee)) {
+        if (retained.has(id)) continue;
+        try {
+          await deleteCloudinaryAsset(id);
+        } catch (cleanupError) {
+          console.error("Không thể xóa ảnh đại diện cũ trên Cloudinary", cleanupError);
+        }
       }
     }
     await recordEmployeeAudit(request.admin, "employee.updated", employee, {
       changedFields: Object.keys(request.body),
-      avatarChanged: Boolean(uploadedFile),
+      avatarChanged: Boolean(uploadedFile) || removingAvatar,
     });
     response.status(200).json({
       success: true,
@@ -162,11 +185,7 @@ export async function updateEmployee(
       data: presentEmployee(employee, request.admin?.permissions),
     });
   } catch (error) {
-    try {
-      await deleteCloudinaryAsset(uploadedFile?.filename);
-    } catch {
-      // Keep the original update error as the API response.
-    }
+    if (!uploadPersisted) await deleteEmployeeAvatarUploads(request);
     next(error);
   }
 }
@@ -261,20 +280,13 @@ export async function permanentlyDeleteEmployee(
 ): Promise<void> {
   try {
     const employee = await adminEmployeeService.permanentlyDeleteEmployee(request.params.id);
-    const avatarPublicId = employee.avatarPublicId || getCloudinaryPublicIdFromUrl(employee.avatar);
-    if (avatarPublicId) {
+    const chartAvatarPublicId = employee.chartAvatarPublicId || getCloudinaryPublicIdFromUrl(employee.chartAvatar);
+    const avatarIds = new Set([...employeeAvatarAssetIds(employee), chartAvatarPublicId].filter((id): id is string => Boolean(id)));
+    for (const avatarPublicId of avatarIds) {
       try {
         await deleteCloudinaryAsset(avatarPublicId);
       } catch (cleanupError) {
         console.error("Không thể xóa ảnh đại diện trên Cloudinary", cleanupError);
-      }
-    }
-    const chartAvatarPublicId = employee.chartAvatarPublicId || getCloudinaryPublicIdFromUrl(employee.chartAvatar);
-    if (chartAvatarPublicId) {
-      try {
-        await deleteCloudinaryAsset(chartAvatarPublicId);
-      } catch (cleanupError) {
-        console.error("Kh\u00f4ng th\u1ec3 x\u00f3a \u1ea3nh s\u01a1 \u0111\u1ed3 tr\u00ean Cloudinary", cleanupError);
       }
     }
     await recordEmployeeAudit(request.admin, "employee.permanently_deleted", employee);

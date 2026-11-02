@@ -2,7 +2,7 @@ import type { CookieOptions } from "express";
 
 export const AUTH_COOKIE_NAME = "asia_admin_token";
 export const AUTH_REFRESH_COOKIE_NAME = "asia_admin_refresh_token";
-export const AUTH_TOKEN_LIFETIME_MS = 10 * 60 * 60 * 1000;
+export const AUTH_TOKEN_LIFETIME_MS = 15 * 60 * 1000;
 export const AUTH_REMEMBER_LIFETIME_MS = 3 * 24 * 60 * 60 * 1000;
 
 function parseBoolean(value: string | undefined, fallback: boolean): boolean {
@@ -20,7 +20,7 @@ function getBaseCookieOptions(): CookieOptions {
 }
 
 // Khi không chọn "Ghi nhớ", cookie sẽ hết hiệu lực khi đóng trình duyệt.
-// JWT bên trong vẫn luôn hết hạn sau 10 giờ.
+// JWT bên trong vẫn luôn hết hạn sau 15 phút.
 export function getAuthCookieOptions(persistent = false): CookieOptions {
   return persistent
     ? { ...getBaseCookieOptions(), maxAge: AUTH_TOKEN_LIFETIME_MS }

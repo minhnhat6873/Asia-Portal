@@ -24,6 +24,8 @@ const accountSchema = new Schema<Account>(
       trim: true,
     },
     phoneKey: { type: String, select: false },
+    authVersion: { type: Number, default: 0, select: false },
+    notes: { type: String, trim: true, maxlength: 1000, default: "" },
     password: {
       type: String,
       required: true,
@@ -66,6 +68,7 @@ accountSchema.pre("validate", function normalizePhone() {
 
 accountSchema.pre("save", async function hashPassword() {
   if (!this.isModified("password") || this.$locals.passwordAlreadyHashed) return;
+  if (!this.isNew) this.$inc("authVersion", 1);
   this.password = await bcrypt.hash(this.password, 12);
 });
 

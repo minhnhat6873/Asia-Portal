@@ -61,14 +61,14 @@ function DepartmentLink({ department }: { department: Department }) {
   return (
     <Link
       href={`/diagram/${department.slug}`}
-      aria-label={`Xem nhân sự phòng ${department.name}`}
+      aria-label={`Xem nhân sự ${department.name}`}
       className="group relative flex min-h-[68px] items-center gap-2.5 rounded-xl border border-[#e5eeeb] bg-gradient-to-br from-white to-[#fdfefe] px-2.5 py-3 text-left shadow-[0_3px_8px_rgba(32,72,62,0.10)] transition-colors hover:border-emerald-300 hover:bg-emerald-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600"
     >
       <div className={`flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-full ${department.tone}`}>
         <Icon aria-hidden="true" size={23} strokeWidth={1.9} />
       </div>
       <span className="min-w-0 flex-1">
-        <span className="block text-[13px] font-bold leading-[18px] text-[#14273c]">Phòng {department.name}</span>
+        <span className="block text-[13px] font-bold leading-[18px] text-[#14273c]">{department.name}</span>
         <span className="mt-1 block text-xs leading-[17px] text-[#718096]">{department.description}</span>
       </span>
       <ChevronRight aria-hidden="true" size={17} strokeWidth={1.8} className="shrink-0 text-[#3b977c]" />

@@ -18,7 +18,9 @@ import {
   verifyPasswordResetOtp,
 } from "../../controllers/admin/auth.controller";
 import { requireAdminAuth } from "../../middlewares/auth.middleware";
-import { validateBody } from "../../middlewares/validate.middleware";
+import { validateBody, validateQuery } from "../../middlewares/validate.middleware";
+import { listSessions, revokeSession, revokeSessions } from "../../controllers/admin/auth-session.controller";
+import { listSessionsQuerySchema, revokeSessionQuerySchema, revokeSessionsQuerySchema } from "../../validates/admin/auth-session.validate";
 import { securityConfig } from "../../config/security.config";
 import {
   changePasswordSchema,
@@ -120,5 +122,8 @@ router.post("/email/request-otp", requireAdminAuth, emailOtpSendLimiter, validat
 router.post("/email/resend-otp", requireAdminAuth, emailOtpSendLimiter, validateBody(resendEmailChangeOtpSchema), resendEmailChangeOtp);
 router.patch("/email", requireAdminAuth, emailOtpVerifyLimiter, validateBody(changeEmailSchema), changeEmail);
 router.get("/me", requireAdminAuth, sessionLimiter, getCurrentAccount);
+router.get("/sessions", requireAdminAuth, sessionLimiter, validateQuery(listSessionsQuerySchema), listSessions);
+router.delete("/sessions", requireAdminAuth, sessionLimiter, validateQuery(revokeSessionsQuerySchema), revokeSessions);
+router.delete("/sessions/:id", requireAdminAuth, sessionLimiter, validateQuery(revokeSessionQuerySchema), revokeSession);
 
 export default router;

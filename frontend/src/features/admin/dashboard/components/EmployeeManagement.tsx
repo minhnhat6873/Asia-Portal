@@ -34,6 +34,7 @@ import type { AdminEmployeeListParams } from '@/services/admin-employee.service'
 import { importAdminEmployees } from '@/services/admin-employee.service';
 import { useAdminPermissions } from '@/lib/adminPermissions';
 import EmployeeProfileCard from '@/components/ui/EmployeeProfileCard';
+import EmployeeStatusBadge from '@/components/ui/EmployeeStatusBadge';
 import { toast } from 'sonner';
 
 const EMPLOYEE_FILTER_STORAGE_KEY = 'asia.admin.employee-filters';
@@ -177,30 +178,9 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
 
 
   // Helper status label
-  const renderStatusPill = (status: EmployeeStatus, large = false) => {
-    if (status === 'active') {
-      return (
-        <span style={{ fontSize: large ? 13 : 12 }} className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full whitespace-nowrap text-xs font-semibold bg-emerald-50 text-emerald-600 border border-emerald-100">
-          <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-          Đang làm việc
-        </span>
-      );
-    }
-    if (status === 'probation') {
-      return (
-        <span style={{ fontSize: large ? 13 : 12 }} className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-600 border border-amber-100">
-          <span className="w-2 h-2 rounded-full bg-amber-500"></span>
-          Thử việc
-        </span>
-      );
-    }
-    return (
-      <span style={{ fontSize: large ? 13 : 12 }} className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-500 border border-slate-200">
-        <span className="w-2 h-2 rounded-full bg-slate-400"></span>
-        Đã nghỉ
-      </span>
-    );
-  };
+  const renderStatusPill = (status: EmployeeStatus, large = false) => (
+    <EmployeeStatusBadge status={status} size={large ? 'md' : 'sm'} />
+  );
 
   // Helper avatar render (Clean professional avatar, no chicken)
   const renderAvatar = (emp: Employee, sizeClass = 'w-24 h-24') => {
@@ -312,22 +292,24 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
           </button>
 
 
-          <button type="button" hidden={!can("employees:create")} onClick={() => { setImportFile(null); setImportMessage(''); setImportOpen(true); }} className="flex h-10 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-emerald-200 bg-white px-3 text-xs font-semibold text-emerald-700 hover:bg-emerald-50">
+          {can("employees:create") && <>
+          <button type="button" onClick={() => { setImportFile(null); setImportMessage(''); setImportOpen(true); }} className="flex h-10 items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-emerald-200 bg-white px-3 text-xs font-semibold text-emerald-700 hover:bg-emerald-50">
             <Upload className="h-4 w-4" /> Nhập Excel
           </button>
           {/* Add Employee Button */}
           <button
-            hidden={!can("employees:create")} onClick={onNavigateToAdd}
+            onClick={onNavigateToAdd}
             className="flex h-10 flex-1 items-center justify-center gap-1.5 whitespace-nowrap px-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm transition-colors sm:flex-none"
           >
             <Plus className="w-4 h-4" />
             <span>Thêm Nhân Viên</span>
           </button>
+          </>}
           </div>
         </div>
       </div>
 
-      {importOpen && (
+      {importOpen && can("employees:create") && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4" role="dialog" aria-modal="true" aria-labelledby="employee-import-title">
           <div className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl">
             <h3 id="employee-import-title" className="text-lg font-bold text-slate-900">Nhập nhân viên từ Excel</h3>
@@ -338,7 +320,7 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
             <div className="mt-5 flex justify-end gap-2">
               <button type="button" disabled={importing} onClick={() => setImportOpen(false)} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold disabled:opacity-50">Đóng</button>
               <button type="button" disabled={importing || !importFile} onClick={async () => {
-                if (!importFile || importing) return;
+                if (!can("employees:create") || !importFile || importing) return;
                 setImporting(true); setImportMessage('');
                 try {
                   const result = await importAdminEmployees(importFile);
@@ -585,63 +567,64 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
         /* VIEW: TABLE */
         <div className="bg-white rounded-2xl border border-slate-200/80 shadow-2xs overflow-hidden">
           <div className="employee-table-scroll overflow-x-auto overscroll-x-contain">
-            <table className="w-full min-w-[1020px] table-auto text-[13px] text-slate-600">
-              <thead className="border-b border-slate-200 bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-500">
+            <table className="w-full min-w-[1440px] table-auto text-[15px] leading-6 text-slate-600">
+              <thead className="border-b border-slate-200 bg-slate-50 text-sm font-bold uppercase tracking-wide whitespace-nowrap text-slate-500">
                 <tr>
-                  <th className="whitespace-nowrap px-2.5 py-2 text-center">Mã nhân viên</th>
-                  <th className="px-2.5 py-2 text-left">Họ và tên</th>
-                  <th className="px-2.5 py-2 text-left">Phòng ban</th>
-                  <th className="px-2.5 py-2 text-left">Chức vụ</th>
-                  <th className="whitespace-nowrap px-2.5 py-2 text-left">Cấp bậc</th>
-                  <th className="whitespace-nowrap px-2.5 py-2 text-center">Trạng thái</th>
-                  <th className="px-2.5 py-2 text-left">Người tạo</th>
-                  <th className="whitespace-nowrap px-2.5 py-2 text-center">Thao tác</th>
+                  <th className="whitespace-nowrap px-5 py-5 text-center">Mã nhân viên</th>
+                  <th className="px-5 py-5 text-left">Họ và tên</th>
+                  <th className="px-5 py-5 text-left">Phòng ban</th>
+                  <th className="px-5 py-5 text-left">Chức vụ</th>
+                  <th className="whitespace-nowrap px-5 py-5 text-left">Cấp bậc</th>
+                  <th className="whitespace-nowrap px-5 py-5 text-center">Trạng thái</th>
+                  <th className="px-5 py-5 text-left">Người tạo</th>
+                  <th className="whitespace-nowrap px-5 py-5 text-center">Thao tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filteredEmployees.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-3 py-10 text-left text-[13px] text-slate-400">
+                    <td colSpan={8} className="px-3 py-10 text-left text-[15px] text-slate-400">
                       {!isLoading && "Không tìm thấy nhân viên nào phù hợp."}
                     </td>
                   </tr>
                 ) : (
                   filteredEmployees.map((emp) => (
-                    <tr key={emp.id} className="transition-colors hover:bg-emerald-50/35">
-                      <td className="whitespace-nowrap px-2.5 py-2 text-center font-mono text-[13px] font-bold text-emerald-700">
+                    <tr key={emp.id} className="h-[100px] transition-colors hover:bg-emerald-50/40">
+                      <td className="whitespace-nowrap px-5 py-5 text-center font-mono text-[15px] font-bold text-emerald-700">
                         {emp.code}
                       </td>
-                      <td className="break-words px-2.5 py-2 text-left">
+                      <td className="break-words px-5 py-5 text-left">
                         <button
                           type="button"
                           onClick={() => onOpenDossier(emp)}
-                          className="font-semibold text-slate-900 transition-colors hover:text-emerald-700"
+                          title={emp.fullName}
+                          className="line-clamp-2 w-40 break-words text-left text-base font-bold leading-6 text-slate-900 transition-colors hover:text-emerald-700"
                         >
                           {emp.fullName}
                         </button>
                       </td>
-                      <td className="break-words px-2.5 py-2 text-left text-slate-600">{getEmployeeDepartmentLabel(emp.department)}</td>
-                      <td className="break-words px-2.5 py-2 text-left font-medium text-slate-800">{emp.position}</td>
-                      <td className="break-words px-2.5 py-2 text-left font-medium text-slate-700">{getEmployeeRankLabel(emp.rank)}</td>
-                      <td className="px-2.5 py-2 text-center">{renderStatusPill(emp.status, true)}</td>
-                      <td className="px-2.5 py-2 text-left">
-                        <div className="space-y-0 text-left text-xs leading-4">
+                      <td className="min-w-44 break-words px-5 py-5 text-left text-slate-600">{getEmployeeDepartmentLabel(emp.department)}</td>
+                      <td className="break-words px-5 py-5 text-left font-medium text-slate-800">{emp.position}</td>
+                      <td className="min-w-48 break-words px-5 py-5 text-left text-slate-600">{getEmployeeRankLabel(emp.rank)}</td>
+                      <td className="px-5 py-5 text-center">{renderStatusPill(emp.status, true)}</td>
+                      <td className="px-5 py-5 text-left">
+                        <div className="space-y-0.5 text-left text-[15px] leading-6">
                           <p className="break-words font-semibold text-slate-800">
                             {emp.createdBy?.name ?? "Ch\u01b0a c\u00f3 d\u1eef li\u1ec7u"}
                           </p>
-                          <p className="break-all text-slate-500">{emp.createdBy?.email ?? "—"}</p>
-                          <p className="text-xs text-slate-400">{formatCreatedAt(emp.createdAt)}</p>
+                          <p className="whitespace-nowrap text-slate-500">{emp.createdBy?.email ?? "—"}</p>
+                          <p className="whitespace-nowrap text-[15px] text-slate-400">{formatCreatedAt(emp.createdAt)}</p>
                         </div>
                       </td>
-                      <td className="px-2.5 py-2 text-center">
-                        <div className="flex items-center justify-center gap-0.5">
+                      <td className="px-5 py-5 text-center">
+                        <div className="flex items-center justify-center gap-2">
                           <button
                             type="button"
                             onClick={() => onOpenDossier(emp)}
                             className="rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800"
                             title="Xem hồ sơ"
                           >
-                            <Eye className="h-4 w-4" />
+                            <Eye className="h-5 w-5" />
                           </button>
                           <button
                             type="button"
@@ -649,7 +632,7 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
                             className="rounded-lg p-2 text-emerald-600 transition-colors hover:bg-emerald-50"
                             title="Chỉnh sửa"
                           >
-                            <Edit3 className="h-4 w-4" />
+                            <Edit3 className="h-5 w-5" />
                           </button>
                           <button
                             type="button"
@@ -657,7 +640,7 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
                             className="rounded-lg p-2 text-rose-500 transition-colors hover:bg-rose-50"
                             title="Xóa"
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <Trash2 className="h-5 w-5" />
                           </button>
                         </div>
                       </td>

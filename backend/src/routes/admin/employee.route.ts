@@ -14,7 +14,6 @@ import {
 } from "../../controllers/admin/employee.controller";
 import {
   requireCloudinaryConfig,
-  uploadAvatar,
   uploadChartAvatar,
 } from "../../helpers/multerCloudinary.helper";
 import {
@@ -24,6 +23,7 @@ import {
 import {
   validateEmployeeCreateUpload,
   validateEmployeeUpdateUpload,
+  uploadEmployeeAvatars,
 } from "../../middlewares/employee-upload.middleware";
 import { validateQuery } from "../../middlewares/validate.middleware";
 import { uploadEmployeeImport, validateEmployeeImport } from "../../middlewares/employee-import.middleware";
@@ -39,7 +39,7 @@ router.post(
   "/",
   requirePermissions("employees:create"),
   requireCloudinaryConfig,
-  uploadAvatar.single("avatar"),
+  uploadEmployeeAvatars,
   validateEmployeeCreateUpload,
   createEmployee,
 );
@@ -47,7 +47,7 @@ router.patch(
   "/:id",
   requirePermissions("employees:update"),
   requireCloudinaryConfig,
-  uploadAvatar.single("avatar"),
+  uploadEmployeeAvatars,
   validateEmployeeUpdateUpload,
   requireEmployeeUpdatePermission,
   updateEmployee,

@@ -23,6 +23,8 @@ export interface Employee {
   location: string;
   avatar: string;
   avatarPublicId?: string;
+  avatarOriginal?: string;
+  avatarOriginalPublicId?: string;
   chartAvatar?: string;
   chartAvatarPublicId?: string;
   joinDate: Date;

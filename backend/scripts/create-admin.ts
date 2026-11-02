@@ -1,13 +1,15 @@
 import "dotenv/config";
 
 import mongoose from "mongoose";
+import { newPasswordSchema } from "../src/validates/admin/password.validate";
 
 import { connectDatabase } from "../src/config/database.config";
 import { ACCOUNT_ROLES, type AccountRole } from "../src/interfaces/account.interface";
 import AccountModel from "../src/models/account.model";
 
-function getRequiredEnv(name: string): string {
-  const value = process.env[name]?.trim();
+function getRequiredEnv(name: string, trim = true): string {
+  const rawValue = process.env[name];
+  const value = trim ? rawValue?.trim() : rawValue;
   if (!value) throw new Error(`Thiếu biến môi trường ${name}`);
   return value;
 }
@@ -15,16 +17,15 @@ function getRequiredEnv(name: string): string {
 async function createInitialAdmin(): Promise<void> {
   const name = getRequiredEnv("SEED_ADMIN_NAME");
   const email = getRequiredEnv("SEED_ADMIN_EMAIL").toLowerCase();
-  const password = getRequiredEnv("SEED_ADMIN_PASSWORD");
+  const password = getRequiredEnv("SEED_ADMIN_PASSWORD", false);
   const roleValue = (process.env.SEED_ADMIN_ROLE?.trim() || "admin") as AccountRole;
 
   if (roleValue !== "admin") {
     throw new Error("SEED_ADMIN_ROLE phải là admin");
   }
 
-  if (password.length < 8) {
-    throw new Error("SEED_ADMIN_PASSWORD phải có ít nhất 8 ký tự");
-  }
+  const { error: passwordError } = newPasswordSchema.required().validate(password);
+  if (passwordError) throw new Error(`SEED_ADMIN_PASSWORD: ${passwordError.message}`);
 
   await connectDatabase();
 

@@ -223,6 +223,14 @@ function getMailConfig() {
 }
 
 export const emailService = {
+  async sendManagedPasswordResetNotice(email: string, name: string): Promise<void> {
+    const { host, port, secure, user, pass, from } = getMailConfig();
+    const transporter = nodemailer.createTransport({ host, port, secure, auth: { user, pass } });
+    await transporter.sendMail({
+      from, to: email, subject: "Mật khẩu tài khoản Asia Portal đã được quản trị viên đặt lại",
+      text: `Xin chào ${name}, quản trị viên đã đặt lại mật khẩu tài khoản Asia Portal của bạn. Vui lòng liên hệ bộ phận IT để nhận thông tin đăng nhập và đổi mật khẩu. Nếu không nhận ra thay đổi này, hãy liên hệ IT ngay.`,
+    });
+  },
   async sendEmailChangeOtp(email: string, code: string): Promise<void> {
     const { host, port, secure, user, pass, from } = getMailConfig();
     const transporter = nodemailer.createTransport({ host, port, secure, auth: { user, pass } });

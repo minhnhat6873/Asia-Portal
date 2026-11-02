@@ -4,9 +4,11 @@ export type AccountRole = (typeof ACCOUNT_ROLES)[number];
 export type AccountStatus = (typeof ACCOUNT_STATUSES)[number];
 
 export interface Account {
+  authVersion?: number;
   name: string;
   email: string;
   phone?: string;
+  notes?: string;
   /** Internal unique key for new/changed phone numbers; never returned by API. */
   phoneKey?: string;
   password: string;
@@ -47,6 +49,9 @@ export interface CreateAdminAccountInput extends RegisterAccountInput {
 
 export interface UpdateAdminAccountInput {
   name?: string;
+  email?: string;
+  phone?: string;
+  notes?: string;
   role?: AccountRole;
   status?: AccountStatus;
   permissionGroupIds?: string[];
@@ -54,6 +59,8 @@ export interface UpdateAdminAccountInput {
 
 export interface ResetAccountPasswordInput {
   password: string;
+  confirmPassword?: string;
+  notifyUser?: boolean;
 }
 
 export interface AccountResponse {
@@ -61,6 +68,7 @@ export interface AccountResponse {
   name: string;
   email: string;
   phone?: string;
+  notes?: string;
   role: AccountRole;
   status: AccountStatus;
   permissionGroupIds: string[];

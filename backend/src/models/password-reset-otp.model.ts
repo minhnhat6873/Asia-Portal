@@ -5,6 +5,7 @@ import type { PasswordResetOtp } from "../interfaces/password-reset-otp.interfac
 const passwordResetOtpSchema = new Schema<PasswordResetOtp>(
   {
     email: { type: String, required: true, unique: true, lowercase: true, trim: true, index: true },
+    requestId: { type: String },
     otpHash: { type: String, required: true, select: false },
     otpExpiresAt: { type: Date, required: true, index: { expires: 0 } },
     otpAttempts: { type: Number, required: true, default: 0 },

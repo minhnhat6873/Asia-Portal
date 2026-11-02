@@ -1,6 +1,7 @@
 import "dotenv/config";
 
 import cookieParser from "cookie-parser";
+import { requireCsrfProtection } from "./src/middlewares/csrf.middleware";
 import cors from "cors";
 import express, { type Request, type Response } from "express";
 import mongoSanitize from "express-mongo-sanitize";
@@ -40,7 +41,7 @@ app.use(
     },
     credentials: true,
     methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
     maxAge: 60 * 60,
   }),
 );
@@ -71,6 +72,7 @@ app.use((request, _response, next) => {
   next();
 });
 
+app.use("/admin", requireCsrfProtection);
 app.use(routes);
 
 app.use((_request: Request, response: Response) => {

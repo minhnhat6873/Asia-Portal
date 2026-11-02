@@ -31,7 +31,7 @@ export const ORGANIZATION_DEPARTMENTS = ([
   { id: "HR_ADMIN", slug: "phong-nhan-su-hanh-chinh", description: "Human Resources & Administration", icon: UsersRound, tone: "bg-rose-50 text-rose-500" },
   { id: "LEGAL", slug: "phong-phap-che", description: "Legal", icon: ShieldCheck, tone: "bg-sky-50 text-sky-500" },
   { id: "IT_ERP", slug: "phong-it", description: "Công nghệ thông tin & ERP", icon: Monitor, tone: "bg-blue-50 text-blue-600" },
-] as const).map((department) => ({ ...department, name: getEmployeeDepartmentLabel(department.id).replace(/^Phòng /, "") }));
+] as const).map((department) => ({ ...department, name: getEmployeeDepartmentLabel(department.id) }));
 
 type OrganizationDepartmentId = (typeof ORGANIZATION_DEPARTMENTS)[number]["id"];
 type OrganizationDivision = {
@@ -73,7 +73,7 @@ export const DIAGRAM_DEPARTMENTS: DiagramDepartment[] = [{
 }, ...ORGANIZATION_DEPARTMENTS.map((department) => ({
   slug: department.slug,
   divisionId: ORGANIZATION_DIVISIONS.find((division) => division.departmentIds.some((id) => id === department.id))?.id,
-  name: `Phòng ${department.name}`,
+  name: department.name,
   employeeDepartments: [department.id],
   icon: department.icon,
   tone: department.tone,

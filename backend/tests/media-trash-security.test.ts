@@ -1,3 +1,4 @@
+import { authSessionRepository } from "../src/repositories/admin/auth-session.repository";
 import express from "express";
 import cookieParser from "cookie-parser";
 import jwt from "jsonwebtoken";
@@ -25,7 +26,7 @@ const oldSecret = process.env.JWT_SECRET;
 
 beforeAll(async () => {
   process.env.JWT_SECRET = "qa-media-trash-secret-for-tests-only";
-  token = jwt.sign({ sub: actorId, tokenType: "access" }, process.env.JWT_SECRET);
+  token = jwt.sign({ sub: actorId, tokenType: "access", sid: "test-session", version: 0 }, process.env.JWT_SECRET);
   const app = express();
   app.use(express.json(), cookieParser(), routes, globalErrorHandler);
   await new Promise<void>((resolve, reject) => { server = app.listen(0, "127.0.0.1", (error) => error ? reject(error) : resolve()); });
@@ -40,7 +41,8 @@ afterAll(async () => {
 
 beforeEach(() => {
   permissions = [];
-  jest.spyOn(adminAccountRepository, "findActiveById").mockResolvedValue({ _id: actorId, name: "QA Manager", email: "qa@asiafnb.com", role: "manager", status: "active", permissionGroupIds: [] } as never);
+  jest.spyOn(authSessionRepository, "findActive").mockResolvedValue({ authVersion: 0 } as never);
+      jest.spyOn(adminAccountRepository, "findActiveById").mockResolvedValue({ _id: actorId, name: "QA Manager", email: "qa@asiafnb.com", role: "manager", status: "active", permissionGroupIds: [] } as never);
   jest.spyOn(permissionGroupRepository, "findActiveByIds").mockImplementation(() => Promise.resolve([{ actions: permissions }]) as never);
   jest.spyOn(adminMediaService, "getMedia").mockResolvedValue({ items: [post], pagination: { page: 1, limit: 20, total: 1, totalPages: 1 } } as never);
   jest.spyOn(adminMediaService, "softDeleteMedia").mockResolvedValue(post as never);

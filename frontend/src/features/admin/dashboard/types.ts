@@ -16,6 +16,7 @@ export interface Employee {
   gender?: EmployeeGender;
   location: string; // e.g. HÃ¡Â»â€œ ChÃƒÂ­ Minh, BÃƒÂ¬nh DÃ†Â°Ã†Â¡ng, Long An
   avatar: string;
+  avatarOriginal?: string;
   chartAvatar?: string;
   bio?: string;
   createdBy?: { accountId: string; name: string; email: string };
@@ -45,4 +46,4 @@ export interface MediaPost {
   createdAt?: string;
 }
 
-export type ActiveTab = 'overview' | 'employees' | 'media' | 'meetings' | 'add-employee' | 'edit-employee' | 'add-media' | 'edit-media' | 'permissions' | 'system-settings' | 'account';
+export type ActiveTab = 'overview' | 'employees' | 'media' | 'meetings' | 'add-employee' | 'edit-employee' | 'add-media' | 'edit-media' | 'permissions' | 'system-settings' | 'account' | 'sessions';

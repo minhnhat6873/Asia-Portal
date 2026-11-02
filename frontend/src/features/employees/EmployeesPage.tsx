@@ -77,8 +77,8 @@ function EmployeesContent() {
     totalPages: pageCount,
   };
 
-  const departmentCount = new Set(filteredEmployees.map((employee) => normalizeEmployeeDepartment(employee.department)).filter(Boolean)).size;
-  const positionCount = new Set(filteredEmployees.map((employee) => employee.position).filter(Boolean)).size;
+  const departmentCount = new Set(allEmployees.map((employee) => normalizeEmployeeDepartment(employee.department)).filter(Boolean)).size;
+  const positionCount = new Set(allEmployees.map((employee) => employee.position).filter(Boolean)).size;
   const ranks = [ALL_RANKS, ...EMPLOYEE_SELECTABLE_RANK_OPTIONS.map((option) => option.value)];
 
   useEffect(() => {
@@ -140,7 +140,6 @@ function EmployeesContent() {
     requestAnimationFrame(() => document.getElementById("employee-directory-results")?.scrollIntoView({ behavior: "smooth", block: "start" }));
   };
 
-  const hasActiveFilters = Boolean(search.trim()) || department !== ALL_DEPARTMENTS || rank !== ALL_RANKS;
   const employeePagination = visiblePagination.total > 0 ? (
     <div className="flex flex-wrap items-center justify-between gap-3 bg-white px-4 py-3">
       <p className="text-xs font-medium text-slate-600">Trang <strong className="text-emerald-700">{visiblePagination.page}</strong> / {visiblePagination.totalPages}</p>
@@ -172,7 +171,6 @@ function EmployeesContent() {
             setNewestFirst((current) => !current);
             setPage(1);
           }}
-          hasActiveFilters={hasActiveFilters}
           onClearFilters={() => {
             setSearch("");
             setDepartment(ALL_DEPARTMENTS);
@@ -182,7 +180,7 @@ function EmployeesContent() {
         />
         <div className="mt-4 flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
           <div className="min-w-0 flex-1">
-            <EmployeeStats total={visiblePagination.total} departments={departmentCount} positions={positionCount} />
+            <EmployeeStats total={allEmployees.length} departments={departmentCount} positions={positionCount} />
           </div>
           <div role="group" aria-label="Cách xem nhân viên" className="inline-flex w-fit shrink-0 self-end rounded-xl border border-slate-200 bg-white p-1 shadow-sm sm:self-auto">
             <button type="button" aria-pressed={viewMode === "list"} onClick={() => { setViewMode("list"); setProfileOpen(false); }} className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${viewMode === "list" ? "bg-emerald-50 text-emerald-800" : "text-slate-500 hover:bg-slate-50"}`}>

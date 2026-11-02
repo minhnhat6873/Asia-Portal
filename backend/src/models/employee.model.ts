@@ -33,6 +33,8 @@ const employeeSchema = new Schema<Employee>(
     location: { type: String, required: true, trim: true },
     avatar: { type: String, default: "", trim: true },
     avatarPublicId: { type: String, default: "", trim: true },
+    avatarOriginal: { type: String, default: "", trim: true },
+    avatarOriginalPublicId: { type: String, default: "", trim: true },
     chartAvatar: { type: String, default: "", trim: true },
     chartAvatarPublicId: { type: String, default: "", trim: true },
     joinDate: { type: Date, required: true },

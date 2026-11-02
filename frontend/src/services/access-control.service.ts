@@ -20,6 +20,7 @@ export interface ApiAccount {
   name: string;
   email: string;
   phone?: string;
+  notes?: string;
   role: ApiAccountRole;
   status: ApiAccountStatus;
   permissionGroupIds: string[];
@@ -49,8 +50,12 @@ export function createAccount(input: { name: string; email: string; password: st
   return apiPost<ApiAccount>("/admin/accounts", input);
 }
 
-export function updateAccount(id: string, input: Partial<Pick<ApiAccount, "name" | "role" | "status" | "permissionGroupIds">>): Promise<ApiAccount> {
+export function updateAccount(id: string, input: Partial<Pick<ApiAccount, "name" | "email" | "phone" | "notes" | "role" | "status" | "permissionGroupIds">>): Promise<ApiAccount> {
   return apiPatch<ApiAccount>(`/admin/accounts/${encodeURIComponent(id)}`, input);
+}
+
+export function resetAccountPassword(id: string, input: { password: string; confirmPassword: string; notifyUser: boolean }): Promise<{ notificationSent: boolean }> {
+  return apiPatch(`/admin/accounts/${encodeURIComponent(id)}/password`, input);
 }
 
 export function deleteAccount(id: string): Promise<{ id: string }> {

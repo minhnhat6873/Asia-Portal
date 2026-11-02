@@ -5,6 +5,7 @@ import { Eye, EyeOff } from "lucide-react";
 import type { Role, NewUserInput } from "../types";
 import { checkAccountContacts } from "@/services/access-control.service";
 import { ApiError } from "@/services/api";
+import { PASSWORD_MAX_LENGTH, PASSWORD_REQUIREMENTS } from "@/lib/password-validation";
 import {
   normalizeAccountPhone, validateCreateAccount,
   type CreateAccountFormErrors, type CreateAccountFormValues,
@@ -19,8 +20,8 @@ interface Props {
 const fields: { key: keyof CreateAccountFormValues; label: string; type: string; autoComplete: string; maxLength: number; placeholder?: string }[] = [
   { key: "name", label: "Họ và tên", type: "text", autoComplete: "name", maxLength: 100 },
   { key: "email", label: "Email đăng nhập", type: "email", autoComplete: "email", maxLength: 150, placeholder: "ten@asiafnb.com" },
-  { key: "password", label: "Mật khẩu", type: "password", autoComplete: "new-password", maxLength: 100, placeholder: "Từ 8 đến 100 ký tự" },
-  { key: "confirmPassword", label: "Xác nhận mật khẩu", type: "password", autoComplete: "new-password", maxLength: 100 },
+  { key: "password", label: "Mật khẩu", type: "password", autoComplete: "new-password", maxLength: PASSWORD_MAX_LENGTH, placeholder: "Từ 8 đến 32 ký tự" },
+  { key: "confirmPassword", label: "Xác nhận mật khẩu", type: "password", autoComplete: "new-password", maxLength: PASSWORD_MAX_LENGTH },
   { key: "phone", label: "Số điện thoại", type: "tel", autoComplete: "tel", maxLength: 30, placeholder: "0901234567 hoặc +84901234567" },
 ];
 
@@ -128,6 +129,7 @@ export function CreateAccountPage({ roles, onCancel, onSave }: Props) {
                   {passwordField && <button type="button" disabled={saving} onClick={() => setShowPassword((current) => ({ ...current, [passwordField]: !current[passwordField] }))} aria-label={`${showPassword[passwordField] ? "Ẩn" : "Hiện"} ${passwordField === "password" ? "mật khẩu" : "xác nhận mật khẩu"}`} aria-pressed={showPassword[passwordField]} className="absolute right-0 top-0 flex h-full w-12 items-center justify-center rounded-r-xl text-slate-500 hover:text-emerald-700">{showPassword[passwordField] ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}</button>}
                 </div>
                 {errors[field.key] && <p id={`${id}-error`} role="alert" className="mt-1.5 text-sm text-rose-600">{errors[field.key]}</p>}
+                {field.key === "password" && <p className="mt-2 text-xs leading-5 text-slate-500">{PASSWORD_REQUIREMENTS}</p>}
               </div>
             );
           })}

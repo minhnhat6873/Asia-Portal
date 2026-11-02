@@ -1,3 +1,4 @@
+import EmployeeStatusBadge from "@/components/ui/EmployeeStatusBadge";
 import type { Employee } from "@/types/employee";
 import { getEmployeeDepartmentLabel } from "@/components/ui/employee-department-options";
 import { getEmployeeRankLabel } from "@/components/ui/employee-rank-options";
@@ -27,12 +28,12 @@ export default function EmployeeList({ employees, selectedId, onSelect }: Employ
                 <div className="min-w-0 flex-1">
                   <div className="flex min-w-0 items-center gap-1.5">
                     <p className="truncate text-sm font-bold text-slate-800">{employee.name}</p>
-                    <span className="h-2 w-2 shrink-0 rounded-full bg-[#16b85c]" />
+
                   </div>
                   <p className="mt-0.5 text-xs text-slate-400">{getEmployeeCode(employee)}</p>
                   <p className="mt-2 break-words text-xs font-medium leading-snug text-slate-600">{employee.position} · {getEmployeeDepartmentLabel(employee.department)}</p>
                   <p className="mt-1 text-xs font-semibold text-emerald-700">{getEmployeeRankLabel(employee.rank)}</p>
-                  <span className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-green-50 px-2.5 py-1 text-[10px] font-semibold text-[#159447]"><span className="h-1.5 w-1.5 rounded-full bg-[#16b85c]" />Đang làm việc</span>
+                  <EmployeeStatusBadge status={employee.status} size="xs" className="mt-2" />
                 </div>
               </div>
             </button>
@@ -64,13 +65,13 @@ export default function EmployeeList({ employees, selectedId, onSelect }: Employ
                 <td className="px-5 py-3 text-sm font-semibold text-slate-500">{index + 1}</td>
                 <td className="px-3 py-3">
                   <div className="min-w-0">
-                    <p className="flex items-center gap-2 truncate text-sm font-bold text-slate-800"><span className="truncate">{employee.name}</span><span className="h-2.5 w-2.5 shrink-0 rounded-full bg-[#16b85c]" /></p>
+                    <p className="flex items-center gap-2 truncate text-sm font-bold text-slate-800"><span className="truncate">{employee.name}</span></p>
                     <p className="mt-1 text-xs text-slate-400">{getEmployeeCode(employee)}</p>
                   </div>
                 </td>
                 <td className="px-3 py-3 text-sm font-medium text-slate-600"><p>{employee.position}</p><p className="mt-1 text-xs font-semibold text-emerald-700">{getEmployeeRankLabel(employee.rank)}</p></td>
                 <td className="px-3 py-3 text-sm text-slate-600">{getEmployeeDepartmentLabel(employee.department)}</td>
-                <td className="px-5 py-3"><span className="inline-flex items-center gap-2 rounded-full bg-green-50 px-3 py-1.5 text-xs font-semibold text-[#159447]"><span className="h-2.5 w-2.5 rounded-full bg-[#16b85c]" />Đang làm việc</span></td>
+                <td className="px-5 py-3"><EmployeeStatusBadge status={employee.status} /></td>
               </tr>
             );
           })}

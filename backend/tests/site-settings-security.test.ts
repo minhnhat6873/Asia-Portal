@@ -1,3 +1,4 @@
+import { authSessionRepository } from "../src/repositories/admin/auth-session.repository";
 import express from "express";
 import cookieParser from "cookie-parser";
 import jwt from "jsonwebtoken";
@@ -25,8 +26,9 @@ describe("site navigation settings authorization and persistence", () => {
 
   beforeAll(async () => {
     process.env.JWT_SECRET = "site-settings-http-test-secret";
-    token = jwt.sign({ sub: id, role: "admin", tokenType: "access" }, process.env.JWT_SECRET, { expiresIn: "1h" });
-    jest.spyOn(adminAccountRepository, "findActiveById").mockImplementation(() => (active ? { _id: id, name: "QA Admin", email: "qa@asiafnb.com", role, status: "active", permissionGroupIds: [] } : null) as never);
+    token = jwt.sign({ sub: id, role: "admin", tokenType: "access", sid: "test-session", version: 0 }, process.env.JWT_SECRET, { expiresIn: "1h" });
+    jest.spyOn(authSessionRepository, "findActive").mockResolvedValue({ authVersion: 0 } as never);
+      jest.spyOn(adminAccountRepository, "findActiveById").mockImplementation(() => (active ? { _id: id, name: "QA Admin", email: "qa@asiafnb.com", role, status: "active", permissionGroupIds: [] } : null) as never);
     jest.spyOn(permissionGroupRepository, "findActiveByIds").mockResolvedValue([{ actions: ["dashboard:view"] }] as never);
     jest.spyOn(auditLogService, "record").mockResolvedValue();
     const app = express();

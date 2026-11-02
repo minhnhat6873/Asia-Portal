@@ -28,6 +28,7 @@ export interface AdminEmployeeResult {
   phone: string;
   location: string;
   avatar: string;
+  avatarOriginal?: string;
   chartAvatar?: string;
   joinDate: string;
   birthDate?: string;
@@ -95,6 +96,7 @@ export function getDeletedAdminEmployees(
 export function createAdminEmployee(
   input: CreateAdminEmployeeInput,
   avatarFile: File | null,
+  avatarOriginalFile: File | null = null,
 ): Promise<AdminEmployeeResult> {
   const body = new FormData();
 
@@ -103,6 +105,7 @@ export function createAdminEmployee(
   });
 
   if (avatarFile) body.append("avatar", avatarFile);
+  if (avatarFile && avatarOriginalFile) body.append("avatarOriginal", avatarOriginalFile);
 
   return apiPostFormData<AdminEmployeeResult>("/admin/employees", body);
 }
@@ -118,6 +121,7 @@ export function updateAdminEmployee(
   id: string,
   input: CreateAdminEmployeeInput,
   avatarFile: File | null,
+  avatarOriginalFile: File | null = null,
 ): Promise<AdminEmployeeResult> {
   const body = new FormData();
 
@@ -126,6 +130,7 @@ export function updateAdminEmployee(
   });
 
   if (avatarFile) body.append("avatar", avatarFile);
+  if (avatarFile && avatarOriginalFile) body.append("avatarOriginal", avatarOriginalFile);
 
   return apiPatchFormData<AdminEmployeeResult>(`/admin/employees/${id}`, body);
 }

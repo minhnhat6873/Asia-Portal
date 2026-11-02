@@ -1,3 +1,5 @@
+import { getPasswordValidationError } from "@/lib/password-validation";
+
 export interface CreateAccountFormValues {
   name: string;
   email: string;
@@ -16,7 +18,7 @@ export function normalizeAccountPhone(value: string): string {
   return value.trim().replace(/[\s.-]/g, "").replace(/^\+84/, "0");
 }
 
-export function validateCreateAccount(values: CreateAccountFormValues): CreateAccountFormErrors {
+export function validateAccountIdentity(values: Pick<CreateAccountFormValues, "name" | "email" | "phone">): CreateAccountFormErrors {
   const errors: CreateAccountFormErrors = {};
   const name = values.name.trim();
   const email = values.email.trim();
@@ -29,15 +31,21 @@ export function validateCreateAccount(values: CreateAccountFormValues): CreateAc
   if (!email) errors.email = "Vui lòng nhập email công ty.";
   else if (email.length > 150 || email.split("@")[0].length > 64 || !COMPANY_EMAIL_PATTERN.test(email)) errors.email = "Email phải đúng định dạng và có đuôi @asiafnb.com.";
 
-  if (!values.password) errors.password = "Vui lòng nhập mật khẩu.";
-  else if (values.password.length < 8 || values.password.length > 100) errors.password = "Mật khẩu phải từ 8 đến 100 ký tự.";
-  else if (!values.password.trim()) errors.password = "Mật khẩu không được chỉ gồm khoảng trắng.";
-
-  if (!values.confirmPassword) errors.confirmPassword = "Vui lòng xác nhận mật khẩu.";
-  else if (values.confirmPassword !== values.password) errors.confirmPassword = "Xác nhận mật khẩu không khớp.";
-
   if (!phone) errors.phone = "Vui lòng nhập số điện thoại.";
   else if (!VIETNAM_PHONE_PATTERN.test(phone)) errors.phone = "Số điện thoại Việt Nam phải có 10 số, bắt đầu bằng 03, 05, 07, 08 hoặc 09.";
 
   return errors;
+}
+
+export function validateAccountPassword(password: string, confirmPassword: string): CreateAccountFormErrors {
+  const errors: CreateAccountFormErrors = {};
+  const passwordError = getPasswordValidationError(password);
+  if (passwordError) errors.password = passwordError;
+  if (!confirmPassword) errors.confirmPassword = "Vui lòng xác nhận mật khẩu.";
+  else if (confirmPassword !== password) errors.confirmPassword = "Xác nhận mật khẩu không khớp.";
+  return errors;
+}
+
+export function validateCreateAccount(values: CreateAccountFormValues): CreateAccountFormErrors {
+  return { ...validateAccountIdentity(values), ...validateAccountPassword(values.password, values.confirmPassword) };
 }

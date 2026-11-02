@@ -13,6 +13,8 @@ import { permissionGroupRepository } from "../../repositories/admin/permission-g
 import { AppError } from "../../utils/errors/AppError";
 import { accountContactService } from "../account-contact.service";
 import { accountAdministrationRepository } from "../../repositories/admin/account-administration.repository";
+import { emailService } from "../notification/email.service";
+import { normalizeAccountPhone } from "../../utils/account/normalizeContact";
 
 type StoredAccount = Account & { _id: unknown };
 
@@ -22,6 +24,7 @@ function toAccountResponse(account: StoredAccount): AccountResponse {
     name: account.name,
     email: account.email,
     phone: account.phone,
+    notes: account.notes ?? "",
     role: account.role,
     status: account.status,
     permissionGroupIds: (account.permissionGroupIds ?? []).map((id) => String(id)),
@@ -111,6 +114,19 @@ export const adminAccountService = {
       }
 
       const updateData: UpdateAdminAccountInput = { ...data };
+      if (data.email !== undefined) {
+        const email = data.email.trim().toLowerCase();
+        if (isSelf && email !== existingAccount.email.trim().toLowerCase()) {
+          throw new AppError(400, "Đổi email của chính mình phải xác nhận OTP tại Thông tin tài khoản.");
+        }
+        if (email !== existingAccount.email.trim().toLowerCase()) {
+          await accountContactService.ensureAvailable({ email });
+        }
+        updateData.email = email;
+      }
+      if (data.phone !== undefined && normalizeAccountPhone(data.phone) !== normalizeAccountPhone(existingAccount.phone ?? "")) {
+        await accountContactService.ensureAvailable({ phone: data.phone });
+      }
       const nextRole = data.role ?? existingAccount.role;
       const nextStatus = data.status ?? existingAccount.status;
       if (nextRole !== "admin" || nextStatus !== "active") await protectLastAdmin(existingAccount, session);
@@ -132,18 +148,25 @@ export const adminAccountService = {
     id: string,
     data: ResetAccountPasswordInput,
     currentAdminId: string,
-  ): Promise<void> {
+  ): Promise<{ notificationSent: boolean }> {
     ensureValidId(id);
     if (id.toLowerCase() === currentAdminId.toLowerCase()) {
       throw new AppError(400, "Vui lòng đổi mật khẩu của mình tại Thông tin tài khoản và nhập mật khẩu hiện tại.");
     }
     const passwordHash = await bcrypt.hash(data.password, 12);
-    return withAdminMutation(currentAdminId, async (session) => {
+    const target = await withAdminMutation(currentAdminId, async (session) => {
       const existingAccount = await adminAccountRepository.findById(id, session);
       if (!existingAccount) throw new AppError(404, "Không tìm thấy tài khoản");
       const account = await adminAccountRepository.resetManagedPassword(id, passwordHash, session);
       if (!account) throw new AppError(409, "Tài khoản đã thay đổi. Vui lòng tải lại danh sách.");
+      return { name: account.name, email: account.email };
     });
+    let notificationSent = false;
+    if (data.notifyUser) {
+      try { await emailService.sendManagedPasswordResetNotice(target.email, target.name); notificationSent = true; }
+      catch { /* The password was saved; a mail failure must not report the reset as failed. */ }
+    }
+    return { notificationSent };
   },
 
   async deleteAccount(id: string, currentAdminId: string): Promise<AccountResponse> {

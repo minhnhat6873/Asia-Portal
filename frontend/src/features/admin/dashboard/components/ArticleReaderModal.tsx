@@ -1,5 +1,7 @@
 "use client";
 
+import { getEmployeeDepartmentLabel } from "@/components/ui/employee-department-options";
+
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import {
@@ -464,7 +466,7 @@ export function ArticleReaderModal({ post, onClose, onEdit, onDelete, showAdminA
             <h1 className="mb-4 text-2xl font-black leading-tight sm:text-3xl">{post.title}</h1>
             {showAdminActions && post.isExpired && <div className="mb-4"><MediaExpiryBadge isExpired /></div>}
             <div className={isFocus ? "hidden" : ""}>
-              {!showAdminActions && <div className="reader-date mb-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-slate-500"><span className="inline-flex items-center gap-2"><Calendar className="h-4 w-4 shrink-0" />{post.publishDate}</span><span className="inline-flex min-w-0 items-center gap-2"><Building2 className="h-4 w-4 shrink-0" />{post.authorDepartment}</span><MediaExpiryBadge isExpired={post.isExpired} /></div>}
+              {!showAdminActions && <div className="reader-date mb-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-slate-500"><span className="inline-flex items-center gap-2"><Calendar className="h-4 w-4 shrink-0" />{post.publishDate}</span><span className="inline-flex min-w-0 items-center gap-2"><Building2 className="h-4 w-4 shrink-0" />{getEmployeeDepartmentLabel(post.authorDepartment)}</span><MediaExpiryBadge isExpired={post.isExpired} /></div>}
               <RichText html={post.summary} className={`reader-copy reader-summary rich-content mb-4 text-slate-600 ${showAdminActions ? "text-base leading-7" : "text-sm leading-6"}`} />
               {showAdminActions && <p className="reader-date mb-6 flex items-center gap-2 text-sm text-slate-500"><Calendar className="h-4 w-4" />{post.publishDate}</p>}
             </div>

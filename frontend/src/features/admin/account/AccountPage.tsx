@@ -110,7 +110,7 @@ export default function AccountPage({
   }, []);
 
   const handleLogout = () => {
-    void logoutAdmin().finally(() => { clearAdminSession(); router.push("/admin/login"); });
+    void logoutAdmin().then(() => { clearAdminSession(); router.push("/admin/login"); }, () => { window.alert("Không thể xác nhận đăng xuất với máy chủ. Vui lòng kiểm tra kết nối và thử lại."); });
   };
 
   const showLoading = useDelayedLoading(loading);

@@ -1,3 +1,4 @@
+import { getEmployeeDepartmentLabel } from "@/components/ui/employee-department-options";
 import type { NewsItem } from "@/config/news";
 import { stripHtml } from "@/utils/stripHtml";
 import { apiGet } from "./api";
@@ -52,7 +53,7 @@ function mapPublicMedia(post: ApiMedia, featured = false): NewsItem {
     publishIndefinitely: post.publishIndefinitely,
     isExpired: post.isExpired,
     createdAt: post.createdAt,
-    author: post.authorDepartment,
+    author: getEmployeeDepartmentLabel(post.authorDepartment),
     image: post.coverImage?.trim() || FALLBACK_IMAGE,
     featured,
   };

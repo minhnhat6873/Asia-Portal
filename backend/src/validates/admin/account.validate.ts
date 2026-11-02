@@ -1,4 +1,5 @@
 import Joi from "joi";
+import { newPasswordSchema } from "./password.validate";
 
 import {
   ACCOUNT_ROLES,
@@ -31,13 +32,7 @@ const accountFields = {
       "string.empty": "Vui lòng nhập số điện thoại.",
       "string.pattern.base": "Số điện thoại Việt Nam phải có 10 số, bắt đầu bằng 03, 05, 07, 08 hoặc 09.",
     }),
-  password: Joi.string().min(8).max(100).pattern(/\S/).messages({
-    "any.required": "Vui lòng nhập mật khẩu.",
-    "string.empty": "Vui lòng nhập mật khẩu.",
-    "string.min": "Mật khẩu phải từ 8 đến 100 ký tự.",
-    "string.max": "Mật khẩu phải từ 8 đến 100 ký tự.",
-    "string.pattern.base": "Mật khẩu không được chỉ gồm khoảng trắng.",
-  }),
+  password: newPasswordSchema,
   role: Joi.string().valid(...ACCOUNT_ROLES),
   status: Joi.string().valid(...ACCOUNT_STATUSES),
   permissionGroupIds: Joi.array()
@@ -66,6 +61,9 @@ export const checkAccountContactsSchema = Joi.object({
 
 export const updateAccountSchema = Joi.object({
   name: accountFields.name,
+  email: accountFields.email,
+  phone: accountFields.phone,
+  notes: Joi.string().trim().max(1000).allow(""),
   role: accountFields.role,
   status: accountFields.status,
   permissionGroupIds: accountFields.permissionGroupIds,
@@ -73,6 +71,12 @@ export const updateAccountSchema = Joi.object({
 
 export const resetPasswordSchema = Joi.object({
   password: accountFields.password.required(),
+  confirmPassword: Joi.string().max(32).valid(Joi.ref("password")).required().messages({
+    "any.only": "Xác nhận mật khẩu không khớp.",
+    "any.required": "Vui lòng xác nhận mật khẩu.",
+    "string.empty": "Vui lòng xác nhận mật khẩu.",
+  }).strip(),
+  notifyUser: Joi.boolean().default(false),
 });
 
 export const accountEmailSchema = accountFields.email;

@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import EmployeeStatusBadge from "./EmployeeStatusBadge";
 import {
   BriefcaseBusiness,
   Building2,
@@ -32,18 +33,6 @@ type EmployeeProfileCardProps = {
   imageSizes?: string;
   className?: string;
   footer?: ReactNode;
-};
-
-const statusCopy: Record<EmployeeProfileStatus, string> = {
-  active: "\u0110ang l\u00e0m vi\u1ec7c",
-  probation: "Th\u1eed vi\u1ec7c",
-  inactive: "\u0110\u00e3 ngh\u1ec9 vi\u1ec7c",
-};
-
-const statusDotClass: Record<EmployeeProfileStatus, string> = {
-  active: "bg-[#16b85c]",
-  probation: "bg-amber-500",
-  inactive: "bg-slate-400",
 };
 
 export default function EmployeeProfileCard({
@@ -84,10 +73,7 @@ export default function EmployeeProfileCard({
           <h2 className="break-words text-lg font-black leading-snug text-slate-800">{name}</h2>
           <p className="mt-1 text-sm text-slate-500">{position}</p>
           {status && (
-            <span className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-green-50 px-2.5 py-1 text-[11px] font-medium text-[#159447]">
-              <span className={"h-2 w-2 rounded-full " + statusDotClass[status]} />
-              {statusCopy[status]}
-            </span>
+            <EmployeeStatusBadge status={status} size="xs" className="mt-2" />
           )}
         </div>
 

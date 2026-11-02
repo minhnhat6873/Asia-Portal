@@ -1,6 +1,11 @@
 export const AUDIT_ACTIONS = [
   "permission_group.deleted",
   "account.deleted",
+  "account.updated",
+  "account.password_reset",
+  "session.revoked",
+  "session.revoked_others",
+  "session.revoked_all",
   "meeting.created",
   "meeting.updated",
   "meeting.deleted",
