@@ -76,6 +76,7 @@ export const RESOURCE_ITEMS: ResourceItem[] = [
     chipTone: "bg-emerald-50 text-emerald-600",
     linkTone: "text-emerald-600",
     linkText: "Đọc giải đáp",
+    href: "/faq",
     anchor: "faq",
   },
 ];

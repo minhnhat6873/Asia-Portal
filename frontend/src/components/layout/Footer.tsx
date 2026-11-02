@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import FeedbackDialog from "@/features/feedback/FeedbackDialog";
 
 const footerLinks = [
   { label: "Trang chủ", href: "/" },
@@ -12,7 +13,7 @@ const footerLinks = [
 const supportLinks = [
   { label: "Trợ giúp", href: "#" },
   { label: "Liên hệ IT", href: "#" },
-  { label: "Hỗ trợ", href: "#" },
+  { label: "Đóng góp ý kiến", href: "#" },
   {
     label: "Vị trí",
     href: "https://www.google.com/maps/place//@10.8943109,106.7667012,17z/data=!3m1!4b1!4m3!3m2!1s0x3174d950dde268b1:0x95c49cc55d68d91d!12e1?entry=ttu&g_ep=EgoyMDI2MTAxNC4wIKXMDSoASAFQAw%3D%3D",
@@ -61,7 +62,7 @@ export default function Footer() {
             <ul className="space-y-2">
               {supportLinks.map((link) => (
                 <li key={link.label}>
-                  {link.external ? (
+                  {link.label === "Đóng góp ý kiến" ? <FeedbackDialog /> : link.external ? (
                     <a
                       href={link.href}
                       target="_blank"
