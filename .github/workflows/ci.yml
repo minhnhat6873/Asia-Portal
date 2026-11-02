@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop, 'feature/**', 'hotfix/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend test and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          package-manager-cache: false
+      - name: Install Yarn Classic
+        run: npm install --global yarn@1.22.22
+      - name: Install dependencies from lockfile
+        run: yarn install --frozen-lockfile --non-interactive
+      - name: Run backend tests
+        run: yarn test --runInBand
+      - name: Build backend
+        run: yarn build
+
+  frontend:
+    name: Frontend test and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          package-manager-cache: false
+      - name: Install Yarn Classic
+        run: npm install --global yarn@1.22.22
+      - name: Install dependencies from lockfile
+        run: yarn install --frozen-lockfile --non-interactive
+      - name: Run frontend tests
+        run: node --experimental-strip-types --test tests/*.test.mjs
+      - name: Build frontend
+        run: yarn build
