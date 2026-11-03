@@ -103,12 +103,12 @@ function DivisionCard({ division, expanded, onToggle }: { division: Division; ex
           <ChevronDown aria-hidden="true" size={16} strokeWidth={2.5} className={`relative shrink-0 text-[#254456] transition-transform ${expanded ? "rotate-180" : ""}`} />
         </button>
       </h3>
-      <div id={panelId} role="region" aria-labelledby={buttonId} hidden={!expanded} className="rounded-2xl bg-gradient-to-b from-[#f1faf6] to-[#f6fbf9] pb-3 pl-[25px] pr-[5px] pt-5 shadow-[0_6px_14px_rgba(15,118,65,0.03)]">
+      <div id={panelId} role="region" aria-labelledby={buttonId} hidden={!expanded} className="pb-3 pl-[25px] pr-[5px] pt-5">
         <ul className="space-y-3.5">
           {departments.map((department, index) => <li key={department.id} className="relative">
             <span aria-hidden="true" className="pointer-events-none absolute -left-3 w-px bg-[#2d9d6d]" style={{ top: index === 0 ? -20 : -14, bottom: index === departments.length - 1 ? "50%" : -14 }} />
             <span aria-hidden="true" className="pointer-events-none absolute -left-3 top-1/2 h-px w-3 bg-[#b3ddca]" />
-            <span aria-hidden="true" className="pointer-events-none absolute -left-4 top-1/2 z-10 h-2 w-2 -translate-y-1/2 rounded-full border-[1.5px] border-[#eff9f4] bg-[#008b4b]" />
+            <span aria-hidden="true" className="pointer-events-none absolute -left-4 top-1/2 z-10 h-2 w-2 -translate-y-1/2 rounded-full border-[1.5px] border-white bg-[#008b4b]" />
             <DepartmentLink department={department} />
           </li>)}
         </ul>
