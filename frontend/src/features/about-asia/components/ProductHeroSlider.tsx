@@ -127,9 +127,9 @@ export default function ProductHeroSlider() {
           </p>
 
           <div className="mb-5 sm:mb-7">
-            <button className="inline-flex items-center gap-2 bg-white/15 hover:bg-white/25 border border-white/35 px-4 py-2 text-xs font-semibold text-white sm:px-6 sm:py-2.5 sm:text-sm rounded-full transition-all backdrop-blur-sm">
+            <a href="https://drinkwanacomvn394.mbws.vn/vi/products" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 bg-white/15 hover:bg-white/25 border border-white/35 px-4 py-2 text-xs font-semibold text-white sm:px-6 sm:py-2.5 sm:text-sm rounded-full transition-all backdrop-blur-sm">
               Khám phá ngay <ArrowRight size={14} />
-            </button>
+            </a>
           </div>
 
           {/* Nav */}
