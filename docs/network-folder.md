@@ -2,7 +2,7 @@
 
 ## Cách dùng
 
-Thẻ **Sổ tay & Tài liệu nội bộ** tại trang chủ mở thư mục `\\192.168.16.10\data\Chung` trong Windows File Explorer. Đây là mở thư mục SMB bằng tài khoản Windows hiện tại, không phải upload/download PDF qua backend.
+Thẻ **Sổ tay & Tài liệu nội bộ** tại trang chủ mở thư mục `\\192.168.26.11\data\PUBLIC\1_BOD` trong Windows File Explorer. Đây là mở thư mục SMB bằng tài khoản Windows hiện tại, không phải upload/download PDF qua backend.
 
 1. Bấm **Cài đặt lần đầu / Chưa mở được?** trên thẻ.
 2. Tải `Cai-dat-mo-thu-muc.reg`, mở file và chấp nhận các hộp thoại xác nhận của Windows. Nếu chính sách máy yêu cầu quyền cao hơn hoặc chặn Registry Editor, IT cần triển khai thay người dùng.
@@ -20,7 +20,7 @@ Nếu chưa cấu hình được, sao chép đường dẫn trong hộp hướng
 - Giá trị mặc định tại `shell\open\command` có kiểu **REG_EXPAND_SZ**, với nội dung đã giải mã:
 
   ```text
-  "%SystemRoot%\explorer.exe" "\\192.168.16.10\data\Chung"
+  "%SystemRoot%\explorer.exe" "\\192.168.26.11\data\PUBLIC\1_BOD"
   ```
 
 `%SystemRoot%` được Windows mở rộng để dùng đúng Explorer của máy. Chuỗi lệnh không có `%1`, không chạy qua cmd/PowerShell và không chuyển bất kỳ phần nào của URI vào lệnh. Mọi link của scheme này chỉ mở cùng một thư mục đã cấu hình. Registry không chứa username/password; backend không đọc file SMB bằng tài khoản dịch vụ và không thay đổi quyền share/NTFS.
@@ -41,10 +41,10 @@ Website không đọc được registry hay xác nhận File Explorer mở thàn
 Đặt biến trong `frontend/.env` (không đặt trong `frontend/src` hay `.env` của backend):
 
 ```dotenv
-NEXT_PUBLIC_NETWORK_FOLDER_PATH=\\192.168.16.10\data\Chung
+NEXT_PUBLIC_NETWORK_FOLDER_PATH=\\192.168.26.11\data\PUBLIC\1_BOD
 ```
 
-Không cần khai báo tên miền website: URL tải bắt đầu bằng `/downloads/` nên tự theo origin đang truy cập. URI `asia-folder://chung/` giữ nguyên. Biến `NEXT_PUBLIC_*` được chốt lúc build và có thể đọc được từ trình duyệt, không dùng để chứa mật khẩu. Nếu không khai báo biến, đường dẫn mặc định là `\\192.168.16.10\data\Chung` để tương thích bản cũ. Đường dẫn phải là UNC hợp lệ; cấu hình rỗng, dấu nháy, ký tự điều khiển, `%` hoặc các ký tự cấm của Windows sẽ bị từ chối, không tạo lệnh Registry từ cấu hình đó.
+Không cần khai báo tên miền website: URL tải bắt đầu bằng `/downloads/` nên tự theo origin đang truy cập. URI `asia-folder://chung/` giữ nguyên. Biến `NEXT_PUBLIC_*` được chốt lúc build và có thể đọc được từ trình duyệt, không dùng để chứa mật khẩu. Nếu không khai báo biến, đường dẫn mặc định là `\\192.168.26.11\data\PUBLIC\1_BOD` để tương thích bản cũ. Đường dẫn phải là UNC hợp lệ; cấu hình rỗng, dấu nháy, ký tự điều khiển, `%` hoặc các ký tự cấm của Windows sẽ bị từ chối, không tạo lệnh Registry từ cấu hình đó.
 
 Khi đổi địa chỉ share, chỉ sửa biến này rồi khởi động lại `yarn dev`, hoặc build và triển khai lại frontend trên production. Giao diện và file tải xuống cùng dùng đường dẫn đã cấu hình; không nhận đường dẫn tùy ý từ query/URI. User đã cài cần tải và chạy lại file cài đặt mới (hoặc IT triển khai lại bằng GPO). Chỉ đổi tên miền website không cần cài lại registry, trừ khi IT đã cấu hình policy Chrome riêng theo origin. Đổi `.env` lúc chạy bản production mà không build lại sẽ không cập nhật biến `NEXT_PUBLIC_*`.
 
@@ -58,7 +58,7 @@ Không tự tắt hộp xác nhận của Chrome hoặc thay policy trình duy�
 
 ## Kiểm tra trên máy nhân viên
 
-1. Đăng nhập bằng user domain thật. Dán `\\192.168.16.10\data\Chung` vào File Explorer và xác nhận quyền truy cập.
+1. Đăng nhập bằng user domain thật. Dán `\\192.168.26.11\data\PUBLIC\1_BOD` vào File Explorer và xác nhận quyền truy cập.
 2. Cài file `.reg` bằng chính user đó hoặc chờ GPO cấp cấu hình.
 3. Truy cập website local/nội bộ bằng Chrome; bấm mở thư mục, chấp nhận hộp hỏi và kiểm tra Explorer trỏ đúng thư mục.
 4. Đổi user hoặc thử một user không được cấp quyền: tính năng không vượt qua quyền truy cập Windows.

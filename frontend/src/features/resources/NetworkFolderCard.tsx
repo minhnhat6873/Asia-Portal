@@ -51,7 +51,7 @@ export function NetworkFolderCard({ item }: { item: NetworkFolderCardItem }) {
         <li>Tải file cấu hình để Windows nhận biết nút mở thư mục.
           <a href={NETWORK_FOLDER.setupUrl} download={NETWORK_FOLDER.setupFilename} className="mt-2 inline-flex min-h-11 items-center gap-2 rounded-xl bg-emerald-700 px-4 py-2 font-semibold text-white hover:bg-emerald-800"><Download aria-hidden="true" size={16} />Tải file cấu hình Windows</a>
         </li>
-        <li>Mở file <strong>{NETWORK_FOLDER.setupFilename}</strong> vừa tải. Chọn <strong>Yes / Có</strong> khi Windows hỏi xác nhận. Chỉ cần thực hiện một lần cho tài khoản Windows đang dùng.</li>
+        <li>Mở file <strong>{NETWORK_FOLDER.setupFilename}</strong> vừa tải. Chọn <strong>Yes / Có</strong> khi Windows hỏi xác nhận. Cài một lần cho tài khoản Windows đang dùng; nếu đã cài đường dẫn cũ, hãy tải và chạy lại file mới để cập nhật.</li>
         <li>Quay lại website, bấm <strong>Mở thư mục tài liệu</strong>. Nếu Chrome hỏi mở ứng dụng, chọn <strong>Mở</strong>.</li>
       </ol>
       <div className="mt-5 border-t border-slate-200 pt-4">
