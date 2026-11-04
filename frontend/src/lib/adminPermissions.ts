@@ -21,7 +21,7 @@ export function useAdminPermissions() {
 
 export function canAccessAdminPath(account: AdminUser | null, pathname: string): boolean {
   if (!account) return false;
-  if (pathname.startsWith("/admin/access-control") || pathname.startsWith("/admin/settings")) return account.role === "Toàn quyền Admin";
+  if (pathname.startsWith("/admin/access-control") || pathname.startsWith("/admin/settings") || pathname.startsWith("/admin/feedback")) return account.role === "Toàn quyền Admin";
   const can = (permission: PermissionAction) => hasAdminPermission(account, permission);
   if (pathname === "/admin/employees/trash") return can("employees:trash");
   if (pathname === "/admin/employees/new") return can("employees:create");

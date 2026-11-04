@@ -14,6 +14,7 @@ import {
   UserCheck,
   LogOut,
   Monitor,
+  MessageCircle,
   X,
 } from 'lucide-react';
 import { ActiveTab } from '../types';
@@ -123,6 +124,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
       badge: pendingUsersCount > 0 ? pendingUsersCount : null,
       isPendingBadge: pendingUsersCount > 0,
     },
+    {
+      id: 'feedback' as ActiveTab,
+      label: 'Đóng góp ý kiến',
+      icon: MessageCircle,
+      badge: null,
+      isPendingBadge: false,
+    },
   ];
 
   return (
@@ -159,7 +167,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* Navigation */}
       <nav className="flex-1 p-3 space-y-1.5 overflow-y-auto">
 {navItems.filter((item) => {
-  if (item.id === 'permissions') return account?.role === 'Toàn quyền Admin';
+  if (item.id === 'permissions' || item.id === 'feedback') return account?.role === 'Toàn quyền Admin';
   if (item.id === 'media') return hasAdminPermission(account, 'media:view') || hasAdminPermission(account, 'media:trash');
   return hasAdminPermission(account, ({overview:'dashboard:view',employees:'employees:view',meetings:'meetings:view'} as const)[item.id as 'overview'|'employees'|'meetings']);
 }).map((item) => {

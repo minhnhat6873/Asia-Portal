@@ -1,0 +1,12 @@
+import { Router } from "express";
+import { requireAdminRole } from "../../middlewares/auth.middleware";
+import { validateBody, validateQuery } from "../../middlewares/validate.middleware";
+import { feedbackPatchSchema, feedbackQuerySchema } from "../../validates/admin/feedback.validate";
+import { list, detail, update, remove } from "../../controllers/admin/feedback.controller";
+const router = Router();
+router.use(requireAdminRole("admin"));
+router.get("/", validateQuery(feedbackQuerySchema), list);
+router.get("/:id", detail);
+router.patch("/:id", validateBody(feedbackPatchSchema), update);
+router.delete("/:id", remove);
+export default router;

@@ -46,4 +46,4 @@ export interface MediaPost {
   createdAt?: string;
 }
 
-export type ActiveTab = 'overview' | 'employees' | 'media' | 'meetings' | 'add-employee' | 'edit-employee' | 'add-media' | 'edit-media' | 'permissions' | 'system-settings' | 'account' | 'sessions';
+export type ActiveTab = 'overview' | 'employees' | 'media' | 'meetings' | 'add-employee' | 'edit-employee' | 'add-media' | 'edit-media' | 'permissions' | 'system-settings' | 'account' | 'sessions' | 'feedback';
