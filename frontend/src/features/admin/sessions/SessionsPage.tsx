@@ -104,7 +104,7 @@ function SessionList({ account, accountId }: { account: AdminUser; accountId: st
             : <ul className="divide-y divide-slate-100">{result.items.map((session) => {
               const DeviceIcon = /Android|iOS/.test(session.operatingSystem) ? Smartphone : Monitor;
               return <li key={session.id} className={`p-5 sm:p-6 ${session.isCurrent ? "bg-emerald-50/40" : ""}`}>
-                <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
+                <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.3fr)_minmax(0,3fr)_auto] xl:items-center">
                   <div className="flex min-w-0 items-start gap-4">
                     <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${session.isCurrent ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500"}`}><DeviceIcon className="h-6 w-6" /></span>
                     <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><span className="font-bold text-slate-900">{session.browser} · {session.operatingSystem}</span>{session.isCurrent && <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700"><Check className="h-3 w-3" />Phiên hiện tại</span>}</div>
@@ -112,8 +112,8 @@ function SessionList({ account, accountId }: { account: AdminUser; accountId: st
                       {session.ipAddress && session.lastIpAddress !== session.ipAddress && <p className="mt-1 text-xs text-slate-500">IP khi đăng nhập: {session.ipAddress}</p>}
                     </div>
                   </div>
-                  <button type="button" disabled={busy} onClick={() => openAction({ kind: "one", session })} aria-label={`Đăng xuất ${session.browser} trên ${session.operatingSystem}${session.isCurrent ? " (phiên hiện tại)" : ""}`} className={`${BUTTON} self-start border-slate-200 text-rose-600 hover:border-rose-200 hover:bg-rose-50 xl:order-last xl:self-auto`}><LogOut className="h-4 w-4" />Đăng xuất</button>
-                  <dl className="grid flex-1 grid-cols-1 gap-4 text-sm sm:grid-cols-3 xl:max-w-2xl">
+                  <button type="button" disabled={busy} onClick={() => openAction({ kind: "one", session })} aria-label={`Đăng xuất ${session.browser} trên ${session.operatingSystem}${session.isCurrent ? " (phiên hiện tại)" : ""}`} className={`${BUTTON} justify-self-start border-slate-200 text-rose-600 hover:border-rose-200 hover:bg-rose-50 xl:col-start-3 xl:row-start-1 xl:justify-self-end`}><LogOut className="h-4 w-4" />Đăng xuất</button>
+                  <dl className="grid min-w-0 grid-cols-1 gap-4 text-sm sm:grid-cols-3 xl:col-start-2 xl:row-start-1">
                     <div><dt className="text-slate-500">Đăng nhập lúc</dt><dd className="mt-1 font-medium text-slate-700">{dateTime(session.createdAt)}</dd></div>
                     <div><dt className="text-slate-500">Hoạt động gần nhất</dt><dd className="mt-1 font-medium text-slate-700">{dateTime(session.lastSeenAt)}</dd></div>
                     <div><dt className="text-slate-500">Hết hạn lúc</dt><dd className="mt-1 font-medium text-slate-700">{dateTime(session.expiresAt)}</dd></div>

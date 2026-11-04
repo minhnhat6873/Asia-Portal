@@ -4,6 +4,9 @@ import { hasRichTextContent, RichText } from '@/components/ui/RichText';
 import { 
   Plus, 
   Upload,
+  CloudUpload,
+  Download,
+  FileSpreadsheet,
   Search, 
   RotateCcw, 
   Edit3, 
@@ -116,6 +119,22 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importing, setImporting] = useState(false);
   const [importMessage, setImportMessage] = useState('');
+  const [isDraggingImport, setIsDraggingImport] = useState(false);
+  const selectImportFile = (file: File | null) => {
+    setIsDraggingImport(false);
+    setImportMessage('');
+    setImportFile(null);
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith('.xlsx')) {
+      setImportMessage('Vui lòng chọn file Excel có định dạng .xlsx.');
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      setImportMessage('File vượt quá dung lượng tối đa 2 MB.');
+      return;
+    }
+    setImportFile(file);
+  };
   useEffect(() => {
     const timer = window.setTimeout(() => {
       try {
@@ -311,14 +330,31 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
 
       {importOpen && can("employees:create") && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4" role="dialog" aria-modal="true" aria-labelledby="employee-import-title">
-          <div className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl">
-            <h3 id="employee-import-title" className="text-lg font-bold text-slate-900">Nhập nhân viên từ Excel</h3>
-            <p className="mt-2 text-sm text-slate-600">Tải mẫu, điền tối đa 500 nhân viên rồi chọn file .xlsx (tối đa 2 MB). Mã, email và số điện thoại phải duy nhất, kể cả trong thùng rác. Nếu có lỗi, toàn bộ file sẽ không được nhập.</p>
-            <a href="/Mau_nhap_nhan_vien_AsiaPortal.xlsx" download className="mt-3 inline-block text-sm font-semibold text-emerald-700 underline">Tải mẫu Excel</a>
-            <input type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" disabled={importing} onChange={(event) => { setImportFile(event.target.files?.[0] ?? null); setImportMessage(''); }} className="mt-4 block w-full text-sm text-slate-700" />
+          <div className="max-h-[calc(100dvh-2rem)] w-full max-w-2xl overflow-y-auto rounded-3xl bg-white p-5 shadow-2xl sm:p-7">
+            <div className="flex items-center gap-4 sm:gap-5">
+              <span className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 sm:h-14 sm:w-14" aria-hidden="true">
+                <FileSpreadsheet className="h-9 w-9" strokeWidth={1.8} />
+                <span className="absolute -bottom-1 -right-1 rounded-full border-[3px] border-white bg-emerald-600 p-1 text-white shadow-sm"><Upload className="h-4 w-4" /></span>
+              </span>
+              <h3 id="employee-import-title" className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">Nhập nhân viên từ Excel</h3>
+            </div>
+            <p id="employee-import-description" className="mt-5 text-sm leading-relaxed text-slate-600 sm:text-base">Tải mẫu, điền tối đa 500 nhân viên rồi chọn file .xlsx (tối đa 2 MB). Mã, email và số điện thoại phải duy nhất, kể cả trong thùng rác. Nếu có lỗi, toàn bộ file sẽ không được nhập.</p>
+            <a href="/Mau_nhap_nhan_vien_AsiaPortal.xlsx" download className="mt-4 inline-flex items-center gap-3 rounded text-base font-bold text-emerald-600 underline underline-offset-4 hover:text-emerald-700 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-emerald-600"><Download className="h-6 w-6" aria-hidden="true" />Tải mẫu Excel</a>
+            <label
+              className={`relative mt-5 flex flex-col items-center justify-center rounded-2xl border-2 border-dashed px-4 py-5 text-center transition-colors sm:py-5 ${importing ? 'cursor-wait opacity-60' : 'cursor-pointer hover:border-emerald-500 hover:bg-emerald-50'} ${isDraggingImport ? 'border-emerald-500 bg-emerald-100/60' : 'border-emerald-200 bg-emerald-50/40'} focus-within:outline-2 focus-within:outline-offset-4 focus-within:outline-emerald-600`}
+              onDragOver={(event) => { event.preventDefault(); if (!importing) setIsDraggingImport(true); }}
+              onDragLeave={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setIsDraggingImport(false); }}
+              onDrop={(event) => { event.preventDefault(); if (!importing) selectImportFile(event.dataTransfer.files[0] ?? null); }}
+            >
+              <input type="file" aria-label="Chọn file Excel để nhập nhân viên" aria-describedby="employee-import-description" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" disabled={importing} onChange={(event) => { selectImportFile(event.target.files?.[0] ?? null); event.target.value = ''; }} className="sr-only" />
+              <span className="mb-3 flex h-14 w-16 items-center justify-center rounded-full bg-emerald-100/60 text-emerald-600" aria-hidden="true"><CloudUpload className="h-9 w-9" strokeWidth={1.8} /></span>
+              <span className="max-w-full break-all text-base font-bold text-slate-900 sm:text-lg" aria-live="polite">{importFile ? importFile.name : 'Chọn file Excel (.xlsx) để nhập nhân viên'}</span>
+              <span className="mt-1 text-sm text-slate-500 sm:text-base">{importFile ? 'Nhấn hoặc kéo thả để chọn file khác' : 'Kéo thả file vào đây hoặc nhấn để chọn file'}</span>
+              <span className="mt-4 inline-flex items-center gap-2 rounded-full bg-emerald-100/60 px-4 py-2 text-sm text-slate-700"><FileSpreadsheet className="h-5 w-5 text-emerald-600" aria-hidden="true" />.xlsx<span aria-hidden="true">•</span>Tối đa 2 MB</span>
+            </label>
             {importMessage && <p role="alert" className="mt-3 max-h-48 overflow-auto whitespace-pre-line rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{importMessage}</p>}
-            <div className="mt-5 flex justify-end gap-2">
-              <button type="button" disabled={importing} onClick={() => setImportOpen(false)} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold disabled:opacity-50">Đóng</button>
+            <div className="mt-6 flex justify-end gap-3">
+              <button type="button" disabled={importing} onClick={() => setImportOpen(false)} className="rounded-xl border border-slate-300 px-6 py-3 text-sm font-bold text-slate-800 transition-colors hover:bg-slate-50 disabled:opacity-50 sm:px-7 sm:text-base">Đóng</button>
               <button type="button" disabled={importing || !importFile} onClick={async () => {
                 if (!can("employees:create") || !importFile || importing) return;
                 setImporting(true); setImportMessage('');
@@ -329,7 +365,7 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
                   toast.success(`Đã nhập thành công ${result.count} nhân viên.`);
                 } catch (error) { setImportMessage(error instanceof Error ? error.message : 'Không thể nhập nhân viên.'); }
                 finally { setImporting(false); }
-              }} className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-50">{importing ? 'Đang nhập...' : 'Nhập nhân viên'}</button>
+              }} className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-b from-emerald-500 to-emerald-700 px-6 py-3 text-sm font-bold text-white shadow-sm transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 sm:px-7 sm:text-base">{importing && <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />}{importing ? 'Đang nhập...' : 'Nhập nhân viên'}</button>
             </div>
           </div>
         </div>
