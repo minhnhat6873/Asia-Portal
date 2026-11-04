@@ -1816,10 +1816,10 @@ file-entry-cache@^8.0.0:
   dependencies:
     flat-cache "^4.0.0"
 
-filepond@^5.0.0-beta.74:
-  version "5.0.0-beta.74"
-  resolved "https://registry.yarnpkg.com/filepond/-/filepond-5.0.0-beta.74.tgz#d7f42e5a8bbe40698dfbd0f1ca5b1a192ef34362"
-  integrity sha512-/0M1yCksw0l9V9hi6zf2OCsZ0o82phfawey6IeEgvVyVy2RE+F0NYCtAh1NDfS+ZjUJqXoo4EiplNauuYlHFIA==
+filepond@^5.0.0-beta.77:
+  version "5.0.0-beta.77"
+  resolved "https://registry.yarnpkg.com/filepond/-/filepond-5.0.0-beta.77.tgz#ff16547b2ebc908d8a2735d201d7dbb15fcfa588"
+  integrity sha512-ZUkDss1WKIM244RVPj+eYcWMDX1iMNzBm89A6ilim+/i6zblx5yWruDfPHF/yDxnF10OK/yJGeCxcxdUKlQBcg==
 
 fill-range@^7.1.1:
   version "7.1.1"
