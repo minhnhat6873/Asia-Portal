@@ -21,6 +21,9 @@ import adminSiteSettingsRouter from "./admin/site-settings.route";
 import publicSiteSettingsRouter from "./user/site-settings.route";
 import { securityConfig } from "../config/security.config";
 
+import userFeedbackRouter from "./user/feedback.route";
+import adminFeedbackRouter from "./admin/feedback.route";
+
 const router = Router();
 
 const authenticatedAdminLimiter = rateLimit({
@@ -36,6 +39,7 @@ const authenticatedAdminLimiter = rateLimit({
 });
 
 router.use("/health", healthRouter);
+router.use("/user/feedback", userFeedbackRouter);
 router.use("/user/employees", userEmployeeRouter);
 router.use("/user/media", userMediaRouter);
 router.use("/user/meetings", userMeetingRouter);
@@ -43,6 +47,7 @@ router.use("/user/site-settings", publicSiteSettingsRouter);
 router.use("/admin/auth", adminAuthRouter);
 // Tất cả API /admin còn lại đều phải đi qua một cổng xác thực chung.
 router.use("/admin", requireAdminAuth, authenticatedAdminLimiter);
+router.use("/admin/feedback", adminFeedbackRouter);
 router.use("/admin/dashboard", adminDashboardRouter);
 router.use("/admin/site-settings", adminSiteSettingsRouter);
 router.use("/admin/employees", adminEmployeeRouter);

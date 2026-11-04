@@ -6,8 +6,8 @@ const allowedTags = [
   "tr", "th", "td", "span", "code", "pre", "blockquote", "img",
 ];
 
-export function sanitizeRichText(value: string): string {
-  return sanitizeHtml(value, {
+export function sanitizeRichText(value: string, options?: sanitizeHtml.IOptions): string {
+  return sanitizeHtml(value, options ?? {
     allowedTags,
     allowedAttributes: {
       a: ["href", "target", "rel"],

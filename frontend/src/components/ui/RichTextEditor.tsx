@@ -19,7 +19,14 @@ interface RichTextEditorProps {
   placeholder?: string;
   enableImageInsert?: boolean;
   uploadImage?: (file: File) => Promise<string>;
+  /** "full" bật thêm cỡ chữ, gạch ngang, màu chữ, căn lề, thụt lề, trích dẫn và đường kẻ ngang. */
+  toolbarPreset?: "default" | "full";
+  height?: number;
+  onBlur?: () => void;
 }
+
+const FULL_PLUGINS = ["advlist", "lists", "wordcount"];
+const FULL_TOOLBAR = "undo redo | blocks fontfamily fontsize | bold italic underline strikethrough | forecolor backcolor | alignleft aligncenter alignright alignjustify | bullist numlist outdent indent | blockquote hr";
 
 type ImageTab = "url" | "upload";
 type PreviewStatus = "idle" | "loading" | "valid" | "invalid";
@@ -77,7 +84,11 @@ export default function RichTextEditor({
   placeholder = "",
   enableImageInsert = false,
   uploadImage,
+  toolbarPreset = "default",
+  height = 260,
+  onBlur,
 }: RichTextEditorProps) {
+  const isFull = toolbarPreset === "full";
   const editorRef = useRef<TinyMceEditorInstance | null>(null);
   const bookmarkRef = useRef<unknown>(null);
   const selectedImageRef = useRef<HTMLImageElement | null>(null);
@@ -255,17 +266,17 @@ export default function RichTextEditor({
   };
 
   const init = {
-    height: 260,
+    height,
     placeholder,
     menubar: false,
     statusbar: false,
     branding: false,
     toolbar_mode: "wrap",
-    plugins: ["lists", "link", "table", "image", "code", "fullscreen", "wordcount"],
+    plugins: isFull ? [...FULL_PLUGINS, ...(enableImageInsert ? ["image"] : [])] : ["lists", "link", "table", "image", "code", "fullscreen", "wordcount"],
     paste_data_images: false,
     automatic_uploads: false,
     font_family_formats: "Arial=Arial,Helvetica,sans-serif; Tahoma=Tahoma,Arial,sans-serif; Verdana=Verdana,Geneva,sans-serif; Georgia=Georgia,serif; Times New Roman='Times New Roman',Times,serif",
-    toolbar: `undo redo | blocks fontfamily | bold italic underline | bullist numlist | link table${enableImageInsert ? " insertContentImage" : ""} | removeformat | code fullscreen`,
+    toolbar: isFull ? `${FULL_TOOLBAR}${enableImageInsert ? " | insertContentImage" : ""}` : `undo redo | blocks fontfamily | bold italic underline | bullist numlist | link table${enableImageInsert ? " insertContentImage" : ""} | removeformat | code fullscreen`,
       setup: enableImageInsert ? (editor: TinyMceEditorInstance) => {
       editor.ui.registry.addButton("insertContentImage", {
         icon: "image",
@@ -304,6 +315,7 @@ export default function RichTextEditor({
         rollback={false}
         onInit={(_event, editor: TinyMceEditorInstance) => { editorRef.current = editor; }}
         onEditorChange={onChange}
+        onBlur={onBlur}
         init={init}
       />
 

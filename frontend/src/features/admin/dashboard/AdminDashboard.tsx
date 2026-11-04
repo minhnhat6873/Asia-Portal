@@ -17,6 +17,7 @@ import { AccessControlTabs, type AccessControlPage } from '@/features/access-con
 import { AccessControlHome } from '@/features/access-control/AccessControlHome';
 import AccountPage from '@/features/admin/account/AccountPage';
 import SessionsPage from '@/features/admin/sessions/SessionsPage';
+import FeedbackManagementPage from '@/features/admin/feedback/FeedbackManagementPage';
 import Image from 'next/image';
 import Link from 'next/link';
 import { clearAdminSession, getAdminSession, type AdminUser } from '@/lib/adminSession';
@@ -43,6 +44,7 @@ export const ADMIN_TAB_ROUTES: Record<ActiveTab, string> = {
   'system-settings': '/admin/settings',
   account: '/admin/account',
   sessions: '/admin/sessions',
+  feedback: '/admin/feedback',
 };
 const ACCESS_CONTROL_PAGE_ROUTES: Record<Exclude<AccessControlPage, "edit-role" | "edit-account">, string> = {
   overview: '/admin/access-control',
@@ -59,6 +61,7 @@ interface AdminDashboardProps {
 
 function getTabFromPath(pathname: string): ActiveTab {
   if (pathname === '/admin/sessions') return 'sessions';
+  if (pathname.startsWith('/admin/feedback')) return 'feedback';
   if (pathname === "/admin/employees/new") return "add-employee";
   if (/^\/admin\/employees\/[^/]+\/edit$/.test(pathname)) return "edit-employee";
   if (pathname.startsWith("/admin/employees")) return "employees";
@@ -637,6 +640,7 @@ export default function AdminDashboard(_props: AdminDashboardProps) {
               {activeTab === 'system-settings' && 'Cài Đặt Hệ Thống'}
               {activeTab === 'account' && 'Thông Tin Tài Khoản'}
               {activeTab === 'sessions' && 'Phiên Đăng Nhập'}
+              {activeTab === 'feedback' && 'Đóng Góp Ý Kiến'}
             </span>
 
           </div>
@@ -668,6 +672,7 @@ export default function AdminDashboard(_props: AdminDashboardProps) {
 
             {activeTab === 'account' && <AccountPage embedded initialAdminUser={sessionAccount} />}
             {activeTab === 'sessions' && <SessionsPage account={sessionAccount} />}
+            {activeTab === 'feedback' && <FeedbackManagementPage />}
 
             {/* 2. Danh sách Quản lý Nhân sự */}
             {activeTab === 'employees' && !isEmployeeTrashPage && (

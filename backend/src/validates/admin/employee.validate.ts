@@ -3,7 +3,7 @@ import Joi from "joi";
 import { EMPLOYEE_GENDERS, EMPLOYEE_RANKS, EMPLOYEE_STATUSES } from "../../interfaces/employee.interface";
 
 const employeeFields = {
-  employeeCode: Joi.string().trim().uppercase().max(20),
+  employeeCode: Joi.string().trim().uppercase().max(20).pattern(/^[A-Z0-9]+(?:-[A-Z0-9]+)*$/).messages({ "string.pattern.base": "Mã nhân viên chỉ gồm chữ, số và dấu gạch ngang (VD: AC-00001)." }),
   name: Joi.string().trim().min(2).max(100),
   position: Joi.string().trim().min(2).max(100),
   department: Joi.string().trim().min(2).max(100),
