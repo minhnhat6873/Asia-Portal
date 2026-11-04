@@ -40,7 +40,7 @@ HTTP này chỉ là bước kiểm tra LAN, chưa mã hóa mật khẩu/session 
 
 Compose đọc env theo cú pháp của Docker Compose. Nếu secret có ký tự `$`, dùng giá trị single-quoted để không bị nội suy; mật khẩu trong MongoDB URI phải được URL-encode đúng. Không ghi dấu placeholder hay secret rỗng thay cho dữ liệu thật.
 
-Tạo `frontend/.env` từ `frontend/.env.example`. Đặt `NEXT_PUBLIC_TINYMCE_API_KEY` (public key cho trình soạn thảo, cho phép origin triển khai) và `NEXT_PUBLIC_NETWORK_FOLDER_PATH` (đường dẫn UNC, ví dụ `\\192.168.16.10\data\Chung`). Không dùng secret backend. Các lệnh Compose bên dưới dùng `--env-file frontend/.env` để truyền các biến public vào lúc build; file frontend bị loại khỏi Docker build context. Đổi biến `NEXT_PUBLIC_*` cần build lại image.
+Tạo `frontend/.env` từ `frontend/.env.example`. Đặt `NEXT_PUBLIC_TINYMCE_API_KEY` (public key cho trình soạn thảo, cho phép origin triển khai) và `NEXT_PUBLIC_NETWORK_FOLDER_PATH` (đường dẫn UNC, ví dụ `\\192.168.26.11\data\PUBLIC\1_BOD`). Không dùng secret backend. Các lệnh Compose bên dưới dùng `--env-file frontend/.env` để truyền các biến public vào lúc build; file frontend bị loại khỏi Docker build context. Đổi biến `NEXT_PUBLIC_*` cần build lại image.
 
 ## 3. Build và chạy ứng dụng
 
