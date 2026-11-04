@@ -100,16 +100,18 @@ export default function RichTextEditor({
   const [imageHeight, setImageHeight] = useState("");
   const [imageActionError, setImageActionError] = useState("");
 
-  useEffect(() => {
+  // The preview URL is created where the file is chosen and revoked when it is replaced or the editor unmounts.
+  const previewUrlRef = useRef("");
+  const selectFile = (file: File | null) => {
+    if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
+    previewUrlRef.current = file ? URL.createObjectURL(file) : "";
+    setSelectedFile(file);
+    setFilePreviewUrl(previewUrlRef.current);
     setFilePreviewLoaded(false);
-    if (!selectedFile) {
-      setFilePreviewUrl("");
-      return;
-    }
-    const objectUrl = URL.createObjectURL(selectedFile);
-    setFilePreviewUrl(objectUrl);
-    return () => URL.revokeObjectURL(objectUrl);
-  }, [selectedFile]);
+  };
+  useEffect(() => () => {
+    if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
+  }, []);
 
   const resetDialog = () => {
     previewSequenceRef.current += 1;
@@ -118,7 +120,7 @@ export default function RichTextEditor({
     setValidatedUrl("");
     setUrlStatus("idle");
     setUrlError("");
-    setSelectedFile(null);
+    selectFile(null);
     setFileError("");
     setIsUploading(false);
     setAltText("");
@@ -141,7 +143,7 @@ export default function RichTextEditor({
     setValidatedUrl("");
     setUrlStatus("idle");
     setUrlError("");
-    setSelectedFile(null);
+    selectFile(null);
     setFileError("");
     setTab("url");
     setDialogOpen(true);
@@ -175,7 +177,7 @@ export default function RichTextEditor({
   };
 
   const handleFileSelection = (file: File | undefined) => {
-    setSelectedFile(null);
+    selectFile(null);
     setFileError("");
     if (!file) return;
     if (!IMAGE_TYPES.has(file.type)) {
@@ -186,7 +188,7 @@ export default function RichTextEditor({
       setFileError("Hình ảnh vượt quá dung lượng 5 MB.");
       return;
     }
-    setSelectedFile(file);
+    selectFile(file);
   };
 
   const confirmImage = async () => {

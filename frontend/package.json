@@ -10,6 +10,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test": "node --experimental-strip-types --test \"tests/*.test.mjs\"",
     "test:meeting": "node --experimental-strip-types --test tests/meeting-availability.test.mjs"
   },
   "dependencies": {
