@@ -121,12 +121,9 @@ export function MeetingManagement({ permissions }: Props) {
   const [pageData, setPageData] = useState<{ items: AdminMeeting[] | MeetingRequest[]; pagination: { total: number; totalPages: number } }>({ items: [], pagination: { total: 0, totalPages: 0 } });
   const [calendarMeetings, setCalendarMeetings] = useState<AdminMeeting[]>([]);
   const [departments, setDepartments] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showLoading, setShowLoading] = useState(false);
-  const [calendarLoading, setCalendarLoading] = useState(true);
-  const showCalendarLoading = useDelayedLoading(calendarLoading);
-  const [error, setError] = useState("");
-  const [calendarError, setCalendarError] = useState("");
+  // Each result remembers the request it answers; a different key means a newer request is loading.
+  const [listResult, setListResult] = useState<{ key: string; error: string } | null>(null);
+  const [calendarResult, setCalendarResult] = useState<{ key: string; error: string } | null>(null);
   const [view, setView] = useState<"table" | "week">("table");
   const [selectedDate, setSelectedDate] = useState(isoToday);
   const [month, setMonth] = useState(() => isoToday().slice(0, 7));
@@ -174,28 +171,32 @@ export function MeetingManagement({ permissions }: Props) {
     return () => window.clearInterval(timer);
   }, []);
 
+  const listKey = JSON.stringify([meetingFilters, tab, page, pageSize, view, refreshToken]);
+  const loading = listResult?.key !== listKey;
+  const error = listResult?.key === listKey ? listResult.error : "";
+  const calendarKey = JSON.stringify([month, roomId, department, status, sortOrder, refreshToken]);
+  const calendarLoading = calendarResult?.key !== calendarKey;
+  const calendarError = calendarResult?.key === calendarKey ? calendarResult.error : "";
+  const showCalendarLoading = useDelayedLoading(calendarLoading);
+  const showLoading = useDelayedLoading(loading, 1000, listKey);
+
   useEffect(() => {
     const controller = new AbortController();
-    setLoading(true);
-    setShowLoading(false);
-    const loadingTimer = window.setTimeout(() => setShowLoading(true), 1000);
-    setError("");
     const request = tab === "pending"
       ? getAdminMeetingRequests("pending", page, PAGE_SIZE, controller.signal)
       : tab === "cancellations"
         ? getAdminMeetingRequests("cancel-requests", page, PAGE_SIZE, controller.signal)
         : getAdminMeetings({ ...meetingFilters, page: view === "week" ? 1 : page, limit: view === "week" ? 500 : pageSize }, controller.signal);
-    void request.then((result) => { if (!controller.signal.aborted) setPageData(result); }).catch((cause: unknown) => {
+    void request.then((result) => {
+      if (!controller.signal.aborted) { setPageData(result); setListResult({ key: listKey, error: "" }); }
+    }).catch((cause: unknown) => {
       if (!controller.signal.aborted) {
         setPageData({ items: [], pagination: { total: 0, totalPages: 0 } });
-        setError(cause instanceof Error ? cause.message : "Không thể tải danh sách lịch họp.");
+        setListResult({ key: listKey, error: cause instanceof Error ? cause.message : "Không thể tải danh sách lịch họp." });
       }
-    }).finally(() => {
-      window.clearTimeout(loadingTimer);
-      if (!controller.signal.aborted) { setLoading(false); setShowLoading(false); }
     });
-    return () => { controller.abort(); window.clearTimeout(loadingTimer); };
-  }, [meetingFilters, tab, page, pageSize, view, refreshToken]);
+    return () => controller.abort();
+  }, [listKey, meetingFilters, tab, page, pageSize, view]);
 
 
   useEffect(() => {
@@ -203,14 +204,16 @@ export function MeetingManagement({ permissions }: Props) {
     const first = `${month}-01`;
     const last = `${month}-${String(new Date(Date.UTC(year, monthNumber, 0)).getUTCDate()).padStart(2, "0")}`;
     const controller = new AbortController();
-    setCalendarLoading(true);
-    setCalendarError("");
     void getAdminMeetings({ status: status || undefined, dateFrom: first, dateTo: last, roomId, department: department || undefined, limit: 500, page: 1, sort: sortOrder }, controller.signal)
-      .then((result) => { setCalendarMeetings(result.items); setDepartments((current) => [...new Set([...current, ...result.items.map((item) => item.department)])].filter(Boolean).sort((a, b) => a.localeCompare(b, "vi"))); })
-      .catch((cause: unknown) => { if (!controller.signal.aborted) { setCalendarMeetings([]); setCalendarError(cause instanceof Error ? cause.message : "Không thể tải lịch tháng."); } })
-      .finally(() => { if (!controller.signal.aborted) setCalendarLoading(false); });
+      .then((result) => {
+        if (controller.signal.aborted) return;
+        setCalendarMeetings(result.items);
+        setDepartments((current) => [...new Set([...current, ...result.items.map((item) => item.department)])].filter(Boolean).sort((a, b) => a.localeCompare(b, "vi")));
+        setCalendarResult({ key: calendarKey, error: "" });
+      })
+      .catch((cause: unknown) => { if (!controller.signal.aborted) { setCalendarMeetings([]); setCalendarResult({ key: calendarKey, error: cause instanceof Error ? cause.message : "Không thể tải lịch tháng." }); } });
     return () => controller.abort();
-  }, [month, roomId, department, status, sortOrder, refreshToken]);
+  }, [calendarKey, month, roomId, department, status, sortOrder]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -449,7 +452,6 @@ function MeetingFormModal({ meeting, saving, onClose, onSave }: {
   const [busySlots, setBusySlots] = useState<AdminMeeting[]>([]);
   const [formError, setFormError] = useState("");
   const errorRef = useRef<HTMLDivElement>(null);
-  const [loadingSlots, setLoadingSlots] = useState(false);
   const readOnlyBooking = meeting?.status === "ongoing";
   const room = ROOMS.find((item) => item.id === roomId)!;
   const end = timeText(minutesOf(start) + durationMinutes);
@@ -483,16 +485,21 @@ function MeetingFormModal({ meeting, saving, onClose, onSave }: {
     setFormError("");
   };
 
+  const slotsKey = JSON.stringify([roomId, date, meeting?.id ?? ""]);
+  const [slotsLoadedKey, setSlotsLoadedKey] = useState("");
+  const loadingSlots = Boolean(date) && !readOnlyBooking && slotsLoadedKey !== slotsKey;
   useEffect(() => {
     if (!date || readOnlyBooking) return;
     const controller = new AbortController();
-    setLoadingSlots(true);
     void getAdminMeetings({ source: "active", roomId, dateFrom: date, dateTo: date, limit: 500, page: 1 }, controller.signal)
-      .then((result) => setBusySlots(result.items.filter((item) => item.id !== meeting?.id)))
-      .catch(() => { if (!controller.signal.aborted) setBusySlots([]); })
-      .finally(() => { if (!controller.signal.aborted) setLoadingSlots(false); });
+      .then((result) => {
+        if (controller.signal.aborted) return;
+        setBusySlots(result.items.filter((item) => item.id !== meeting?.id));
+        setSlotsLoadedKey(slotsKey);
+      })
+      .catch(() => { if (!controller.signal.aborted) { setBusySlots([]); setSlotsLoadedKey(slotsKey); } });
     return () => controller.abort();
-  }, [roomId, date, meeting?.id, readOnlyBooking]);
+  }, [slotsKey, roomId, date, meeting?.id, readOnlyBooking]);
 
   const overlaps = busySlots.some((item) => minutesOf(start) < minutesOf(item.end) + 15 && minutesOf(end) + 15 > minutesOf(item.start));
   const overlapsLunch = minutesOf(start) < 13 * 60 && minutesOf(end) > 12 * 60;

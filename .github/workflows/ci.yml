@@ -1,10 +1,12 @@
 name: CI
 
 on:
+  # Kiểm tra trước khi merge (bắt buộc qua branch protection).
   pull_request:
     branches: [main, develop]
+  # Kiểm tra lại sau khi merge. Nhánh feature/hotfix được kiểm tra qua PR (mở Draft PR nếu muốn chạy sớm).
   push:
-    branches: [main, develop, 'feature/**', 'hotfix/**']
+    branches: [main, develop]
   workflow_dispatch:
 
 permissions:
@@ -29,7 +31,8 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: '22'
-          package-manager-cache: false
+          cache: yarn
+          cache-dependency-path: backend/yarn.lock
       - name: Install Yarn Classic
         run: npm install --global yarn@1.22.22
       - name: Install dependencies from lockfile
@@ -40,6 +43,7 @@ jobs:
         run: yarn build
 
   frontend:
+    # Giữ nguyên tên job: branch protection nhận diện required check theo tên này.
     name: Frontend test and build
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -55,12 +59,33 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: '22'
-          package-manager-cache: false
+          cache: yarn
+          cache-dependency-path: frontend/yarn.lock
       - name: Install Yarn Classic
         run: npm install --global yarn@1.22.22
       - name: Install dependencies from lockfile
         run: yarn install --frozen-lockfile --non-interactive
+      - name: Lint frontend
+        run: yarn lint
       - name: Run frontend tests
-        run: node --experimental-strip-types --test tests/*.test.mjs
+        run: yarn test
       - name: Build frontend
         run: yarn build
+
+  docker:
+    name: Docker production images
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      # Chỉ build để bắt lỗi Dockerfile trước khi deploy lên server Ubuntu; không push image.
+      - name: Build backend image
+        run: docker build --target production --tag asia-portal-backend:ci ./backend
+      - name: Build frontend image
+        run: >-
+          docker build --target production --tag asia-portal-frontend:ci
+          --build-arg BACKEND_API_URL=http://backend:4000
+          --build-arg 'NEXT_PUBLIC_NETWORK_FOLDER_PATH=\\192.168.26.11\data\PUBLIC\1_BOD'
+          ./frontend

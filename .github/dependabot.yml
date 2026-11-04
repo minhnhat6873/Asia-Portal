@@ -1,0 +1,40 @@
+# Dependabot tự mở PR vào develop khi thư viện, GitHub Actions hoặc image Docker có bản cập nhật.
+# Bản minor/patch được gộp chung một PR mỗi tuần để đỡ nhiều PR; bản major tách riêng để review kỹ.
+# Cảnh báo lỗ hổng bảo mật vẫn mở PR ngay, không chờ lịch hằng tuần.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /backend
+    target-branch: develop
+    schedule:
+      interval: weekly
+      day: monday
+      timezone: Asia/Ho_Chi_Minh
+    open-pull-requests-limit: 5
+    groups:
+      backend-minor-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: npm
+    directory: /frontend
+    target-branch: develop
+    schedule:
+      interval: weekly
+      day: monday
+      timezone: Asia/Ho_Chi_Minh
+    open-pull-requests-limit: 5
+    groups:
+      frontend-minor-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: develop
+    schedule:
+      interval: monthly
+
+  - package-ecosystem: docker
+    directories: [/backend, /frontend]
+    target-branch: develop
+    schedule:
+      interval: monthly
