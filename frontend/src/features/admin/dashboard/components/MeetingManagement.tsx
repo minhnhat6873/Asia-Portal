@@ -338,10 +338,10 @@ export function MeetingManagement({ permissions }: Props) {
   };
 
   return <div className="space-y-4 pb-6 print:space-y-0">
-    <div className="flex flex-wrap items-end justify-between gap-3 print:hidden">
-      <div className="flex items-start gap-3"><span className="mt-1 flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 text-emerald-700"><CalendarDays size={22} /></span><div><h1 className="text-[25px] font-extrabold leading-7 tracking-tight text-[#07553d]">Quản lý lịch họp</h1><p className="mt-0.5 text-sm text-slate-500">Quản trị, theo dõi và cập nhật toàn bộ lịch họp trong hệ thống</p></div></div>
-    </div>
-
+    <h1 className="flex items-center gap-2 text-lg font-bold uppercase tracking-[0.04em] text-slate-800 print:hidden">
+      <span aria-hidden="true" className="h-2 w-2 shrink-0 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.65)]" />
+      Quản lý đặt phòng
+    </h1>
     <div className="space-y-4">
       <div className="grid items-start gap-4 lg:grid-cols-2">
         <section aria-busy={calendarLoading} className="relative rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">

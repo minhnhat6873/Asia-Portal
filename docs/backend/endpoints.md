@@ -90,3 +90,7 @@ API quản trị lịch họp: xem [admin-meetings.md](admin-meetings.md) để 
 # Tên đơn vị khi nhập Excel
 
 Mẫu Excel hiển thị tên đơn vị không có tiền tố “Phòng” (ví dụ “Thiết kế”). API nhập nhân viên chấp nhận cả tên mới và tên có tiền tố trong mẫu cũ, cùng ánh xạ về mã đơn vị hiện có; không thay đổi mã lưu trong cơ sở dữ liệu.
+
+## Đóng góp ý kiến
+
+Xem [feedback.md](feedback.md): `POST /user/feedback` công khai; các API `/admin/feedback` yêu cầu role admin.

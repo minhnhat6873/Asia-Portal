@@ -1,0 +1,17 @@
+jest.mock("../src/repositories/user/feedback.repository", () => ({ userFeedbackRepository: { create: jest.fn() } }));
+jest.mock("../src/repositories/admin/feedback.repository", () => ({ adminFeedbackRepository: { list: jest.fn(), count: jest.fn(), find: jest.fn(), markSeen: jest.fn(), update: jest.fn(), remove: jest.fn() } }));
+import { userFeedbackRepository } from "../src/repositories/user/feedback.repository";
+import { userFeedbackService } from "../src/services/user/feedback.service";
+import { adminFeedbackRepository as repo } from "../src/repositories/admin/feedback.repository";
+import { adminFeedbackService } from "../src/services/admin/feedback.service";
+const id = "507f1f77bcf86cd799439011";
+const item = { _id: id, title: "Ý kiến", content: "Nội dung dài hơn 10", isAnonymous: true, status: "seen", pinned: true, createdAt: new Date() };
+beforeEach(() => jest.clearAllMocks());
+it("không lưu danh tính khi ẩn danh", async () => { await userFeedbackService.create({ title: "Ý kiến", content: "Nội dung dài hơn 10", isAnonymous: true, senderName: "Tên", senderEmail: "x@asiafnb.com" }); expect(userFeedbackRepository.create).toHaveBeenCalledWith(expect.objectContaining({ senderName: null, senderEmail: null })); });
+it("phân trang và thống kê", async () => { jest.mocked(repo.list).mockResolvedValue([item] as never); jest.mocked(repo.count).mockResolvedValueOnce(6).mockResolvedValueOnce(10).mockResolvedValueOnce(4).mockResolvedValueOnce(6); const data = await adminFeedbackService.list({ page: "2", limit: "5" }); expect(repo.list).toHaveBeenCalledWith({ isDeleted: false }, 5, 5); expect(data.pagination).toEqual({ page: 2, limit: 5, total: 6, totalPages: 2 }); expect(data.stats).toEqual({ total: 10, seen: 4, pending: 6 }); });
+it("xem chi tiết chuyển sang đã xem", async () => { jest.mocked(repo.markSeen).mockResolvedValue(item as never); expect(await adminFeedbackService.detail(id)).toMatchObject({ changed: true, item: { status: "seen" } }); });
+it("ghim chuyển trạng thái sang đã xem", async () => { jest.mocked(repo.update).mockResolvedValue(item as never); await adminFeedbackService.update(id, { pinned: true }); expect(repo.update).toHaveBeenCalledWith(id, { pinned: true, status: "seen" }); });
+it("bỏ ghim không thay đổi trạng thái", async () => { jest.mocked(repo.update).mockResolvedValue(item as never); await adminFeedbackService.update(id, { pinned: false }); expect(repo.update).toHaveBeenCalledWith(id, { pinned: false }); });
+it("xóa vĩnh viễn ý kiến", async () => { jest.mocked(repo.remove).mockResolvedValue(item as never); await adminFeedbackService.remove(id); expect(repo.remove).toHaveBeenCalledWith(id); });
+it("xóa ý kiến không tồn tại trả 404", async () => { jest.mocked(repo.remove).mockResolvedValue(null); await expect(adminFeedbackService.remove(id)).rejects.toMatchObject({ statusCode: 404 }); });
+it("không tìm thấy sau xóa mềm", async () => { jest.mocked(repo.markSeen).mockResolvedValue(null); jest.mocked(repo.find).mockResolvedValue(null); await expect(adminFeedbackService.detail(id)).rejects.toMatchObject({ statusCode: 404 }); });
