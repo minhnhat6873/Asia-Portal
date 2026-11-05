@@ -1,4 +1,4 @@
-FROM node:22-alpine AS development
+FROM node:26-alpine AS development
 
 WORKDIR /app
 
@@ -18,7 +18,7 @@ FROM development AS builder
 RUN yarn build
 
 
-FROM node:22-alpine AS production
+FROM node:26-alpine AS production
 
 WORKDIR /app
 
