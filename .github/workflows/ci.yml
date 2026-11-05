@@ -21,6 +21,17 @@ jobs:
     name: Backend test and build
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # MongoDB tạm, trống, không mật khẩu: chỉ sống trong job này và không liên quan tới database thật.
+    services:
+      mongodb:
+        image: mongo:8
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.runCommand({ ping: 1 })'"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
     defaults:
       run:
         working-directory: backend
@@ -39,6 +50,10 @@ jobs:
         run: yarn install --frozen-lockfile --non-interactive
       - name: Run backend tests
         run: yarn test --runInBand
+      - name: Run integration tests on MongoDB
+        run: yarn test:integration
+        env:
+          TEST_DATABASE: mongodb://localhost:27017/asia_portal_test
       - name: Build backend
         run: yarn build
 
@@ -80,7 +95,7 @@ jobs:
       - uses: actions/checkout@v6
         with:
           persist-credentials: false
-      # Chỉ build để bắt lỗi Dockerfile trước khi deploy lên server Ubuntu; không push image.
+      # Build image giống production rồi khởi động thật; không push image lên đâu cả.
       - name: Build backend image
         run: docker build --target production --tag asia-portal-backend:ci ./backend
       - name: Build frontend image
@@ -89,3 +104,28 @@ jobs:
           --build-arg BACKEND_API_URL=http://backend:4000
           --build-arg 'NEXT_PUBLIC_NETWORK_FOLDER_PATH=\\192.168.26.11\data\PUBLIC\1_BOD'
           ./frontend
+      # Backend chỉ listen sau khi kết nối MongoDB thành công, nên /health trả 200 nghĩa là đã kết nối được.
+      # Các secret dưới đây là giá trị giả, chỉ dùng cho container tạm trong job này.
+      - name: Start containers
+        run: |
+          docker network create asia-ci
+          docker run -d --name mongodb --network asia-ci mongo:8
+          docker run -d --name backend --network asia-ci -p 127.0.0.1:4000:4000 \
+            -e NODE_ENV=production -e PORT=4000 \
+            -e DATABASE=mongodb://mongodb:27017/asia_portal_ci \
+            -e JWT_SECRET=ci-only-not-a-real-secret \
+            -e OTP_SECRET=ci-only-not-a-real-secret \
+            asia-portal-backend:ci
+          docker run -d --name frontend --network asia-ci -p 127.0.0.1:3000:3000 asia-portal-frontend:ci
+      - name: Check backend health
+        run: curl --fail --silent --show-error --retry 30 --retry-delay 2 --retry-all-errors http://127.0.0.1:4000/health
+      - name: Check frontend and its proxy to backend
+        run: |
+          curl --fail --silent --show-error --output /dev/null --retry 30 --retry-delay 2 --retry-all-errors http://127.0.0.1:3000/
+          curl --fail --silent --show-error --retry 10 --retry-delay 2 --retry-all-errors http://127.0.0.1:3000/backend-api/health
+      - name: Show container logs on failure
+        if: failure()
+        run: |
+          docker ps -a
+          docker logs backend || true
+          docker logs frontend || true
