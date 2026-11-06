@@ -19,7 +19,9 @@ concurrency:
 jobs:
   backend:
     name: Backend test and build
-    runs-on: ubuntu-latest
+    # MongoDB 8 hiện không tương thích kernel >= 6.19 trên runner Ubuntu mới.
+    # Ubuntu 22.04 dùng kernel 6.8; vẫn chạy Node.js 26 bên dưới.
+    runs-on: ubuntu-22.04
     timeout-minutes: 15
     # MongoDB tạm, trống, không mật khẩu: chỉ sống trong job này và không liên quan tới database thật.
     services:
@@ -89,7 +91,8 @@ jobs:
 
   docker:
     name: Docker production images
-    runs-on: ubuntu-latest
+    # Container dùng kernel của runner; đổi base image không sửa được lỗi MongoDB này.
+    runs-on: ubuntu-22.04
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v7
@@ -110,6 +113,22 @@ jobs:
         run: |
           docker network create asia-ci
           docker run -d --name mongodb --network asia-ci mongo:8
+      - name: Wait for MongoDB
+        run: |
+          for attempt in $(seq 1 30); do
+            if docker exec mongodb mongosh --quiet --eval 'db.runCommand({ ping: 1 })' >/dev/null 2>&1; then
+              exit 0
+            fi
+            if [ "$(docker inspect --format '{{.State.Running}}' mongodb)" != "true" ]; then
+              docker logs mongodb
+              exit 1
+            fi
+            sleep 2
+          done
+          docker logs mongodb
+          exit 1
+      - name: Start application containers
+        run: |
           docker run -d --name backend --network asia-ci -p 127.0.0.1:4000:4000 \
             -e NODE_ENV=production -e PORT=4000 \
             -e DATABASE=mongodb://mongodb:27017/asia_portal_ci \
@@ -127,5 +146,6 @@ jobs:
         if: failure()
         run: |
           docker ps -a
+          docker logs mongodb || true
           docker logs backend || true
           docker logs frontend || true
