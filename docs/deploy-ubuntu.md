@@ -8,6 +8,10 @@ Cấu hình mẫu dùng Ubuntu `192.168.17.23` và subnet `192.168.16.0/23`. Tha
 
 ## 1. Chuẩn bị
 
+- Runtime hiện tại: Node.js 26.13.0 LTS, đồng bộ trong Dockerfile backend/frontend, CI, Render, `.node-version` và `.nvmrc`. Chạy trực tiếp trên Windows cần chọn Node 26 trước khi `yarn install`/test/build; không cần cài Node trên host Ubuntu khi chạy bằng Docker.
+- Image Node 26 không có sẵn Yarn Classic; các stage cần cài dependency trong Dockerfile cài rõ `yarn@1.22.22` trước khi dùng lockfile.
+- Khi nâng TypeScript 6, backend khai báo rõ `types: ["node", "jest"]` để nạp kiểu toàn cục cho Node và Jest; vẫn giữ kiểm tra `strict`.
+
 - Cài Git, Docker Engine và Compose theo https://docs.docker.com/engine/install/ubuntu/.
 - Lấy code đã commit/push về Ubuntu bằng Git. Không copy `node_modules` từ Windows.
 - Cho phép IP public chiều ra của Ubuntu trong IP Access List của Atlas. Không nhập IP LAN. IP Internet có thể thay đổi hoặc có nhiều WAN, cần kiểm tra với quản trị mạng.

@@ -10,6 +10,7 @@ Backend TypeScript/Express/MongoDB cho cổng thông tin Asia: danh bạ nhân v
 
 - `cd backend && yarn install && yarn dev` — chạy phát triển, cổng mặc định 4000.
 - `yarn build && yarn start` — biên dịch rồi chạy bản `dist`.
+- `yarn test:integration` — test trên MongoDB thật, cần `TEST_DATABASE` có tên kết thúc bằng `_test`; CI tự bật MongoDB tạm.
 - `yarn test` — Jest/ts-jest; `yarn seed:admin`, `yarn seed:employees` — seed có chủ đích.
 - Sao chép/cấu hình biến từ `backend/.env.example`; không commit `.env` hay secret.
 
