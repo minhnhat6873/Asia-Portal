@@ -1,6 +1,7 @@
-FROM node:26-bookworm-slim AS builder
+FROM node:26.13.0-bookworm-slim AS builder
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
+RUN npm install --global yarn@1.22.22
 COPY package.json yarn.lock ./
 RUN yarn install --frozen-lockfile
 COPY . .
@@ -13,7 +14,7 @@ ENV NEXT_PUBLIC_NETWORK_FOLDER_PATH=$NEXT_PUBLIC_NETWORK_FOLDER_PATH
 ENV NEXT_OUTPUT_STANDALONE=true
 RUN yarn build
 
-FROM node:26-bookworm-slim AS production
+FROM node:26.13.0-bookworm-slim AS production
 WORKDIR /app
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 HOSTNAME=0.0.0.0 PORT=3000
 COPY --from=builder --chown=node:node /app/.next/standalone ./

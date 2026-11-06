@@ -26,6 +26,9 @@
     "react-easy-crop": "^6.2.4",
     "sonner": "^2.0.8"
   },
+  "engines": {
+    "node": ">=26.13.0 <27"
+  },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^26",
