@@ -35,15 +35,15 @@ export async function requireAdminAuth(
   const token = request.cookies?.[AUTH_COOKIE_NAME] as string | undefined;
   const secret = process.env.JWT_SECRET?.trim();
 
-  if (!secret) {
-    next(new AppError(500, "Máy chủ chưa cấu hình xác thực."));
-    return;
-  }
   if (!token) {
     response.status(401).json({
       success: false,
       message: "Bạn cần đăng nhập để tiếp tục",
     });
+    return;
+  }
+  if (!secret) {
+    next(new AppError(500, "Máy chủ chưa cấu hình xác thực."));
     return;
   }
 

@@ -162,6 +162,9 @@ it("reports missing signing configuration as a server error without deleting cre
   const secret = process.env.JWT_SECRET;
   delete process.env.JWT_SECRET;
   try {
+    const anonymous = await call("/me");
+    expect(anonymous.status).toBe(401);
+    expect(anonymous.headers.getSetCookie()).toEqual([]);
     for (const [path, method, cookie] of [
       ["/me", "GET", accessCookie(session.token)],
       ["/refresh", "POST", refreshCookie(session.refreshToken)],
