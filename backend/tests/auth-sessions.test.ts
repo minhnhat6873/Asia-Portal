@@ -18,6 +18,7 @@ import { AUTH_COOKIE_NAME, AUTH_REFRESH_COOKIE_NAME } from "../src/config/auth.c
 import type { AuthSession } from "../src/interfaces/auth-session.interface";
 import AccountModel from "../src/models/account.model";
 import type { ClientSession } from "mongoose";
+import mongoose from "mongoose";
 
 const id = "507f1f77bcf86cd799439012";
 const password = "Test-password123!";
@@ -82,6 +83,97 @@ it("stores only hashed refresh credentials, issues 15-minute access tokens, and 
   expect(response.headers.get("cache-control")).toBe("no-store");
   const data = (await response.json()).data;
   expect(data).not.toHaveProperty("authVersion"); expect(data).not.toHaveProperty("password");
+});
+it.each(["account", "session", "permissions"])("fails closed with 503 during a %s lookup outage, then recovers with the same cookies", async (stage) => {
+  const session = await signIn();
+  const error = new mongoose.mongo.MongoNetworkError("private database address and credentials must not leak");
+  if (stage === "account") jest.mocked(adminAccountRepository.findActiveById).mockRejectedValueOnce(error);
+  else if (stage === "session") jest.mocked(authSessionRepository.findActive).mockRejectedValueOnce(error);
+  else jest.mocked(permissionGroupRepository.findActiveByIds).mockRejectedValueOnce(error);
+  const response = await call("/me", "GET", accessCookie(session.token));
+  expect(response.status).toBe(503);
+  expect(response.headers.getSetCookie()).toEqual([]);
+  expect(response.headers.get("cache-control")).toBe("no-store");
+  const body = await response.json();
+  expect(body.success).toBe(false);
+  expect(body).not.toHaveProperty("data");
+  expect(JSON.stringify(body)).not.toContain("private database");
+  expect(authSessionRepository.revoke).not.toHaveBeenCalled();
+  expect((await call("/me", "GET", accessCookie(session.token))).status).toBe(200);
+});
+it.each(["account", "session", "rotation"])("preserves refresh credentials when the %s operation is unavailable", async (stage) => {
+  const session = await signIn();
+  const error = new mongoose.Error.MongooseServerSelectionError("database unavailable");
+  if (stage === "account") jest.mocked(adminAccountRepository.findActiveById).mockRejectedValueOnce(error);
+  else if (stage === "session") jest.mocked(authSessionRepository.findActive).mockRejectedValueOnce(error);
+  else jest.mocked(authSessionRepository.rotate).mockRejectedValueOnce(error);
+  const failed = await call("/refresh", "POST", refreshCookie(session.refreshToken), {});
+  expect(failed.status).toBe(503);
+  expect(failed.headers.getSetCookie()).toEqual([]);
+  expect(authSessionRepository.revoke).not.toHaveBeenCalled();
+  expect((await call("/refresh", "POST", refreshCookie(session.refreshToken), {})).status).toBe(200);
+});
+it("does not clear cookies when logout cannot revoke the session", async () => {
+  const session = await signIn();
+  jest.mocked(authSessionRepository.revoke).mockRejectedValueOnce(new mongoose.mongo.MongoNetworkError("unavailable"));
+  const failed = await call("/logout", "POST", accessCookie(session.token), {});
+  expect(failed.status).toBe(503);
+  expect(failed.headers.getSetCookie()).toEqual([]);
+  expect((await call("/logout", "POST", accessCookie(session.token), {})).status).toBe(200);
+  expect((await call("/me", "GET", accessCookie(session.token))).status).toBe(401);
+});
+it("returns 503 for login database failures without issuing credentials", async () => {
+  jest.mocked(adminAccountRepository.findByEmailWithPassword).mockRejectedValueOnce(new mongoose.mongo.MongoNetworkError("unavailable"));
+  const failed = await call("/login", "POST", "", { email: account.email, password });
+  expect(failed.status).toBe(503);
+  expect(failed.headers.getSetCookie()).toEqual([]);
+  expect(authSessionRepository.create).not.toHaveBeenCalled();
+});
+it("still rejects tampered credentials before querying an unavailable database", async () => {
+  const session = await signIn();
+  jest.mocked(adminAccountRepository.findActiveById).mockClear().mockRejectedValue(new mongoose.mongo.MongoNetworkError("unavailable"));
+  expect((await call("/me", "GET", accessCookie(session.token + "broken"))).status).toBe(401);
+  expect((await call("/refresh", "POST", refreshCookie(session.refreshToken + "broken"), {})).status).toBe(401);
+  expect(adminAccountRepository.findActiveById).not.toHaveBeenCalled();
+});
+it("does not misclassify unexpected server errors as invalid sessions", async () => {
+  const session = await signIn();
+  jest.spyOn(console, "error").mockImplementation(() => undefined);
+  jest.mocked(adminAccountRepository.findActiveById).mockRejectedValueOnce(new Error("internal failure"));
+  const failed = await call("/me", "GET", accessCookie(session.token));
+  expect(failed.status).toBe(500);
+  expect(failed.headers.getSetCookie()).toEqual([]);
+  expect(JSON.stringify(await failed.json())).not.toContain("internal failure");
+});
+it.each([
+  new mongoose.mongo.MongoNotConnectedError("unavailable"),
+  new mongoose.mongo.MongoTopologyClosedError(),
+  new mongoose.mongo.MongoServerClosedError(),
+  new mongoose.Error("Operation `admins.findOne()` buffering timed out after 10000ms"),
+])("classifies disconnected or buffered database operations as unavailable ($name)", async (error) => {
+  const session = await signIn();
+  jest.mocked(adminAccountRepository.findActiveById).mockRejectedValueOnce(error);
+  const failed = await call("/me", "GET", accessCookie(session.token));
+  expect(failed.status).toBe(503);
+  expect(failed.headers.getSetCookie()).toEqual([]);
+});
+it("reports missing signing configuration as a server error without deleting credentials", async () => {
+  const session = await signIn();
+  const secret = process.env.JWT_SECRET;
+  delete process.env.JWT_SECRET;
+  try {
+    const anonymous = await call("/me");
+    expect(anonymous.status).toBe(401);
+    expect(anonymous.headers.getSetCookie()).toEqual([]);
+    for (const [path, method, cookie] of [
+      ["/me", "GET", accessCookie(session.token)],
+      ["/refresh", "POST", refreshCookie(session.refreshToken)],
+    ]) {
+      const failed = await call(path!, method!, cookie!, method === "POST" ? {} : undefined);
+      expect(failed.status).toBe(500);
+      expect(failed.headers.getSetCookie()).toEqual([]);
+    }
+  } finally { process.env.JWT_SECRET = secret; }
 });
 it("logout revokes the copied access AND refresh tokens while preserving other device sessions", async () => {
   const first = await signIn(), second = await signIn();

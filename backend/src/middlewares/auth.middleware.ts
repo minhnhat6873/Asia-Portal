@@ -6,6 +6,7 @@ import { deleteCloudinaryAsset } from "../helpers/multerCloudinary.helper";
 import { AUTH_COOKIE_NAME } from "../config/auth.config";
 import { authSessionRepository } from "../repositories/admin/auth-session.repository";
 import { normalizeSessionIp } from "../utils/account/sessionClient";
+import { AppError } from "../utils/errors/AppError";
 import {
   type AccountRole,
 } from "../interfaces/account.interface";
@@ -31,27 +32,41 @@ export async function requireAdminAuth(
   response: Response,
   next: NextFunction,
 ): Promise<void> {
+  const token = request.cookies?.[AUTH_COOKIE_NAME] as string | undefined;
+  const secret = process.env.JWT_SECRET?.trim();
+
+  if (!token) {
+    response.status(401).json({
+      success: false,
+      message: "Bạn cần đăng nhập để tiếp tục",
+    });
+    return;
+  }
+  if (!secret) {
+    next(new AppError(500, "Máy chủ chưa cấu hình xác thực."));
+    return;
+  }
+
+  let payload: AdminTokenPayload;
   try {
-    const token = request.cookies?.[AUTH_COOKIE_NAME] as string | undefined;
-    const secret = process.env.JWT_SECRET?.trim();
-
-    if (!token || !secret) {
-      response.status(401).json({
-        success: false,
-        message: "Bạn cần đăng nhập để tiếp tục",
-      });
+    payload = jwt.verify(token, secret, { algorithms: ["HS256"] }) as AdminTokenPayload;
+  } catch (error) {
+    if (!(error instanceof jwt.JsonWebTokenError)) {
+      next(error);
       return;
     }
+    response.status(401).json({ success: false, message: "Phiên đăng nhập đã hết hạn hoặc không hợp lệ" });
+    return;
+  }
+  if (!payload || typeof payload !== "object" || payload.tokenType !== "access" || typeof payload.sid !== "string" || !payload.sid || !Number.isInteger(payload.version) || typeof payload.sub !== "string" || !mongoose.isValidObjectId(payload.sub)) {
+    response.status(401).json({
+      success: false,
+      message: "Phiên đăng nhập không hợp lệ",
+    });
+    return;
+  }
 
-    const payload = jwt.verify(token, secret, { algorithms: ["HS256"] }) as AdminTokenPayload;
-    if (payload.tokenType !== "access" || !payload.sid || !Number.isInteger(payload.version) || !payload.sub || !mongoose.isValidObjectId(payload.sub)) {
-      response.status(401).json({
-        success: false,
-        message: "Phiên đăng nhập không hợp lệ",
-      });
-      return;
-    }
-
+  try {
     const account = await adminAccountRepository.findActiveById(payload.sub);
     const session = await authSessionRepository.findActive(payload.sid, payload.sub);
     if (!account || !session || session.authVersion !== (account.authVersion ?? 0) || payload.version !== session.authVersion) {
@@ -95,11 +110,10 @@ export async function requireAdminAuth(
         .catch(() => undefined);
     }
     next();
-  } catch {
-    response.status(401).json({
-      success: false,
-      message: "Phiên đăng nhập đã hết hạn hoặc không hợp lệ",
-    });
+  } catch (error) {
+    // A failed lookup is not evidence that the session is invalid. Do not
+    // authorize the request or clear cookies while the database is unavailable.
+    next(error);
   }
 }
 

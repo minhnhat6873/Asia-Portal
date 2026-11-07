@@ -2,11 +2,15 @@
 
 ## Kiến trúc
 
-Nginx trên Ubuntu nhận HTTP tại IP LAN → frontend Next.js và backend Express trong Docker → MongoDB Atlas. Compose chỉ publish cổng 3000/4000 trên `127.0.0.1`; nhân viên không truy cập trực tiếp các cổng này. Không có container MongoDB và không seed dữ liệu khi khởi động.
+Nginx trên Ubuntu nhận HTTP tại IP LAN → frontend Next.js và backend Express trong Docker → MongoDB. Compose chỉ publish cổng 3000/4000 trên `127.0.0.1`; nhân viên không truy cập trực tiếp các cổng này. MongoDB chạy trong container `mongodb`, không publish cổng và không seed dữ liệu khi khởi động. Cách dựng và chuyển dữ liệu từ Atlas xem [mongodb-local.md](mongodb-local.md); các bước nhắc tới Atlas bên dưới chỉ còn đúng khi `DATABASE` vẫn trỏ về Atlas.
 
 Cấu hình mẫu dùng Ubuntu `192.168.17.23` và subnet `192.168.16.0/23`. Thay các giá trị nếu IP thay đổi. Nginx chỉ cho subnet này và loopback; đây không phải danh sách mọi VLAN của công ty. Nếu Wi-Fi khách cùng subnet, quy tắc này cũng cho khách truy cập: cần tách VLAN/ACL hoặc giới hạn nguồn cụ thể theo chính sách công ty.
 
 ## 1. Chuẩn bị
+
+- Runtime hiện tại: Node.js 26.13.0 LTS, đồng bộ trong Dockerfile backend/frontend, CI, Render, `.node-version` và `.nvmrc`. Chạy trực tiếp trên Windows cần chọn Node 26 trước khi `yarn install`/test/build; không cần cài Node trên host Ubuntu khi chạy bằng Docker.
+- Image Node 26 không có sẵn Yarn Classic; các stage cần cài dependency trong Dockerfile cài rõ `yarn@1.22.22` trước khi dùng lockfile.
+- Khi nâng TypeScript 6, backend khai báo rõ `types: ["node", "jest"]` để nạp kiểu toàn cục cho Node và Jest; vẫn giữ kiểm tra `strict`.
 
 - Cài Git, Docker Engine và Compose theo https://docs.docker.com/engine/install/ubuntu/.
 - Lấy code đã commit/push về Ubuntu bằng Git. Không copy `node_modules` từ Windows.

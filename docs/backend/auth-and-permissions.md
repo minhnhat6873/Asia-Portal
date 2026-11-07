@@ -1,5 +1,7 @@
 # Xác thực, phân quyền và OTP
 
+Lỗi kết nối MongoDB khi xác thực, đăng nhập, refresh hoặc đăng xuất trả `503` với thông báo chung, không trả chi tiết kết nối và không xóa cookie. API vẫn chặn truy cập khi chưa xác thực được; khi dữ liệu phục hồi, có thể thử lại với cookie cũ nếu phiên còn hiệu lực. Chỉ token sai/hết hạn hoặc phiên thực sự không hợp lệ mới trả `401`; lỗi máy chủ khác trả `500`. Frontend giữ phiên và cho thử lại khi nhận `503`, không tự coi đây là sai mật khẩu hoặc hết phiên.
+
 Cập nhật lần cuối: 2026-10-19. File nguồn đã đọc: `backend/src/config/auth.config.ts`, `backend/src/config/security.config.ts`, `backend/src/routes/index.route.ts`, `backend/src/routes/admin/auth.route.ts`, `backend/src/middlewares/auth.middleware.ts`, `backend/src/services/admin/auth.service.ts`, `backend/src/services/user/*otp.service.ts`, `backend/src/models/*otp.model.ts`.
 
 ## JWT và cookie
