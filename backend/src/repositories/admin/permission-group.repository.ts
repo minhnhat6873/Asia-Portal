@@ -34,7 +34,7 @@ export const permissionGroupRepository = {
 
   updateById(id: string, data: UpdatePermissionGroupInput) {
     return PermissionGroupModel.findByIdAndUpdate(id, data, {
-      new: true,
+      returnDocument: "after",
       runValidators: true,
     }).lean();
   },

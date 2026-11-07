@@ -41,11 +41,13 @@ return toResponse(group);
 
 Repository chỉ đóng gói Mongoose; truy vấn đọc dùng `.lean()`, trường nhạy cảm dùng `select`, danh sách nhận `skip/limit/sort`. Nhân viên xóa mềm bằng `isDeleted`, chỉ `permanentlyDeleteById` xóa bản ghi đã ở thùng rác.
 
+Với `findOneAndUpdate`, `findByIdAndUpdate` và `findOneAndReplace`, dùng `returnDocument: "after"` nếu cần bản ghi sau cập nhật, hoặc `"before"` nếu cần bản ghi trước cập nhật. Không dùng tùy chọn cũ `new`/`returnOriginal`. Khi chuyển cú pháp, giữ nguyên bộ lọc, `runValidators`, `upsert`, session và các điều kiện khóa để không thay đổi hành vi nghiệp vụ.
+
 ```ts
 // Rút gọn từ backend/src/repositories/admin/employee.repository.ts:50
 return EmployeeModel.findOneAndUpdate(
   { _id: id, isDeleted: { $ne: true } }, data,
-  { new: true, runValidators: true },
+  { returnDocument: "after", runValidators: true },
 ).lean();
 ```
 
