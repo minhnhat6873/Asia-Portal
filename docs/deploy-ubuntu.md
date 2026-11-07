@@ -2,7 +2,7 @@
 
 ## Kiến trúc
 
-Nginx trên Ubuntu nhận HTTP tại IP LAN → frontend Next.js và backend Express trong Docker → MongoDB Atlas. Compose chỉ publish cổng 3000/4000 trên `127.0.0.1`; nhân viên không truy cập trực tiếp các cổng này. Không có container MongoDB và không seed dữ liệu khi khởi động.
+Nginx trên Ubuntu nhận HTTP tại IP LAN → frontend Next.js và backend Express trong Docker → MongoDB. Compose chỉ publish cổng 3000/4000 trên `127.0.0.1`; nhân viên không truy cập trực tiếp các cổng này. MongoDB chạy trong container `mongodb`, không publish cổng và không seed dữ liệu khi khởi động. Cách dựng và chuyển dữ liệu từ Atlas xem [mongodb-local.md](mongodb-local.md); các bước nhắc tới Atlas bên dưới chỉ còn đúng khi `DATABASE` vẫn trỏ về Atlas.
 
 Cấu hình mẫu dùng Ubuntu `192.168.17.23` và subnet `192.168.16.0/23`. Thay các giá trị nếu IP thay đổi. Nginx chỉ cho subnet này và loopback; đây không phải danh sách mọi VLAN của công ty. Nếu Wi-Fi khách cùng subnet, quy tắc này cũng cho khách truy cập: cần tách VLAN/ACL hoặc giới hạn nguồn cụ thể theo chính sách công ty.
 

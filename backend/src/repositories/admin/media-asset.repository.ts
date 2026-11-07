@@ -15,7 +15,7 @@ export const mediaAssetRepository = {
           pendingDeleteAt: null,
         },
       },
-      { new: true, upsert: true, setDefaultsOnInsert: true },
+      { returnDocument: "after", upsert: true, setDefaultsOnInsert: true },
     ).lean();
   },
 
@@ -118,7 +118,7 @@ export const mediaAssetRepository = {
         ],
       },
       { $set: { deletionClaimId: claimId, deletionClaimedAt: now } },
-      { new: true },
+      { returnDocument: "after" },
     )
       .select("publicId status deletionClaimId")
       .lean();

@@ -61,7 +61,7 @@ async function sendReminderForBooking(id: unknown, now = new Date()): Promise<vo
       ],
     },
     { $set: { reminderLockUntil: lockUntil } },
-    { new: true, timestamps: false },
+    { returnDocument: "after", timestamps: false },
   ).lean();
   if (!claimed) return;
 

@@ -1,6 +1,35 @@
 name: asia-portal
 
 services:
+  mongodb:
+    # Ghim bản đã kiểm thử trên kernel Ubuntu 26.04 của server; đổi bản thì phải thử lại.
+    image: mongo:8.0.34
+    # Replica set 1 node vì backend dùng transaction. Không publish cổng: chỉ container trong Compose kết nối được.
+    command: ["--replSet", "rs0", "--bind_ip_all", "--keyFile", "/etc/mongo/keyfile", "--wiredTigerCacheSizeGB", "0.5"]
+    env_file:
+      - ./deploy/mongodb/.env
+    environment:
+      # MongoDB đọc nhầm kernel Ubuntu 7.0.0-xx (thực tế 7.0.14) và từ chối chạy: SERVER-136848.
+      # Xóa dòng này khi đã nâng lên bản MongoDB có bản sửa lỗi.
+      GLIBC_TUNABLES: glibc.pthread.rseq=1
+    volumes:
+      - mongodb_data:/data/db
+      - ./deploy/mongodb/keyfile:/etc/mongo/keyfile:ro
+      - ./deploy/mongodb/setup.js:/etc/mongo/setup.js:ro
+    restart: unless-stopped
+    stop_grace_period: 60s
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand({ ping: 1 }).ok"]
+      interval: 15s
+      timeout: 10s
+      start_period: 30s
+      retries: 5
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   backend:
     build:
       context: ./backend
@@ -13,6 +42,9 @@ services:
       TRUST_PROXY_HOPS: "1"
     ports:
       - "127.0.0.1:4000:4000"
+    depends_on:
+      mongodb:
+        condition: service_healthy
     restart: unless-stopped
     init: true
     healthcheck:
@@ -51,3 +83,9 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+
+volumes:
+  mongodb_data:
+    # Volume tạo sẵn ngoài Compose để `docker compose down -v` không xóa nhầm dữ liệu.
+    external: true
+    name: asia_portal_mongodb_data
