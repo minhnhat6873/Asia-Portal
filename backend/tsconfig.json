@@ -1,4 +1,7 @@
 {
+    "ts-node": {
+        "files": true
+    },
     "compilerOptions":  {
                             "target":  "ES2022",
                             "module":  "Node16",
@@ -6,6 +9,7 @@
                             "esModuleInterop":  true,
                             "resolveJsonModule":  true,
                             "strict":  true,
+                            "types":  ["node", "jest"],
                             "typeRoots":  [
                                               "./src/types",
                                               "./node_modules/@types"

@@ -118,13 +118,14 @@ export const adminAuthService = {
 
   async refresh(refreshToken: string) {
     let payload: RefreshTokenPayload;
+    const secret = getJwtSecret();
     try {
-      payload = jwt.verify(refreshToken, getJwtSecret(), { algorithms: ["HS256"] }) as RefreshTokenPayload;
+      payload = jwt.verify(refreshToken, secret, { algorithms: ["HS256"] }) as RefreshTokenPayload;
     } catch {
       throw new AppError(401, "Phiên ghi nhớ đăng nhập đã hết hạn hoặc không hợp lệ");
     }
 
-    if (payload.tokenType !== "refresh" || !payload.sub || !payload.sid || !Number.isInteger(payload.version)) {
+    if (!payload || typeof payload !== "object" || payload.tokenType !== "refresh" || typeof payload.sub !== "string" || !payload.sub || typeof payload.sid !== "string" || !payload.sid || !Number.isInteger(payload.version)) {
       throw new AppError(401, "Phiên ghi nhớ đăng nhập không hợp lệ");
     }
 

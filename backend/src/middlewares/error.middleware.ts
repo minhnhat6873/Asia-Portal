@@ -15,6 +15,22 @@ export function globalErrorHandler(
   response: Response,
   _next: NextFunction,
 ): void {
+  if (
+    error instanceof mongoose.mongo.MongoNetworkError ||
+    error instanceof mongoose.mongo.MongoServerSelectionError ||
+    error instanceof mongoose.Error.MongooseServerSelectionError ||
+    error instanceof mongoose.mongo.MongoNotConnectedError ||
+    error instanceof mongoose.mongo.MongoTopologyClosedError ||
+    error instanceof mongoose.mongo.MongoServerClosedError ||
+    (error instanceof mongoose.Error && /^Operation `[^`]+` buffering timed out after \d+ms$/.test(error.message))
+  ) {
+    response.setHeader("Cache-Control", "no-store");
+    response.status(503).json({
+      success: false,
+      message: "Dịch vụ dữ liệu tạm thời không khả dụng. Vui lòng thử lại sau.",
+    });
+    return;
+  }
   if ((error as Error)?.message === "CORS_ORIGIN_NOT_ALLOWED") {
     response.status(403).json({
       success: false,

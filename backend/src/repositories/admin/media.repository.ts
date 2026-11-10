@@ -48,8 +48,8 @@ export const adminMediaRepository = {
       { _id: id, isDeleted: { $ne: true }, ...(expectedUpdatedAt ? { updatedAt: expectedUpdatedAt } : {}) },
       data,
       {
-      new: true,
-      runValidators: true,
+        returnDocument: "after",
+        runValidators: true,
       },
     ).lean();
   },
@@ -58,7 +58,7 @@ export const adminMediaRepository = {
     return MediaModel.findOneAndUpdate(
       { _id: id, isDeleted: { $ne: true } },
       { $set: { isDeleted: true, status: "draft", showAfterExpiry: false, deletedAt: new Date(), deletedBy: actor } },
-      { new: true, runValidators: true },
+      { returnDocument: "after", runValidators: true },
     ).lean();
   },
 
@@ -66,7 +66,7 @@ export const adminMediaRepository = {
     return MediaModel.findOneAndUpdate(
       { _id: id, isDeleted: true },
       { $set: { isDeleted: false, status: "draft", showAfterExpiry: false, deletedAt: null }, $unset: { deletedBy: "" } },
-      { new: true, runValidators: true },
+      { returnDocument: "after", runValidators: true },
     ).lean();
   },
 

@@ -80,7 +80,7 @@ export const adminEmployeeRepository = {
 
   updateById(id: string, data: UpdateEmployeeInput) {
     return EmployeeModel.findOneAndUpdate({ _id: id, isDeleted: { $ne: true } }, data, {
-      new: true,
+      returnDocument: "after",
       runValidators: true,
     }).lean();
   },
@@ -89,7 +89,7 @@ export const adminEmployeeRepository = {
     return EmployeeModel.findOneAndUpdate(
       { _id: id, isDeleted: { $ne: true } },
       { isDeleted: true, deletedAt: new Date(), deletedBy },
-      { new: true, runValidators: true },
+      { returnDocument: "after", runValidators: true },
     ).lean();
   },
 
@@ -97,7 +97,7 @@ export const adminEmployeeRepository = {
     return EmployeeModel.findOneAndUpdate(
       { _id: id, isDeleted: true },
       { $set: { isDeleted: false, deletedAt: null }, $unset: { deletedBy: 1 } },
-      { new: true, runValidators: true },
+      { returnDocument: "after", runValidators: true },
     ).lean();
   },
 

@@ -13,6 +13,31 @@ test("valid access token verifies directly without refreshing", async () => {
   assert.equal(refreshes, 0);
 });
 
+test("database outage does not refresh or reject credentials and permits recovery on retry", async () => {
+  const unavailable = Object.assign(new Error("Database unavailable"), { status: 503 });
+  let attempts = 0, refreshes = 0;
+  const verify = createSessionVerifier({
+    getCurrentAdmin: async () => { if (++attempts === 1) throw unavailable; return account; },
+    refreshAdminSession: async () => { refreshes++; return account; },
+    isUnauthorized,
+  });
+  await assert.rejects(verify(), (error) => error === unavailable);
+  assert.equal(refreshes, 0);
+  assert.equal(await verify(), account);
+});
+
+test("refresh database outage remains retryable instead of becoming an invalid session", async () => {
+  const unavailable = Object.assign(new Error("Database unavailable"), { status: 503 });
+  let refreshes = 0;
+  const verify = createSessionVerifier({
+    getCurrentAdmin: async () => { throw unauthorized; },
+    refreshAdminSession: async () => { if (++refreshes === 1) throw unavailable; return account; },
+    isUnauthorized,
+  });
+  await assert.rejects(verify(), (error) => error === unavailable);
+  assert.equal(await verify(), account);
+});
+
 test("missing or expired access token restores the session using refresh token", async () => {
   let signal;
   const verify = createSessionVerifier({ getCurrentAdmin: async () => { throw unauthorized; }, refreshAdminSession: async (value) => { signal = value; return account; }, isUnauthorized });
