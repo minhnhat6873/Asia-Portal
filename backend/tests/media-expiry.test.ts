@@ -36,6 +36,7 @@ describe("media expiry visibility", () => {
     await adminMediaRepository.hideExpiredPosts();
     expect(update).toHaveBeenCalledWith({
       status: "published", isDeleted: { $ne: true }, publishIndefinitely: { $ne: true },
+      showAfterExpiry: { $ne: true },
       expiryDate: { $lt: new Date("2026-10-20") },
     }, { $set: { status: "draft" } });
     update.mockRestore();
@@ -53,7 +54,7 @@ describe("media expiry visibility", () => {
       expect(query.getFilter()).toMatchObject({
         $and: [expect.any(Object), {
           status: "published", isDeleted: { $ne: true },
-          $or: [{ expiryDate: null }, { expiryDate: { $gte: cutoff } }, { publishIndefinitely: true }],
+          $or: [{ expiryDate: null }, { expiryDate: { $gte: cutoff } }, { publishIndefinitely: true }, { showAfterExpiry: true }],
         }],
       });
     }

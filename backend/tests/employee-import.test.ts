@@ -61,10 +61,10 @@ describe("employee Excel import validation", () => {
     expect(error).toBeUndefined();
     expect(request.body.rows).toHaveLength(1);
   });
-  it("preserves leading zeroes, normalizes email and maps labels", async () => {
+  it("normalizes employee code to AC-xxxxx, normalizes email and maps labels", async () => {
     const { request, error } = await validate([row]);
     expect(error).toBeUndefined();
-    expect(request.body.rows[0]).toMatchObject({ employeeCode: "000123", email: "an@asiafnb.com", phone: "0901234567", department: "HR_ADMIN", importRow: 2 });
+    expect(request.body.rows[0]).toMatchObject({ employeeCode: "AC-00123", email: "an@asiafnb.com", phone: "0901234567", department: "HR_ADMIN", importRow: 2 });
   });
 
   it("rejects duplicates within the file after normalization", async () => {
@@ -79,7 +79,7 @@ describe("employee Excel import validation", () => {
     input[10] = { text: "AN@asiafnb.com", hyperlink: "mailto:AN@asiafnb.com" };
     const { request, error } = await validate([input]);
     expect(error).toBeUndefined();
-    expect(request.body.rows[0]).toMatchObject({ employeeCode: "123", email: "an@asiafnb.com" });
+    expect(request.body.rows[0]).toMatchObject({ employeeCode: "AC-00123", email: "an@asiafnb.com" });
   });
 
   it("preserves leading zeroes in numeric cells with an explicit zero format", async () => {
@@ -96,7 +96,7 @@ describe("employee Excel import validation", () => {
     sheet.getCell("L2").numFmt = "0000000000";
     const { request, error } = await validateBuffer(Buffer.from(await workbook.xlsx.writeBuffer()));
     expect(error).toBeUndefined();
-    expect(request.body.rows[0]).toMatchObject({ employeeCode: "000123", phone: "0901234567" });
+    expect(request.body.rows[0]).toMatchObject({ employeeCode: "AC-00123", phone: "0901234567" });
   });
 
   it("rejects phone numbers whose leading zero was lost without a display format", async () => {

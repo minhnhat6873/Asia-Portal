@@ -24,7 +24,7 @@ interface AddMediaPageProps {
   onSave: (post: MediaPost) => void;
 }
 
-const CATEGORIES: MediaCategory[] = ["Sự kiện", "Tin tức", "Nhân sự", "Thông báo"];
+const CATEGORIES: MediaCategory[] = ["Sự kiện", "Tin tức", "Nhân sự", "Thông báo", "Đào Tạo"];
 const AUTHOR_DEPARTMENTS = ["DESIGN", "MARKETING_COMMUNICATIONS", "HR_ADMIN"].map((code) => `Phòng ${getEmployeeDepartmentLabel(code)}`);
 
 function initialAuthorDepartment(post?: MediaPost): string {

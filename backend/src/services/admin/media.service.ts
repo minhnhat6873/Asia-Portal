@@ -36,6 +36,7 @@ function sanitizeContent<T extends CreateMediaInput | UpdateMediaInput>(data: T)
 function withoutInternalAssetReferences<T extends { contentAssetPublicIds?: string[]; expiryDate?: Date | null }>(media: T) {
   const result = { ...media };
   delete (result as Partial<Media>).contentAssetPublicIds;
+  delete (result as Partial<Media>).showAfterExpiry;
   return withMediaExpiry(result);
 }
 
@@ -117,9 +118,8 @@ export const adminMediaService = {
         expiryDate,
       );
       const isExpired = withMediaExpiry({ expiryDate, publishIndefinitely }).isExpired;
-      if (sanitized.status === "published" && isExpired) {
-        throw new AppError(400, MEDIA_EXPIRED_PUBLISH_ERROR);
-      }
+      const showAfterExpiry = Boolean(isExpired && (sanitized.status === "published" ||
+        (sanitized.status !== "draft" && previous.status === "published" && previous.showAfterExpiry)));
 
       const summary = sanitized.summary ?? previous.summary;
       const content = sanitized.content ?? previous.content;
@@ -131,7 +131,7 @@ export const adminMediaService = {
       await mediaAssetService.prepareForReference(contentAssetPublicIds);
       const post = await adminMediaRepository.updateById(
         id,
-        { ...sanitized, ...(publishIndefinitely ? { expiryDate: null } : {}), ...(isExpired ? { status: "draft" as const } : {}), contentAssetPublicIds },
+        { ...sanitized, ...(publishIndefinitely ? { expiryDate: null } : {}), ...(isExpired && !showAfterExpiry ? { status: "draft" as const } : {}), showAfterExpiry, contentAssetPublicIds },
         previous.updatedAt,
       );
       if (!post) continue;

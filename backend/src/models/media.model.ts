@@ -28,6 +28,7 @@ const mediaSchema = new Schema<Media>(
     publishDate: { type: Date, required: true, index: true },
     expiryDate: { type: Date, default: null },
     publishIndefinitely: { type: Boolean, default: false },
+    showAfterExpiry: { type: Boolean, default: false },
     status: { type: String, enum: MEDIA_STATUSES, default: "draft", index: true },
     isDeleted: { type: Boolean, default: false, index: true },
     deletedAt: { type: Date, default: null },

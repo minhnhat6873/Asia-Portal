@@ -6,7 +6,7 @@ import Link from "next/link";
 import { newsCategories, NewsItem } from "@/config/news";
 import { getPublicMedia } from "@/services/media.service";
 import MediaExpiryBadge from "@/components/ui/MediaExpiryBadge";
-import { ArrowRight, Calendar, User, ChevronRight, Search, ArrowDownUp, LayoutGrid, Newspaper, Users, Megaphone, RotateCcw } from "lucide-react";
+import { ArrowRight, Calendar, User, ChevronRight, Search, ArrowDownUp, LayoutGrid, Newspaper, Users, Megaphone, RotateCcw, GraduationCap } from "lucide-react";
 import { RichText } from "@/components/ui/RichText";
 import { normalizeSearchText } from "@/utils/normalizeSearchText";
 import { ArticleReaderModal } from "@/features/admin/dashboard/components/ArticleReaderModal";
@@ -80,6 +80,7 @@ const categoryIcons: Record<string, typeof LayoutGrid> = {
   "Tin tức": Newspaper,
   "Nhân sự": Users,
   "Thông báo": Megaphone,
+  "Đào Tạo": GraduationCap,
 };
 
 const categoryBadgeClass: Record<string, string> = {
@@ -87,6 +88,7 @@ const categoryBadgeClass: Record<string, string> = {
   "Tin tức": "badge-news",
   "Nhân sự": "badge-hr",
   "Thông báo": "badge-announce",
+  "Đào Tạo": "badge-training",
 };
 
 function parsePublishDate(value: string): number {

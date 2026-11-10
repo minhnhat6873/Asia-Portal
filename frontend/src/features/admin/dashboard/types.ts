@@ -24,7 +24,7 @@ export interface Employee {
   updatedAt?: string; // Tab MÃƒÂ´ tÃ¡ÂºÂ£
 }
 
-export type MediaCategory = 'Sự kiện' | 'Tin tức' | 'Nhân sự' | 'Thông báo';
+export type MediaCategory = 'Sự kiện' | 'Tin tức' | 'Nhân sự' | 'Thông báo' | 'Đào Tạo';
 
 export interface MediaPost {
   isDeleted?: boolean;

@@ -17,6 +17,7 @@ export const adminMediaRepository = {
       status: "published",
       isDeleted: { $ne: true },
       publishIndefinitely: { $ne: true },
+      showAfterExpiry: { $ne: true },
       expiryDate: { $lt: getMediaExpiryCutoff() },
     }, { $set: { status: "draft" } });
   },
@@ -42,7 +43,7 @@ export const adminMediaRepository = {
     return MediaModel.findOne({ _id: id, isDeleted: { $ne: true } }).lean();
   },
 
-  updateById(id: string, data: UpdateMediaInput & Pick<Media, "contentAssetPublicIds">, expectedUpdatedAt?: Date) {
+  updateById(id: string, data: UpdateMediaInput & Pick<Media, "contentAssetPublicIds" | "showAfterExpiry">, expectedUpdatedAt?: Date) {
     return MediaModel.findOneAndUpdate(
       { _id: id, isDeleted: { $ne: true }, ...(expectedUpdatedAt ? { updatedAt: expectedUpdatedAt } : {}) },
       data,
@@ -56,7 +57,7 @@ export const adminMediaRepository = {
   softDeleteById(id: string, actor: MediaActor) {
     return MediaModel.findOneAndUpdate(
       { _id: id, isDeleted: { $ne: true } },
-      { $set: { isDeleted: true, status: "draft", deletedAt: new Date(), deletedBy: actor } },
+      { $set: { isDeleted: true, status: "draft", showAfterExpiry: false, deletedAt: new Date(), deletedBy: actor } },
       { new: true, runValidators: true },
     ).lean();
   },
@@ -64,7 +65,7 @@ export const adminMediaRepository = {
   restoreById(id: string) {
     return MediaModel.findOneAndUpdate(
       { _id: id, isDeleted: true },
-      { $set: { isDeleted: false, status: "draft", deletedAt: null }, $unset: { deletedBy: "" } },
+      { $set: { isDeleted: false, status: "draft", showAfterExpiry: false, deletedAt: null }, $unset: { deletedBy: "" } },
       { new: true, runValidators: true },
     ).lean();
   },

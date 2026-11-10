@@ -33,7 +33,7 @@ interface Props {
   onNavigateToTrash: () => void;
 }
 
-const CATEGORIES: MediaCategory[] = ["Sự kiện", "Tin tức", "Nhân sự", "Thông báo"];
+const CATEGORIES: MediaCategory[] = ["Sự kiện", "Tin tức", "Nhân sự", "Thông báo", "Đào Tạo"];
 
 export function MediaManagement({ mediaPosts, total, page, pageSize, isLoading, loadError, onFiltersChange, onPageChange, onReload, onUpdated, onDeleted, previewPost, onSelectPreview, onNavigateToAdd, onNavigateToEdit, onNavigateToTrash }: Props) {
   const showLoading = useDelayedLoading(isLoading);
@@ -98,13 +98,6 @@ export function MediaManagement({ mediaPosts, total, page, pageSize, isLoading, 
 
   const requestStatusChange = (post: MediaPost, nextStatus: MediaPost["status"]) => {
     if (!can("media:publish") || isChangingStatus || post.status === nextStatus) return;
-    if (nextStatus === "published" && post.isExpired && !post.publishIndefinitely) {
-      toast.error("Bài viết đã hết hạn. Để đăng lại, vui lòng chọn Đăng tin vĩnh viễn hoặc đặt ngày hết hạn mới.", {
-        duration: 8000,
-        ...(can("media:update") ? { action: { label: "Chỉnh sửa bài viết", onClick: () => onNavigateToEdit(post) } } : {}),
-      });
-      return;
-    }
     setStatusChangeTarget({ post, nextStatus });
   };
 
@@ -163,7 +156,7 @@ export function MediaManagement({ mediaPosts, total, page, pageSize, isLoading, 
               {statusChangeTarget.nextStatus === "published" ? <Eye className="h-6 w-6" /> : <EyeOff className="h-6 w-6" />}
             </div>
             <h3 id="media-status-title" className="mt-4 text-lg font-bold text-slate-900">{statusChangeTarget.nextStatus === "published" ? "Đăng tin?" : "Ẩn tin?"}</h3>
-            <p id="media-status-description" className="mt-2 text-sm leading-6 text-slate-500">“{statusChangeTarget.post.title}” {statusChangeTarget.nextStatus === "published" ? "sẽ hiển thị trên trang tin tức công khai." : "sẽ được ẩn khỏi trang tin tức công khai."}</p>
+            <p id="media-status-description" className="mt-2 text-sm leading-6 text-slate-500">“{statusChangeTarget.post.title}” {statusChangeTarget.nextStatus === "published" ? "sẽ hiển thị trên trang tin tức công khai." : "sẽ được ẩn khỏi trang tin tức công khai."}{statusChangeTarget.nextStatus === "published" && statusChangeTarget.post.isExpired ? " Bài viết vẫn được đánh dấu đã hết hạn cho đến khi bạn chỉnh sửa thời hạn." : ""}</p>
             <div className="mt-6 flex justify-center gap-2">
               <button type="button" onClick={() => setStatusChangeTarget(null)} disabled={isChangingStatus} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700">Hủy</button>
               <button type="button" onClick={() => void changeStatus(statusChangeTarget.post, statusChangeTarget.nextStatus)} disabled={isChangingStatus} className={`rounded-xl px-4 py-2 text-sm font-bold text-white disabled:opacity-60 ${statusChangeTarget.nextStatus === "published" ? "bg-emerald-600" : "bg-amber-700"}`}>

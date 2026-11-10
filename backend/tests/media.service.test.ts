@@ -165,13 +165,26 @@ describe("admin media expiry dates", () => {
     expect(result.expiryDate).toEqual(data.expiryDate);
   });
 
-  it("chặn đăng lại bài hết hạn và hướng dẫn người dùng", async () => {
+  it("cho đăng lại bài hết hạn và giữ dấu hết hạn", async () => {
     jest.setSystemTime(new Date("2026-10-20T17:00:00Z"));
-    await expect(adminMediaService.updateMedia(mediaId, { status: "published" })).rejects.toMatchObject({
-      statusCode: 400,
-      message: expect.stringContaining("Đăng tin vĩnh viễn"),
-    });
-    expect(adminMediaRepository.updateById).not.toHaveBeenCalled();
+    await expect(adminMediaService.updateMedia(mediaId, { status: "published" })).resolves.toMatchObject({ status: "published", isExpired: true, expiryDate: data.expiryDate });
+    expect(adminMediaRepository.updateById).toHaveBeenCalledWith(mediaId, expect.objectContaining({ status: "published", showAfterExpiry: true }), undefined);
+  });
+
+  it("giữ bài đã bật lại khi sửa nội dung, và xóa cờ khi thay thời hạn", async () => {
+    jest.setSystemTime(new Date("2026-10-20T17:00:00Z"));
+    jest.mocked(adminMediaRepository.findById).mockResolvedValue({ _id: mediaId, ...data, showAfterExpiry: true } as never);
+    await adminMediaService.updateMedia(mediaId, { title: "Tiêu đề mới" });
+    expect(adminMediaRepository.updateById).toHaveBeenLastCalledWith(mediaId, expect.objectContaining({ showAfterExpiry: true }), undefined);
+    await adminMediaService.updateMedia(mediaId, { expiryDate: new Date("2026-10-25") });
+    expect(adminMediaRepository.updateById).toHaveBeenLastCalledWith(mediaId, expect.objectContaining({ showAfterExpiry: false }), undefined);
+  });
+
+  it("ẩn bài bật lại thì bỏ cờ hiển thị sau hết hạn", async () => {
+    jest.setSystemTime(new Date("2026-10-20T17:00:00Z"));
+    jest.mocked(adminMediaRepository.findById).mockResolvedValue({ _id: mediaId, ...data, showAfterExpiry: true } as never);
+    await adminMediaService.updateMedia(mediaId, { status: "draft" });
+    expect(adminMediaRepository.updateById).toHaveBeenCalledWith(mediaId, expect.objectContaining({ status: "draft", showAfterExpiry: false }), undefined);
   });
 
   it("chặn tạo bài published đã hết hạn", async () => {
