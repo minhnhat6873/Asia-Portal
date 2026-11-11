@@ -5,6 +5,7 @@ import yauzl from "yauzl";
 
 import { createEmployeeSchema } from "../validates/admin/employee.validate";
 import { AppError } from "../utils/errors/AppError";
+import { EMPLOYEE_CODE_MESSAGE, normalizeEmployeeCode } from "../utils/employee-code";
 
 export const uploadEmployeeImport = multer({ storage: multer.memoryStorage(), limits: { fileSize: 2 * 1024 * 1024, files: 1 } }).single("file");
 
@@ -92,9 +93,11 @@ export async function validateEmployeeImport(request: Request, _response: Respon
       if (!row.hasValues) continue;
       const values = Array.from({ length: 14 }, (_, index) => row.getCell(index + 1).value);
       if (values.some(isUnsupportedCell)) { errors.push(`Dòng ${number}: không hỗ trợ công thức, ảnh hoặc dữ liệu đặc biệt trong ô.`); continue; }
-      const employeeCode = identifier(row.getCell(1));
+      const rawEmployeeCode = identifier(row.getCell(1));
+      const employeeCode = rawEmployeeCode === null ? null : normalizeEmployeeCode(rawEmployeeCode);
       const phone = identifier(row.getCell(12));
-      if (employeeCode === null || phone === null) { errors.push(`Dòng ${number}: mã nhân viên hoặc số điện thoại không hợp lệ.`); continue; }
+      if (employeeCode === null) { errors.push(`Dòng ${number}: ${EMPLOYEE_CODE_MESSAGE}`); continue; }
+      if (phone === null) { errors.push(`Dòng ${number}: số điện thoại không hợp lệ.`); continue; }
       if (text(values[12])) { errors.push(`Dòng ${number}: chưa hỗ trợ nhập ảnh; vui lòng để trống cột ảnh và cập nhật sau.`); continue; }
       const location = ({ "Văn Phòng Á Châu Dĩ An": "Văn Phòng Á Châu Dĩ An", "Bình Dương (Nhà máy số 1)": "Bình Dương", "Long An (Nhà máy số 2)": "Long An" } as Record<string, string>)[text(values[8])] ?? "";
       const input = { employeeCode, name: text(values[1]), position: text(values[2]), department: departments[text(values[3]).replace(/^Phòng\s+/i, "")] ?? "", rank: ranks[text(values[4])] ?? "", gender: genders[text(values[5])] ?? "", joinDate: dateValue(values[6]), ...(text(values[7]) || values[7] instanceof Date ? { birthDate: dateValue(values[7]) } : {}), location, status: statuses[text(values[9])] ?? "", email: text(values[10]), phone, description: text(values[13]) };

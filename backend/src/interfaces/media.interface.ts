@@ -1,4 +1,4 @@
-export const MEDIA_CATEGORIES = ["Sự kiện", "Tin tức", "Nhân sự", "Thông báo"] as const;
+export const MEDIA_CATEGORIES = ["Sự kiện", "Tin tức", "Nhân sự", "Thông báo", "Đào Tạo"] as const;
 export const MEDIA_STATUSES = ["published", "draft"] as const;
 export const MEDIA_AUTHOR_DEPARTMENTS = [
   "Phòng Thiết kế",
@@ -46,6 +46,11 @@ export interface Media {
   publishDate: Date;
   expiryDate?: Date | null;
   publishIndefinitely?: boolean;
+  featured?: boolean;
+  featuredAt?: Date | null;
+  featuredSlot?: number | null;
+  showAfterExpiry?: boolean;
+  hiddenReason?: "expired" | "manual" | null;
   status: MediaStatus;
   isDeleted?: boolean;
   deletedAt?: Date | null;
@@ -57,7 +62,7 @@ export interface Media {
 
 export type CreateMediaInput = Omit<
   Media,
-  "createdAt" | "updatedAt" | "isDeleted" | "deletedAt" | "deletedBy" | "contentAssetPublicIds" | "expiryDate"
+  "createdAt" | "updatedAt" | "isDeleted" | "deletedAt" | "deletedBy" | "contentAssetPublicIds" | "expiryDate" | "showAfterExpiry" | "hiddenReason" | "featuredAt"
 > & { expiryDate?: Date | null };
 
 export type UpdateMediaInput = Partial<CreateMediaInput>;
@@ -69,5 +74,6 @@ export interface MediaListQuery {
   page?: string;
   limit?: string;
   sort?: "latest" | "oldest";
+  featured?: string;
 }
 

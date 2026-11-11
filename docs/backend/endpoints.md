@@ -94,3 +94,4 @@ Mẫu Excel hiển thị tên đơn vị không có tiền tố “Phòng” (v�
 ## Đóng góp ý kiến
 
 Xem [feedback.md](feedback.md): `POST /user/feedback` công khai; các API `/admin/feedback` yêu cầu role admin.
+Tin truyền thông nổi bật: `GET /user/media?featured=true&limit=5`; xem [media-featured.md](media-featured.md).

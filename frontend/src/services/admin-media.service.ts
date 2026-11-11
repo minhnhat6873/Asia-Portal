@@ -11,6 +11,8 @@ export interface AdminMediaInput {
   publishDate: string;
   expiryDate?: string | null;
   publishIndefinitely?: boolean;
+  featured?: boolean;
+  featuredSlot?: number | null;
   status?: MediaPost["status"];
 }
 
@@ -33,6 +35,11 @@ export interface AdminMediaListParams {
 export interface AdminMediaListResult {
   items: MediaPost[];
   pagination: { page: number; limit: number; total: number; totalPages: number };
+}
+
+export interface FeaturedSlot { id: string; title: string; slot: number }
+export function getFeaturedSlots(signal?: AbortSignal) {
+  return apiGet<FeaturedSlot[]>("/admin/media/featured-slots", signal);
 }
 
 export async function uploadAdminMediaContentImage(file: File): Promise<string> {

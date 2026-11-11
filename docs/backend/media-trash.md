@@ -16,7 +16,7 @@ Trang `/admin/media/trash` có tìm kiếm, phân trang, ngày/người xóa, x�
 ## Quy tắc dữ liệu
 
 - Xóa mềm giữ nội dung, ảnh bìa và tham chiếu ảnh trong nội dung. Không có thời hạn tự xóa khỏi thùng rác.
-- Khôi phục giữ nguyên thời hạn và nội dung, xóa metadata xóa mềm, đặt `status: draft`. Muốn đăng lại phải có quyền đăng và thời hạn hợp lệ hoặc chọn đăng vĩnh viễn.
+- Khôi phục giữ nguyên thời hạn và nội dung, xóa metadata xóa mềm, đặt `status: draft`. Muốn đăng lại phải có quyền đăng; bài hết hạn khi bật lại vẫn mang nhãn hết hạn.
 - Điều kiện `isDeleted` nằm ngay trong thao tác MongoDB: restore/xóa vĩnh viễn yêu cầu true; sửa/xóa mềm yêu cầu khác true. Request lặp hoặc request thua thao tác đồng thời trả 404, không được áp dụng lên trạng thái đã đổi.
 - Public loại bài đã xóa khỏi danh sách, tìm kiếm, số lượng và URL chi tiết; không trả metadata xóa hay ID ảnh nội bộ.
 - Audit có `media.soft_deleted`, `media.restored`, `media.permanently_deleted`, với actor lấy từ phiên đã xác thực.

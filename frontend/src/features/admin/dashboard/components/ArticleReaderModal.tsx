@@ -462,7 +462,7 @@ export function ArticleReaderModal({ post, onClose, onEdit, onDelete, showAdminA
           </div>
           <div data-reader-layout className={showAdminActions ? "" : "px-4 py-5 sm:px-7 sm:py-6"}>
           <article ref={articleRef} data-reader-page style={{ zoom: zoom / 100, width: `${10000 / zoom}%`, maxWidth: `${89600 / zoom}px` }} className={`mx-auto min-w-0 max-w-4xl ${showAdminActions ? "px-4 py-5 sm:px-8 sm:py-8" : "break-words"} ${isFocus ? "reader-focus" : ""}`}>
-            {post.coverImage && <img data-reader-cover src={post.coverImage} alt={post.title} className={`reader-cover mb-5 ${showAdminActions ? "max-h-[420px]" : "aspect-video sm:aspect-[16/5]"} w-full rounded-2xl object-cover ${isFocus ? "hidden" : ""}`} />}
+            {post.coverImage && (showAdminActions ? <img data-reader-cover src={post.coverImage} alt={post.title} className={`reader-cover mb-5 max-h-[420px] w-full rounded-2xl object-cover ${isFocus ? "hidden" : ""}`} /> : <div className={`relative mb-5 box-content aspect-video w-full pb-[70px] sm:aspect-[16/5] ${isFocus ? "hidden" : ""}`}><img data-reader-cover src={post.coverImage} alt={post.title} className="reader-cover absolute inset-0 h-full w-full rounded-2xl object-cover" /></div>)}
             <h1 className="mb-4 text-2xl font-black leading-tight sm:text-3xl">{post.title}</h1>
             {showAdminActions && post.isExpired && <div className="mb-4"><MediaExpiryBadge isExpired /></div>}
             <div className={isFocus ? "hidden" : ""}>

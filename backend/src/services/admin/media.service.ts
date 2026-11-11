@@ -36,6 +36,7 @@ function sanitizeContent<T extends CreateMediaInput | UpdateMediaInput>(data: T)
 function withoutInternalAssetReferences<T extends { contentAssetPublicIds?: string[]; expiryDate?: Date | null }>(media: T) {
   const result = { ...media };
   delete (result as Partial<Media>).contentAssetPublicIds;
+  delete (result as Partial<Media>).showAfterExpiry;
   return withMediaExpiry(result);
 }
 
@@ -84,7 +85,14 @@ export const adminMediaService = {
     return withoutInternalAssetReferences(post);
   },
 
+  async getFeaturedSlots() {
+    await adminMediaRepository.hideExpiredPosts();
+    return adminMediaRepository.getFeaturedSlots();
+  },
+
   async createMedia(data: CreateMediaInput) {
+    if (data.featured && !data.featuredSlot) throw new AppError(400, "Vui lòng chọn vị trí nổi bật từ 1 đến 5.");
+    if (data.featured && data.status !== "published") throw new AppError(400, "Chỉ bài đang hiển thị mới được bật nổi bật. Vui lòng đăng bài trước.");
     if (!data.publishIndefinitely && !data.expiryDate) throw new AppError(400, "Vui lòng chọn ngày hết hạn hoặc chọn Đăng tin vĩnh viễn.");
     if (!data.publishIndefinitely) validateMediaDates(data.publishDate, data.expiryDate);
     if (data.status === "published" && withMediaExpiry(data).isExpired) {
@@ -93,7 +101,7 @@ export const adminMediaService = {
     const sanitized = sanitizeContent({ ...data, ...(data.publishIndefinitely ? { expiryDate: null } : {}) });
     const contentAssetPublicIds = await getContentAssetIds(sanitized.summary, sanitized.content);
     await mediaAssetService.prepareForReference(contentAssetPublicIds);
-    const post = await adminMediaRepository.create({ ...sanitized, contentAssetPublicIds });
+    const post = await adminMediaRepository.create({ ...sanitized, contentAssetPublicIds, hiddenReason: sanitized.status === "draft" ? "manual" : null });
     await mediaAssetService.synchronizeReferenceStatuses(contentAssetPublicIds);
     return withoutInternalAssetReferences(post);
   },
@@ -117,9 +125,22 @@ export const adminMediaService = {
         expiryDate,
       );
       const isExpired = withMediaExpiry({ expiryDate, publishIndefinitely }).isExpired;
-      if (sanitized.status === "published" && isExpired) {
-        throw new AppError(400, MEDIA_EXPIRED_PUBLISH_ERROR);
+      const showAfterExpiry = Boolean(isExpired && (sanitized.status === "published" ||
+        (sanitized.status !== "draft" && previous.status === "published" && previous.showAfterExpiry)));
+      const status = isExpired && !showAfterExpiry ? "draft" : sanitized.status ?? previous.status;
+      const wasVisible = previous.status === "published" && (!withMediaExpiry(previous).isExpired || previous.showAfterExpiry === true);
+      if (sanitized.featured === true && status !== "published" && sanitized.status !== "draft") {
+        throw new AppError(400, "Chỉ bài đang hiển thị mới được bật nổi bật. Vui lòng đăng bài trước.");
       }
+      const requestedSlot = sanitized.featuredSlot === undefined ? previous.featuredSlot : sanitized.featuredSlot;
+      const requestedFeatured = sanitized.featured ?? previous.featured ?? false;
+      if (requestedFeatured && status === "published" && !requestedSlot && (sanitized.featured === true || sanitized.featuredSlot !== undefined)) {
+        throw new AppError(400, "Vui lòng chọn vị trí nổi bật từ 1 đến 5.");
+      }
+      const hiddenReason: Media["hiddenReason"] = status !== "draft" ? null
+        : sanitized.status === "draft" ? "manual"
+          : previous.status === "published" && isExpired && !showAfterExpiry ? "expired"
+            : previous.hiddenReason ?? null;
 
       const summary = sanitized.summary ?? previous.summary;
       const content = sanitized.content ?? previous.content;
@@ -129,9 +150,11 @@ export const adminMediaService = {
       ]);
       const previousAssetIds = [...new Set([...storedAssetIds(previous), ...legacyPreviousIds])];
       await mediaAssetService.prepareForReference(contentAssetPublicIds);
-      const post = await adminMediaRepository.updateById(
+      const update = status === "published" && requestedFeatured && requestedSlot && (previous.featured !== true || !wasVisible || requestedSlot !== previous.featuredSlot)
+        ? adminMediaRepository.activateFeaturedById : adminMediaRepository.updateById;
+      const post = await update(
         id,
-        { ...sanitized, ...(publishIndefinitely ? { expiryDate: null } : {}), ...(isExpired ? { status: "draft" as const } : {}), contentAssetPublicIds },
+        { ...sanitized, ...(sanitized.featured === true ? { featuredSlot: requestedSlot } : {}), ...(status === "draft" || (!wasVisible && sanitized.featured !== true) ? { featured: false, featuredAt: null, featuredSlot: null } : sanitized.featured === false ? { featuredAt: null, featuredSlot: null } : {}), ...(publishIndefinitely ? { expiryDate: null } : {}), status, hiddenReason, showAfterExpiry, contentAssetPublicIds },
         previous.updatedAt,
       );
       if (!post) continue;
