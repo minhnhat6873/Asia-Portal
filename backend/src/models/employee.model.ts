@@ -6,6 +6,7 @@ import {
   EMPLOYEE_STATUSES,
   type Employee,
 } from "../interfaces/employee.interface";
+import { EMPLOYEE_CODE_MESSAGE, EMPLOYEE_CODE_PATTERN } from "../utils/employee-code";
 
 const employeeSchema = new Schema<Employee>(
   {
@@ -15,6 +16,7 @@ const employeeSchema = new Schema<Employee>(
       unique: true,
       trim: true,
       uppercase: true,
+      match: [EMPLOYEE_CODE_PATTERN, EMPLOYEE_CODE_MESSAGE],
       index: true,
     },
     name: { type: String, required: true, trim: true, index: true },

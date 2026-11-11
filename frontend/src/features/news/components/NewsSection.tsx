@@ -6,7 +6,7 @@ import Link from "next/link";
 import { newsCategories, NewsItem } from "@/config/news";
 import { getPublicMedia } from "@/services/media.service";
 import MediaExpiryBadge from "@/components/ui/MediaExpiryBadge";
-import { ArrowRight, Calendar, User, ChevronRight, Search, ArrowDownUp, LayoutGrid, Newspaper, Users, Megaphone, RotateCcw } from "lucide-react";
+import { ArrowRight, Calendar, User, ChevronLeft, ChevronRight, Search, ArrowDownUp, LayoutGrid, Newspaper, Users, Megaphone, RotateCcw, GraduationCap } from "lucide-react";
 import { RichText } from "@/components/ui/RichText";
 import { normalizeSearchText } from "@/utils/normalizeSearchText";
 import { ArticleReaderModal } from "@/features/admin/dashboard/components/ArticleReaderModal";
@@ -80,6 +80,7 @@ const categoryIcons: Record<string, typeof LayoutGrid> = {
   "Tin tức": Newspaper,
   "Nhân sự": Users,
   "Thông báo": Megaphone,
+  "Đào Tạo": GraduationCap,
 };
 
 const categoryBadgeClass: Record<string, string> = {
@@ -87,7 +88,52 @@ const categoryBadgeClass: Record<string, string> = {
   "Tin tức": "badge-news",
   "Nhân sự": "badge-hr",
   "Thông báo": "badge-announce",
+  "Đào Tạo": "badge-training",
 };
+
+function HomeNewsPreview({ items, onSelect }: { items: NewsItem[]; onSelect: (item: NewsItem) => void }) {
+  const [activeIndex, setActiveIndex] = useState(0);
+  if (!items.length) return null;
+  const currentIndex = activeIndex % items.length;
+  const featured = items[currentIndex];
+  const sideItems = items.filter((_, index) => index !== currentIndex);
+  const renderSide = (item: NewsItem) => (
+    <button key={item.id} type="button" onClick={() => onSelect(item)} className="group relative min-h-52 w-full overflow-hidden rounded-2xl text-left shadow-md transition hover:-translate-y-1 hover:shadow-lg lg:min-h-0">
+      <Image src={item.image} alt={item.title} fill sizes="(min-width: 1024px) 25vw, 100vw" className="object-cover transition-transform duration-500 group-hover:scale-105" />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/15 to-transparent" />
+      <span className={`absolute left-3 top-3 rounded-full px-3 py-1 text-xs font-semibold ${categoryBadgeClass[item.category] ?? "badge-news"}`}>{item.category}</span>
+      <div className="absolute inset-x-0 bottom-0 p-4 text-white">
+        <h3 className="line-clamp-2 text-base font-bold leading-snug">{item.title}</h3>
+        <MediaExpiryBadge isExpired={item.isExpired} />
+        <p className="mt-2 text-sm text-white/80">{item.date}</p>
+      </div>
+    </button>
+  );
+  return (
+    <div className="grid gap-5 lg:h-[490px] lg:grid-cols-[minmax(0,3fr)_minmax(0,1fr)] lg:items-stretch">
+      <div className="group relative min-h-[360px] min-w-0 overflow-hidden rounded-2xl shadow-md lg:min-h-0">
+        <Image src={featured.image} alt={featured.title} fill sizes="(min-width: 1024px) 50vw, 100vw" className="object-cover transition-transform duration-500 group-hover:scale-105" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
+        <button type="button" onClick={() => onSelect(featured)} aria-label={`Xem chi tiết ${featured.title}`} className="absolute inset-0 z-10 w-full focus-visible:outline-2 focus-visible:outline-offset-[-4px] focus-visible:outline-white" />
+        <span className={`absolute left-5 top-5 rounded-full px-3 py-1.5 text-sm font-semibold ${categoryBadgeClass[featured.category] ?? "badge-news"}`}>{featured.category}</span>
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 p-5 text-white sm:p-7">
+          <p className="flex items-center gap-2 text-sm text-white/85"><Calendar aria-hidden="true" className="h-4 w-4" />{featured.date}</p>
+          <h3 className="mt-2 text-xl font-bold leading-snug sm:text-2xl">{featured.title}</h3>
+          <MediaExpiryBadge isExpired={featured.isExpired} />
+          <div className="mt-5 flex flex-wrap items-center justify-between gap-4">
+            <button type="button" onClick={() => onSelect(featured)} className="pointer-events-auto inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-bold text-emerald-800 hover:bg-emerald-50">Xem chi tiết <ArrowRight aria-hidden="true" className="h-4 w-4" /></button>
+            {items.length > 1 && <div className="pointer-events-auto flex items-center gap-2">
+              {items.map((item, index) => <button key={item.id} type="button" onClick={() => setActiveIndex(index)} aria-label={`Xem tin ${index + 1}`} aria-pressed={index === currentIndex} className={`h-2.5 w-2.5 rounded-full ${index === currentIndex ? "bg-white" : "bg-white/40 hover:bg-white/70"}`} />)}
+              <button type="button" aria-label="Tin trước" onClick={() => setActiveIndex((currentIndex + items.length - 1) % items.length)} className="ml-2 grid h-10 w-10 place-items-center rounded-full bg-white/20 hover:bg-white/30"><ChevronLeft aria-hidden="true" className="h-5 w-5" /></button>
+              <button type="button" aria-label="Tin tiếp theo" onClick={() => setActiveIndex((currentIndex + 1) % items.length)} className="grid h-10 w-10 place-items-center rounded-full bg-white/20 hover:bg-white/30"><ChevronRight aria-hidden="true" className="h-5 w-5" /></button>
+            </div>}
+          </div>
+        </div>
+      </div>
+      <div className="grid gap-5 sm:grid-cols-2 lg:min-h-0 lg:grid-cols-1 lg:grid-rows-2">{sideItems.slice(0, 2).map(renderSide)}</div>
+    </div>
+  );
+}
 
 function parsePublishDate(value: string): number {
   const match = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(value.trim());
@@ -99,6 +145,7 @@ function parsePublishDate(value: string): number {
 export default function NewsSection({ preview = false, articleId = null }: Props) {
   const appliedArticleRef = useRef<string | null>(null);
   const [news, setNews] = useState<NewsItem[]>([]);
+  const [featuredNews, setFeaturedNews] = useState<NewsItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState("Tất cả");
@@ -124,14 +171,19 @@ export default function NewsSection({ preview = false, articleId = null }: Props
 
   const loadNews = useCallback(async (signal?: AbortSignal) => {
     try {
-      const result = await getPublicMedia({ limit: 100, sort: "latest" }, signal);
+      const [result, featuredResult] = await Promise.all([
+        getPublicMedia({ limit: 100, sort: "latest" }, signal),
+        getPublicMedia({ limit: 5, featured: true }, signal),
+      ]);
       setNews(result.items);
-      setReaderNews((current) => current ? result.items.find((item) => item.id === current.id) ?? null : null);
+      setFeaturedNews(featuredResult.items);
+      setReaderNews((current) => current ? [...result.items, ...featuredResult.items].find((item) => item.id === current.id) ?? null : null);
       setSelectedNews((current) => current ? result.items.find((item) => item.id === current.id) ?? null : null);
       setLoadError(null);
     } catch (error) {
       if (!signal?.aborted) {
         setNews([]);
+        setFeaturedNews([]);
         setLoadError(error instanceof Error ? error.message : "Không thể tải tin tức.");
       }
     } finally {
@@ -152,17 +204,12 @@ export default function NewsSection({ preview = false, articleId = null }: Props
     (n) => activeCategory === "Tất cả" || n.category === activeCategory
   );
 
-  // On the home page preview we surface the newest featured posts; when the
-  // admin has published their own posts those become the featured ones.
-  const featuredPosts = filtered.filter((n) => n.featured);
-  const displayed = preview
-    ? (featuredPosts.length ? featuredPosts : filtered).slice(0, 3)
-    : filtered;
+  const displayed = preview ? featuredNews : filtered;
   const searched = displayed.filter((item) => {
     const query = normalizeSearchText(searchQuery);
     return !query || normalizeSearchText(item.title).includes(query) || normalizeSearchText(item.excerpt).includes(query);
   });
-  const sortedItems = [...searched].sort((first, second) => {
+  const sortedItems = preview ? searched : [...searched].sort((first, second) => {
     const difference = parsePublishDate(second.date) - parsePublishDate(first.date);
     return sortOrder === "newest" ? difference : -difference;
   });
@@ -182,9 +229,7 @@ export default function NewsSection({ preview = false, articleId = null }: Props
   // Keep search results in the grid instead of the featured layout.
   const showFeatured = !preview && !isSearching && activeCategory === newsCategories[0];
   const featuredEvent = showFeatured
-    ? [...sortedItems]
-        .filter((item) => categoryBadgeClass[item.category] === "badge-event")
-        .sort((first, second) => parsePublishDate(second.date) - parsePublishDate(first.date))[0] ?? null
+    ? featuredNews[0] ?? null
     : null;
   const gridItems = featuredEvent ? sortedItems.filter((item) => item.id !== featuredEvent.id) : sortedItems;
   const selectedItem =
@@ -320,7 +365,7 @@ export default function NewsSection({ preview = false, articleId = null }: Props
         {featuredEvent && (
           <FeaturedEvent item={featuredEvent} onSelect={() => openArticle(featuredEvent)} />
         )}
-        <div>
+        {preview ? (sortedItems.length ? <HomeNewsPreview items={sortedItems} onSelect={openArticle} /> : !isLoading && !loadError ? <p className="py-8 text-center text-sm text-slate-500">Chưa có bài đăng nổi bật.</p> : null) : <div>
           <div
           className={`grid grid-cols-1 gap-4 sm:gap-5 ${
             preview ? "md:grid-cols-2 xl:grid-cols-4" : "md:grid-cols-3"
@@ -377,7 +422,7 @@ export default function NewsSection({ preview = false, articleId = null }: Props
               </div>
             ))}
           </div>
-        </div>
+        </div>}
 
         {readerNews && <ArticleReaderModal
           post={{

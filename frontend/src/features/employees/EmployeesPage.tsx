@@ -14,7 +14,7 @@ import EmployeeStats from "./components/EmployeeStats";
 import EmployeesHero from "./components/EmployeesHero";
 import { normalizeSearchText } from "@/utils/normalizeSearchText";
 import { EMPLOYEE_DEPARTMENT_OPTIONS, normalizeEmployeeDepartment } from "@/components/ui/employee-department-options";
-import { EMPLOYEE_SELECTABLE_RANK_OPTIONS } from "@/components/ui/employee-rank-options";
+import { EMPLOYEE_RANK_FILTER_OPTIONS } from "@/components/ui/employee-rank-options";
 
 const PAGE_LIMIT = 10;
 const ALL_DEPARTMENTS = "Tất cả phòng ban";
@@ -31,7 +31,7 @@ function EmployeesContent() {
   });
   const [rank, setRank] = useState(() => {
     const value = searchParams.get("rank");
-    return EMPLOYEE_SELECTABLE_RANK_OPTIONS.find((option) => option.value === value)?.value ?? ALL_RANKS;
+    return EMPLOYEE_RANK_FILTER_OPTIONS.find((option) => option.value === value)?.value ?? ALL_RANKS;
   });
   const [newestFirst, setNewestFirst] = useState(() => searchParams.get("sort") !== "oldest");
   const [viewMode, setViewMode] = useState<"list" | "grid">(() => searchParams.get("view") === "grid" ? "grid" : "list");
@@ -79,7 +79,7 @@ function EmployeesContent() {
 
   const departmentCount = new Set(allEmployees.map((employee) => normalizeEmployeeDepartment(employee.department)).filter(Boolean)).size;
   const positionCount = new Set(allEmployees.map((employee) => employee.position).filter(Boolean)).size;
-  const ranks = [ALL_RANKS, ...EMPLOYEE_SELECTABLE_RANK_OPTIONS.map((option) => option.value)];
+  const ranks = [ALL_RANKS, ...EMPLOYEE_RANK_FILTER_OPTIONS.map((option) => option.value)];
 
   useEffect(() => {
     const controller = new AbortController();

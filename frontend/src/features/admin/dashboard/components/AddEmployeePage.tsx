@@ -55,7 +55,11 @@ interface EmployeeFormDraft {
 
 const COMPANY_EMAIL_PATTERN = /^[A-Z0-9._%+-]+@asiafnb\.com$/i;
 const VIETNAM_PHONE_PATTERN = /^0(?:3|5|7|8|9)\d{8}$/;
-const EMPLOYEE_CODE_PATTERN = /^[A-Z0-9]+(?:-[A-Z0-9]+)*$/;
+const EMPLOYEE_CODE_PREFIX = "AC-";
+const EMPLOYEE_CODE_PATTERN = /^AC-\d{5}$/;
+/** Lấy phần số của mã: "AC-00024" → "00024", mã cũ "00024" → "00024". */
+const employeeCodeDigits = (code: string) => code.toUpperCase().replace(/^AC-?/, "").replace(/\D/g, "");
+const toEmployeeCode = (digits: string) => (digits ? `${EMPLOYEE_CODE_PREFIX}${digits}` : "");
 
 function toPlainText(value: string): string {
   return value.replace(/<[^>]*>/g, " ").replace(/&nbsp;/g, " ").trim();
@@ -97,7 +101,7 @@ export const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({
     email: '', phone: '', avatar: '', bio: ''
   };
   const [initialForm] = useState<EmployeeFormDraft>(() => initialEmployee ? {
-    code: initialEmployee.code,
+    code: toEmployeeCode(employeeCodeDigits(initialEmployee.code)),
     fullName: initialEmployee.fullName,
     position: initialEmployee.position,
     department: normalizeEmployeeDepartment(initialEmployee.department),
@@ -181,7 +185,7 @@ export const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({
     const phone = formData.phone.trim().replace(/[\s.-]/g, "");
 
     if (!code) errors.code = "Vui lòng nhập mã nhân viên.";
-    else if (!EMPLOYEE_CODE_PATTERN.test(code)) errors.code = "Mã nhân viên chỉ gồm chữ, số và dấu gạch ngang (VD: AC-00001).";
+    else if (!EMPLOYEE_CODE_PATTERN.test(code)) errors.code = "Mã nhân viên phải gồm đúng 5 chữ số sau AC- (VD: AC-00024).";
     if (!fullName) errors.fullName = "Vui lòng nhập họ và tên.";
     else if (fullName.length < 2 || fullName.length > 100) errors.fullName = "Họ và tên phải từ 2 đến 100 ký tự.";
     if (!position) errors.position = "Vui lòng nhập chức vụ.";
@@ -423,18 +427,28 @@ export const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({
                 <label className="block text-sm font-bold text-slate-700 mb-1.5">
                   Mã nhân viên <span className="text-rose-500">*</span>
                 </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.code}
-                  maxLength={20}
-                  placeholder="AC-00001"
-                  autoCapitalize="characters"
-                  onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, "") })}
-                  aria-invalid={Boolean(fieldErrors.code)}
-                  className={inputClassName("code", "font-mono font-medium")}
-                />
-                {fieldErrors.code && <p className="mt-1 text-xs text-rose-600">{fieldErrors.code}</p>}
+                <div className="relative">
+                  <span aria-hidden="true" className="pointer-events-none absolute inset-y-0 left-4 flex items-center font-mono text-sm font-semibold text-slate-500">{EMPLOYEE_CODE_PREFIX}</span>
+                  <input
+                    type="text"
+                    required
+                    value={employeeCodeDigits(formData.code)}
+                    inputMode="numeric"
+                    pattern="\d{5}"
+                    maxLength={5}
+                    placeholder="00001"
+                    aria-label="Mã nhân viên, 5 chữ số sau AC-"
+                    onChange={(e) => setFormData({ ...formData, code: toEmployeeCode(e.target.value.replace(/\D/g, "").slice(0, 5)) })}
+                    onPaste={(e) => {
+                      e.preventDefault();
+                      setFormData({ ...formData, code: toEmployeeCode(employeeCodeDigits(e.clipboardData.getData("text").trim()).slice(0, 5)) });
+                    }}
+                    aria-invalid={Boolean(fieldErrors.code)}
+                    style={{ paddingLeft: "3.25rem" }}
+                    className={inputClassName("code", "font-mono font-medium")}
+                  />
+                </div>
+                {fieldErrors.code ? <p className="mt-1 text-xs text-rose-600">{fieldErrors.code}</p> : <p className="mt-1 text-xs text-slate-500">Nhập 5 chữ số, ví dụ 00024 → AC-00024.</p>}
               </div>
               <div>
                 <label className="block text-sm font-bold text-slate-700 mb-1.5">

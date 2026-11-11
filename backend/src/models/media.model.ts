@@ -28,6 +28,11 @@ const mediaSchema = new Schema<Media>(
     publishDate: { type: Date, required: true, index: true },
     expiryDate: { type: Date, default: null },
     publishIndefinitely: { type: Boolean, default: false },
+    featured: { type: Boolean, default: false },
+    featuredAt: { type: Date, default: null },
+    featuredSlot: { type: Number, min: 1, max: 5, default: null },
+    showAfterExpiry: { type: Boolean, default: false },
+    hiddenReason: { type: String, enum: ["expired", "manual", null], default: null },
     status: { type: String, enum: MEDIA_STATUSES, default: "draft", index: true },
     isDeleted: { type: Boolean, default: false, index: true },
     deletedAt: { type: Date, default: null },
@@ -42,6 +47,7 @@ const mediaSchema = new Schema<Media>(
 );
 
 mediaSchema.index({ contentAssetPublicIds: 1 });
+mediaSchema.index({ featured: 1, featuredAt: -1, _id: -1 });
 
 const MediaModel = models.Media || model<Media>("Media", mediaSchema);
 
