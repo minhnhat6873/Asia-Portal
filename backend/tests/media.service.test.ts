@@ -8,6 +8,7 @@ jest.mock("../src/repositories/admin/media.repository", () => ({
     findById: jest.fn(),
     create: jest.fn(),
     updateById: jest.fn(),
+    activateFeaturedById: jest.fn(),
     softDeleteById: jest.fn(),
     restoreById: jest.fn(),
     hasCoverReference: jest.fn(),
@@ -163,6 +164,39 @@ describe("admin media expiry dates", () => {
   it("giữ nguyên ngày hết hạn khi chỉ sửa nội dung hoặc trạng thái", async () => {
     const result = await adminMediaService.updateMedia(mediaId, { status: "draft" });
     expect(result.expiryDate).toEqual(data.expiryDate);
+  });
+
+  it("bật nổi bật qua thao tác có khóa, và không đặt lại thời điểm khi đã bật", async () => {
+    jest.mocked(adminMediaRepository.activateFeaturedById).mockResolvedValue({ _id: mediaId, ...data, featured: true } as never);
+    await adminMediaService.updateMedia(mediaId, { featured: true, featuredSlot: 2 });
+    expect(adminMediaRepository.activateFeaturedById).toHaveBeenCalledWith(mediaId, expect.objectContaining({ featured: true }), undefined);
+    jest.mocked(adminMediaRepository.findById).mockResolvedValue({ _id: mediaId, ...data, featured: true, featuredSlot: 2 } as never);
+    await adminMediaService.updateMedia(mediaId, { featured: true, featuredSlot: 2 });
+    expect(adminMediaRepository.updateById).toHaveBeenCalledWith(mediaId, expect.objectContaining({ featured: true }), undefined);
+  });
+
+  it("tắt nổi bật xóa thời điểm bật", async () => {
+    await adminMediaService.updateMedia(mediaId, { featured: false });
+    expect(adminMediaRepository.updateById).toHaveBeenCalledWith(mediaId, expect.objectContaining({ featured: false, featuredAt: null }), undefined);
+  });
+
+  it("ẩn bài tự tắt nổi bật", async () => {
+    jest.mocked(adminMediaRepository.findById).mockResolvedValue({ _id: mediaId, ...data, featured: true } as never);
+    await adminMediaService.updateMedia(mediaId, { status: "draft" });
+    expect(adminMediaRepository.updateById).toHaveBeenCalledWith(mediaId, expect.objectContaining({ status: "draft", featured: false, featuredAt: null }), undefined);
+  });
+
+  it("không bật nổi bật cho bài đang ẩn", async () => {
+    jest.mocked(adminMediaRepository.findById).mockResolvedValue({ _id: mediaId, ...data, status: "draft" } as never);
+    await expect(adminMediaService.updateMedia(mediaId, { featured: true })).rejects.toMatchObject({ statusCode: 400 });
+    await expect(adminMediaService.createMedia({ ...data, status: "draft", featured: true })).rejects.toMatchObject({ statusCode: 400 });
+    expect(adminMediaRepository.activateFeaturedById).not.toHaveBeenCalled();
+  });
+
+  it("đăng lại bài cũ đang ẩn không tự bật lại nổi bật", async () => {
+    jest.mocked(adminMediaRepository.findById).mockResolvedValue({ _id: mediaId, ...data, status: "draft", featured: true } as never);
+    await adminMediaService.updateMedia(mediaId, { status: "published" });
+    expect(adminMediaRepository.updateById).toHaveBeenCalledWith(mediaId, expect.objectContaining({ status: "published", featured: false, featuredAt: null }), undefined);
   });
 
   it("cho đăng lại bài hết hạn và giữ dấu hết hạn", async () => {

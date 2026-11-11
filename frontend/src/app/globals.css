@@ -464,6 +464,14 @@ body {
   min-height: 8.75rem;
 }
 
+.employee-avatar-picker--empty #media-cover-upload::part(source-description-element) {
+  display: flex;
+  min-height: 7.5rem;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
 .employee-avatar-picker--filled .employee-avatar-pond {
   margin-bottom: 0.75rem;
 }

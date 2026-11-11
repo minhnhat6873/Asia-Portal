@@ -46,6 +46,9 @@ export interface Media {
   publishDate: Date;
   expiryDate?: Date | null;
   publishIndefinitely?: boolean;
+  featured?: boolean;
+  featuredAt?: Date | null;
+  featuredSlot?: number | null;
   showAfterExpiry?: boolean;
   hiddenReason?: "expired" | "manual" | null;
   status: MediaStatus;
@@ -59,7 +62,7 @@ export interface Media {
 
 export type CreateMediaInput = Omit<
   Media,
-  "createdAt" | "updatedAt" | "isDeleted" | "deletedAt" | "deletedBy" | "contentAssetPublicIds" | "expiryDate" | "showAfterExpiry" | "hiddenReason"
+  "createdAt" | "updatedAt" | "isDeleted" | "deletedAt" | "deletedBy" | "contentAssetPublicIds" | "expiryDate" | "showAfterExpiry" | "hiddenReason" | "featuredAt"
 > & { expiryDate?: Date | null };
 
 export type UpdateMediaInput = Partial<CreateMediaInput>;
@@ -71,5 +74,6 @@ export interface MediaListQuery {
   page?: string;
   limit?: string;
   sort?: "latest" | "oldest";
+  featured?: string;
 }
 

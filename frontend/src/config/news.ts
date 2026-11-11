@@ -13,6 +13,7 @@ export interface NewsItem {
   author: string;
   image: string;
   featured?: boolean;
+  featuredAt?: string | null;
 }
 
 export const newsCategories = ["Tất cả", "Sự kiện", "Tin tức", "Nhân sự", "Thông báo", "Đào Tạo"];

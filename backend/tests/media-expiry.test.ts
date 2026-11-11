@@ -38,7 +38,8 @@ describe("media expiry visibility", () => {
       status: "published", isDeleted: { $ne: true }, publishIndefinitely: { $ne: true },
       showAfterExpiry: { $ne: true },
       expiryDate: { $lt: new Date("2026-10-20") },
-    }, { $set: { status: "draft", hiddenReason: "expired" } });
+    }, { $set: { status: "draft", hiddenReason: "expired", featured: false, featuredAt: null, featuredSlot: null } });
+    expect(update).toHaveBeenCalledWith({ status: "draft", featured: true }, { $set: { featured: false, featuredAt: null, featuredSlot: null } });
     update.mockRestore();
   });
 

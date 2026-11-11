@@ -41,7 +41,7 @@ export default function EmployeeSection() {
     <section className="bg-white py-8 sm:py-10 xl:py-14">
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
         <div className="flex flex-col gap-7 xl:flex-row xl:gap-12">
-          <div className="flex max-w-md shrink-0 flex-col justify-between xl:w-64">
+          <div className="flex max-w-md shrink-0 flex-col justify-between xl:w-64 xl:pb-14 xl:pt-7">
             <div>
               <p className="section-label mb-3">Con người Á Châu</p>
               <h2 className="text-3xl font-black leading-tight text-gray-900 sm:text-4xl">Gặp gỡ những thành viên của Á Châu</h2>
@@ -53,7 +53,7 @@ export default function EmployeeSection() {
 
           <div className="min-w-0 flex-1">
             <form onSubmit={handleSearch} className="mb-7 flex flex-col gap-4 md:flex-row md:items-stretch">
-              <div className="relative flex min-w-0 flex-1 items-center rounded-full border border-green-100 bg-white p-1.5 shadow-[0_8px_28px_rgba(22,122,74,0.10)] focus-within:shadow-[0_10px_32px_rgba(22,122,74,0.18)]">
+              <div className="relative flex min-w-0 flex-1 items-center rounded-full border border-green-100 bg-white p-1.5 shadow-[0_8px_28px_rgba(22,122,74,0.10)] transition-shadow duration-200 hover:shadow-[0_0_12px_2px_rgba(16,185,129,0.16),0_0_30px_8px_rgba(16,185,129,0.10),0_0_48px_14px_rgba(16,185,129,0.05)] focus-within:shadow-[0_0_12px_2px_rgba(16,185,129,0.16),0_0_30px_8px_rgba(16,185,129,0.10),0_0_48px_14px_rgba(16,185,129,0.05)]">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-green-50 text-[#087d3e] sm:h-12 sm:w-12"><Search size={27} strokeWidth={2.5} /></div>
                 <input type="search" placeholder="Tìm kiếm theo tên, phòng ban, chức vụ..." value={search} onChange={(event) => setSearch(event.target.value)} className="min-w-0 flex-1 border-0 bg-transparent px-2 py-3 text-sm text-gray-800 outline-none placeholder:text-gray-400 sm:px-4 sm:text-base" />
                 {search && <button type="button" onClick={() => setSearch("")} aria-label="Xóa từ khóa tìm kiếm" className="mr-2 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200"><X size={17} /></button>}
@@ -61,7 +61,7 @@ export default function EmployeeSection() {
               </div>
 
               <Select aria-label="Lọc phòng ban" selectedKey={department} onSelectionChange={(key) => { if (key !== null) setDepartment(String(key)); }} className="group w-full shrink-0 md:w-64 xl:w-72">
-                <SelectButton className="flex min-h-14 w-full items-center gap-2.5 rounded-full border border-green-100 bg-[#fbfffc] px-5 py-2.5 text-sm outline-none transition-colors duration-200 hover:border-[#1a7a1a] data-[focus-visible]:ring-2 data-[focus-visible]:ring-green-500/20 group-data-[open]:border-[#1a7a1a] sm:py-3 md:h-full">
+                <SelectButton className="flex min-h-14 w-full items-center gap-2.5 rounded-full border border-[#ccebd6] bg-[#f7fcf8] px-5 py-2.5 text-sm shadow-[0_8px_32px_rgba(22,122,74,0.13)] outline-none transition-all duration-200 hover:border-emerald-500 hover:bg-gradient-to-r hover:from-emerald-50 hover:via-white hover:to-green-50 hover:shadow-[0_0_12px_2px_rgba(16,185,129,0.16),0_0_30px_8px_rgba(16,185,129,0.10),0_0_48px_14px_rgba(16,185,129,0.05)] data-[focus-visible]:ring-2 data-[focus-visible]:ring-green-500/20 group-data-[open]:border-[#1a7a1a] sm:py-3 md:h-full">
                   <span aria-hidden="true" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-green-100 text-[#08723d]"><Building2 size={17} /></span>
                   <SelectValue className="min-w-0 flex-1 truncate whitespace-nowrap text-left text-sm font-medium text-slate-700">{department === ALL_DEPARTMENTS ? department : getEmployeeDepartmentLabel(department)}</SelectValue>
                   <ChevronDown size={19} aria-hidden="true" className="shrink-0 text-gray-800 transition-transform duration-200 group-data-[open]:rotate-180" />

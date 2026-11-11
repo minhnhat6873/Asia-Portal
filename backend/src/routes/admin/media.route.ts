@@ -2,7 +2,7 @@ import { Router } from "express";
 
 import rateLimit from "express-rate-limit";
 
-import { createMedia, getMedia, getMediaById, getDeletedMedia, softDeleteMedia, restoreMedia, permanentlyDeleteMedia, updateMedia, uploadMediaContentImage } from "../../controllers/admin/media.controller";
+import { createMedia, getMedia, getMediaById, getFeaturedSlots, getDeletedMedia, softDeleteMedia, restoreMedia, permanentlyDeleteMedia, updateMedia, uploadMediaContentImage } from "../../controllers/admin/media.controller";
 import { requireCloudinaryConfig, uploadMediaCover, uploadTinyMceImage } from "../../helpers/multerCloudinary.helper";
 import { requireAnyPermission, requireMediaCreatePermission, requireMediaUpdatePermission, requirePermissions } from "../../middlewares/auth.middleware";
 import { validateMediaCreateUpload, validateMediaUpdateUpload } from "../../middlewares/media-upload.middleware";
@@ -22,6 +22,7 @@ const contentImageUploadLimiter = rateLimit({
 
 router.get("/", requirePermissions("media:view"), validateQuery(mediaListQuerySchema), getMedia);
 router.get("/trash", requirePermissions("media:trash"), validateQuery(mediaListQuerySchema), getDeletedMedia);
+router.get("/featured-slots", requirePermissions("media:view"), getFeaturedSlots);
 router.post("/content-images", requireAnyPermission("media:create", "media:update"), contentImageUploadLimiter, requireCloudinaryConfig, uploadTinyMceImage.single("image"), uploadMediaContentImage);
 router.get("/:id", requirePermissions("media:view"), getMediaById);
 router.post("/", requirePermissions("media:create"), uploadMediaCover.single("coverImage"), validateMediaCreateUpload, requireMediaCreatePermission, createMedia);

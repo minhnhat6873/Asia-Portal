@@ -145,6 +145,7 @@ function parsePublishDate(value: string): number {
 export default function NewsSection({ preview = false, articleId = null }: Props) {
   const appliedArticleRef = useRef<string | null>(null);
   const [news, setNews] = useState<NewsItem[]>([]);
+  const [featuredNews, setFeaturedNews] = useState<NewsItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState("Tất cả");
@@ -170,14 +171,19 @@ export default function NewsSection({ preview = false, articleId = null }: Props
 
   const loadNews = useCallback(async (signal?: AbortSignal) => {
     try {
-      const result = await getPublicMedia({ limit: 100, sort: "latest" }, signal);
+      const [result, featuredResult] = await Promise.all([
+        getPublicMedia({ limit: 100, sort: "latest" }, signal),
+        getPublicMedia({ limit: 5, featured: true }, signal),
+      ]);
       setNews(result.items);
-      setReaderNews((current) => current ? result.items.find((item) => item.id === current.id) ?? null : null);
+      setFeaturedNews(featuredResult.items);
+      setReaderNews((current) => current ? [...result.items, ...featuredResult.items].find((item) => item.id === current.id) ?? null : null);
       setSelectedNews((current) => current ? result.items.find((item) => item.id === current.id) ?? null : null);
       setLoadError(null);
     } catch (error) {
       if (!signal?.aborted) {
         setNews([]);
+        setFeaturedNews([]);
         setLoadError(error instanceof Error ? error.message : "Không thể tải tin tức.");
       }
     } finally {
@@ -198,17 +204,12 @@ export default function NewsSection({ preview = false, articleId = null }: Props
     (n) => activeCategory === "Tất cả" || n.category === activeCategory
   );
 
-  // On the home page preview we surface the newest featured posts; when the
-  // admin has published their own posts those become the featured ones.
-  const featuredPosts = filtered.filter((n) => n.featured);
-  const displayed = preview
-    ? [...featuredPosts, ...filtered.filter((item) => !item.featured)].slice(0, 5)
-    : filtered;
+  const displayed = preview ? featuredNews : filtered;
   const searched = displayed.filter((item) => {
     const query = normalizeSearchText(searchQuery);
     return !query || normalizeSearchText(item.title).includes(query) || normalizeSearchText(item.excerpt).includes(query);
   });
-  const sortedItems = [...searched].sort((first, second) => {
+  const sortedItems = preview ? searched : [...searched].sort((first, second) => {
     const difference = parsePublishDate(second.date) - parsePublishDate(first.date);
     return sortOrder === "newest" ? difference : -difference;
   });
@@ -228,9 +229,7 @@ export default function NewsSection({ preview = false, articleId = null }: Props
   // Keep search results in the grid instead of the featured layout.
   const showFeatured = !preview && !isSearching && activeCategory === newsCategories[0];
   const featuredEvent = showFeatured
-    ? [...sortedItems]
-        .filter((item) => categoryBadgeClass[item.category] === "badge-event")
-        .sort((first, second) => parsePublishDate(second.date) - parsePublishDate(first.date))[0] ?? null
+    ? featuredNews[0] ?? null
     : null;
   const gridItems = featuredEvent ? sortedItems.filter((item) => item.id !== featuredEvent.id) : sortedItems;
   const selectedItem =
@@ -366,7 +365,7 @@ export default function NewsSection({ preview = false, articleId = null }: Props
         {featuredEvent && (
           <FeaturedEvent item={featuredEvent} onSelect={() => openArticle(featuredEvent)} />
         )}
-        {preview ? <HomeNewsPreview items={sortedItems} onSelect={openArticle} /> : <div>
+        {preview ? (sortedItems.length ? <HomeNewsPreview items={sortedItems} onSelect={openArticle} /> : !isLoading && !loadError ? <p className="py-8 text-center text-sm text-slate-500">Chưa có bài đăng nổi bật.</p> : null) : <div>
           <div
           className={`grid grid-cols-1 gap-4 sm:gap-5 ${
             preview ? "md:grid-cols-2 xl:grid-cols-4" : "md:grid-cols-3"

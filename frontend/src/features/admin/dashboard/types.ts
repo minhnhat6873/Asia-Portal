@@ -33,6 +33,9 @@ export interface MediaPost {
   id: string;
   title: string;
   category: MediaCategory;
+  featured?: boolean;
+  featuredAt?: string | null;
+  featuredSlot?: number | null;
   summary: string; // Sapo tÃƒÂ³m tÃ¡ÂºÂ¯t ngÃ¡ÂºÂ¯n
   content: string; // Chi tiÃ¡ÂºÂ¿t bÃƒÂ i viÃ¡ÂºÂ¿t (hiÃ¡Â»Æ’n thÃ¡Â»â€¹ trong khung thÃƒÂ´ng tin xanh)
   coverImage: string;
