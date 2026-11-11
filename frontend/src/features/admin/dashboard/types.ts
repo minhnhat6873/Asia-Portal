@@ -41,6 +41,7 @@ export interface MediaPost {
   expiryDate?: string | null;
   publishIndefinitely?: boolean;
   isExpired?: boolean;
+  hiddenReason?: "expired" | "manual" | null;
   status: 'published' | 'draft';
   createdBy?: { accountId: string; name: string; email: string };
   createdAt?: string;

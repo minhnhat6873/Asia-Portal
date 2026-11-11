@@ -47,6 +47,7 @@ export interface Media {
   expiryDate?: Date | null;
   publishIndefinitely?: boolean;
   showAfterExpiry?: boolean;
+  hiddenReason?: "expired" | "manual" | null;
   status: MediaStatus;
   isDeleted?: boolean;
   deletedAt?: Date | null;
@@ -58,7 +59,7 @@ export interface Media {
 
 export type CreateMediaInput = Omit<
   Media,
-  "createdAt" | "updatedAt" | "isDeleted" | "deletedAt" | "deletedBy" | "contentAssetPublicIds" | "expiryDate" | "showAfterExpiry"
+  "createdAt" | "updatedAt" | "isDeleted" | "deletedAt" | "deletedBy" | "contentAssetPublicIds" | "expiryDate" | "showAfterExpiry" | "hiddenReason"
 > & { expiryDate?: Date | null };
 
 export type UpdateMediaInput = Partial<CreateMediaInput>;

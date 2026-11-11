@@ -64,9 +64,10 @@ describe("media validation", () => {
   });
 
   it("không cho client đặt cờ hiển thị sau hết hạn", () => {
-    const result = updateMediaSchema.validate({ status: "draft", showAfterExpiry: true }, { stripUnknown: true });
+    const result = updateMediaSchema.validate({ status: "draft", showAfterExpiry: true, hiddenReason: "expired" }, { stripUnknown: true });
     expect(result.error).toBeUndefined();
     expect(result.value).not.toHaveProperty("showAfterExpiry");
+    expect(result.value).not.toHaveProperty("hiddenReason");
   });
 
   it("bắt buộc ngày hết hạn khi không đăng vĩnh viễn", () => {

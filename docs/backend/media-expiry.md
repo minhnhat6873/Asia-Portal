@@ -9,6 +9,9 @@
 - Ẩn bài, chuyển vào thùng rác hoặc chỉnh thời hạn để bài chưa hết hạn sẽ xóa cờ nội bộ. Bài có ngày hết hạn mới sau đó tiếp tục được tự ẩn khi đến hạn. Muốn bỏ nhãn hết hạn, sửa thời hạn hoặc chọn Đăng tin vĩnh viễn.
 - Bài đăng vĩnh viễn không bị tự ẩn và không có nhãn hết hạn, kể cả khi còn lưu ngày hết hạn cũ. Đổi thời hạn không tự đăng lại bài đang ẩn.
 - Trang quản trị cập nhật danh sách mỗi 60 giây khi đang hiển thị và khi quay lại cửa sổ. Hộp xác nhận đăng lại cho biết bài vẫn mang nhãn hết hạn.
-- Bảng quản trị gộp ngày đăng và thời hạn vào cùng cột: bài vĩnh viễn hiện “Thời hạn: Không hết hạn” và nhãn Vĩnh viễn; bài hết hạn hiện ngày màu đỏ và nhãn Đã hết hạn. Trạng thái published hiện “Đang hiển thị”; draft hết hạn hiện “Đã ẩn tự động”, các draft còn lại hiện “Ẩn tin”.
+- Với bài hết hạn, menu trạng thái hiện lựa chọn “Đăng tin đã hết hạn”. Xác nhận sẽ hiển thị bài trên public, giữ nguyên ngày hết hạn và nhãn “Tin đã hết hạn”; trạng thái quản trị hiện “Đang hiển thị (hết hạn)” ở cả bảng và thẻ bài viết. Đây là thao tác đăng lại, không phải gia hạn hay đăng vĩnh viễn.
+- Bảng quản trị gộp ngày đăng và thời hạn vào cùng cột: bài vĩnh viễn hiện “Thời hạn: Không hết hạn” và nhãn Vĩnh viễn; bài hết hạn hiện ngày màu đỏ và nhãn Đã hết hạn.
+- Máy chủ lưu `hiddenReason`: `expired` khi hệ thống tự ẩn bài, `manual` khi admin ẩn/tạo bản nháp/chuyển vào thùng rác/khôi phục, `null` khi đăng hoặc không biết nguyên nhân (bài cũ). Sửa nội dung bài đang ẩn giữ nguyên nguyên nhân. Trường này chỉ đọc trong API admin, không nhận từ client và không trả ra public; không suy đoán nguyên nhân từ ngày hết hạn.
+- “Đã ẩn tự động” chỉ là nhãn trạng thái khi bài draft có `hiddenReason: expired`, không có trong lựa chọn. Menu luôn có “Ẩn tin”; admin vẫn chọn được thao tác này cho bài tự ẩn để chuyển thành ẩn thủ công. Bài cũ không biết nguyên nhân hiện “Ẩn tin”, không cần cập nhật dữ liệu hàng loạt.
 
 Kiểm thử: `backend/tests/media-expiry.test.ts`, `backend/tests/media.service.test.ts`, `backend/tests/dashboard.service.test.ts`.

@@ -82,12 +82,12 @@ export function MediaManagement({ mediaPosts, total, page, pageSize, isLoading, 
           : [1, 2, "ellipsis", page, page + 1];
 
   const changeStatus = async (post: MediaPost, nextStatus: MediaPost["status"]) => {
-    if (!can("media:publish") || isChangingStatus || post.status === nextStatus) return;
+    if (!can("media:publish") || isChangingStatus || (post.status === nextStatus && !(nextStatus === "draft" && post.hiddenReason === "expired"))) return;
     setIsChangingStatus(true);
     try {
       const updated = await updateAdminMedia(post.id, { status: nextStatus });
       onUpdated(updated);
-      toast.success(nextStatus === "published" ? "Đã đăng tin." : "Đã ẩn tin.");
+      toast.success(nextStatus === "published" ? updated.isExpired ? "Đã hiển thị bài viết kèm nhãn Tin đã hết hạn." : "Đã đăng tin." : "Đã ẩn tin.");
       setStatusChangeTarget(null);
     } catch (error) {
       toast.error(error instanceof ApiError ? error.errors[0] ?? error.message : "Không thể đổi trạng thái bài viết.");
@@ -97,7 +97,7 @@ export function MediaManagement({ mediaPosts, total, page, pageSize, isLoading, 
   };
 
   const requestStatusChange = (post: MediaPost, nextStatus: MediaPost["status"]) => {
-    if (!can("media:publish") || isChangingStatus || post.status === nextStatus) return;
+    if (!can("media:publish") || isChangingStatus || (post.status === nextStatus && !(nextStatus === "draft" && post.hiddenReason === "expired"))) return;
     setStatusChangeTarget({ post, nextStatus });
   };
 
@@ -155,12 +155,12 @@ export function MediaManagement({ mediaPosts, total, page, pageSize, isLoading, 
             <div className={`mx-auto flex h-12 w-12 items-center justify-center rounded-full ${statusChangeTarget.nextStatus === "published" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>
               {statusChangeTarget.nextStatus === "published" ? <Eye className="h-6 w-6" /> : <EyeOff className="h-6 w-6" />}
             </div>
-            <h3 id="media-status-title" className="mt-4 text-lg font-bold text-slate-900">{statusChangeTarget.nextStatus === "published" ? "Đăng tin?" : "Ẩn tin?"}</h3>
+            <h3 id="media-status-title" className="mt-4 text-lg font-bold text-slate-900">{statusChangeTarget.nextStatus === "published" ? statusChangeTarget.post.isExpired ? "Đăng tin đã hết hạn?" : "Đăng tin?" : "Ẩn tin?"}</h3>
             <p id="media-status-description" className="mt-2 text-sm leading-6 text-slate-500">“{statusChangeTarget.post.title}” {statusChangeTarget.nextStatus === "published" ? "sẽ hiển thị trên trang tin tức công khai." : "sẽ được ẩn khỏi trang tin tức công khai."}{statusChangeTarget.nextStatus === "published" && statusChangeTarget.post.isExpired ? " Bài viết vẫn được đánh dấu đã hết hạn cho đến khi bạn chỉnh sửa thời hạn." : ""}</p>
             <div className="mt-6 flex justify-center gap-2">
               <button type="button" onClick={() => setStatusChangeTarget(null)} disabled={isChangingStatus} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700">Hủy</button>
               <button type="button" onClick={() => void changeStatus(statusChangeTarget.post, statusChangeTarget.nextStatus)} disabled={isChangingStatus} className={`rounded-xl px-4 py-2 text-sm font-bold text-white disabled:opacity-60 ${statusChangeTarget.nextStatus === "published" ? "bg-emerald-600" : "bg-amber-700"}`}>
-                {statusChangeTarget.nextStatus === "published" ? (isChangingStatus ? "Đang đăng tin..." : "Xác nhận đăng tin") : (isChangingStatus ? "Đang ẩn tin..." : "Xác nhận ẩn tin")}
+                {statusChangeTarget.nextStatus === "published" ? (isChangingStatus ? "Đang đăng tin..." : statusChangeTarget.post.isExpired ? "Hiển thị tin đã hết hạn" : "Xác nhận đăng tin") : (isChangingStatus ? "Đang ẩn tin..." : "Xác nhận ẩn tin")}
               </button>
             </div>
           </div>

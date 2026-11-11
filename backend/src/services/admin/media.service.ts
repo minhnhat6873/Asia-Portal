@@ -94,7 +94,7 @@ export const adminMediaService = {
     const sanitized = sanitizeContent({ ...data, ...(data.publishIndefinitely ? { expiryDate: null } : {}) });
     const contentAssetPublicIds = await getContentAssetIds(sanitized.summary, sanitized.content);
     await mediaAssetService.prepareForReference(contentAssetPublicIds);
-    const post = await adminMediaRepository.create({ ...sanitized, contentAssetPublicIds });
+    const post = await adminMediaRepository.create({ ...sanitized, contentAssetPublicIds, hiddenReason: sanitized.status === "draft" ? "manual" : null });
     await mediaAssetService.synchronizeReferenceStatuses(contentAssetPublicIds);
     return withoutInternalAssetReferences(post);
   },
@@ -120,6 +120,11 @@ export const adminMediaService = {
       const isExpired = withMediaExpiry({ expiryDate, publishIndefinitely }).isExpired;
       const showAfterExpiry = Boolean(isExpired && (sanitized.status === "published" ||
         (sanitized.status !== "draft" && previous.status === "published" && previous.showAfterExpiry)));
+      const status = isExpired && !showAfterExpiry ? "draft" : sanitized.status ?? previous.status;
+      const hiddenReason: Media["hiddenReason"] = status !== "draft" ? null
+        : sanitized.status === "draft" ? "manual"
+          : previous.status === "published" && isExpired && !showAfterExpiry ? "expired"
+            : previous.hiddenReason ?? null;
 
       const summary = sanitized.summary ?? previous.summary;
       const content = sanitized.content ?? previous.content;
@@ -131,7 +136,7 @@ export const adminMediaService = {
       await mediaAssetService.prepareForReference(contentAssetPublicIds);
       const post = await adminMediaRepository.updateById(
         id,
-        { ...sanitized, ...(publishIndefinitely ? { expiryDate: null } : {}), ...(isExpired && !showAfterExpiry ? { status: "draft" as const } : {}), showAfterExpiry, contentAssetPublicIds },
+        { ...sanitized, ...(publishIndefinitely ? { expiryDate: null } : {}), status, hiddenReason, showAfterExpiry, contentAssetPublicIds },
         previous.updatedAt,
       );
       if (!post) continue;

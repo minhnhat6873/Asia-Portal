@@ -38,7 +38,7 @@ describe("media expiry visibility", () => {
       status: "published", isDeleted: { $ne: true }, publishIndefinitely: { $ne: true },
       showAfterExpiry: { $ne: true },
       expiryDate: { $lt: new Date("2026-10-20") },
-    }, { $set: { status: "draft" } });
+    }, { $set: { status: "draft", hiddenReason: "expired" } });
     update.mockRestore();
   });
 
@@ -60,5 +60,8 @@ describe("media expiry visibility", () => {
     }
     expect(queries[0].getFilter().$and?.[0]).toEqual({ category: "Tin tức" });
     expect(queries[3].getFilter().$and?.[0]).toEqual({ _id: "507f1f77bcf86cd799439011" });
+    expect(queries[0].projection()).toMatchObject({ hiddenReason: 0 });
+    expect(queries[1].projection()).toMatchObject({ hiddenReason: 0 });
+    expect(queries[3].projection()).toMatchObject({ hiddenReason: 0 });
   });
 });

@@ -19,10 +19,10 @@ export const adminMediaRepository = {
       publishIndefinitely: { $ne: true },
       showAfterExpiry: { $ne: true },
       expiryDate: { $lt: getMediaExpiryCutoff() },
-    }, { $set: { status: "draft" } });
+    }, { $set: { status: "draft", hiddenReason: "expired" } });
   },
 
-  async create(data: CreateMediaInput & Pick<Media, "contentAssetPublicIds">) {
+  async create(data: CreateMediaInput & Pick<Media, "contentAssetPublicIds" | "hiddenReason">) {
     const media = await MediaModel.create(data);
     return media.toObject();
   },
@@ -43,7 +43,7 @@ export const adminMediaRepository = {
     return MediaModel.findOne({ _id: id, isDeleted: { $ne: true } }).lean();
   },
 
-  updateById(id: string, data: UpdateMediaInput & Pick<Media, "contentAssetPublicIds" | "showAfterExpiry">, expectedUpdatedAt?: Date) {
+  updateById(id: string, data: UpdateMediaInput & Pick<Media, "contentAssetPublicIds" | "showAfterExpiry" | "hiddenReason">, expectedUpdatedAt?: Date) {
     return MediaModel.findOneAndUpdate(
       { _id: id, isDeleted: { $ne: true }, ...(expectedUpdatedAt ? { updatedAt: expectedUpdatedAt } : {}) },
       data,
@@ -57,7 +57,7 @@ export const adminMediaRepository = {
   softDeleteById(id: string, actor: MediaActor) {
     return MediaModel.findOneAndUpdate(
       { _id: id, isDeleted: { $ne: true } },
-      { $set: { isDeleted: true, status: "draft", showAfterExpiry: false, deletedAt: new Date(), deletedBy: actor } },
+      { $set: { isDeleted: true, status: "draft", hiddenReason: "manual", showAfterExpiry: false, deletedAt: new Date(), deletedBy: actor } },
       { returnDocument: "after", runValidators: true },
     ).lean();
   },
@@ -65,7 +65,7 @@ export const adminMediaRepository = {
   restoreById(id: string) {
     return MediaModel.findOneAndUpdate(
       { _id: id, isDeleted: true },
-      { $set: { isDeleted: false, status: "draft", showAfterExpiry: false, deletedAt: null }, $unset: { deletedBy: "" } },
+      { $set: { isDeleted: false, status: "draft", hiddenReason: "manual", showAfterExpiry: false, deletedAt: null }, $unset: { deletedBy: "" } },
       { returnDocument: "after", runValidators: true },
     ).lean();
   },

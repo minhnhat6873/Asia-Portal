@@ -171,6 +171,35 @@ describe("admin media expiry dates", () => {
     expect(adminMediaRepository.updateById).toHaveBeenCalledWith(mediaId, expect.objectContaining({ status: "published", showAfterExpiry: true }), undefined);
   });
 
+  it("admin ẩn bài tự động thì ghi nhận ẩn thủ công, kể cả bài vẫn hết hạn", async () => {
+    jest.setSystemTime(new Date("2026-10-20T17:00:00Z"));
+    jest.mocked(adminMediaRepository.findById).mockResolvedValue({ _id: mediaId, ...data, status: "draft", hiddenReason: "expired" } as never);
+    await expect(adminMediaService.updateMedia(mediaId, { status: "draft" })).resolves.toMatchObject({ status: "draft", hiddenReason: "manual", isExpired: true });
+  });
+
+  it("đăng lại bài tự ẩn thì xóa nguyên nhân ẩn và giữ nhãn hết hạn", async () => {
+    jest.setSystemTime(new Date("2026-10-20T17:00:00Z"));
+    jest.mocked(adminMediaRepository.findById).mockResolvedValue({ _id: mediaId, ...data, status: "draft", hiddenReason: "expired" } as never);
+    await expect(adminMediaService.updateMedia(mediaId, { status: "published" })).resolves.toMatchObject({ status: "published", hiddenReason: null, isExpired: true });
+  });
+
+  it.each(["expired", "manual", null] as const)("sửa nội dung bài ẩn giữ nguyên nguyên nhân %s", async (hiddenReason) => {
+    jest.setSystemTime(new Date("2026-10-20T17:00:00Z"));
+    jest.mocked(adminMediaRepository.findById).mockResolvedValue({ _id: mediaId, ...data, status: "draft", hiddenReason } as never);
+    await expect(adminMediaService.updateMedia(mediaId, { title: "Nội dung đã cập nhật" })).resolves.toMatchObject({ status: "draft", hiddenReason });
+  });
+
+  it("bài cũ không rõ nguyên nhân không bị suy đoán là tự ẩn", async () => {
+    jest.setSystemTime(new Date("2026-10-20T17:00:00Z"));
+    jest.mocked(adminMediaRepository.findById).mockResolvedValue({ _id: mediaId, ...data, status: "draft" } as never);
+    await expect(adminMediaService.updateMedia(mediaId, { title: "Nội dung đã cập nhật" })).resolves.toMatchObject({ status: "draft", hiddenReason: null });
+  });
+
+  it("sửa bài đang đăng đã quá hạn cũng ghi nhận hệ thống tự ẩn", async () => {
+    jest.setSystemTime(new Date("2026-10-20T17:00:00Z"));
+    await expect(adminMediaService.updateMedia(mediaId, { title: "Nội dung đã cập nhật" })).resolves.toMatchObject({ status: "draft", hiddenReason: "expired" });
+  });
+
   it("giữ bài đã bật lại khi sửa nội dung, và xóa cờ khi thay thời hạn", async () => {
     jest.setSystemTime(new Date("2026-10-20T17:00:00Z"));
     jest.mocked(adminMediaRepository.findById).mockResolvedValue({ _id: mediaId, ...data, showAfterExpiry: true } as never);
