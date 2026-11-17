@@ -8,7 +8,7 @@ import { hasRichTextContent, RichText } from "@/components/ui/RichText";
 import MediaExpiryBadge from "@/components/ui/MediaExpiryBadge";
 
 /**
- * Badge colours for the four news categories. Tailwind classes cannot be built
+ * Badge colours for news categories. Tailwind classes cannot be built
  * from a runtime string, so every category is written out in full.
  */
 const categoryBadgeClass: Record<string, string> = {
@@ -16,6 +16,7 @@ const categoryBadgeClass: Record<string, string> = {
   "Tin tức": "bg-[#0077b6] text-white",
   "Nhân sự": "bg-[#9b2226] text-white",
   "Thông báo": "bg-[#e76f51] text-white",
+  "Đào Tạo": "bg-violet-700 text-white",
 };
 
 type Props = {

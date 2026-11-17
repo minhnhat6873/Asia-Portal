@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, X } from "lucide-react";
+import { ChevronRight, Menu, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import InternalSystemsMenu from "./InternalSystemsMenu";
 import { getPublicSiteSettings } from "@/services/site-settings.service";
@@ -121,8 +121,8 @@ export default function Navbar() {
             className="absolute inset-0 cursor-default bg-slate-950/45"
           />
           <aside className="relative flex h-full w-[min(88vw,360px)] flex-col bg-white shadow-[12px_0_32px_rgba(15,23,42,0.2)]">
-            <div className="flex h-16 shrink-0 items-center justify-between border-b border-slate-100 px-4">
-              <Image src="/assets/images/asia-logo.png" alt="Asia Food & Beverage co.ltd" width={40} height={40} className="h-10 w-10 object-contain" />
+            <div className="flex h-[88px] shrink-0 items-center justify-between border-b border-slate-100 px-5">
+              <span className="text-[22px] font-bold text-slate-800">Menu</span>
               <button
                 type="button"
                 aria-label="Đóng menu"
@@ -133,17 +133,18 @@ export default function Navbar() {
               </button>
             </div>
 
-            <nav className="flex min-h-0 flex-1 flex-col overflow-y-auto px-3 py-3">
+            <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-4 py-5">
                 {navLinks.map((link) => (
                   <Link
                     key={link.href}
                     href={link.href}
                     onClick={closeMobileMenu}
-                    className={`flex min-h-14 items-center rounded-xl px-3 text-base font-semibold transition-colors ${
+                    className={`flex min-h-14 items-center justify-between gap-3 rounded-xl px-4 text-lg font-bold transition-colors ${
                       isActive(link.href) ? "bg-wana-green-50 text-wana-green-dark" : "text-slate-800 hover:bg-slate-50"
                     }`}
                   >
                     {link.label}
+                    {!isActive(link.href) && <ChevronRight aria-hidden="true" className="h-5 w-5 shrink-0" />}
                   </Link>
                 ))}
                 {internalSystemsEnabled ? <InternalSystemsMenu mobile /> : null}

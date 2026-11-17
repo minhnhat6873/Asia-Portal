@@ -10,7 +10,7 @@ const links = [
 
 export default function QuickLinks() {
   return (
-    <section className="border-b border-gray-100 bg-white py-5 sm:py-6">
+    <section className="bg-white py-5 sm:py-6">
       <div className="mx-auto grid max-w-7xl grid-cols-2 gap-3 px-4 sm:gap-4 sm:px-6 xl:grid-cols-4">
         {links.map(({ href, icon: Icon, title, desc, external }) => (
           <Link

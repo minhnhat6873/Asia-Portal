@@ -28,6 +28,11 @@ describe("media validation", () => {
     expect(createMediaSchema.validate(validMedia).error).toBeUndefined();
   });
 
+  it("chấp nhận chuyên mục Đào Tạo khi tạo và sửa bài", () => {
+    expect(createMediaSchema.validate({ ...validMedia, category: "Đào Tạo" }).error).toBeUndefined();
+    expect(updateMediaSchema.validate({ category: "Đào Tạo" }).error).toBeUndefined();
+  });
+
   it("mặc định bài viết mới là bản nháp", () => {
     const { status: _status, ...withoutStatus } = validMedia;
     expect(createMediaSchema.validate(withoutStatus).value.status).toBe("draft");
@@ -56,6 +61,13 @@ describe("media validation", () => {
     expect(result.value).not.toHaveProperty("expiryDate");
     expect(result.value).not.toHaveProperty("publishIndefinitely");
     expect(updateMediaSchema.validate({ expiryDate: null }).error).toBeUndefined();
+  });
+
+  it("không cho client đặt cờ hiển thị sau hết hạn", () => {
+    const result = updateMediaSchema.validate({ status: "draft", showAfterExpiry: true, hiddenReason: "expired" }, { stripUnknown: true });
+    expect(result.error).toBeUndefined();
+    expect(result.value).not.toHaveProperty("showAfterExpiry");
+    expect(result.value).not.toHaveProperty("hiddenReason");
   });
 
   it("bắt buộc ngày hết hạn khi không đăng vĩnh viễn", () => {

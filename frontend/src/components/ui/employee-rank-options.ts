@@ -17,6 +17,15 @@ export const EMPLOYEE_SELECTABLE_RANK_OPTIONS = EMPLOYEE_RANK_OPTIONS_UI.filter(
   (option) => option.value !== "CEO",
 );
 
+/**
+ * Thứ tự hiển thị trong bộ lọc cấp bậc (trang Nhân sự và trang admin).
+ * Chỉ đổi thứ tự hiển thị; thứ tự xếp nhân viên trong sơ đồ phòng ban vẫn theo EMPLOYEE_RANK_OPTIONS_UI.
+ */
+const RANK_FILTER_ORDER: readonly string[] = ["Senior Management", "Middle Management", "Staff", "Intermediate Personnel"];
+export const EMPLOYEE_RANK_FILTER_OPTIONS = [...EMPLOYEE_SELECTABLE_RANK_OPTIONS].sort(
+  (left, right) => RANK_FILTER_ORDER.indexOf(left.value) - RANK_FILTER_ORDER.indexOf(right.value),
+);
+
 export type EmployeeRankValue =
   (typeof EMPLOYEE_RANK_OPTIONS_UI)[number]["value"];
 

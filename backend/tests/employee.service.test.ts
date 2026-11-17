@@ -22,7 +22,7 @@ import { adminEmployeeService } from "../src/services/admin/employee.service";
 const employeeId = "507f1f77bcf86cd799439011";
 const employee = {
   _id: employeeId,
-  employeeCode: "NV-001",
+  employeeCode: "AC-00001",
   name: "Nguyễn Văn A",
   rank: "Staff",
 };
@@ -133,8 +133,8 @@ describe("admin employee creation order", () => {
 
   it("preserves creation order when searching and slicing pages", async () => {
     const ordered = [
-      { ...employee, employeeCode: "NV-999", name: "Nguyễn Mới", createdAt: new Date("2026-10-21"), joinDate: new Date("2020-01-01") },
-      { ...employee, employeeCode: "NV-001", name: "Nguyễn Cũ", createdAt: new Date("2026-10-20"), joinDate: new Date("2026-10-21") },
+      { ...employee, employeeCode: "AC-00999", name: "Nguyễn Mới", createdAt: new Date("2026-10-21"), joinDate: new Date("2020-01-01") },
+      { ...employee, employeeCode: "AC-00001", name: "Nguyễn Cũ", createdAt: new Date("2026-10-20"), joinDate: new Date("2026-10-21") },
     ];
     jest.mocked(adminEmployeeRepository.findAllForSearch).mockResolvedValue(ordered as never);
     const result = await adminEmployeeService.getEmployees({ search: "nguyen", page: "2", limit: "1" });

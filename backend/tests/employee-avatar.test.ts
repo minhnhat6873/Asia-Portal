@@ -15,7 +15,7 @@ import { deleteCloudinaryAsset } from "../src/helpers/multerCloudinary.helper";
 import { validateEmployeeCreateUpload, validateEmployeeUpdateUpload } from "../src/middlewares/employee-upload.middleware";
 
 const url = (id: string) => `https://res.cloudinary.com/demo/image/upload/v1/asia-portal/avatars/${id}.jpg`;
-const base = { _id: "507f1f77bcf86cd799439011", employeeCode: "NV001", name: "Nhân viên mẫu", position: "Designer", department: "DESIGN", rank: "Staff", email: "test@asiafnb.com", phone: "0936123456", location: "Hồ Chí Minh", joinDate: "2024-01-01", gender: "female", avatar: url("old-crop"), avatarPublicId: "asia-portal/avatars/old-crop", avatarOriginal: url("source"), avatarOriginalPublicId: "asia-portal/avatars/source" };
+const base = { _id: "507f1f77bcf86cd799439011", employeeCode: "AC-00001", name: "Nhân viên mẫu", position: "Designer", department: "DESIGN", rank: "Staff", email: "test@asiafnb.com", phone: "0936123456", location: "Hồ Chí Minh", joinDate: "2024-01-01", gender: "female", avatar: url("old-crop"), avatarPublicId: "asia-portal/avatars/old-crop", avatarOriginal: url("source"), avatarOriginalPublicId: "asia-portal/avatars/source" };
 const upload = (id: string) => ({ filename: `asia-portal/avatars/${id}`, path: url(id) }) as Express.Multer.File;
 function request(body: object = {}, files: Record<string, Express.Multer.File[]> = {}) {
   return { body, files, params: { id: base._id }, admin: { id: "admin-test", name: "Admin", email: "admin@asiafnb.com", permissions: [] } } as unknown as Request;
