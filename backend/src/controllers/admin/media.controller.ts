@@ -73,6 +73,11 @@ export async function getMediaById(request: Request<{ id: string }>, response: R
   } catch (error) { next(error); }
 }
 
+export async function getFeaturedSlots(_request: Request, response: Response, next: NextFunction): Promise<void> {
+  try { response.json({ success: true, data: await adminMediaService.getFeaturedSlots() }); }
+  catch (error) { next(error); }
+}
+
 export async function createMedia(request: Request<unknown, unknown, CreateMediaInput>, response: Response, next: NextFunction): Promise<void> {
   const uploadedFile = request.file as CloudinaryUploadedFile | undefined;
   try {

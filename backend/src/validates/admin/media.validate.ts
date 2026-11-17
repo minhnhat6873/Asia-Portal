@@ -20,6 +20,8 @@ const mediaFields = {
     "date.format": "Vui lòng chọn ngày hết hạn hợp lệ.",
   }),
   publishIndefinitely: Joi.boolean(),
+  featured: Joi.boolean(),
+  featuredSlot: Joi.number().integer().min(1).max(5).allow(null),
   status: Joi.string().valid(...MEDIA_STATUSES),
 };
 
@@ -37,6 +39,8 @@ export const createMediaSchema = Joi.object({
     otherwise: Joi.required().invalid(null),
   }),
   publishIndefinitely: mediaFields.publishIndefinitely.default(false),
+  featured: mediaFields.featured.default(false),
+  featuredSlot: mediaFields.featuredSlot,
   status: mediaFields.status.default("draft"),
 }).custom((value, helpers) => {
   if (!value.publishIndefinitely && !isMediaExpiryAfterPublication(value.publishDate, value.expiryDate)) {
@@ -64,6 +68,7 @@ export const mediaListQuerySchema = Joi.object({
   page: Joi.number().integer().min(1),
   limit: Joi.number().integer().min(1).max(100),
   sort: Joi.string().valid("latest", "oldest"),
+  featured: Joi.boolean(),
 });
 
 export const mediaTrashActionSchema = Joi.object({}).unknown(false).default({});

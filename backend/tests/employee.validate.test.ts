@@ -4,7 +4,7 @@ import { validateBody } from "../src/middlewares/validate.middleware";
 import type { Request, Response, NextFunction } from "express";
 
 const validEmployee = {
-  employeeCode: "NV-001",
+  employeeCode: "AC-00001",
   name: "Nguyễn Văn A",
   position: "Nhân viên IT",
   department: "Phòng IT",

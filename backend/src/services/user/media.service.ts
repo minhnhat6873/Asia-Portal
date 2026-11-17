@@ -1,4 +1,4 @@
-import mongoose, { type QueryFilter } from "mongoose";
+import mongoose, { type QueryFilter, type SortOrder } from "mongoose";
 
 import type { Media, MediaListQuery } from "../../interfaces/media.interface";
 import { userMediaRepository } from "../../repositories/user/media.repository";
@@ -17,8 +17,9 @@ export const userMediaService = {
     const filter: QueryFilter<Media> = {};
 
     if (query.category) filter.category = query.category;
+    if (String(query.featured) === "true") filter.featured = true;
 
-    const sort = { publishDate: query.sort === "oldest" ? 1 as const : -1 as const };
+    const sort: Record<string, SortOrder> = String(query.featured) === "true" ? { featuredSlot: 1, featuredAt: -1, _id: -1 } : { publishDate: query.sort === "oldest" ? 1 : -1 };
     const normalizedSearch = normalizeSearchText(query.search);
     if (normalizedSearch) {
       const matchingItems = (await userMediaRepository.findAllForSearch(filter, sort)).filter((post) =>

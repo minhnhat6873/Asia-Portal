@@ -163,6 +163,7 @@ body {
 /* Badge */
 .badge-event { background-color: var(--wana-green); color: white; }
 .badge-news { background-color: #0077b6; color: white; }
+.badge-training { background-color: #6d28d9; color: white; }
 .badge-hr { background-color: #9b2226; color: white; }
 .badge-announce { background-color: #e76f51; color: white; }
 
@@ -461,6 +462,14 @@ body {
 
 .employee-avatar-picker--empty .employee-avatar-pond {
   min-height: 8.75rem;
+}
+
+.employee-avatar-picker--empty #media-cover-upload::part(source-description-element) {
+  display: flex;
+  min-height: 7.5rem;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
 }
 
 .employee-avatar-picker--filled .employee-avatar-pond {

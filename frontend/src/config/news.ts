@@ -4,7 +4,7 @@ export interface NewsItem {
   excerpt: string;
   summaryHtml?: string;
   content: string;
-  category: "Sự kiện" | "Tin tức" | "Nhân sự" | "Thông báo";
+  category: "Sự kiện" | "Tin tức" | "Nhân sự" | "Thông báo" | "Đào Tạo";
   date: string;
   expiryDate?: string | null;
   publishIndefinitely?: boolean;
@@ -13,6 +13,7 @@ export interface NewsItem {
   author: string;
   image: string;
   featured?: boolean;
+  featuredAt?: string | null;
 }
 
-export const newsCategories = ["Tất cả", "Sự kiện", "Tin tức", "Nhân sự", "Thông báo"];
+export const newsCategories = ["Tất cả", "Sự kiện", "Tin tức", "Nhân sự", "Thông báo", "Đào Tạo"];

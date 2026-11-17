@@ -7,7 +7,9 @@ import type { MediaPost } from "../types";
 import { stripHtml } from "@/utils/stripHtml";
 
 export function mediaPublicationLabel(post: MediaPost): string {
-  return post.status === "published" ? "Đang hiển thị" : post.isExpired ? "Đã ẩn tự động" : "Ẩn tin";
+  return post.status === "published"
+    ? post.isExpired ? "Đang hiển thị (hết hạn)" : "Đang hiển thị"
+    : post.hiddenReason === "expired" ? "Đã ẩn tự động" : "Ẩn tin";
 }
 
 function formatCreatedAt(value?: string) {
@@ -60,14 +62,14 @@ export default function MediaManagementTable({ posts, canPublish, canEdit, canDe
               : expired ? <span className="mt-2 inline-flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-[13px] font-semibold text-amber-700"><Clock3 size={17} /> Đã hết hạn</span> : null}
           </td>
           <td className="px-4 py-4">
-            <Select aria-label={`Trạng thái bài viết ${post.title}`} selectedKey={post.status} onSelectionChange={(value) => onStatusChange(post, value as MediaPost["status"])} isDisabled={!canPublish || changingStatus}>
+            <Select aria-label={`Trạng thái bài viết ${post.title}`} selectedKey={!published && post.hiddenReason === "expired" ? null : post.status} onSelectionChange={(value) => { if (value === "published" || value === "draft") onStatusChange(post, value); }} isDisabled={!canPublish || changingStatus}>
               <Button className={`flex min-h-9 w-fit items-center justify-between gap-2 rounded-full border px-2.5 py-1.5 text-[13px] font-bold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-emerald-500/30 disabled:opacity-60 ${published ? "border-emerald-200 bg-[#eafbf2] text-emerald-800" : "border-amber-200 bg-amber-50 text-amber-700"}`}>
-                <span className="inline-flex items-center gap-1.5 whitespace-nowrap"><span aria-hidden="true" className={`h-2 w-2 shrink-0 rounded-full ${published ? "bg-emerald-700" : "bg-amber-500"}`} /><SelectValue /></span><ChevronDown size={14} strokeWidth={2.5} className="shrink-0" />
+                <span className="inline-flex items-center gap-1.5 whitespace-nowrap"><span aria-hidden="true" className={`h-2 w-2 shrink-0 rounded-full ${published ? "bg-emerald-700" : "bg-amber-500"}`} /><SelectValue>{mediaPublicationLabel(post)}</SelectValue></span><ChevronDown size={14} strokeWidth={2.5} className="shrink-0" />
               </Button>
               <Popover className="z-[90] min-w-[180px] rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl" offset={6}>
                 <ListBox className="outline-none">
-                  <ListBoxItem id="published" textValue="Đang hiển thị" className="cursor-pointer rounded-lg px-3 py-2.5 text-[13px] font-semibold text-slate-700 outline-none data-[focused]:bg-emerald-50 data-[selected]:text-emerald-700">Đang hiển thị</ListBoxItem>
-                  <ListBoxItem id="draft" textValue={expired ? "Đã ẩn tự động" : "Ẩn tin"} className="cursor-pointer rounded-lg px-3 py-2.5 text-[13px] font-semibold text-slate-700 outline-none data-[focused]:bg-amber-50 data-[selected]:text-amber-700">{expired ? "Đã ẩn tự động" : "Ẩn tin"}</ListBoxItem>
+                  <ListBoxItem id="published" textValue={expired ? "Đăng tin đã hết hạn" : "Đang hiển thị"} className="cursor-pointer rounded-lg px-3 py-2.5 text-[13px] font-semibold text-slate-700 outline-none data-[focused]:bg-emerald-50 data-[selected]:text-emerald-700">{expired ? "Đăng tin đã hết hạn" : "Đang hiển thị"}</ListBoxItem>
+                  <ListBoxItem id="draft" textValue="Ẩn tin" className="cursor-pointer rounded-lg px-3 py-2.5 text-[13px] font-semibold text-slate-700 outline-none data-[focused]:bg-amber-50 data-[selected]:text-amber-700">Ẩn tin</ListBoxItem>
                 </ListBox>
               </Popover>
             </Select>

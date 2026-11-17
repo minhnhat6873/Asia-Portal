@@ -1,9 +1,10 @@
 import Joi from "joi";
 
 import { EMPLOYEE_GENDERS, EMPLOYEE_RANKS, EMPLOYEE_STATUSES } from "../../interfaces/employee.interface";
+import { EMPLOYEE_CODE_MESSAGE, EMPLOYEE_CODE_PATTERN } from "../../utils/employee-code";
 
 const employeeFields = {
-  employeeCode: Joi.string().trim().uppercase().max(20).pattern(/^[A-Z0-9]+(?:-[A-Z0-9]+)*$/).messages({ "string.pattern.base": "Mã nhân viên chỉ gồm chữ, số và dấu gạch ngang (VD: AC-00001)." }),
+  employeeCode: Joi.string().trim().uppercase().pattern(EMPLOYEE_CODE_PATTERN).messages({ "string.pattern.base": EMPLOYEE_CODE_MESSAGE }),
   name: Joi.string().trim().min(2).max(100),
   position: Joi.string().trim().min(2).max(100),
   department: Joi.string().trim().min(2).max(100),

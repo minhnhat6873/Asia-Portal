@@ -24,7 +24,7 @@ export interface Employee {
   updatedAt?: string; // Tab MÃƒÂ´ tÃ¡ÂºÂ£
 }
 
-export type MediaCategory = 'Sự kiện' | 'Tin tức' | 'Nhân sự' | 'Thông báo';
+export type MediaCategory = 'Sự kiện' | 'Tin tức' | 'Nhân sự' | 'Thông báo' | 'Đào Tạo';
 
 export interface MediaPost {
   isDeleted?: boolean;
@@ -33,6 +33,9 @@ export interface MediaPost {
   id: string;
   title: string;
   category: MediaCategory;
+  featured?: boolean;
+  featuredAt?: string | null;
+  featuredSlot?: number | null;
   summary: string; // Sapo tÃƒÂ³m tÃ¡ÂºÂ¯t ngÃ¡ÂºÂ¯n
   content: string; // Chi tiÃ¡ÂºÂ¿t bÃƒÂ i viÃ¡ÂºÂ¿t (hiÃ¡Â»Æ’n thÃ¡Â»â€¹ trong khung thÃƒÂ´ng tin xanh)
   coverImage: string;
@@ -41,6 +44,7 @@ export interface MediaPost {
   expiryDate?: string | null;
   publishIndefinitely?: boolean;
   isExpired?: boolean;
+  hiddenReason?: "expired" | "manual" | null;
   status: 'published' | 'draft';
   createdBy?: { accountId: string; name: string; email: string };
   createdAt?: string;

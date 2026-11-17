@@ -30,7 +30,7 @@ import {
 import { Employee, EmployeeStatus } from '../types';
 import EmployeeSelectFilter from '@/components/ui/EmployeeSelectFilter';
 import { EMPLOYEE_DEPARTMENT_OPTIONS, getEmployeeDepartmentLabel } from '@/components/ui/employee-department-options';
-import { EMPLOYEE_SELECTABLE_RANK_OPTIONS, getEmployeeRankLabel } from '@/components/ui/employee-rank-options';
+import { EMPLOYEE_RANK_FILTER_OPTIONS, getEmployeeRankLabel } from '@/components/ui/employee-rank-options';
 import { EMPLOYEE_STATUS_OPTIONS_UI } from '@/components/ui/employee-status-options';
 import { getEmployeeGenderLabel } from '@/components/ui/employee-gender-options';
 import type { AdminEmployeeListParams } from '@/services/admin-employee.service';
@@ -142,7 +142,7 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
         if (stored) {
           setSearchQuery(typeof stored.searchQuery === 'string' ? stored.searchQuery : '');
           setSelectedDept(typeof stored.selectedDept === 'string' && EMPLOYEE_DEPARTMENT_OPTIONS.some((option) => option.value === stored.selectedDept) ? stored.selectedDept : 'all');
-          setSelectedRank(EMPLOYEE_SELECTABLE_RANK_OPTIONS.find((option) => option.value === stored.selectedRank)?.value ?? 'all');
+          setSelectedRank(EMPLOYEE_RANK_FILTER_OPTIONS.find((option) => option.value === stored.selectedRank)?.value ?? 'all');
           setSelectedStatus(typeof stored.selectedStatus === 'string' ? stored.selectedStatus : 'all');
           setViewMode(stored.viewMode === 'grid' ? 'grid' : 'table');
         }
@@ -262,7 +262,7 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
           <div className="grid min-w-0 flex-1 grid-cols-1 gap-3 sm:grid-cols-3 xl:min-w-[590px]">
           <EmployeeSelectFilter value={selectedDept} onChange={setSelectedDept} label="phòng ban" icon={Building} iconClass="bg-green-100 text-[#08723d]" options={['all', ...EMPLOYEE_DEPARTMENT_OPTIONS.map((option) => option.value)]} getOptionLabel={(value) => value === 'all' ? 'Tất cả phòng ban' : getEmployeeDepartmentLabel(value)} />
 
-          <EmployeeSelectFilter value={selectedRank} onChange={setSelectedRank} label="cấp bậc" icon={Briefcase} iconClass="bg-blue-50 text-blue-700" options={['all', ...EMPLOYEE_SELECTABLE_RANK_OPTIONS.map((option) => option.value)]} getOptionLabel={(value) => value === 'all' ? 'Tất cả cấp bậc' : getEmployeeRankLabel(value)} />
+          <EmployeeSelectFilter value={selectedRank} onChange={setSelectedRank} label="cấp bậc" icon={Briefcase} iconClass="bg-blue-50 text-blue-700" options={['all', ...EMPLOYEE_RANK_FILTER_OPTIONS.map((option) => option.value)]} getOptionLabel={(value) => value === 'all' ? 'Tất cả cấp bậc' : getEmployeeRankLabel(value)} />
 
           <EmployeeSelectFilter value={selectedStatus} onChange={setSelectedStatus} label="trạng thái" icon={User} iconClass="bg-amber-50 text-amber-700" options={['all', ...EMPLOYEE_STATUS_OPTIONS_UI.map((option) => option.value)]} getOptionLabel={(value) => value === 'all' ? 'Tất cả trạng thái' : EMPLOYEE_STATUS_OPTIONS_UI.find((option) => option.value === value)?.label ?? value} />
 

@@ -4,7 +4,7 @@ import { adminEmployeeService } from "../src/services/admin/employee.service";
 import type { CreateEmployeeInput } from "../src/interfaces/employee.interface";
 
 const actor = { accountId: "admin-id", name: "Admin", email: "admin@example.com" };
-const row = { employeeCode: "000123", email: "an@asiafnb.com", phone: "0901234567", rank: "Staff", importRow: 2 } as CreateEmployeeInput & { importRow: number };
+const row = { employeeCode: "AC-00123", email: "an@asiafnb.com", phone: "0901234567", rank: "Staff", importRow: 2 } as CreateEmployeeInput & { importRow: number };
 
 describe("employee import transaction", () => {
   const session = { withTransaction: jest.fn(async (callback: () => Promise<void>) => callback()), endSession: jest.fn() };
@@ -19,7 +19,7 @@ describe("employee import transaction", () => {
 
   it("records the authenticated administrator on every inserted employee", async () => {
     await adminEmployeeService.importEmployees([row], actor);
-    expect(adminEmployeeRepository.insertImportedEmployees).toHaveBeenCalledWith([expect.objectContaining({ createdBy: actor, employeeCode: "000123" })], session);
+    expect(adminEmployeeRepository.insertImportedEmployees).toHaveBeenCalledWith([expect.objectContaining({ createdBy: actor, employeeCode: "AC-00123" })], session);
     expect(session.endSession).toHaveBeenCalled();
   });
 

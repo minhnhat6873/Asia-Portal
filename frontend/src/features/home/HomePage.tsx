@@ -12,8 +12,8 @@ export default function HomePage() {
       <Navbar />
       <HeroBanner />
       <QuickLinks />
-      <EmployeeSection />
       <NewsSection preview={true} />
+      <EmployeeSection />
       <ResourcesSection />
       <Footer />
     </main>

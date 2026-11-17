@@ -16,6 +16,8 @@ interface ApiMedia {
   publishIndefinitely?: boolean;
   isExpired?: boolean;
   createdAt?: string;
+  featured?: boolean;
+  featuredAt?: string | null;
   status: "published";
 }
 
@@ -25,6 +27,7 @@ export interface PublicMediaListParams {
   page?: number;
   limit?: number;
   sort?: "latest" | "oldest";
+  featured?: boolean;
 }
 
 export interface PublicMediaListResult {
@@ -40,7 +43,7 @@ function formatDate(value: string): string {
   return `${String(date.getUTCDate()).padStart(2, "0")}/${String(date.getUTCMonth() + 1).padStart(2, "0")}/${date.getUTCFullYear()}`;
 }
 
-function mapPublicMedia(post: ApiMedia, featured = false): NewsItem {
+function mapPublicMedia(post: ApiMedia): NewsItem {
   return {
     id: post._id,
     title: post.title,
@@ -55,7 +58,8 @@ function mapPublicMedia(post: ApiMedia, featured = false): NewsItem {
     createdAt: post.createdAt,
     author: getEmployeeDepartmentLabel(post.authorDepartment),
     image: post.coverImage?.trim() || FALLBACK_IMAGE,
-    featured,
+    featured: post.featured,
+    featuredAt: post.featuredAt,
   };
 }
 
@@ -65,7 +69,7 @@ export async function getPublicMedia(params: PublicMediaListParams = {}, signal?
     if (value !== undefined && value !== "") query.set(key, String(value));
   });
   const result = await apiGet<{ items: ApiMedia[]; pagination: PublicMediaListResult["pagination"] }>(`/user/media${query.size ? `?${query}` : ""}`, signal);
-  return { ...result, items: result.items.map((post, index) => mapPublicMedia(post, index < 3)) };
+  return { ...result, items: result.items.map(mapPublicMedia) };
 }
 
 export async function getPublicMediaById(id: string, signal?: AbortSignal): Promise<NewsItem> {
