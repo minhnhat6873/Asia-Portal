@@ -178,7 +178,7 @@ function EmployeesContent() {
             setPage(1);
           }}
         />
-        <div className="mt-4 flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+        <div className="mt-4 flex min-w-0 flex-col gap-3 lg:flex-row lg:items-center lg:gap-4">
           <div className="min-w-0 flex-1">
             <EmployeeStats total={allEmployees.length} departments={departmentCount} positions={positionCount} />
           </div>

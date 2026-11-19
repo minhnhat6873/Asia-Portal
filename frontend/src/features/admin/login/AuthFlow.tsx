@@ -1,8 +1,7 @@
 /**
  * Asia F&B admin authentication flow — /admin/login
  *
- * One client component owns the whole thing: the four screens (Đăng nhập ·
- * Đăng ký · Quên mật khẩu · Xác thực OTP), the ambient background, the toast
+ * One client component owns the whole thing: the screens (Đăng nhập · Quên mật khẩu · Xác thực OTP), the ambient background, the toast
  * queue and the shared brand styles. Modelled on the "TestAdmin" prototype and
  * re-skinned with the Asia F&B brand:
  *   Black canvas (#060806) with the Asia F&B round badge.
@@ -16,13 +15,11 @@
 import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ArrowRight, Check, CheckCircle2, Eye, EyeOff, KeyRound, Lock, LockKeyhole, Mail, Phone, RotateCcw, ShieldAlert, ShieldCheck, Sparkles, User } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, CheckCircle2, Eye, EyeOff, KeyRound, Lock, Mail, RotateCcw, ShieldAlert, ShieldCheck, Sparkles } from "lucide-react";
 import { getAdminLandingPath } from "@/lib/adminPermissions";
 import { getAdminSession, setAdminSession } from "@/lib/adminSession";
 import { getAdminRoleLabel, loginAdmin } from "@/features/admin/login/auth.service";
-import { getPasswordValidationError, normalizeVietnamPhone, validateRegisterForm } from "@/features/admin/register/register.validation";
-import { PASSWORD_MAX_LENGTH, PASSWORD_REQUIREMENTS } from "@/lib/password-validation";
-import { resendRegistrationOtp, startRegistration, verifyRegistrationOtp } from "@/features/admin/register/register.service";
+import { getPasswordValidationError, PASSWORD_MAX_LENGTH, PASSWORD_REQUIREMENTS } from "@/lib/password-validation";
 import { requestPasswordResetOtp, resendPasswordResetOtp, resetPasswordWithOtp, verifyPasswordResetOtp } from "@/features/admin/login/password-reset.service";
 import { ApiError } from "@/services/api";
 import { toast } from "sonner";
@@ -31,8 +28,7 @@ import { toast } from "sonner";
  * Types
  * ========================================================================== */
 
-type AuthView = "login" | "register" | "forgot-password" | "otp";
-type OtpPurpose = "registration" | "password-reset";
+type AuthView = "login" | "forgot-password" | "otp";
 type ToastType = "success" | "error" | "info";
 
 type ShowToast = (title: string, message?: string, type?: ToastType) => void;
@@ -56,7 +52,6 @@ const INPUT =
 const INPUT_ERROR = "border-rose-500 focus:border-rose-500 focus:ring-rose-500/15";
 const LABEL = "block text-xs font-semibold text-zinc-300 mb-1.5";
 const ERROR_TEXT = "text-xs text-rose-400 mt-1 pl-1 font-medium";
-const INPUT_ICON = "absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-zinc-500";
 
 /** Gold primary action — the logo's ring colour, on the black canvas. */
 const PRIMARY_BTN =
@@ -222,10 +217,8 @@ function AmbientBackground() {
  * ========================================================================== */
 
 function LoginScreen({
-  onNavigate,
   showToast,
 }: {
-  onNavigate: (v: AuthView) => void;
   showToast: ShowToast;
 }) {
   const router = useRouter();
@@ -386,277 +379,6 @@ function LoginScreen({
 }
 
 /* ========================================================================== *
- * Screen 2 — Đăng ký
- * ========================================================================== */
-
-function RegisterScreen({
-  onNavigate,
-  onRegisterSuccess,
-  showToast,
-}: {
-  onNavigate: (v: AuthView) => void;
-  onRegisterSuccess: (email: string, phone: string) => void;
-  showToast: ShowToast;
-}) {
-  const [form, setForm] = useState({
-    fullName: "",
-    email: "",
-    phone: "",
-    password: "",
-    confirmPassword: "",
-  });
-  const [showPassword, setShowPassword] = useState(false);
-  const [agreeTerms, setAgreeTerms] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [errors, setErrors] = useState<Record<string, string>>({});
-
-  const set = (key: keyof typeof form) => (value: string) => {
-    const nextForm = { ...form, [key]: value };
-    setForm(nextForm);
-
-    if (key === "password") {
-      const passwordError = getPasswordValidationError(value);
-      setErrors((current) => ({
-        ...current,
-        password: passwordError ?? "",
-        ...(nextForm.confirmPassword
-          ? {
-              confirmPassword:
-                nextForm.confirmPassword === value ? "" : "Xác nhận mật khẩu không khớp.",
-            }
-          : {}),
-      }));
-      return;
-    }
-
-    if (errors[key]) setErrors((current) => ({ ...current, [key]: "" }));
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const { fullName, email, phone, password, confirmPassword } = form;
-    // Email format validation is intentionally deferred; backend still requires a non-empty email.
-    const errs = validateRegisterForm({
-      fullName,
-      email,
-      phone,
-      password,
-      confirmPassword,
-      agreeTerms,
-    });
-    setErrors(errs);
-    if (Object.keys(errs).length) {
-      showToast("Thông tin chưa hoàn tất", "Vui lòng kiểm tra các trường bị báo lỗi.", "error");
-      return;
-    }
-
-    const normalizedPhone = normalizeVietnamPhone(phone);
-    setIsLoading(true);
-
-    try {
-      await startRegistration({
-        fullName: fullName.trim(),
-        email: email.trim(),
-        phone: normalizedPhone,
-        password,
-        confirmPassword,
-        agreeTerms,
-      });
-
-      showToast(
-        "Đăng ký thành công!",
-        "Mã OTP đã được gửi đến email của bạn. Hãy nhập mã để hoàn tất đăng ký.",
-        "success",
-      );
-      onRegisterSuccess(email.trim(), normalizedPhone);
-    } catch (error) {
-      const message = error instanceof ApiError
-        ? error.errors[0] ?? error.message
-        : "Không thể kết nối tới máy chủ. Vui lòng thử lại sau.";
-      const fieldErrors: Record<string, string> = {};
-      const normalizedMessage = message.toLocaleLowerCase("vi");
-
-      if (normalizedMessage.includes("email")) fieldErrors.email = message;
-      else if (normalizedMessage.includes("số điện thoại")) fieldErrors.phone = message;
-      else if (normalizedMessage.includes("mật khẩu")) fieldErrors.password = message;
-
-      if (Object.keys(fieldErrors).length) setErrors(fieldErrors);
-      showToast("Đăng ký chưa thành công", message, "error");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  return (
-    <div className="mx-auto w-full max-w-lg animate-auth-in">
-      <div className={CARD}>
-        <div className={cardAccent()} />
-
-        <div className="mb-6 text-center">
-          <BrandBadge size={72} />
-          <div className={EYEBROW}>
-            <Sparkles className="h-3.5 w-3.5" />
-            <span>Tạo tài khoản mới</span>
-          </div>
-          <h1 className={TITLE}>Đăng ký thành viên</h1>
-          <p className={SUBTITLE}>Kết nối đội ngũ Asia F&amp;B và cùng phát triển mỗi ngày</p>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label htmlFor="reg-fullname" className={LABEL}>Họ và tên</label>
-            <FloatingField
-              id="reg-fullname"
-              value={form.fullName}
-              onChange={set("fullName")}
-              label="Họ và tên"
-              placeholder="Nguyễn Văn A"
-              icon={<User className="h-4 w-4" />}
-              invalid={Boolean(errors.fullName)}
-              autoComplete="name"
-            />
-            {errors.fullName && <p className={ERROR_TEXT}>{errors.fullName}</p>}
-          </div>
-
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div>
-              <label htmlFor="reg-email" className={LABEL}>Email</label>
-              <FloatingField
-                id="reg-email"
-                type="email"
-                value={form.email}
-                onChange={set("email")}
-                label="Email"
-                placeholder="name@asiafnb.com"
-                icon={<Mail className="h-4 w-4" />}
-                invalid={Boolean(errors.email)}
-                autoComplete="email"
-              />
-              {errors.email && <p className={ERROR_TEXT}>{errors.email}</p>}
-            </div>
-
-            <div>
-              <label htmlFor="reg-phone" className={LABEL}>Số điện thoại</label>
-              <FloatingField
-                id="reg-phone"
-                type="tel"
-                value={form.phone}
-                onChange={(value) => set("phone")(value.replace(/\D/g, "").slice(0, 10))}
-                label="Số điện thoại"
-                placeholder="0912345678"
-                icon={<Phone className="h-4 w-4" />}
-                invalid={Boolean(errors.phone)}
-                autoComplete="tel"
-                inputMode="numeric"
-              />
-              {errors.phone && <p className={ERROR_TEXT}>{errors.phone}</p>}
-            </div>
-          </div>
-
-          <div>
-            <label htmlFor="reg-password" className={LABEL}>Mật khẩu</label>
-            <FloatingField
-              id="reg-password"
-              type={showPassword ? "text" : "password"}
-              value={form.password}
-              onChange={set("password")}
-              label="Mật khẩu"
-              placeholder="8–32 ký tự, không chứa khoảng trắng"
-              icon={<Lock className="h-4 w-4" />}
-              invalid={Boolean(errors.password)}
-              autoComplete="new-password"
-              maxLength={PASSWORD_MAX_LENGTH}
-              trailing={
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  aria-label="Hiện/ẩn mật khẩu"
-                  className="absolute inset-y-0 right-0 flex items-center pr-3.5 text-zinc-500 transition-colors hover:text-zinc-300"
-                >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              }
-            />
-            {errors.password && <p className={ERROR_TEXT}>{errors.password}</p>}
-            <p className="mt-2 text-xs leading-5 text-zinc-400">{PASSWORD_REQUIREMENTS}</p>
-          </div>
-
-          <div>
-            <label htmlFor="reg-confirm" className={LABEL}>Xác nhận lại mật khẩu</label>
-            <FloatingField
-              id="reg-confirm"
-              type={showPassword ? "text" : "password"}
-              value={form.confirmPassword}
-              onChange={set("confirmPassword")}
-              label="Xác nhận lại mật khẩu"
-              placeholder="Nhập lại mật khẩu vừa tạo"
-              icon={<ShieldCheck className="h-4 w-4" />}
-              invalid={Boolean(errors.confirmPassword)}
-              autoComplete="new-password"
-              maxLength={PASSWORD_MAX_LENGTH}
-            />
-            {errors.confirmPassword && <p className={ERROR_TEXT}>{errors.confirmPassword}</p>}
-          </div>
-
-          <div>
-            <label className="flex cursor-pointer select-none items-start gap-2.5">
-              <input
-                type="checkbox"
-                checked={agreeTerms}
-                onChange={(e) => {
-                  setAgreeTerms(e.target.checked);
-                  if (errors.agreeTerms) setErrors((prev) => ({ ...prev, agreeTerms: "" }));
-                }}
-                className="sr-only"
-              />
-              <span
-                className={`w-4 h-4 mt-0.5 rounded border flex items-center justify-center shrink-0 transition-colors ${
-                  agreeTerms ? "bg-[#f5c800] border-[#f5c800] text-black" : "border-white/25 bg-white/5"
-                }`}
-              >
-                {agreeTerms && <Check className="h-3 w-3 stroke-[3]" />}
-              </span>
-              <span className="text-sm leading-relaxed text-zinc-300">
-                Tôi đồng ý với{" "}
-                <button
-                  type="button"
-                  onClick={() => showToast("Điều khoản", "Điều khoản dịch vụ của cổng thông tin nội bộ Asia F&B", "info")}
-                  className="text-[#1a7a1a] underline"
-                >
-                  Điều khoản dịch vụ
-                </button>{" "}
-                và{" "}
-                <button
-                  type="button"
-                  onClick={() => showToast("Chính sách", "Chính sách quyền riêng tư và mã hóa dữ liệu nội bộ", "info")}
-                  className="text-[#1a7a1a] underline"
-                >
-                  Chính sách bảo mật
-                </button>
-              </span>
-            </label>
-            {errors.agreeTerms && <p className={ERROR_TEXT}>{errors.agreeTerms}</p>}
-          </div>
-
-
-
-          <button type="submit" disabled={isLoading} className={PRIMARY_BTN}>
-            {isLoading ? (
-              <ButtonSpinner />
-            ) : (
-              <>
-                <span>Đăng ký &amp; Nhận mã OTP</span>
-                <ArrowRight className="h-4 w-4" />
-              </>
-            )}
-          </button>
-        </form>
-
-      </div>
-    </div>
-  );
-}
-
-/* ========================================================================== *
  * Screen 3 — Quên mật khẩu
  * ========================================================================== */
 
@@ -774,13 +496,11 @@ function ForgotPasswordScreen({
 function OtpScreen({
   onNavigate,
   target,
-  purpose,
   showToast,
   onAuthenticated,
 }: {
   onNavigate: (v: AuthView) => void;
   target: string;
-  purpose: OtpPurpose;
   showToast: ShowToast;
   onAuthenticated: (email: string) => void;
 }) {
@@ -867,13 +587,6 @@ function OtpScreen({
 
     setIsVerifying(true);
     try {
-      if (purpose === "registration") {
-        await verifyRegistrationOtp(target, code);
-        setIsSuccess(true);
-        showToast("Xác thực thành công!", "Email đã được xác thực và tài khoản đang chờ admin phê duyệt.", "success");
-        return;
-      }
-
       await verifyPasswordResetOtp(target, code);
       setVerifiedOtpCode(code);
       setIsSuccess(true);
@@ -888,9 +601,7 @@ function OtpScreen({
   };
   const handleResend = async () => {
     try {
-      const result = purpose === "registration"
-        ? await resendRegistrationOtp(target)
-        : await resendPasswordResetOtp(target);
+      const result = await resendPasswordResetOtp(target);
       setCountdown(59);
       setOtpExpiryCountdown(result.expiresInSeconds);
       setOtp(Array(6).fill(""));
@@ -906,11 +617,6 @@ function OtpScreen({
   };
 
   const handleComplete = async () => {
-    if (purpose === "registration") {
-      onAuthenticated(target);
-      return;
-    }
-
     const validationError = getPasswordValidationError(newPassword);
     if (validationError) {
       setPasswordResetError(validationError);
@@ -947,9 +653,7 @@ function OtpScreen({
               <CheckCircle2 className="h-9 w-9" />
             </div>
             <h2 className="text-2xl font-bold text-white">Xác thực thành công!</h2>
-            {purpose === "registration" && (<p className="mt-2 text-sm leading-relaxed text-zinc-400">Email của bạn đã được xác thực. Tài khoản đang chờ admin phê duyệt.</p>)}
 
-            {purpose === "password-reset" && (
               <div className="my-6 space-y-3 rounded-xl border border-white/10 bg-white/[0.04] p-4 text-left">
                 <input
                   type="password"
@@ -974,7 +678,6 @@ function OtpScreen({
                 {passwordResetError && <p className="text-xs font-medium text-rose-400">{passwordResetError}</p>}
                 <p className="text-xs leading-5 text-zinc-400">{PASSWORD_REQUIREMENTS}</p>
               </div>
-            )}
             <div className="space-y-2.5">
               <button
                 type="button"
@@ -982,7 +685,7 @@ function OtpScreen({
                 disabled={isResettingPassword}
                 className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#d4aa00] via-[#f5c800] to-[#e0b400] px-4 py-2.5 text-sm font-bold text-[#1a1a1a] shadow-lg shadow-[#f5c800]/20 transition-all duration-200 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {isResettingPassword ? <ButtonSpinner /> : <><span>{purpose === "registration" ? "Về trang Đăng nhập" : "Hoàn tất & Đăng nhập"}</span><ArrowRight className="h-4 w-4" /></>}
+                {isResettingPassword ? <ButtonSpinner /> : <><span>Hoàn tất & Đăng nhập</span><ArrowRight className="h-4 w-4" /></>}
               </button>
             </div>
           </div>
@@ -1059,32 +762,26 @@ function OtpScreen({
  * ========================================================================== */
 
 interface AuthFlowProps {
-  initialView?: "login" | "register" | "forgot-password";
+  initialView?: "login" | "forgot-password";
 }
 
 export default function AuthFlow({ initialView = "login" }: AuthFlowProps) {
   const [view, setView] = useState<AuthView>(initialView);
   const [otpTarget, setOtpTarget] = useState("nhanvien@asiafnb.com");
-  const [otpPurpose, setOtpPurpose] = useState<OtpPurpose>("registration");
 
   const showToast = useCallback((title: string, message?: string, type: ToastType = "info") => {
     const notify = type === "success" ? toast.success : type === "error" ? toast.error : toast.info;
     notify(title, { description: message });
   }, []);
-  /** Register / forgot-password both hand the email over to the OTP screen. */
-  const goToOtp = (email: string, purpose: OtpPurpose = "password-reset") => {
+  /** The password reset flow passes the email to the OTP screen. */
+  const goToOtp = (email: string) => {
     setOtpTarget(email);
-    setOtpPurpose(purpose);
     setView("otp");
   };
 
   const router = useRouter();
 
   const navigateAuthView = (nextView: AuthView) => {
-    if (nextView === "register") {
-      router.push("/admin/register");
-      return;
-    }
     if (nextView === "forgot-password") {
       router.push("/admin/forgot-password");
       return;
@@ -1108,25 +805,16 @@ export default function AuthFlow({ initialView = "login" }: AuthFlowProps) {
 
       <div className="flex flex-1 items-center justify-center px-4 py-10 sm:py-14">
         <div className="mx-auto w-full max-w-5xl">
-          {view === "login" && <LoginScreen onNavigate={navigateAuthView} showToast={showToast} />}
-
-          {view === "register" && (
-            <RegisterScreen
-              onNavigate={navigateAuthView}
-              onRegisterSuccess={(email) => goToOtp(email, "registration")}
-              showToast={showToast}
-            />
-          )}
+          {view === "login" && <LoginScreen showToast={showToast} />}
 
           {view === "forgot-password" && (
-            <ForgotPasswordScreen onNavigate={navigateAuthView} onRequestOtp={(email) => goToOtp(email, "password-reset")} showToast={showToast} />
+            <ForgotPasswordScreen onNavigate={navigateAuthView} onRequestOtp={(email) => goToOtp(email)} showToast={showToast} />
           )}
 
           {view === "otp" && (
             <OtpScreen
               onNavigate={navigateAuthView}
               target={otpTarget}
-              purpose={otpPurpose}
               showToast={showToast}
               onAuthenticated={completeOtp}
             />

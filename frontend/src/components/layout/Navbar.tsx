@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronRight, Menu, X } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import InternalSystemsMenu from "./InternalSystemsMenu";
 import { getPublicSiteSettings } from "@/services/site-settings.service";
@@ -144,7 +144,6 @@ export default function Navbar() {
                     }`}
                   >
                     {link.label}
-                    {!isActive(link.href) && <ChevronRight aria-hidden="true" className="h-5 w-5 shrink-0" />}
                   </Link>
                 ))}
                 {internalSystemsEnabled ? <InternalSystemsMenu mobile /> : null}
