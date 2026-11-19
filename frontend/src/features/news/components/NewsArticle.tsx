@@ -47,7 +47,7 @@ export default function NewsArticle({ item, related }: Props) {
               {item.category}
             </span>
             <span className="ml-2"><MediaExpiryBadge isExpired={item.isExpired} /></span>
-            <h1 className="mt-3 text-2xl font-black leading-tight text-white sm:text-3xl md:text-4xl">
+            <h1 className="mt-3 break-words text-left text-2xl font-bold leading-[1.3] text-white md:text-[28px] lg:text-[32px]">
               {item.title}
             </h1>
             <div className="mt-4 flex-wrap items-center gap-x-5 gap-y-2 text-xs text-white/75 sm:text-sm">

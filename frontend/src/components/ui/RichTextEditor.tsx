@@ -18,6 +18,7 @@ interface RichTextEditorProps {
   disabled?: boolean;
   placeholder?: string;
   enableImageInsert?: boolean;
+  enableFontSize?: boolean;
   uploadImage?: (file: File) => Promise<string>;
   /** "full" bật thêm cỡ chữ, gạch ngang, màu chữ, căn lề, thụt lề, trích dẫn và đường kẻ ngang. */
   toolbarPreset?: "default" | "full";
@@ -83,6 +84,7 @@ export default function RichTextEditor({
   disabled = false,
   placeholder = "",
   enableImageInsert = false,
+  enableFontSize = false,
   uploadImage,
   toolbarPreset = "default",
   height = 260,
@@ -278,7 +280,7 @@ export default function RichTextEditor({
     paste_data_images: false,
     automatic_uploads: false,
     font_family_formats: "Arial=Arial,Helvetica,sans-serif; Tahoma=Tahoma,Arial,sans-serif; Verdana=Verdana,Geneva,sans-serif; Georgia=Georgia,serif; Times New Roman='Times New Roman',Times,serif",
-    toolbar: isFull ? `${FULL_TOOLBAR}${enableImageInsert ? " | insertContentImage" : ""}` : `undo redo | blocks fontfamily | bold italic underline | bullist numlist | link table${enableImageInsert ? " insertContentImage" : ""} | removeformat | code fullscreen`,
+    toolbar: isFull ? `${FULL_TOOLBAR}${enableImageInsert ? " | insertContentImage" : ""}` : `undo redo | blocks fontfamily${enableFontSize ? " fontsize" : ""} | bold italic underline | bullist numlist | link table${enableImageInsert ? " insertContentImage" : ""} | removeformat | code fullscreen`,
       setup: enableImageInsert ? (editor: TinyMceEditorInstance) => {
       editor.ui.registry.addButton("insertContentImage", {
         icon: "image",
