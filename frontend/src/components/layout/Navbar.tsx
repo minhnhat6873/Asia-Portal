@@ -68,9 +68,9 @@ export default function Navbar() {
             <Image
               src="/assets/images/asia-logo.png"
               alt="Asia Food & Beverage co.ltd"
-              width={56}
-              height={56}
-              className="h-11 w-11 object-contain sm:h-14 sm:w-14"
+              width={58}
+              height={58}
+              className="h-[46px] w-[46px] object-contain sm:h-[58px] sm:w-[58px]"
               priority
             />
             <span className="hidden sm:block font-bold text-xl text-wana-green-dark tracking-tight">

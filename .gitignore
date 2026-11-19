@@ -19,6 +19,9 @@ deploy/mongodb/keyfile
 # Local project handoff notes
 PROJECT_ROADMAP.md
 
+# Local Graphify index
+/graphify-out/
+
 # Editor/system files
 .vscode/
 .DS_Store

@@ -287,7 +287,7 @@ function LoginScreen({
             <span>Chào mừng trở lại</span>
           </div>
           <h1 className={TITLE}>Đăng nhập</h1>
-          <p className={SUBTITLE}>Truy cập cổng thông tin nội bộ Asia Food &amp; Beverage</p>
+          <p className={SUBTITLE}>Truy Cập Công quản lý Nội Bộ Asia Food &amp; Beverage</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
