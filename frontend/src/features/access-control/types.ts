@@ -36,6 +36,8 @@ export interface Role {
 }
 
 export interface User {
+  presence?: "online" | "offline" | "unknown";
+  lastSeenAt?: string | null;
   id: string;
   name: string;
   email: string;

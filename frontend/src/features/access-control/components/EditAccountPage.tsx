@@ -1,5 +1,7 @@
 "use client";
 
+import { formatRegistration } from "../formatRegistration";
+
 import { useRef, useState, type FocusEvent } from "react";
 import Link from "next/link";
 import { ArrowLeft, Check, Eye, EyeOff, KeyRound, LockKeyhole, ShieldCheck, UserRound } from "lucide-react";
@@ -175,7 +177,7 @@ export function EditAccountPage({ user, roles, currentUserId, onBack, onSaved }:
     </div>
     <div className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="grid h-16 w-16 shrink-0 place-items-center rounded-full bg-orange-50 text-xl font-bold text-orange-600">{deriveInitials(user.name)}</div>
-      <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h2 className="text-base font-bold text-slate-900">{user.name}</h2><span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${user.status === "active" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>{user.status === "active" ? "Đang hoạt động" : user.status === "pending" ? "Chờ duyệt" : "Tạm khóa"}</span></div><p className="mt-1 break-all text-sm text-slate-500">{user.email}{user.phone ? ` · ${user.phone}` : ""}</p><p className="mt-1 text-xs text-slate-400">Ngày tạo: {user.createdAt || "—"} · Cập nhật lần cuối: {user.updatedAt || "—"}</p></div>
+      <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h2 className="text-base font-bold text-slate-900">{user.name}</h2><span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${user.status === "active" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>{user.status === "active" ? "Đang hoạt động" : user.status === "pending" ? "Chờ duyệt" : "Tạm khóa"}</span></div><p className="mt-1 break-all text-sm text-slate-500">{user.email}{user.phone ? ` · ${user.phone}` : ""}</p><p className="mt-1 text-xs text-slate-400">Ngày tạo: {formatRegistration(user.createdAt)} · Cập nhật lần cuối: {user.updatedAt || "—"}</p></div>
     </div>
     <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
       <div role="tablist" aria-label="Chỉnh sửa tài khoản" className="flex border-b border-slate-200 bg-slate-50/60">

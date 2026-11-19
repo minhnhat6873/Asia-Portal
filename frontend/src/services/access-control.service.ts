@@ -16,6 +16,8 @@ export type PermissionAction =
   | "meetings:view" | "meetings:create" | "meetings:update" | "meetings:delete";
 
 export interface ApiAccount {
+  presence?: "online" | "offline" | "unknown";
+  lastSeenAt?: string | null;
   id: string;
   name: string;
   email: string;
@@ -40,7 +42,7 @@ export interface ApiPermissionGroup {
   updatedAt?: string;
 }
 
-export const getAccounts = (): Promise<ApiAccount[]> => apiGet<ApiAccount[]>("/admin/accounts");
+export const getAccounts = (signal?: AbortSignal): Promise<ApiAccount[]> => apiGet<ApiAccount[]>("/admin/accounts", signal);
 
 export function checkAccountContacts(input: { email?: string; phone?: string }): Promise<{ emailAvailable?: boolean; phoneAvailable?: boolean }> {
   return apiPost("/admin/accounts/check-contacts", input);

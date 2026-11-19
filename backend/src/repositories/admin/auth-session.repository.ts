@@ -2,6 +2,18 @@ import AuthSessionModel from "../../models/auth-session.model";
 import type { AuthSession } from "../../interfaces/auth-session.interface";
 
 export const authSessionRepository = {
+  recentActivity(accountIds: string[], now: Date) {
+    return AuthSessionModel.aggregate<{
+      _id: { accountId: string; authVersion: number };
+      lastSeenAt: Date | null;
+    }>([
+      { $match: { accountId: { $in: accountIds }, expiresAt: { $gt: now } } },
+      { $group: {
+        _id: { accountId: "$accountId", authVersion: "$authVersion" },
+        lastSeenAt: { $max: "$lastSeenAt" },
+      } },
+    ]);
+  },
   create(data: AuthSession) {
     return AuthSessionModel.create(data);
   },

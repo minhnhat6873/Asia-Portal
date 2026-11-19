@@ -95,3 +95,16 @@ Mẫu Excel hiển thị tên đơn vị không có tiền tố “Phòng” (v�
 
 Xem [feedback.md](feedback.md): `POST /user/feedback` công khai; các API `/admin/feedback` yêu cầu role admin.
 Tin truyền thông nổi bật: `GET /user/media?featured=true&limit=5`; xem [media-featured.md](media-featured.md).
+
+### Hoạt động tài khoản trong GET /admin/accounts
+
+Response bổ sung `presence: online | offline | unknown` và `lastSeenAt: ISO date | null`.
+Chỉ đối chiếu phiên chưa hết hạn với `authVersion` hiện tại của tài khoản.
+Online là có hoạt động được máy chủ xác thực trong 180 giây gần nhất; middleware
+ghi nhận hoạt động tối đa một lần/phút, guard frontend xác minh mỗi phút khi tab hiển thị.
+Phiên còn hiệu lực nhưng không có lastSeenAt trả unknown. Không có phiên hợp lệ
+hoặc tài khoản bị khóa trả offline. Đây là hoạt động gần đây.
+Frontend làm mới mỗi 30 giây khi hiển thị; nếu lỗi cập nhật sẽ hiển thị chưa xác định.
+PATCH /admin/accounts/:id với status inactive tăng authVersion trong transaction,
+khiến access/refresh session cũ mất hiệu lực; kích hoạt lại không phục hồi phiên cũ.
+DELETE vẫn xóa vĩnh viễn theo API hiện tại; tài khoản đã xóa không vượt qua xác thực.

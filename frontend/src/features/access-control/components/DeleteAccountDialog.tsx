@@ -21,9 +21,9 @@ export function DeleteAccountDialog({ user, saving, onClose, onConfirm }: Props)
   }, []);
 
   return createPortal(
-    <dialog ref={ref} aria-labelledby="delete-account-title" aria-describedby="delete-account-description" onCancel={(event) => { event.preventDefault(); if (!saving) onClose(); }} className="m-auto max-h-[90dvh] w-[calc(100%_-_2rem)] max-w-lg overflow-y-auto rounded-2xl border-0 bg-white p-6 text-base text-slate-800 shadow-2xl backdrop:bg-slate-950/50 backdrop:backdrop-blur-sm">
+    <dialog ref={ref} aria-labelledby="delete-account-title" aria-describedby="delete-account-description" onCancel={(event) => { event.preventDefault(); if (!saving) onClose(); }} className="m-auto max-h-[90dvh] w-[calc(100%_-_2rem)] max-w-lg overflow-y-auto rounded-2xl border border-slate-200 bg-white p-6 font-sans text-sm text-slate-800 shadow-2xl backdrop:bg-slate-950/50 backdrop:backdrop-blur-sm">
       <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-rose-50 text-rose-600"><Trash2 className="h-6 w-6" /></div>
-      <h2 id="delete-account-title" className="text-xl font-bold">Xóa tài khoản?</h2>
+      <h2 id="delete-account-title" className="text-lg font-bold">Xóa tài khoản?</h2>
       <div id="delete-account-description" className="mt-3 space-y-2 break-words leading-relaxed text-slate-600">
         <p>Bạn có chắc muốn xóa tài khoản <strong>{user.name}</strong> ({user.email})?</p>
         <p>Tài khoản sẽ bị xóa vĩnh viễn. Thao tác này không thể hoàn tác.</p>

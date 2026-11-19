@@ -64,6 +64,8 @@ export interface ResetAccountPasswordInput {
 }
 
 export interface AccountResponse {
+  presence?: "online" | "offline" | "unknown";
+  lastSeenAt?: Date | null;
   id: string;
   name: string;
   email: string;

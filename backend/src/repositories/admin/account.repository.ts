@@ -63,7 +63,7 @@ export const adminAccountRepository = {
   },
 
   findAll() {
-    return AccountModel.find({}).sort({ createdAt: -1 }).lean();
+    return AccountModel.find({}).select("+authVersion").sort({ createdAt: -1 }).lean();
   },
 
   countAll() {

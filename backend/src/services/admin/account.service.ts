@@ -16,6 +16,8 @@ import { accountAdministrationRepository } from "../../repositories/admin/accoun
 import { emailService } from "../notification/email.service";
 import { normalizeAccountPhone } from "../../utils/account/normalizeContact";
 
+import { authSessionRepository } from "../../repositories/admin/auth-session.repository";
+
 type StoredAccount = Account & { _id: unknown };
 
 function toAccountResponse(account: StoredAccount): AccountResponse {
@@ -69,7 +71,21 @@ async function protectLastAdmin(account: StoredAccount, session: mongoose.Client
 export const adminAccountService = {
   async getAccounts(): Promise<AccountResponse[]> {
     const accounts = await adminAccountRepository.findAll();
-    return accounts.map((account) => toAccountResponse(account));
+    const now = new Date();
+    const activity = await authSessionRepository.recentActivity(accounts.map((account) => String(account._id)), now);
+    const byVersion = new Map(activity.map((item) => [
+      `${item._id.accountId}:${item._id.authVersion}`, item.lastSeenAt,
+    ]));
+    return accounts.map((account) => {
+      const key = `${account._id}:${account.authVersion ?? 0}`;
+      const lastSeenAt = byVersion.get(key) ?? null;
+      const presence = account.status !== "active" || !byVersion.has(key)
+        ? "offline"
+        : !lastSeenAt
+          ? "unknown"
+          : now.getTime() - new Date(lastSeenAt).getTime() <= 180_000 ? "online" : "offline";
+      return { ...toAccountResponse(account), presence, lastSeenAt };
+    });
   },
 
   async createAccount(

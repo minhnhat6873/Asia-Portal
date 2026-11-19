@@ -1,7 +1,7 @@
 "use client";
 
 import { useDelayedLoading } from "@/lib/useDelayedLoading";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { UserManagementView } from "./components/UserManagementView";
 import { EditAccountPage } from "./components/EditAccountPage";
@@ -39,7 +39,9 @@ function toUser(account: ApiAccount): User {
     id: account.id, name: account.name, email: account.email, phone: account.phone ?? "",
     accountRole: account.role, roleIds: account.permissionGroupIds,
     status: account.status === "inactive" ? "suspended" : account.status,
-    createdAt: account.createdAt ? new Date(account.createdAt).toLocaleDateString("vi-VN") : "",
+    createdAt: account.createdAt,
+    presence: account.presence,
+    lastSeenAt: account.lastSeenAt,
     updatedAt: account.updatedAt ? new Date(account.updatedAt).toLocaleString("vi-VN") : "",
     notes: account.notes ?? "",
   };
@@ -54,11 +56,45 @@ export function AccessControlTabs({ activeTab, page, editingRoleId, editingAccou
   const showLoading = useDelayedLoading(isLoading);
   const [loadError, setLoadError] = useState("");
   const [saving, setSaving] = useState(false);
+  const mutationLock = useRef(false);
+  const [presenceError, setPresenceError] = useState("");
+
+  useEffect(() => {
+    if (page !== "accounts" || saving) return;
+    const controller = new AbortController();
+    let pending = false;
+    const refresh = async () => {
+      if (pending || document.hidden) return;
+      pending = true;
+      try {
+        const accounts = await getAccounts(controller.signal);
+        if (!controller.signal.aborted) {
+          setUsers(accounts.map(toUser));
+          setPresenceError("");
+          onAccountsChanged?.(accounts.filter((account) => account.status === "pending").length);
+        }
+      } catch {
+        if (!controller.signal.aborted) {
+          setPresenceError("Chưa thể cập nhật hoạt động. Trạng thái đăng nhập tạm thời chưa xác định.");
+          setUsers((items) => items.map((user) => ({ ...user, presence: "unknown" })));
+        }
+      } finally { pending = false; }
+    };
+    const timer = window.setInterval(() => void refresh(), 30_000);
+    const visible = () => { void refresh(); };
+    document.addEventListener("visibilitychange", visible);
+    window.addEventListener("focus", visible);
+    return () => {
+      controller.abort(); window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", visible);
+      window.removeEventListener("focus", visible);
+    };
+  }, [page, saving, onAccountsChanged]);
 
   const reload = useCallback(async () => {
     const [accounts, groups, catalog] = await Promise.all([getAccounts(), getPermissionGroups(), getPermissionCatalog()]);
     setUsers(accounts.map(toUser)); setRoles(groups.map(toRole));
-    setModules(catalog.modules); setPermissions(catalog.permissions); setLoadError("");
+    setModules(catalog.modules); setPermissions(catalog.permissions); setLoadError(""); setPresenceError("");
     onAccountsChanged?.(accounts.filter((account) => account.status === "pending").length);
   }, [onAccountsChanged]);
 
@@ -70,14 +106,21 @@ export function AccessControlTabs({ activeTab, page, editingRoleId, editingAccou
   }, [reload]);
 
   const mutate = async (action: () => Promise<unknown>, success: string, propagateError = false): Promise<boolean> => {
-    if (saving) return false;
+    if (mutationLock.current) return false;
+    mutationLock.current = true;
     setSaving(true);
     try {
-      await action(); await reload(); toast.success(success); return true;
+      await action();
+      toast.success(success);
+      try { await reload(); }
+      catch {
+        setLoadError("Thao tác đã hoàn tất nhưng chưa tải lại được danh sách. Hãy bấm Thử lại.");
+      }
+      return true;
     } catch (error) {
       if (propagateError) throw error;
       toast.error(error instanceof Error ? error.message : "Không thể lưu thay đổi."); return false;
-    } finally { setSaving(false); }
+    } finally { mutationLock.current = false; setSaving(false); }
   };
 
   if (isLoading) return <div hidden={!showLoading} role="status" className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500">Đang tải dữ liệu phân quyền...</div>;
@@ -100,6 +143,9 @@ export function AccessControlTabs({ activeTab, page, editingRoleId, editingAccou
 
   if (activeTab === "permissions" && page === "accounts") return <UserManagementView
     users={users} roles={roles}
+    presenceError={presenceError}
+    onRefresh={reload}
+    onSetStatus={(userId, status) => mutate(() => updateAccount(userId, { status }), status === "inactive" ? "Đã vô hiệu hóa tài khoản và thu hồi phiên đăng nhập." : "Đã kích hoạt lại tài khoản.")}
     currentUserId={getAdminSession()?.id ?? ""} saving={saving}
     canManageAccountTypes={getAdminSession()?.role === "Toàn quyền Admin"}
     onDeleteUser={(userId) => mutate(() => deleteAccount(userId), "Đã xóa tài khoản.")}
