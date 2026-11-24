@@ -13,6 +13,8 @@ export interface MeetingBooking {
   organizer: string;
   email: string;
   department: string;
+  /** The signed-in viewer booked it, so they may cancel it. */
+  isMine?: boolean;
 }
 
 interface MeetingBookingPage {
@@ -22,33 +24,18 @@ interface MeetingBookingPage {
   };
 }
 
-export interface StartMeetingBookingInput {
+/** Name and email come from the signed-in account; they are not part of the form. */
+export interface BookMeetingInput {
   title: string;
   roomId: MeetingRoomId;
   date: string;
   start: string;
   durationMinutes: number;
   attendees: number;
-  organizer: string;
-  email: string;
   department: string;
 }
 
-export interface OtpRequestResult {
-  email: string;
-  expiresInSeconds: number;
-  resendAfterSeconds: number;
-}
-
-export interface BookingOtpRequestResult extends OtpRequestResult {
-  requestId: string;
-}
-
-export interface OtpResendResult {
-  expiresInSeconds: number;
-  resendAfterSeconds: number;
-}
-
+export interface MyMeetingBooking extends MeetingBooking { ended: boolean }
 export async function getMeetingBookings(signal?: AbortSignal): Promise<MeetingBooking[]> {
   const firstPage = await apiGet<MeetingBookingPage>("/user/meetings?limit=500&page=1", signal);
   if (firstPage.pagination.totalPages <= 1) return firstPage.items;
@@ -62,26 +49,15 @@ export async function getMeetingBookings(signal?: AbortSignal): Promise<MeetingB
   return [...firstPage.items, ...remainingPages.flatMap((page) => page.items)];
 }
 
-export function startMeetingBooking(input: StartMeetingBookingInput): Promise<BookingOtpRequestResult> {
-  return apiPost("/user/meetings/booking-requests", input);
+export function bookMeeting(input: BookMeetingInput): Promise<MeetingBooking> {
+  return apiPost("/user/meetings/bookings", input);
 }
 
-export function verifyMeetingBooking(requestId: string, code: string): Promise<MeetingBooking> {
-  return apiPost("/user/meetings/booking-requests/verify-otp", { requestId, code });
+/** Only the person who booked can cancel (checked by the server). */
+export function cancelMyBooking(bookingId: string): Promise<MeetingBooking> {
+  return apiPost(`/user/meetings/bookings/${encodeURIComponent(bookingId)}/cancel`, {});
 }
 
-export function resendMeetingBookingOtp(requestId: string): Promise<OtpResendResult> {
-  return apiPost("/user/meetings/booking-requests/resend-otp", { requestId });
-}
-
-export function startMeetingCancellation(bookingId: string): Promise<OtpRequestResult> {
-  return apiPost("/user/meetings/cancel-requests", { bookingId });
-}
-
-export function verifyMeetingCancellation(bookingId: string, code: string): Promise<MeetingBooking> {
-  return apiPost("/user/meetings/cancel-requests/verify-otp", { bookingId, code });
-}
-
-export function resendMeetingCancellationOtp(bookingId: string): Promise<OtpResendResult> {
-  return apiPost("/user/meetings/cancel-requests/resend-otp", { bookingId });
+export function getMyMeetingBookings(signal?: AbortSignal): Promise<{ upcoming: MyMeetingBooking[]; past: MyMeetingBooking[] }> {
+  return apiGet("/user/meetings/mine", signal);
 }

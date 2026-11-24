@@ -29,6 +29,12 @@ function createImageStorage(folder: string): CloudinaryStorage {
 const avatarStorage = createImageStorage("asia-portal/avatars");
 const mediaCoverStorage = createImageStorage("asia-portal/media");
 const chartAvatarStorage = createImageStorage("asia-portal/chart-avatars");
+/** Account pictures chosen by the person; separate from the HR employee photos. */
+export const ACCOUNT_AVATAR_FOLDER = "asia-portal/account-avatars";
+const accountAvatarStorage = createImageStorage(ACCOUNT_AVATAR_FOLDER);
+/** Trip pictures (Grab receipts, delivery proof) for vehicle requests. */
+export const VEHICLE_RECEIPT_FOLDER = "asia-portal/vehicle-receipts";
+const vehicleReceiptStorage = createImageStorage(VEHICLE_RECEIPT_FOLDER);
 
 function hasCloudinaryConfiguration(): boolean {
   return [
@@ -100,6 +106,8 @@ export const uploadMediaCover = createImageUploader(mediaCoverStorage, true, (re
   Boolean(request.admin?.permissions.includes(request.method === "POST" ? "media:create" : "media:update")),
 );
 export const uploadChartAvatar = createImageUploader(chartAvatarStorage);
+export const uploadAccountAvatar = createImageUploader(accountAvatarStorage, true);
+export const uploadVehicleReceipts = createImageUploader(vehicleReceiptStorage, true);
 
 export const uploadTinyMceImage = multer({
   storage: multer.memoryStorage(),

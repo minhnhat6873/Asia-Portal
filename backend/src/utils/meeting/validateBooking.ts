@@ -10,7 +10,11 @@ export function validateDate(date: string): boolean {
   return parsed.getUTCFullYear() === year && parsed.getUTCMonth() === month - 1 && parsed.getUTCDate() === day;
 }
 
-export function validateBookingInput(input: StartMeetingBookingInput, requireFuture = true): {
+/**
+ * trustedIdentity: organizer and email come from the signed-in account, not from the
+ * form, so the checks for typed-in names and company emails are skipped.
+ */
+export function validateBookingInput(input: StartMeetingBookingInput, requireFuture = true, trustedIdentity = false): {
   email: string;
   end: string;
   room: (typeof MEETING_ROOMS)[number];
@@ -20,11 +24,11 @@ export function validateBookingInput(input: StartMeetingBookingInput, requireFut
     throw new AppError(400, "Tiêu đề cuộc họp phải từ 3 đến 200 ký tự.");
   }
   const organizer = input.organizer.trim().normalize("NFC");
-  if (organizer.length < 2 || organizer.length > 100 || !/^[\p{L}\s]+$/u.test(organizer)) {
+  if (!trustedIdentity && (organizer.length < 2 || organizer.length > 100 || !/^[\p{L}\s]+$/u.test(organizer))) {
     throw new AppError(400, "Tên người chủ trì không hợp lệ.");
   }
   const email = input.email.trim().toLowerCase();
-  if (email.length > 150 || !/^[a-z0-9._%+-]+@asiafnb\.com$/.test(email)) {
+  if (!trustedIdentity && (email.length > 150 || !/^[a-z0-9._%+-]+@asiafnb\.com$/.test(email))) {
     throw new AppError(400, "Email phải có đuôi @asiafnb.com.");
   }
   if (input.department.trim().length < 2 || input.department.trim().length > 100) {

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import LoginRequired from "@/components/auth/LoginRequired";
 import FaqPage from "@/features/faq/FaqPage";
 
 export const metadata: Metadata = {
@@ -6,4 +7,6 @@ export const metadata: Metadata = {
   description: "Những câu hỏi thường gặp dành cho nhân viên mới tại Asia Food & Beverage.",
 };
 
-export default FaqPage;
+export default function Page() {
+  return <LoginRequired what="trang hỏi đáp dành cho tân binh"><FaqPage /></LoginRequired>;
+}

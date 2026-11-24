@@ -26,11 +26,13 @@ import { EMPLOYEE_RANK_OPTIONS_UI, EMPLOYEE_SELECTABLE_RANK_OPTIONS, getEmployee
 import { EMPLOYEE_STATUS_OPTIONS_UI } from '@/components/ui/employee-status-options';
 import { EMPLOYEE_GENDER_OPTIONS, getEmployeeGenderLabel } from '@/components/ui/employee-gender-options';
 import { createAdminEmployee, updateAdminEmployee } from '@/services/admin-employee.service';
+import { toastLinkedAccount } from '../linked-account-toast';
 import { ApiError } from '@/services/api';
 
 import { useAdminPermissions } from "@/lib/adminPermissions";
 import { useUnsavedChanges } from "@/lib/useUnsavedChanges";
 import UnsavedChangesDialog from "@/components/ui/UnsavedChangesDialog";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { navigateWithUnsavedChangesGuard } from "@/lib/unsavedChangesNavigation";
 
 type FormField = "code" | "fullName" | "position" | "department" | "rank" | "joinDate" | "birthDate" | "gender" | "location" | "status" | "email" | "phone" | "bio";
@@ -122,12 +124,14 @@ export const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<FormErrors>({});
   const rankFieldRef = useRef<HTMLDivElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
   const [avatarUploaderKey, setAvatarUploaderKey] = useState(0);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarOriginalFile, setAvatarOriginalFile] = useState<File | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isDraftRestored, setIsDraftRestored] = useState(false);
   const draftClosed = useRef(false);
+  const [cancelPromptOpen, setCancelPromptOpen] = useState(false);
   const savingRef = useRef(false);
   const hasChanges = avatarFile !== null || (Object.keys(initialForm) as (keyof EmployeeFormDraft)[])
     .some((field) => (field !== "birthDate" || canViewBirthDate) && formData[field] !== initialForm[field]);
@@ -222,9 +226,14 @@ export const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({
     setFieldErrors(errors);
     if (Object.keys(errors).length > 0) {
       setErrorMsg(Object.values(errors)[0] ?? "Vui lòng kiểm tra các trường được đánh dấu trước khi lưu.");
-      if (errors.rank) requestAnimationFrame(() => {
-        rankFieldRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-        rankFieldRef.current?.querySelector<HTMLButtonElement>("button")?.focus({ preventScroll: true });
+      // The form uses noValidate, so bring the first field with an error message into view
+      // and focus it (the browser no longer does this). Error texts are rendered after this state update.
+      requestAnimationFrame(() => {
+        const firstError = formRef.current?.querySelector<HTMLElement>("p.text-rose-600");
+        const field = firstError?.parentElement;
+        if (!field) return;
+        field.scrollIntoView({ behavior: "smooth", block: "center" });
+        field.querySelector<HTMLElement>("input:not([type=hidden]), textarea, select, button")?.focus({ preventScroll: true });
       });
       return false;
     }
@@ -281,6 +290,8 @@ export const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({
         createdAt: employee.createdAt ?? initialEmployee?.createdAt,
         updatedAt: employee.updatedAt ?? initialEmployee?.updatedAt,
       });
+      // Setting "Đã nghỉ việc" locks the linked login account; tell the admin what happened.
+      toastLinkedAccount(employee.linkedAccount, "left");
       await navigation.leave(onBack);
       return true;
     } catch (error) {
@@ -323,6 +334,20 @@ export const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({
 
   return (
     <div className="space-y-6 pb-12">
+      <ConfirmDialog open={cancelPromptOpen}
+        title="Hủy chỉnh sửa?"
+        description={hasChanges ? "Các thay đổi bạn vừa nhập sẽ không được lưu. Bạn có chắc muốn hủy và quay lại danh sách nhân sự?" : "Bạn muốn thoát trang chỉnh sửa và quay lại danh sách nhân sự?"}
+        cancelLabel="Tiếp tục chỉnh sửa"
+        confirmLabel={hasChanges ? "Hủy thay đổi" : "Quay lại danh sách"}
+        onCancel={() => setCancelPromptOpen(false)}
+        onConfirm={() => {
+          // Same as "leave without saving": drop the local draft, then go back without a second prompt.
+          setCancelPromptOpen(false);
+          draftClosed.current = true;
+          sessionStorage.removeItem(draftStorageKey);
+          void navigation.leave(onBack);
+        }}
+      />
       <UnsavedChangesDialog open={navigation.isPromptOpen} saving={isSaving}
         onContinue={navigation.cancelNavigation}
         onDiscard={() => {
@@ -420,7 +445,7 @@ export const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({
             </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form ref={formRef} noValidate onSubmit={handleSubmit} className="space-y-5">
             {/* Row 1: Code (50%) | Full Name (50%) */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
@@ -567,6 +592,7 @@ export const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({
                 </label>
                 <AdminSelect value={formData.status} onChange={(status) => setFormData({ ...formData, status: status as EmployeeStatus })} options={EMPLOYEE_STATUS_OPTIONS_UI} placeholder="" className="w-full" searchable={false} showSelectionCheck={false} />
                 {fieldErrors.status && <p className="mt-1 text-xs text-rose-600">{fieldErrors.status}</p>}
+                {isEditing && formData.status === 'inactive' && initialEmployee?.status !== 'inactive' && <p className="mt-1 text-xs text-amber-700">Khi lưu, tài khoản đăng nhập của nhân viên này (nếu có) sẽ bị khóa và đăng xuất khỏi mọi thiết bị.</p>}
               </div>
             </div>
 
@@ -640,6 +666,17 @@ export const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({
               >
                 ← Quay lại danh sách nhân sự
               </button>
+              <div className="flex flex-wrap items-center gap-3">
+              {isEditing && (
+                <button
+                  type="button"
+                  disabled={isSaving}
+                  onClick={() => setCancelPromptOpen(true)}
+                  className="rounded-xl border border-slate-200 bg-white px-6 py-2.5 text-sm font-bold text-slate-600 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  Hủy
+                </button>
+              )}
               <button
                 type="submit"
                 disabled={isSaving}
@@ -648,6 +685,7 @@ export const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({
                 <Check className="w-4 h-4" />
                 <span>{isEditing ? "L\u01b0u thay \u0111\u1ed5i" : "L\u01b0u nh\u00e2n vi\u00ean n\u00e0y"}</span>
               </button>
+              </div>
             </div>
           </form>
         </div>

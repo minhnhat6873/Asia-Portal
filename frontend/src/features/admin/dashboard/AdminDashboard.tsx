@@ -1,8 +1,9 @@
 "use client";
 
+import UserAvatar from '@/components/ui/UserAvatar';
 import { useDelayedLoading } from "@/lib/useDelayedLoading";
 import { navigateWithUnsavedChangesGuard } from "@/lib/unsavedChangesNavigation";
-import React, { useState, useEffect, useLayoutEffect, useRef, useCallback, useTransition } from 'react';
+import React, { Suspense, useState, useEffect, useLayoutEffect, useRef, useCallback, useTransition } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import type { Employee, MediaPost, ActiveTab } from './types';
 import { Sidebar } from './components/Sidebar';
@@ -14,6 +15,8 @@ import { MediaTrashPage } from './components/MediaTrashPage';
 import { AddEmployeePage } from './components/AddEmployeePage';
 import { AddMediaPage } from './components/AddMediaPage';
 import { AccessControlTabs, type AccessControlPage } from '@/features/access-control/AccessControlTabs';
+import { mediaFont } from './media-font';
+import { accountFont } from '@/features/access-control/account-font';
 import { AccessControlHome } from '@/features/access-control/AccessControlHome';
 import AccountPage from '@/features/admin/account/AccountPage';
 import SessionsPage from '@/features/admin/sessions/SessionsPage';
@@ -25,15 +28,19 @@ import { logoutAdmin } from '@/features/admin/login/auth.service';
 import { ArrowLeft, ChevronDown, KeyRound, LoaderCircle, LogOut, Menu, ShieldCheck, UserRound } from 'lucide-react';
 import { getDashboardSummary, type DashboardSummary } from './dashboard.service';
 import { getAdminEmployee, getAdminEmployees, softDeleteAdminEmployee, type AdminEmployeeListParams, type AdminEmployeeResult } from '@/services/admin-employee.service';
+import { toastEmployeeChange, type LinkedAccountOutcome } from './linked-account-toast';
 import { toast } from 'sonner';
 import { canAccessAdminPath, hasAdminPermission } from '@/lib/adminPermissions';
 import { getAccounts } from '@/services/access-control.service';
 import { getAdminMedia, getAdminMediaById, type AdminMediaListParams } from '@/services/admin-media.service';
 import { MeetingManagement } from './components/MeetingManagement';
+import VehicleManagement from '@/features/admin/vehicles/VehicleManagement';
+import AdminNotificationBell from './components/AdminNotificationBell';
 
 export const ADMIN_TAB_ROUTES: Record<ActiveTab, string> = {
   overview: '/admin/dashboard',
   meetings: '/admin/meetings',
+  vehicles: '/admin/vehicles',
   employees: '/admin/employees',
   'add-employee': '/admin/employees/new',
   'edit-employee': '/admin/employees',
@@ -49,6 +56,7 @@ export const ADMIN_TAB_ROUTES: Record<ActiveTab, string> = {
 const ACCESS_CONTROL_PAGE_ROUTES: Record<Exclude<AccessControlPage, "edit-role" | "edit-account">, string> = {
   overview: '/admin/access-control',
   accounts: '/admin/access-control/accounts',
+  'accounts-trash': '/admin/access-control/accounts/trash',
   'new-account': '/admin/access-control/accounts/new',
   roles: '/admin/access-control/roles',
   'new-role': '/admin/access-control/roles/new',
@@ -69,6 +77,7 @@ function getTabFromPath(pathname: string): ActiveTab {
   if (/^\/admin\/media\/[^/]+\/edit$/.test(pathname)) return "edit-media";
   if (pathname.startsWith("/admin/media")) return "media";
   if (pathname.startsWith("/admin/meetings")) return "meetings";
+  if (pathname.startsWith("/admin/vehicles")) return "vehicles";
   if (pathname.startsWith("/admin/access-control")) return "permissions";
   if (pathname.startsWith("/admin/settings")) return "system-settings";
   if (pathname.startsWith("/admin/account")) return "account";
@@ -116,6 +125,7 @@ function mapApiEmployeeToDashboardEmployee(employee: AdminEmployeeResult): Emplo
 
 function getAccessControlPage(pathname: string): AccessControlPage {
   if (pathname === '/admin/access-control/accounts/new') return 'new-account';
+  if (pathname === '/admin/access-control/accounts/trash') return 'accounts-trash';
   if (/^\/admin\/access-control\/accounts\/[^/]+\/edit$/.test(pathname)) return 'edit-account';
   if (pathname === '/admin/access-control/roles/new') return 'new-role';
   if (/^\/admin\/access-control\/roles\/[^/]+\/edit$/.test(pathname)) return 'edit-role';
@@ -408,15 +418,19 @@ export default function AdminDashboard(_props: AdminDashboardProps) {
   const [selectedDossierEmployee, setSelectedDossierEmployee] = useState<Employee | null>(null);
   const [previewMediaPost, setPreviewMediaPost] = useState<MediaPost | null>(null);
 
+  const canManageAccounts = hasAdminPermission(sessionAccount, 'accounts:manage-users');
   useEffect(() => {
-    if (sessionAccount?.role !== 'Toàn quyền Admin') return;
+    if (!canManageAccounts) return;
     let active = true;
     void getAccounts().then((accounts) => { if (active) setPendingUsersCount(accounts.filter((account) => account.status === 'pending').length); }).catch(() => {});
     return () => { active = false; };
-  }, [sessionAccount?.role]);
+  }, [canManageAccounts]);
 
   const navigateToTab = (tab: ActiveTab) => {
-    const target = tab === 'media' && !canViewMedia && hasAdminPermission(sessionAccount, 'media:trash') ? '/admin/media/trash' : ADMIN_TAB_ROUTES[tab];
+    // Managers with the account permission only have the account list, not the overview.
+    const target = tab === 'media' && !canViewMedia && hasAdminPermission(sessionAccount, 'media:trash') ? '/admin/media/trash'
+      : tab === 'permissions' && sessionAccount?.role !== 'Toàn quyền Admin' ? ACCESS_CONTROL_PAGE_ROUTES.accounts
+      : ADMIN_TAB_ROUTES[tab];
     navigateToPage(canAccessAdminPath(sessionAccount, target) ? target : "/admin/account");
     if (!window.matchMedia('(min-width: 992px)').matches) setIsSidebarOpen(false);
   };
@@ -451,9 +465,10 @@ export default function AdminDashboard(_props: AdminDashboardProps) {
 
     const loadingToastId = toast.loading('Đang xóa nhân viên, vui lòng chờ trong giây lát...');
 
+    let linkedAccount: LinkedAccountOutcome | undefined;
     {
       try {
-        await softDeleteAdminEmployee(id);
+        ({ linkedAccount } = await softDeleteAdminEmployee(id));
       } catch (error) {
         toast.dismiss(loadingToastId);
         toast.error(error instanceof Error ? error.message : 'Không thể xóa nhân viên. Vui lòng thử lại.');
@@ -467,7 +482,7 @@ export default function AdminDashboard(_props: AdminDashboardProps) {
       setSelectedDossierEmployee(null);
     }
     toast.dismiss(loadingToastId);
-    toast.success('Đã xóa nhân viên thành công.');
+    toastEmployeeChange(`Đã chuyển nhân viên ${empToDelete.fullName} vào thùng rác.`, linkedAccount, 'deleted');
     void Promise.all([loadEmployees(), refreshDashboardSummary()]);
     return true;
   };
@@ -510,6 +525,8 @@ export default function AdminDashboard(_props: AdminDashboardProps) {
             <span className="mt-1 block truncate text-[11px] font-semibold leading-[1.3] tracking-[-0.015em] text-[#00865a] sm:text-sm">Cổng quản trị nội bộ</span>
           </span>
         </Link>
+        <div className="flex items-center gap-1 sm:gap-2">
+        <AdminNotificationBell />
         <div ref={accountMenuRef} className="relative shrink-0">
           <button
             type="button"
@@ -518,9 +535,7 @@ export default function AdminDashboard(_props: AdminDashboardProps) {
             aria-expanded={isAccountMenuOpen}
             className="group flex items-center gap-3 rounded-2xl px-2 py-1.5 outline-none transition-colors hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-emerald-500 sm:px-3"
           >
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-emerald-600 to-[#0d5c0d] text-sm font-black text-white shadow-md shadow-emerald-900/20 ring-2 ring-emerald-100">
-              {sessionAccount?.initials ?? "AF"}
-            </span>
+            <UserAvatar src={sessionAccount?.avatar} name={sessionAccount?.fullName ?? "A F"} className="h-10 w-10 bg-gradient-to-br from-emerald-600 to-[#0d5c0d] text-sm font-black text-white shadow-md shadow-emerald-900/20 ring-2 ring-emerald-100" />
             <span className="hidden min-w-0 text-left sm:block">
               <span className="block max-w-44 truncate text-[13px] font-medium text-slate-800">{sessionAccount?.fullName ?? "Chưa đăng nhập"}</span>
               <span className="mt-0.5 flex items-center gap-1 truncate text-[11px] font-normal text-slate-600"><ShieldCheck className="h-3.5 w-3.5 shrink-0 text-emerald-600" />{sessionAccount?.role ?? "Tài khoản nội bộ"}</span>
@@ -531,9 +546,7 @@ export default function AdminDashboard(_props: AdminDashboardProps) {
           {isAccountMenuOpen && (
             <div role="menu" className="absolute right-0 top-full z-50 mt-2 w-72 max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-xl shadow-slate-900/15">
               <div className="flex items-center gap-3 rounded-xl bg-slate-50 px-3 py-3">
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-emerald-600 to-[#0d5c0d] text-sm font-black text-white">
-                  {sessionAccount?.initials ?? "AF"}
-                </span>
+                <UserAvatar src={sessionAccount?.avatar} name={sessionAccount?.fullName ?? "A F"} className="h-11 w-11 bg-gradient-to-br from-emerald-600 to-[#0d5c0d] text-sm font-black text-white" />
                 <span className="min-w-0">
                   <span className="block truncate text-sm font-semibold text-slate-900">{sessionAccount?.fullName ?? "Tài khoản nội bộ"}</span>
                   <span className="mt-0.5 flex items-center gap-1 text-xs text-emerald-700"><ShieldCheck className="h-3.5 w-3.5" />{sessionAccount?.role ?? ""}</span>
@@ -556,6 +569,7 @@ export default function AdminDashboard(_props: AdminDashboardProps) {
               </button>
             </div>
           )}
+        </div>
         </div>
       </header>
 
@@ -581,6 +595,7 @@ export default function AdminDashboard(_props: AdminDashboardProps) {
           mediaCount={canViewDashboard ? dashboardSummary?.totalMediaPosts ?? null : mediaTotal}
           pendingUsersCount={pendingUsersCount}
           canViewMeetings={sessionAccount?.role === "Toàn quyền Admin" || sessionAccount?.permissions.includes("meetings:view") === true}
+          canManageVehicles={hasAdminPermission(sessionAccount, "vehicles:manage")}
           compact={false}
           onClose={() => setIsSidebarOpen(false)}
         />
@@ -615,10 +630,11 @@ export default function AdminDashboard(_props: AdminDashboardProps) {
               <Menu className="h-[21px] w-[21px]" />
             </button>
 
-            {activeTab === 'permissions' && (accessControlPage === 'roles' || accessControlPage === 'accounts' || accessControlPage === 'new-role' || accessControlPage === 'edit-role' || accessControlPage === 'new-account') && (
+            {/* The overview is Admin gốc only, so managers get no back arrow on the account list. */}
+            {activeTab === 'permissions' && (accessControlPage === 'roles' || (accessControlPage === 'accounts' && sessionAccount?.role === 'Toàn quyền Admin') || accessControlPage === 'new-role' || accessControlPage === 'edit-role' || accessControlPage === 'new-account' || accessControlPage === 'accounts-trash') && (
               <Link
-                href={accessControlPage === 'new-account' ? '/admin/access-control/accounts' : accessControlPage === 'new-role' || accessControlPage === 'edit-role' ? '/admin/access-control/roles' : '/admin/access-control'}
-                aria-label={accessControlPage === 'new-account' ? 'Quay lại quản lý tài khoản' : accessControlPage === 'new-role' || accessControlPage === 'edit-role' ? 'Quay lại danh sách nhóm quyền' : 'Quay lại phân quyền và quản lý tài khoản'}
+                href={accessControlPage === 'new-account' || accessControlPage === 'accounts-trash' ? '/admin/access-control/accounts' : accessControlPage === 'new-role' || accessControlPage === 'edit-role' ? '/admin/access-control/roles' : '/admin/access-control'}
+                aria-label={accessControlPage === 'new-account' || accessControlPage === 'accounts-trash' ? 'Quay lại quản lý tài khoản' : accessControlPage === 'new-role' || accessControlPage === 'edit-role' ? 'Quay lại danh sách nhóm quyền' : 'Quay lại phân quyền và quản lý tài khoản'}
                 title="Quay lại"
                 className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-slate-700 transition-colors hover:bg-emerald-50 hover:text-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
               >
@@ -627,16 +643,17 @@ export default function AdminDashboard(_props: AdminDashboardProps) {
             )}
 
             {/* Section title for the active tab */}
-            <span className="inline-flex min-w-0 items-center gap-2 text-sm font-bold uppercase tracking-[0.04em] text-slate-800 sm:text-lg [&>span]:hidden [&>span]:shrink-0 lg:[&>span]:inline-block">
+            <span className={`inline-flex min-w-0 items-center gap-2 font-bold [&>span]:hidden [&>span]:shrink-0 lg:[&>span]:inline-block ${activeTab === 'media' && !isMediaTrashPage ? `${mediaFont.className} text-[24px] font-bold normal-case tracking-normal leading-tight text-[#172B24]` : activeTab === 'permissions' && accessControlPage === 'accounts' ? `${accountFont.className} text-[24px] leading-tight` : 'uppercase tracking-[0.04em] text-slate-800 text-sm sm:text-lg'}`}>
               <span className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.65)]" />
               {activeTab === 'overview' && 'Bảng Điều Khiển'}
               {activeTab === 'employees' && (isEmployeeTrashPage ? 'Thùng Rác Nhân Viên' : 'Quản Lý Nhân Sự')}
               {activeTab === 'add-employee' && 'Thêm Nhân Viên Mới'}
-              {activeTab === 'media' && (isMediaTrashPage ? 'Thùng Rác Truyền Thông' : 'Quản Lý Truyền Thông')}
+              {activeTab === 'media' && (isMediaTrashPage ? 'Thùng Rác Truyền Thông' : 'Quản lý Truyền thông')}
               {activeTab === 'meetings' && 'Quản Lý Đặt Phòng Họp'}
+              {activeTab === 'vehicles' && 'Quản Lý Đặt Xe'}
               {activeTab === 'add-media' && 'Đăng Tin Truyền Thông'}
               {activeTab === 'edit-media' && 'Chỉnh Sửa Tin Truyền Thông'}
-              {activeTab === 'permissions' && ({ overview: 'Phân Quyền & Quản Lý Tài Khoản', accounts: 'Quản Lý Tài Khoản', 'new-account': 'Thêm Tài Khoản', 'edit-account': 'Chỉnh Sửa Tài Khoản', roles: 'Nhóm Quyền Đã Tạo', 'new-role': 'Tạo Nhóm Quyền', 'edit-role': 'Chỉnh Sửa Nhóm Quyền' }[accessControlPage])}
+              {activeTab === 'permissions' && ({ overview: 'Phân Quyền & Quản Lý Tài Khoản', accounts: 'Quản Lý Tài Khoản', 'accounts-trash': 'Thùng Rác Tài Khoản', 'new-account': 'Thêm Tài Khoản', 'edit-account': 'Chỉnh Sửa Tài Khoản', roles: 'Nhóm Quyền Đã Tạo', 'new-role': 'Tạo Nhóm Quyền', 'edit-role': 'Chỉnh Sửa Nhóm Quyền' }[accessControlPage])}
               {activeTab === 'system-settings' && 'Cài Đặt Hệ Thống'}
               {activeTab === 'account' && 'Thông Tin Tài Khoản'}
               {activeTab === 'sessions' && 'Phiên Đăng Nhập'}
@@ -771,6 +788,14 @@ export default function AdminDashboard(_props: AdminDashboardProps) {
                 <MeetingManagement permissions={sessionAccount.role === "Toàn quyền Admin" ? ["meetings:view", "meetings:create", "meetings:update", "meetings:delete"] : sessionAccount.permissions} />
               ) : (
                 <div role="alert" className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-sm font-medium text-amber-800">Tài khoản chưa được cấp quyền xem lịch họp.</div>
+              )
+            )}
+
+            {activeTab === 'vehicles' && (
+              hasAdminPermission(sessionAccount, "vehicles:manage") ? (
+                <Suspense><VehicleManagement /></Suspense>
+              ) : (
+                <div role="alert" className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-sm font-medium text-amber-800">Tài khoản chưa được cấp quyền quản lý đặt xe.</div>
               )
             )}
 

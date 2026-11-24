@@ -180,7 +180,8 @@ export default function NewsSection({ preview = false, articleId = null }: Props
     try {
       const [result, featuredResult] = await Promise.all([
         getPublicMedia({ limit: 100, sort: "latest" }, signal),
-        getPublicMedia({ limit: 5, featured: true }, signal),
+        // Up to 3 highlights; the server fills missing places with the newest posts.
+        getPublicMedia({ limit: 3, featured: true }, signal),
       ]);
       setNews(result.items);
       setFeaturedNews(featuredResult.items);

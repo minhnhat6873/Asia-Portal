@@ -19,6 +19,7 @@ import { startMeetingBookingArchiveJob } from "./src/jobs/meeting-booking-archiv
 import { startMeetingBookingReminderJob } from "./src/jobs/meeting-booking-reminder.job";
 import { startTinyMceImageCleanupJob } from "./src/jobs/tinyMceImageCleanup.job";
 import { startMediaExpiryJob } from "./src/jobs/media-expiry.job";
+import { startVehicleBookingReminderJob } from "./src/jobs/vehicle-booking-reminder.job";
 
 const app = express();
 const port = Number(process.env.PORT) || 4000;
@@ -90,6 +91,7 @@ async function startServer(): Promise<void> {
   startMeetingBookingReminderJob();
   startTinyMceImageCleanupJob();
   startMediaExpiryJob();
+  startVehicleBookingReminderJob();
 
   app.listen(port, () => {
     console.log(`Asia API đang chạy tại http://localhost:${port}`);

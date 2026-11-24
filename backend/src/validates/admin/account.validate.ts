@@ -40,6 +40,8 @@ const accountFields = {
     .unique(),
 };
 
+export const MANAGER_NEEDS_GROUP = "Vui lòng chọn ít nhất một nhóm quyền cho tài khoản Quản lý.";
+
 export const createAccountSchema = Joi.object({
   name: accountFields.name.required(),
   email: accountFields.email.required(),
@@ -50,8 +52,20 @@ export const createAccountSchema = Joi.object({
     "string.empty": "Vui lòng xác nhận mật khẩu.",
     "any.required": "Vui lòng xác nhận mật khẩu.",
   }),
-  role: Joi.string().valid("admin", "manager").default("manager"),
-  permissionGroupIds: accountFields.permissionGroupIds,
+  role: Joi.string().valid(...ACCOUNT_ROLES).default("manager"),
+  // A manager without any group could sign in to the admin area but do nothing there.
+  permissionGroupIds: accountFields.permissionGroupIds.when("role", {
+    is: "manager",
+    then: Joi.array().min(1).required(),
+  }).messages({ "array.min": MANAGER_NEEDS_GROUP, "any.required": MANAGER_NEEDS_GROUP }),
+});
+
+export const lockAccountSchema = Joi.object({
+  reason: Joi.string().trim().max(200).allow("").default("").messages({ "string.max": "Lý do khóa tối đa 200 ký tự." }),
+});
+
+export const employeeLookupSchema = Joi.object({
+  q: Joi.string().trim().max(100).allow("").default(""),
 });
 
 export const checkAccountContactsSchema = Joi.object({

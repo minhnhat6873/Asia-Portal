@@ -1,5 +1,8 @@
 import { getPasswordValidationError } from "@/lib/password-validation";
 
+// Same wording as the backend: a manager account needs at least one permission group.
+export const MANAGER_NEEDS_GROUP = "Vui lòng chọn ít nhất một nhóm quyền cho tài khoản Quản lý.";
+
 export interface CreateAccountFormValues {
   name: string;
   email: string;

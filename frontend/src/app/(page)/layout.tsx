@@ -3,7 +3,7 @@
 import { usePathname } from "next/navigation";
 import AuthLayout from "@/features/public-auth/AuthLayout";
 
-const authPaths = new Set(["/login", "/register", "/forgot-password"]);
+const authPaths = new Set(["/login", "/register", "/forgot-password", "/otp", "/reset-password"]);
 
 export default function PageLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();

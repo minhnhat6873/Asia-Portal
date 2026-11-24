@@ -366,7 +366,6 @@ export function ArticleReaderModal({ post, onClose, onEdit, onDelete, showAdminA
           body.article-reader-printing [data-reader-page] { zoom: 1 !important; width: 100% !important; max-width: none !important; }
           body.article-reader-printing [data-reader-layout] { display: block !important; padding: 0 !important; }
           body.article-reader-printing [data-reader-toolbar], body.article-reader-printing [data-reader-close], body.article-reader-printing [data-reader-actions] { display: none !important; }
-          body.article-reader-printing [data-reader-cover] { display: block !important; max-height: 70mm; object-fit: contain; break-inside: avoid; }
           body.article-reader-printing .reader-summary, body.article-reader-printing .reader-date { display: block !important; }
           body.article-reader-printing .reader-copy { overflow: visible !important; background: #fff !important; color: #111827 !important; }
           body.article-reader-printing .reader-copy *:not(img):not(svg) { color: #111827 !important; background-color: transparent !important; }
@@ -404,7 +403,6 @@ export function ArticleReaderModal({ post, onClose, onEdit, onDelete, showAdminA
                     </div>
                   </div>
                   <article className="pt-5">
-                    {post.coverImage && <img src={post.coverImage} alt={post.title} className="mb-4 mt-2 max-h-[110mm] w-full object-contain" />}
                     <h2 className="mb-2 text-2xl font-black leading-tight text-slate-900">{post.title}</h2>
                     <p className="mb-4 text-xs text-slate-500">Ngày đăng: {post.publishDate}</p>
                     <RichText html={post.summary} className="rich-content mb-4 rounded-lg bg-emerald-50 px-3 py-2 text-sm italic leading-6 text-emerald-950" />
@@ -462,7 +460,7 @@ export function ArticleReaderModal({ post, onClose, onEdit, onDelete, showAdminA
           </div>
           <div data-reader-layout className={showAdminActions ? "" : "px-4 py-5 sm:px-7 sm:py-6"}>
           <article ref={articleRef} data-reader-page style={{ zoom: zoom / 100, width: `${10000 / zoom}%`, maxWidth: `${89600 / zoom}px` }} className={`mx-auto min-w-0 max-w-4xl ${showAdminActions ? "px-4 py-5 sm:px-8 sm:py-8" : "break-words"} ${isFocus ? "reader-focus" : ""}`}>
-            {post.coverImage && (showAdminActions ? <img data-reader-cover src={post.coverImage} alt={post.title} className={`reader-cover mb-5 max-h-[420px] w-full rounded-2xl object-cover ${isFocus ? "hidden" : ""}`} /> : <div className={`relative mb-5 box-content aspect-video w-full pb-[70px] sm:aspect-[16/5] ${isFocus ? "hidden" : ""}`}><img data-reader-cover src={post.coverImage} alt={post.title} className="reader-cover absolute inset-0 h-full w-full rounded-2xl object-cover" /></div>)}
+            {/* The cover image is only the card thumbnail in lists; the article itself starts at the title. */}
             <h1 className="mb-4 break-words text-left text-2xl font-bold leading-[1.3] md:text-[28px] lg:text-[32px]">{post.title}</h1>
             {showAdminActions && post.isExpired && <div className="mb-4"><MediaExpiryBadge isExpired /></div>}
             <div className={isFocus ? "hidden" : ""}>

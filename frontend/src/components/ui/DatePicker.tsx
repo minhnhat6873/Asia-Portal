@@ -28,9 +28,10 @@ type DatePickerProps = {
   onChange: (value: string) => void;
   ariaLabel?: string;
   disabled?: boolean;
+  applyMonthAndYear?: boolean;
 };
 
-export default function DatePicker({value, minValue, onChange, ariaLabel = "Date", disabled = false}: DatePickerProps) {
+export default function DatePicker({value, minValue, onChange, ariaLabel = "Date", disabled = false, applyMonthAndYear = false}: DatePickerProps) {
   const selectedDate = value ? parseDate(value) : null;
   const minimumDate = minValue ? parseDate(minValue) : undefined;
 
@@ -44,49 +45,68 @@ export default function DatePicker({value, minValue, onChange, ariaLabel = "Date
     <Popover offset={8} className="z-[90] rounded-2xl bg-white p-3 shadow-[0_18px_44px_rgba(15,23,42,0.2)] ring-1 ring-slate-200">
       <Dialog className="outline-none">
         <Calendar className="w-[280px]">
-          <header className="mb-3 flex items-center justify-between px-1">
-            <Button slot="previous" className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-600 outline-none transition hover:bg-emerald-50 hover:text-[#159447]"><ChevronLeft size={19} /></Button>
-            <CalendarHeading className="sr-only" />
-            <div className="flex items-center justify-center gap-1">
-              <CalendarMonthPicker format="short">
-                {({items, value, onChange, ...ariaProps}) => (
-                  <select
-                    {...ariaProps}
-                    value={String(value)}
-                    onChange={(event) => onChange(Number(event.target.value))}
-                    className="cursor-pointer rounded-lg border-0 bg-transparent px-1.5 py-1 text-sm font-bold text-slate-800 outline-none transition hover:bg-slate-50 focus:ring-2 focus:ring-emerald-200"
-                  >
-                    {items.map((month) => (
-                      <option key={month.id} value={month.id}>{month.formatted}</option>
-                    ))}
-                  </select>
-                )}
-              </CalendarMonthPicker>
-              <CalendarYearPicker visibleYears={120}>
-                {({items, value, onChange, ...ariaProps}) => (
-                  <select
-                    {...ariaProps}
-                    value={String(value)}
-                    onChange={(event) => onChange(Number(event.target.value))}
-                    className="cursor-pointer rounded-lg border-0 bg-transparent px-1.5 py-1 text-sm font-bold text-slate-800 outline-none transition hover:bg-slate-50 focus:ring-2 focus:ring-emerald-200"
-                  >
-                    {items.map((year) => (
-                      <option key={year.id} value={year.id}>{year.formatted}</option>
-                    ))}
-                  </select>
-                )}
-              </CalendarYearPicker>
-            </div>
-            <Button slot="next" className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-600 outline-none transition hover:bg-emerald-50 hover:text-[#159447]"><ChevronRight size={19} /></Button>
-          </header>
-          <CalendarGrid className="w-full border-collapse text-center">
-            <CalendarGridHeader>
-              {(day) => <CalendarHeaderCell className="h-8 text-xs font-semibold text-slate-400">{day}</CalendarHeaderCell>}
-            </CalendarGridHeader>
-            <CalendarGridBody>
-              {(date) => <CalendarCell date={date} className={({isSelected, isOutsideMonth, isDisabled}) => `h-9 w-9 rounded-lg text-sm font-medium outline-none transition ${isSelected ? "bg-[#159447] text-white" : isOutsideMonth ? "text-slate-300" : isDisabled ? "cursor-not-allowed text-slate-300" : "text-slate-700 hover:bg-emerald-50 hover:text-[#08723d] focus:bg-emerald-100"}`} />}
-            </CalendarGridBody>
-          </CalendarGrid>
+          {({state}) => {
+            const applyPeriod = (period: {month?: number; year?: number}) => {
+              const candidate = state.focusedDate.set({day: selectedDate?.day ?? state.focusedDate.day, ...period});
+              const nextDate = minimumDate && candidate.compare(minimumDate) < 0 ? minimumDate : candidate;
+              state.setFocusedDate(nextDate);
+              onChange(nextDate.toString());
+            };
+
+            return <>
+              <header className="mb-3 flex items-center justify-between px-1">
+                <Button slot="previous" className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-600 outline-none transition hover:bg-emerald-50 hover:text-[#159447]"><ChevronLeft size={19} /></Button>
+                <CalendarHeading className="sr-only" />
+                <div className="flex items-center justify-center gap-1">
+                  <CalendarMonthPicker format="short">
+                    {({items, value, onChange, ...ariaProps}) => (
+                      <select
+                        {...ariaProps}
+                        value={String(value)}
+                        onChange={(event) => {
+                          const month = Number(event.target.value);
+                          if (applyMonthAndYear) applyPeriod({month});
+                          else onChange(month);
+                        }}
+                        className="cursor-pointer rounded-lg border-0 bg-transparent px-1.5 py-1 text-sm font-bold text-slate-800 outline-none transition hover:bg-slate-50 focus:ring-2 focus:ring-emerald-200"
+                      >
+                        {items.map((month) => (
+                          <option key={month.id} value={month.id}>{month.formatted}</option>
+                        ))}
+                      </select>
+                    )}
+                  </CalendarMonthPicker>
+                  <CalendarYearPicker visibleYears={120}>
+                    {({items, value, onChange, ...ariaProps}) => (
+                      <select
+                        {...ariaProps}
+                        value={String(value)}
+                        onChange={(event) => {
+                          const yearIndex = Number(event.target.value);
+                          if (applyMonthAndYear) applyPeriod({year: items[yearIndex].date.year});
+                          else onChange(yearIndex);
+                        }}
+                        className="cursor-pointer rounded-lg border-0 bg-transparent px-1.5 py-1 text-sm font-bold text-slate-800 outline-none transition hover:bg-slate-50 focus:ring-2 focus:ring-emerald-200"
+                      >
+                        {items.map((year) => (
+                          <option key={year.id} value={year.id}>{year.formatted}</option>
+                        ))}
+                      </select>
+                    )}
+                  </CalendarYearPicker>
+                </div>
+                <Button slot="next" className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-600 outline-none transition hover:bg-emerald-50 hover:text-[#159447]"><ChevronRight size={19} /></Button>
+              </header>
+              <CalendarGrid className="w-full border-collapse text-center">
+                <CalendarGridHeader>
+                  {(day) => <CalendarHeaderCell className="h-8 text-xs font-semibold text-slate-400">{day}</CalendarHeaderCell>}
+                </CalendarGridHeader>
+                <CalendarGridBody>
+                  {(date) => <CalendarCell date={date} className={({isSelected, isOutsideMonth, isDisabled}) => `h-9 w-9 rounded-lg text-sm font-medium outline-none transition ${isSelected ? "bg-[#159447] text-white" : isOutsideMonth ? "text-slate-300" : isDisabled ? "cursor-not-allowed text-slate-300" : "text-slate-700 hover:bg-emerald-50 hover:text-[#08723d] focus:bg-emerald-100"}`} />}
+                </CalendarGridBody>
+              </CalendarGrid>
+            </>;
+          }}
         </Calendar>
       </Dialog>
     </Popover>

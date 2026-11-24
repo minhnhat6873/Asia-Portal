@@ -57,7 +57,7 @@ describe("permission group deletion", () => {
   });
   it.each(["active", "inactive"])("deletes a %s group and removes assignments without deleting accounts", async (status) => {
     jest.mocked(permissionGroupRepository.deleteById).mockResolvedValue({ ...stored, status } as never);
-    const deleteAccount = jest.spyOn(adminAccountRepository, "deleteById");
+    const deleteAccount = jest.spyOn(adminAccountRepository, "softDelete");
     expect(await permissionGroupService.deleteGroup(id)).toMatchObject({ id, name: stored.name });
     expect(adminAccountRepository.removePermissionGroup).toHaveBeenCalledWith(id);
     expect(deleteAccount).not.toHaveBeenCalled();

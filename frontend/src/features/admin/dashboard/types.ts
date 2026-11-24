@@ -26,6 +26,8 @@ export interface Employee {
 
 export type MediaCategory = 'Sự kiện' | 'Tin tức' | 'Nhân sự' | 'Thông báo' | 'Đào Tạo';
 
+export type MediaVisibility = "public" | "internal";
+
 export interface MediaPost {
   isDeleted?: boolean;
   deletedAt?: string | null;
@@ -46,8 +48,10 @@ export interface MediaPost {
   isExpired?: boolean;
   hiddenReason?: "expired" | "manual" | null;
   status: 'published' | 'draft';
+  /** public: anyone can read it; internal (or missing on older posts): signed-in accounts only. */
+  visibility?: MediaVisibility;
   createdBy?: { accountId: string; name: string; email: string };
   createdAt?: string;
 }
 
-export type ActiveTab = 'overview' | 'employees' | 'media' | 'meetings' | 'add-employee' | 'edit-employee' | 'add-media' | 'edit-media' | 'permissions' | 'system-settings' | 'account' | 'sessions' | 'feedback';
+export type ActiveTab = 'overview' | 'employees' | 'media' | 'meetings' | 'vehicles' | 'add-employee' | 'edit-employee' | 'add-media' | 'edit-media' | 'permissions' | 'system-settings' | 'account' | 'sessions' | 'feedback';

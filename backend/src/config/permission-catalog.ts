@@ -5,6 +5,8 @@ export const PERMISSION_MODULES = [
   { id: "employees", name: "Quản lý nhân sự", code: "EMPLOYEES", description: "Hồ sơ và thùng rác nhân viên.", iconName: "Users" },
   { id: "media", name: "Quản lý truyền thông", code: "MEDIA", description: "Bài viết truyền thông.", iconName: "Newspaper" },
   { id: "dashboard", name: "Bảng điều khiển", code: "DASHBOARD", description: "Thống kê tổng quan.", iconName: "LayoutDashboard" },
+  { id: "accounts", name: "Quản lý tài khoản", code: "ACCOUNTS", description: "Tài khoản đăng nhập của người dùng.", iconName: "UserCheck" },
+  { id: "vehicles", name: "Quản lý đặt xe", code: "VEHICLES", description: "Yêu cầu đặt xe đón khách và giao hàng.", iconName: "Car" },
 ] as const;
 
 type PermissionDefinition = { id: PermissionAction; name: string; description: string; module: typeof PERMISSION_MODULES[number]["id"]; riskLevel: "low" | "medium" | "high" };
@@ -26,5 +28,9 @@ const definitions: PermissionDefinition[] = [
   { id: "media:delete", name: "Chuyển bài vào thùng rác", description: "Xóa mềm bài viết; vẫn giữ nội dung và ảnh để khôi phục.", module: "media", riskLevel: "high" },
   { id: "media:trash", name: "Quản lý thùng rác truyền thông", description: "Xem thùng rác, khôi phục về Ẩn tin và xóa vĩnh viễn bài viết.", module: "media", riskLevel: "high" },
   { id: "dashboard:view", name: "Xem bảng điều khiển", description: "Xem số liệu tổng quan quản trị.", module: "dashboard", riskLevel: "low" },
+  { id: "vehicles:manage", name: "Quản lý đặt xe", description: "Xem yêu cầu đặt xe, chọn xe công ty hoặc xe ngoài, sửa, hủy, chốt chuyến, nhập giá và xem báo cáo chi phí.", module: "vehicles", riskLevel: "medium" },
+  { id: "vehicles:delete", name: "Xóa chuyến xe đã hủy", description: "Xóa hẳn chuyến xe đã hủy (đặt thử, đặt nhầm). Chuyến đã hoàn thành không bao giờ xóa được.", module: "vehicles", riskLevel: "high" },
+  { id: "accounts:manage-users", name: "Quản lý tài khoản người dùng", description: "Xem, tạo, sửa, khóa, xóa và đặt lại mật khẩu tài khoản Người dùng. Không đổi được loại tài khoản, không đụng tới tài khoản Quản lý hay Admin gốc.", module: "accounts", riskLevel: "high" },
+  { id: "accounts:trash", name: "Quản lý thùng rác tài khoản", description: "Xem thùng rác tài khoản, khôi phục và xóa vĩnh viễn. Cần kèm quyền Quản lý tài khoản người dùng; Quản lý chỉ thấy tài khoản Người dùng.", module: "accounts", riskLevel: "high" },
 ];
 export const PERMISSION_CATALOG = definitions.map((permission) => ({ ...permission, code: permission.id.toUpperCase().replace(/[:-]/g, "_") }));

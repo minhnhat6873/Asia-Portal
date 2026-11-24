@@ -7,6 +7,7 @@ export interface AdminUser {
   role: string;
   initials: string;
   permissions: string[];
+  avatar?: string;
 }
 
 export const SESSION_KEY = "asia.admin.session";
@@ -25,6 +26,7 @@ export function getAdminSession(): AdminUser | null {
       fullName: parsed.fullName,
       role: parsed.role ?? "Quản lý",
       initials: deriveInitials(parsed.fullName),
+      avatar: typeof parsed.avatar === "string" && parsed.avatar.startsWith("https://") ? parsed.avatar : undefined,
       permissions: Array.isArray(parsed.permissions) ? parsed.permissions.filter((permission): permission is string => typeof permission === "string") : [],
     };
   } catch {

@@ -1,6 +1,6 @@
 import Joi from "joi";
 
-import { MEDIA_AUTHOR_DEPARTMENTS, MEDIA_CATEGORIES, MEDIA_STATUSES } from "../../interfaces/media.interface";
+import { MEDIA_AUTHOR_DEPARTMENTS, MEDIA_CATEGORIES, MEDIA_FEATURED_LIMIT, MEDIA_STATUSES, MEDIA_VISIBILITIES } from "../../interfaces/media.interface";
 import { isMediaExpiryAfterPublication, MEDIA_EXPIRY_DATE_ERROR } from "../../utils/media/validateMediaDates";
 
 const mediaFields = {
@@ -21,8 +21,12 @@ const mediaFields = {
   }),
   publishIndefinitely: Joi.boolean(),
   featured: Joi.boolean(),
-  featuredSlot: Joi.number().integer().min(1).max(5).allow(null),
+  featuredSlot: Joi.number().integer().min(1).max(MEDIA_FEATURED_LIMIT).allow(null).messages({
+    "number.min": `Vị trí nổi bật chỉ từ 1 đến ${MEDIA_FEATURED_LIMIT}.`,
+    "number.max": `Vị trí nổi bật chỉ từ 1 đến ${MEDIA_FEATURED_LIMIT}.`,
+  }),
   status: Joi.string().valid(...MEDIA_STATUSES),
+  visibility: Joi.string().valid(...MEDIA_VISIBILITIES).messages({ "any.only": "Phạm vi hiển thị chỉ được là Công khai hoặc Nội bộ." }),
 };
 
 export const createMediaSchema = Joi.object({
@@ -42,6 +46,7 @@ export const createMediaSchema = Joi.object({
   featured: mediaFields.featured.default(false),
   featuredSlot: mediaFields.featuredSlot,
   status: mediaFields.status.default("draft"),
+  visibility: mediaFields.visibility.default("internal"),
 }).custom((value, helpers) => {
   if (!value.publishIndefinitely && !isMediaExpiryAfterPublication(value.publishDate, value.expiryDate)) {
     return helpers.message({ custom: MEDIA_EXPIRY_DATE_ERROR });
@@ -61,10 +66,21 @@ export const updateMediaSchema = Joi.object(mediaFields).min(1).custom((value, h
   "object.min": "Cần cung cấp ít nhất một trường để cập nhật",
 });
 
+function multiSelectQuery(options: readonly string[]) {
+  return Joi.string().max(300).custom((value: string, helpers) => {
+    const values = value.split(",");
+    return values.length <= options.length && new Set(values).size === values.length && values.every((item) => options.includes(item))
+      ? value : helpers.error("any.invalid");
+  });
+}
+
 export const mediaListQuerySchema = Joi.object({
   search: Joi.string().trim().allow("").max(200),
+  categories: multiSelectQuery(MEDIA_CATEGORIES),
+  visibilities: multiSelectQuery(MEDIA_VISIBILITIES),
   category: mediaFields.category,
   status: mediaFields.status,
+  visibility: mediaFields.visibility,
   page: Joi.number().integer().min(1),
   limit: Joi.number().integer().min(1).max(100),
   sort: Joi.string().valid("latest", "oldest"),

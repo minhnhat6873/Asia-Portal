@@ -6,7 +6,9 @@ import { escapeRegex } from "../../utils/regex/escapeRegex";
 import { maskEmail } from "../../utils/email/maskEmail";
 
 export const meetingService = {
-  async getBookings(query: MeetingBookingListQuery) {
+  /** viewerEmail marks the viewer's own bookings (isMine) so they can cancel them. */
+  async getBookings(query: MeetingBookingListQuery, viewerEmail?: string) {
+    const viewer = viewerEmail?.trim().toLowerCase();
     const page = Math.max(Number(query.page) || 1, 1);
     const limit = Math.min(Math.max(Number(query.limit) || 100, 1), 500);
     const filter: QueryFilter<MeetingBooking> = {};
@@ -61,6 +63,7 @@ export const meetingService = {
         organizer: booking.organizer,
         email: maskEmail(booking.email),
         department: booking.department,
+        isMine: Boolean(viewer && booking.email?.trim().toLowerCase() === viewer),
       })),
       ...trashedBookings.map((booking) => ({
         id: String(booking.originalBookingId),
@@ -73,6 +76,7 @@ export const meetingService = {
         organizer: booking.organizer,
         email: maskEmail(booking.email),
         department: booking.department,
+        isMine: Boolean(viewer && booking.email?.trim().toLowerCase() === viewer),
       })),
     ]
       .sort((first, second) => `${first.date} ${first.start}`.localeCompare(`${second.date} ${second.start}`))

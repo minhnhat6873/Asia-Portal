@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Cropper, { type Area } from 'react-easy-crop';
 
 interface AvatarCropDialogProps {
@@ -8,9 +8,24 @@ interface AvatarCropDialogProps {
   fileName: string;
   onCancel: () => void;
   onApply: (file: File) => void;
+  /** "round": a small circle in the middle (like Zalo); the dimmed area outside is cut off. */
+  shape?: 'rect' | 'round';
 }
 
-export default function AvatarCropDialog({ source, fileName, onCancel, onApply }: AvatarCropDialogProps) {
+export default function AvatarCropDialog({ source, fileName, onCancel, onApply, shape = 'rect' }: AvatarCropDialogProps) {
+  const round = shape === 'round';
+  const frame = useRef<HTMLDivElement>(null);
+  const [circle, setCircle] = useState(0);
+  // The circle is 75% of the frame height and follows the dialog size (phone or desktop).
+  useEffect(() => {
+    if (!round || !frame.current) return;
+    const element = frame.current;
+    const measure = () => setCircle(Math.round(element.clientHeight * 0.75));
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [round]);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [area, setArea] = useState<Area | null>(null);
@@ -52,9 +67,9 @@ export default function AvatarCropDialog({ source, fileName, onCancel, onApply }
     <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-slate-950/70 p-4" role="dialog" aria-modal="true" aria-labelledby="avatar-crop-title">
       <div className="w-full max-w-lg rounded-2xl bg-white p-5 shadow-2xl">
         <h3 id="avatar-crop-title" className="text-lg font-bold text-slate-900">Điều chỉnh ảnh đại diện</h3>
-        <p className="mt-1 text-sm text-slate-600">Kéo ảnh để chọn vị trí và dùng thanh bên dưới để phóng to hoặc thu nhỏ. Phần trong lưới sẽ được giữ lại.</p>
-        <div className="relative mt-4 aspect-[4/3] overflow-hidden rounded-xl bg-slate-900">
-          <Cropper image={source} crop={crop} zoom={zoom} aspect={4 / 3} minZoom={1} maxZoom={3} showGrid onCropChange={setCrop} onZoomChange={setZoom} onCropComplete={onCropComplete} mediaProps={{ onError: () => setError('Không thể mở ảnh. Vui lòng chọn lại ảnh từ máy.') }} />
+        <p className="mt-1 text-sm text-slate-600">Kéo ảnh để chọn vị trí và dùng thanh bên dưới để phóng to hoặc thu nhỏ. {round ? 'Phần trong vòng tròn sẽ được giữ lại.' : 'Phần trong lưới sẽ được giữ lại.'}</p>
+        <div ref={frame} className="relative mt-4 aspect-[4/3] overflow-hidden rounded-xl bg-slate-900">
+          <Cropper image={source} crop={crop} zoom={zoom} aspect={round ? 1 : 4 / 3} cropShape={round ? 'round' : 'rect'} cropSize={round && circle ? { width: circle, height: circle } : undefined} minZoom={1} maxZoom={3} showGrid={!round} onCropChange={setCrop} onZoomChange={setZoom} onCropComplete={onCropComplete} mediaProps={{ onError: () => setError('Không thể mở ảnh. Vui lòng chọn lại ảnh từ máy.') }} />
         </div>
         <label className="mt-4 flex items-center gap-3 text-sm font-medium text-slate-700">
           <span>Thu nhỏ</span>

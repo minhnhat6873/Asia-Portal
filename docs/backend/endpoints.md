@@ -1,24 +1,31 @@
 # Danh sách endpoint backend
 
-Cập nhật lần cuối: 2026-10-19. File nguồn đã đọc: `backend/src/routes/**`, `backend/src/controllers/**`, `backend/src/services/**`, `backend/src/middlewares/**`, `backend/src/validates/**`.
+Cập nhật lần cuối: 2026-11-23. File nguồn đã đọc: `backend/src/routes/**`, `backend/src/controllers/**`, `backend/src/services/**`, `backend/src/middlewares/**`, `backend/src/validates/**`.
 
-Tất cả endpoint đi qua middleware toàn cục tại `backend/index.ts`: Helmet, CORS, limiter public (trừ health/admin), parser, cookie parser, sanitize và CSRF cho mọi request ghi /admin (X-Requested-With: AsiaPortal + kiểm tra nguồn). `ADMIN GATE` bên dưới nghĩa là `requireAdminAuth` + limiter theo account do [index.route.ts](/D:/Vscode/Asia-Portal/backend/src/routes/index.route.ts:36) mount sẵn. Response đều bọc `success`; chi tiết tại `api-response.md`.
+Tất cả endpoint đi qua middleware toàn cục tại `backend/index.ts`: Helmet, CORS, limiter public (trừ health/admin), parser, cookie parser, sanitize và CSRF cho mọi request ghi /admin (X-Requested-With: AsiaPortal + kiểm tra nguồn). `ADMIN GATE` bên dưới nghĩa là `requireAdminAuth` + limiter theo account do [index.route.ts](/D:/Vscode/Asia-Portal/backend/src/routes/index.route.ts:36) mount sẵn. `USER GATE` nghĩa là `requireUserAuth` (cookie `asia_user_token` của cổng người dùng; token cổng quản trị không được nhận) + kiểm tra CSRF cho request ghi; khách nhận 401 trước khi chạm database. Response đều bọc `success`; chi tiết tại `api-response.md`.
 
 | Method | Path | Middleware route (ngoài global) | Controller | Service | Response data |
 | --- | --- | --- | --- | --- | --- |
 | GET | `/health` | — | inline | — | message trạng thái |
-| GET | `/user/employees` | validate query | user `getEmployees` | `userEmployeeService.getEmployees` | danh sách public + pagination |
-| GET | `/user/employees/departments` | — | user `getDepartments` | `userEmployeeService.getDepartments` | `string[]` mã phòng có nhân viên active, chưa xóa; không phân trang |
-| GET | `/user/employees/:id` | — | user `getEmployeeById` | `userEmployeeService.getEmployeeById` | nhân viên public |
-| GET | `/user/media` | validate query | user `getMedia` | `userMediaService.getMedia` | bài viết published + pagination |
-| GET | `/user/media/:id` | — | user `getMediaById` | `userMediaService.getMediaById` | bài viết published |
-| GET | `/user/meetings` | validate query | `getBookings` | `meetingService.getBookings` | `{ items, pagination }`, email được che |
-| POST | `/user/meetings/booking-requests` | meeting OTP limiter, validate body | `startBookingRequest` | `meetingBookingOtpService.start` | 202; requestId, email, thời gian OTP/cooldown |
-| POST | `/user/meetings/booking-requests/verify-otp` | meeting verify limiter, validate body | `verifyBookingRequest` | `meetingBookingOtpService.verify` | 201; booking mới, email được che |
-| POST | `/user/meetings/booking-requests/resend-otp` | meeting OTP limiter, validate body | `resendBookingRequestOtp` | `meetingBookingOtpService.resend` | 200; thời gian OTP/cooldown |
-| POST | `/user/meetings/cancel-requests` | meeting OTP limiter, validate body | `startCancellationRequest` | `meetingCancelOtpService.start` | 202; email đã che, thời gian OTP/cooldown |
-| POST | `/user/meetings/cancel-requests/verify-otp` | meeting verify limiter, validate body | `verifyCancellationRequest` | `meetingCancelOtpService.verify` | 200; booking vừa xóa, email được che |
-| POST | `/user/meetings/cancel-requests/resend-otp` | meeting OTP limiter, validate body | `resendCancellationRequestOtp` | `meetingCancelOtpService.resend` | 200; thời gian OTP/cooldown |
+| GET | `/user/employees` | USER GATE, validate query | user `getEmployees` | `userEmployeeService.getEmployees` | danh sách nhân viên + pagination; khách nhận 401 |
+| GET | `/user/employees/departments` | USER GATE | user `getDepartments` | `userEmployeeService.getDepartments` | `string[]` mã phòng có nhân viên active, chưa xóa; không phân trang |
+| GET | `/user/employees/:id` | USER GATE | user `getEmployeeById` | `userEmployeeService.getEmployeeById` | nhân viên |
+| GET | `/user/media` | `attachUser`, validate query | user `getMedia` | `userMediaService.getMedia` | bài published + pagination; khách chỉ nhận bài `visibility: "public"` |
+| GET | `/user/media/:id` | `attachUser` | user `getMediaById` | `userMediaService.getMediaById` | bài published; khách mở bài nội bộ (hoặc bài cũ chưa đặt phạm vi) nhận 401 |
+| GET | `/user/meetings` | USER GATE | `getBookings` | `meetingService.getBookings` | `{ items, pagination }`, email được che, `isMine` cho lịch của người đang xem |
+| GET | `/user/meetings/mine` | USER GATE | `getMyBookings` | `userMeetingBookingService.mine` | `{ upcoming, past }` (15 ngày gần nhất), email đầy đủ của chính mình |
+| POST | `/user/meetings/bookings` | USER GATE, limiter theo account, validate body | `bookMeeting` | `userMeetingBookingService.book` | 201; booking mới. Tên/email lấy từ tài khoản, bỏ qua giá trị gửi lên; không còn OTP |
+| POST | `/user/meetings/bookings/:id/cancel` | USER GATE, limiter theo account | `cancelMyBooking` | `userMeetingBookingService.cancel` | chỉ người đặt (cùng email) hủy được, trước khi họp kết thúc; người khác nhận 404 |
+| POST | `/user/feedback` | USER GATE, limiter | `createFeedback` | `userFeedbackService.create` | 201; gửi có tên thì tên/email lấy từ tài khoản |
+| GET | `/user/account/profile` | USER GATE | `getProfile` | `userProfileService.profile` | tài khoản + hồ sơ nhân viên cùng email (chỉ xem) |
+| POST | `/user/account/change-password` | USER GATE, limiter theo account, validate body | `changePassword` | `userAuthService.changePassword` | đổi mật khẩu, thu hồi mọi phiên, cấp phiên mới cho thiết bị hiện tại |
+| POST | `/user/account/logout-others` | USER GATE | `logoutOtherDevices` | `userAuthService.logoutOthers` | `{ count }` phiên đã đăng xuất |
+| POST | `/user/account/avatar` | USER GATE, limiter theo account, multipart `avatar` (JPG/PNG/WEBP ≤ 5MB, Cloudinary `asia-portal/account-avatars`) | `uploadAvatar` | `accountAvatarService.set` | `{ avatar, customAvatar: true }`; xóa file ảnh riêng cũ. Không đổi ảnh hồ sơ nhân sự |
+| DELETE | `/user/account/avatar` | USER GATE, limiter theo account | `removeAvatar` | `accountAvatarService.clear` | `{ avatar, customAvatar: false }`: quay về ảnh hồ sơ nhân sự cùng email (hoặc rỗng) |
+| GET | `/user/notifications` | USER GATE, validate query (`before`) | `listNotifications` | `notificationService.list` | `{ items, unread, hasMore }`, 20 mục mỗi trang |
+| GET | `/user/notifications/unread-count` | USER GATE | `unreadNotifications` | `notificationService.unreadCount` | `{ unread }` |
+| POST | `/user/notifications/read-all` | USER GATE | `markAllNotificationsRead` | `notificationService.markAllRead` | — |
+| POST | `/user/notifications/:id/read` | USER GATE | `markNotificationRead` | `notificationService.markRead` | 404 nếu không phải thông báo của mình |
 | POST | `/admin/auth/login` | login limiter, body login | `login` | `adminAuthService.login` | admin; set cookie |
 | POST | `/admin/auth/register` | register limiter, body register | `register` | `registrationOtpService.start` | email, `expiresInSeconds` (202) |
 | POST | `/admin/auth/register/verify-otp` | register limiter, body OTP | `verifyRegistrationOtp` | `registrationOtpService.verify` | account pending (201) |
@@ -49,7 +56,7 @@ Tất cả endpoint đi qua middleware toàn cục tại `backend/index.ts`: Hel
 | POST | `/admin/employees/:id/restore` | ADMIN GATE, `employees:trash` | `restoreEmployee` | `adminEmployeeService.restoreEmployee` + audit | nhân viên |
 | DELETE | `/admin/employees/:id/permanent` | ADMIN GATE, `employees:trash` | `permanentlyDeleteEmployee` | `adminEmployeeService.permanentlyDeleteEmployee` + audit | nhân viên |
 | DELETE | `/admin/employees/:id` | ADMIN GATE, `employees:delete` | `softDeleteEmployee` | `adminEmployeeService.softDeleteEmployee` + audit | nhân viên |
-| GET | `/admin/media` | ADMIN GATE, `media:view`, validate query | `getMedia` | `adminMediaService.getMedia` | bài viết + pagination |
+| GET | `/admin/media` | ADMIN GATE, `media:view`, validate query | `getMedia` | `adminMediaService.getMedia` | bài viết + pagination; `categories` và `visibilities` nhận danh sách cách nhau bằng dấu phẩy |
 | GET | `/admin/media/:id` | ADMIN GATE, `media:view` | `getMediaById` | `adminMediaService.getMediaById` | bài viết |
 | POST | `/admin/media` | ADMIN GATE, `media:create`, Cloudinary, multipart cover, validate upload | `createMedia` | `adminMediaService.createMedia` + audit | bài viết (201) |
 | PATCH | `/admin/media/:id` | ADMIN GATE, Cloudinary, multipart cover, validate upload, quyền update/publish | `updateMedia` | `adminMediaService.updateMedia` + audit | bài viết |
@@ -58,13 +65,19 @@ Tất cả endpoint đi qua middleware toàn cục tại `backend/index.ts`: Hel
 | POST | `/admin/media/:id/restore` | ADMIN GATE, `media:trash`, body rỗng | `restoreMedia` | `adminMediaService.restoreMedia` + audit | bài khôi phục ở trạng thái draft |
 | DELETE | `/admin/media/:id/permanent` | ADMIN GATE, `media:trash` | `permanentlyDeleteMedia` | `adminMediaService.permanentlyDeleteMedia` + audit | chỉ xóa vĩnh viễn bài trong thùng rác |
 | GET | `/admin/audit-logs` | ADMIN GATE, role `admin`, validate query | `getAuditLogs` | `auditLogService.getAuditLogs` | audit logs + pagination |
-| DELETE | `/admin/accounts/:id` | ADMIN GATE, role `admin` | `deleteAccount` | `adminAccountService.deleteAccount` + audit | `{ id }`; gồm Admin khác, chặn tự xóa/Admin active cuối cùng |
-| GET | `/admin/accounts` | ADMIN GATE, role `admin` | `getAccounts` | `adminAccountService.getAccounts` | account[] |
-| POST | `/admin/accounts/check-contacts` | ADMIN GATE, role `admin`, validate body | `checkAccountContacts` | `accountContactService.check` | `{ emailAvailable?, phoneAvailable? }` từ MongoDB |
-| POST | `/admin/accounts` | ADMIN GATE, role `admin`, validate body | `createAccount` | `adminAccountService.createAccount` | account (201) |
-| PATCH | `/admin/accounts/:id` | ADMIN GATE, role `admin`, validate body | `updateAccount` | `adminAccountService.updateAccount` | account |
-| PATCH | `/admin/accounts/:id/password` | ADMIN GATE, role `admin`, validate body | `resetPassword` | `adminAccountService.resetPassword` | message |
-| GET | `/admin/permission-groups/catalog` | ADMIN GATE, role `admin` | `getPermissionCatalog` | — | `{ modules, permissions }` (16 quyền) |
+| DELETE | `/admin/accounts/:id` | ADMIN GATE, quyền `accounts:manage-users` (Quản lý chỉ thao tác tài khoản `user`) | `deleteAccount` | `adminAccountService.deleteAccount` + audit `account.soft_deleted` | `{ id }`; **xóa mềm** vào thùng rác tài khoản; chặn tự xóa/Admin active cuối cùng |
+| POST | `/admin/accounts/:id/lock` | ADMIN GATE, quyền `accounts:manage-users`, validate body `{ reason? }` (≤200 ký tự) | `lockAccount` | `adminAccountService.lockAccount` + audit `account.locked` | account; status `inactive`, `lock` = { kind: manual, note, byName, at }, đăng xuất mọi phiên; chặn tự khóa/Admin active cuối cùng |
+| POST | `/admin/accounts/:id/unlock` | ADMIN GATE, quyền `accounts:manage-users` | `unlockAccount` | `adminAccountService.unlockAccount` + audit `account.unlocked` | account; status `active`, xóa `lock` |
+| GET | `/admin/accounts/trash` | ADMIN GATE, quyền `accounts:manage-users` + `accounts:trash` | `getDeletedAccounts` | `adminAccountService.getDeletedAccounts` | account[] trong thùng rác (Quản lý chỉ thấy `user`) |
+| PATCH | `/admin/accounts/:id/restore` | ADMIN GATE, quyền `accounts:manage-users` + `accounts:trash` | `restoreAccount` | `adminAccountService.restoreAccount` + audit `account.restored` | account; quay lại danh sách ở trạng thái khóa (`lock.kind = restored`) |
+| DELETE | `/admin/accounts/:id/permanent` | ADMIN GATE, quyền `accounts:manage-users` + `accounts:trash` | `permanentlyDeleteAccount` | `adminAccountService.permanentlyDeleteAccount` + audit `account.permanently_deleted` | account; chỉ xóa tài khoản đang trong thùng rác |
+| GET | `/admin/accounts` | ADMIN GATE, quyền `accounts:manage-users` (Quản lý chỉ thao tác tài khoản `user`) | `getAccounts` | `adminAccountService.getAccounts` | account[] |
+| GET | `/admin/accounts/employee-lookup?q=` | ADMIN GATE, quyền `accounts:manage-users`, validate query | `lookupEmployees` | `adminAccountService.lookupEmployees` | tối đa 8 hồ sơ nhân viên chưa xóa, chưa nghỉ việc, khớp tên/mã/email (không dấu), kèm `account` nếu email đã có tài khoản |
+| POST | `/admin/accounts/check-contacts` | ADMIN GATE, quyền `accounts:manage-users` (Quản lý chỉ thao tác tài khoản `user`), validate body | `checkAccountContacts` | `accountContactService.check` | `{ emailAvailable?, phoneAvailable? }` từ MongoDB |
+| POST | `/admin/accounts` | ADMIN GATE, quyền `accounts:manage-users` (Quản lý chỉ thao tác tài khoản `user`), validate body | `createAccount` | `adminAccountService.createAccount` | account (201) |
+| PATCH | `/admin/accounts/:id` | ADMIN GATE, quyền `accounts:manage-users` (Quản lý chỉ thao tác tài khoản `user`), validate body | `updateAccount` | `adminAccountService.updateAccount` | account |
+| PATCH | `/admin/accounts/:id/password` | ADMIN GATE, quyền `accounts:manage-users` (Quản lý chỉ thao tác tài khoản `user`), validate body | `resetPassword` | `adminAccountService.resetPassword` | message |
+| GET | `/admin/permission-groups/catalog` | ADMIN GATE, role `admin` | `getPermissionCatalog` | — | `{ modules, permissions }` (19 quyền) |
 | GET | `/admin/permission-groups` | ADMIN GATE, role `admin` | `getGroups` | `permissionGroupService.getGroups` | group[] |
 | POST | `/admin/permission-groups` | ADMIN GATE, role `admin`, validate body | `createGroup` | `permissionGroupService.createGroup` | group (201) |
 | PATCH | `/admin/permission-groups/:id` | ADMIN GATE, role `admin`, validate body | `updateGroup` | `permissionGroupService.updateGroup` | group |
@@ -93,5 +106,46 @@ Mẫu Excel hiển thị tên đơn vị không có tiền tố “Phòng” (v�
 
 ## Đóng góp ý kiến
 
-Xem [feedback.md](feedback.md): `POST /user/feedback` công khai; các API `/admin/feedback` yêu cầu role admin.
+Xem [feedback.md](feedback.md): `POST /user/feedback` cần đăng nhập cổng người dùng; các API `/admin/feedback` yêu cầu role admin.
 Tin truyền thông nổi bật: `GET /user/media?featured=true&limit=5`; xem [media-featured.md](media-featured.md).
+
+## Thông báo và nhắc lịch họp
+
+- Bảng `notifications` (tự xóa sau 60 ngày), mỗi tài khoản một thông báo cho mỗi cặp loại + đối tượng.
+- `news`: gửi cho mọi tài khoản đang hoạt động khi một bài được đăng lần đầu (tạo ở trạng thái published, hoặc chuyển từ ẩn sang published). Trường `media.newsNotifiedAt` chặn gửi lặp; bài bị chuyển vào thùng rác thì thông báo bị thu hồi.
+- `meeting-booked`: ngay sau khi đặt phòng thành công.
+- `meeting-reminder`: job `meeting-booking-reminder` gửi email và thông báo trên web trước giờ họp `MEETING_REMINDER_LEAD_MINUTES` (15 phút), cho tài khoản có cùng email với lịch. Hủy lịch thì thu hồi thông báo của lịch đó.
+- Lỗi khi tạo thông báo chỉ được ghi log, không làm hỏng thao tác đăng bài hay đặt phòng.
+
+## Phạm vi bài truyền thông
+
+`media.visibility`: `public` (ai cũng xem) hoặc `internal` (chỉ tài khoản đã đăng nhập). Bài mới mặc định `internal`; bài cũ chưa có trường này được coi là nội bộ. Trang quản trị lọc được bằng `?visibility=public|internal`.
+
+## Ảnh đại diện tài khoản
+
+Ảnh hiển thị của một tài khoản = ảnh riêng (`account.avatar`) nếu người dùng đã tải lên, nếu không thì ảnh của hồ sơ nhân viên có cùng email, nếu không có thì rỗng (giao diện hiện chữ viết tắt). Trường `avatar` này có trong `/user/auth/me`, `/admin/auth/me`, login/refresh của hai cổng và danh sách tài khoản quản trị. Ảnh riêng không bao giờ ghi vào hồ sơ nhân viên; danh bạ và sơ đồ tổ chức vẫn dùng ảnh của phòng Nhân sự. Xóa vĩnh viễn tài khoản thì xóa luôn file ảnh riêng.
+
+## Đặt xe
+
+Nhân viên gửi yêu cầu (đón/đưa khách hoặc giao/nhận hàng); HR (quyền `vehicles:manage`) chọn xe công ty hoặc xe ngoài (Grab), nhập giá dự kiến và giá thật, chốt chuyến. Xóa chuyến đã hủy cần thêm quyền `vehicles:delete`. Chuyến đã hoàn thành không bao giờ xóa được.
+
+Trạng thái: `pending` (chờ xử lý) → `arranged` (đã sắp xếp xe) → `arrived` (người đặt báo đã đi xong, tùy chọn) → `completed` (HR chốt; xe ngoài bắt buộc `actualCost`) hoặc `cancelled` (có lý do; HR hủy bắt buộc ghi lý do). Thời gian gửi lên là giờ Việt Nam dạng `YYYY-MM-DDTHH:mm`; phải đặt trước giờ đi ít nhất 15 phút.
+
+| Method | Path | Middleware | Ghi chú |
+| --- | --- | --- | --- |
+| GET | `/user/vehicles/mine` | USER GATE | chuyến của mình (60 ngày gần nhất và mọi chuyến chưa xong) |
+| POST | `/user/vehicles` | USER GATE, limiter, validate | tạo yêu cầu; tên/email từ tài khoản, bộ phận từ hồ sơ nhân viên; báo HR |
+| PATCH | `/user/vehicles/:id` | USER GATE, limiter, validate | chỉ khi `pending` |
+| POST | `/user/vehicles/:id/cancel` | USER GATE, limiter, validate | chỉ khi `pending` |
+| POST | `/user/vehicles/:id/arrived` | USER GATE, limiter, multipart `receipts` ≤ 3 ảnh | "Đã đi xong" khi `arranged`; báo HR |
+| GET | `/admin/vehicles` | ADMIN GATE, `vehicles:manage` | lọc `status`, `vehicleType`, `purpose`, `month`, `search`; trả `waiting` |
+| GET | `/admin/vehicles/:id` | như trên | |
+| PATCH | `/admin/vehicles/:id` | như trên, validate | chọn xe/sửa chuyến; xe ngoài cần `estimatedCost`; báo người đặt |
+| POST | `/admin/vehicles/:id/complete` | như trên, multipart `receipts` | chốt; xe ngoài cần `actualCost` |
+| POST | `/admin/vehicles/:id/cancel` | như trên | `reason` bắt buộc |
+| DELETE | `/admin/vehicles/:id` | thêm `vehicles:delete` | chỉ chuyến `cancelled`; xóa luôn ảnh |
+| GET | `/admin/vehicles/report?month=YYYY-MM` | `vehicles:manage` | tổng tiền xe ngoài theo giá thật (chỉ chuyến `completed`), theo phòng ban, theo mục đích |
+| GET | `/admin/vehicles/report/export?month=YYYY-MM` | `vehicles:manage` | file Excel |
+| GET/POST | `/admin/notifications`, `/unread-count`, `/read-all`, `/:id/read` | ADMIN GATE | chuông thông báo trong trang quản trị |
+
+Nhắc tự động (job `vehicle-booking-reminder`, mỗi phút): người đặt được nhắc trên web và email trước giờ đi 15 phút. HR được báo trên web khi có yêu cầu mới, khi người đặt bấm "Đã đi xong", hoặc khi quá giờ hoàn thành dự kiến mà chưa chốt. 30 phút sau lần báo đó mà vẫn chưa chốt thì gửi email cho mọi tài khoản có quyền `vehicles:manage`.

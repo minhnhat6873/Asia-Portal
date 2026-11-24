@@ -69,7 +69,6 @@ function DepartmentLink({ department }: { department: Department }) {
       </div>
       <span className="min-w-0 flex-1">
         <span className="block text-[13px] font-bold leading-[18px] text-[#14273c]">{department.name}</span>
-        <span className="mt-1 block text-xs leading-[17px] text-[#718096]">{department.description}</span>
       </span>
       <ChevronRight aria-hidden="true" size={17} strokeWidth={1.8} className="shrink-0 text-[#3b977c]" />
     </Link>

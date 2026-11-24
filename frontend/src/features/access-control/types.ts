@@ -2,7 +2,7 @@ import type { GroupColor, GroupIcon } from './permission-group-appearance';
 
 export type RiskLevel = 'low' | 'medium' | 'high';
 
-export type SystemModuleId = 'employees' | 'media' | 'meetings' | 'dashboard';
+export type SystemModuleId = 'employees' | 'media' | 'meetings' | 'dashboard' | 'accounts';
 
 export interface SystemPermission {
   id: string;
@@ -45,10 +45,12 @@ export interface User {
   status: 'active' | 'suspended' | 'pending' | 'rejected';
   avatar?: string;
   notes?: string;
+  /** Why the account is locked, when status is "suspended". */
+  lock?: import('@/services/access-control.service').AccountLock | null;
   updatedAt?: string;
   createdAt?: string;
   /** Only present while creating an account; never persisted in frontend state. */
   password?: string;
 }
 
-export type NewUserInput = Pick<User, 'name' | 'email' | 'phone' | 'roleIds'> & {accountRole: 'admin' | 'manager'; password: string; confirmPassword: string};
+export type NewUserInput = Pick<User, 'name' | 'email' | 'phone' | 'roleIds'> & {accountRole: 'admin' | 'manager' | 'user'; password: string; confirmPassword: string};

@@ -135,3 +135,33 @@ Form dùng chung validate với tạo tài khoản: họ tên 2–100 ký tự t
 Tab Mật khẩu gọi PATCH /admin/accounts/:id/password với password, confirmPassword bắt buộc, notifyUser tùy chọn. Mật khẩu 8–32 ký tự, có chữ hoa, chữ thường, số và ký tự đặc biệt, không chứa khoảng trắng và xác nhận trùng chính xác. Không xem hoặc gửi mật khẩu qua email; tùy chọn thông báo chỉ gửi sự kiện đặt lại. Lỗi gửi mail sau khi đã lưu được báo riêng bằng notificationSent=false. Không có tính năng bắt buộc đổi mật khẩu lần đăng nhập sau, các cờ dữ liệu cũ bị bỏ qua.
 
 Thay đổi thông tin, quyền hoặc mật khẩu chưa lưu đều kích hoạt hộp hỏi chung khi Hủy/quay lại/sidebar/browser Back/reload/đóng tab. Form chưa sửa hoặc đã lưu thành công không hỏi. Lưu và rời trang kiểm tra toàn bộ các phần đang sửa trước khi gọi API. Ghi audit account.updated/account.password_reset, không ghi mật khẩu.
+
+## Tài khoản Người dùng và quyền quản lý tài khoản
+
+- **Loại tài khoản:** `admin` (Admin gốc), `manager` (Quản lý), `user` (Người dùng). Người dùng đăng nhập ở trang chính (`/user/auth`), không vào được trang quản trị. Chỉ tài khoản `manager` mang nhóm quyền; tạo hoặc đổi sang `admin`/`user` luôn xóa nhóm quyền.
+- **Quyền `accounts:manage-users`:** Admin gốc có sẵn. Admin gốc cấp quyền này cho nhóm (ví dụ HR) để Quản lý trong nhóm vào `/admin/access-control/accounts`. Quản lý có quyền này chỉ thấy và thao tác tài khoản `user`: tạo, sửa, khóa, duyệt, xóa, đặt lại mật khẩu. Họ không đổi được loại tài khoản, không gán nhóm quyền và không đụng tới tài khoản Quản lý hay Admin gốc. `adminAccountService` kiểm tra lại quyền sau khi nhận khóa ghi, nên gỡ quyền khỏi nhóm có hiệu lực ngay.
+- **Liên kết hồ sơ nhân viên:** tài khoản và hồ sơ nhân viên là hai bản ghi riêng, khớp nhau bằng email. Form tạo tài khoản dùng `GET /admin/accounts/employee-lookup` để chọn nhân viên và tự điền họ tên, email, số điện thoại.
+- **Đồng bộ khi nhân viên rời đi** (`employee.controller` gọi `employeeAccountLinkService`):
+
+  | Thao tác với hồ sơ nhân viên | Tài khoản cùng email |
+  | --- | --- |
+  | Đổi trạng thái sang `inactive` (lần đầu) | Khóa (`inactive`, `lock.kind = employee-left`) và tăng `authVersion` để đăng xuất mọi phiên |
+  | Chuyển vào thùng rác | Khóa như trên (`lock.kind = employee-deleted`) |
+  | Khôi phục, hoặc đổi lại đang làm việc | Không đổi; Admin tự mở khóa |
+  | Xóa vĩnh viễn | Chuyển tài khoản vào thùng rác tài khoản |
+
+  Tài khoản Admin gốc không bao giờ bị khóa hoặc xóa tự động; response chỉ nhắc admin kiểm tra. Mỗi lần khóa hoặc chuyển vào thùng rác tự động ghi audit `account.auto_locked` / `account.auto_trashed`. Response của cập nhật, xóa và xóa vĩnh viễn nhân viên có `data.linkedAccount` (`none`, `locked`, `trashed`, `admin-skipped`) để giao diện hiện toast tương ứng; `admin-skipped` hiện cảnh báo nhắc khóa tay. Nếu bước này lỗi sau khi hồ sơ đã lưu, API trả 500 kèm hướng dẫn xử lý thủ công.
+- **Tự đăng ký:** tắt mặc định. Bật bằng `USER_REGISTRATION_ENABLED=true` trong `backend/.env` rồi khởi động lại backend. Khi tắt, `/user/auth/register*` trả 404; `GET /user/site-settings` trả `userRegistrationEnabled` để frontend ẩn liên kết Đăng ký và chuyển `/register` về `/login`.
+- **Khóa tài khoản:** `POST /admin/accounts/:id/lock` (lý do không bắt buộc, tối đa 200 ký tự) và `/unlock`. Admin gốc khóa được mọi tài khoản, kể cả Admin gốc khác, trừ chính mình và Admin gốc active cuối cùng; Quản lý chỉ khóa được tài khoản `user`. Tài khoản bị khóa lưu `lock = { kind, note?, byName?, at }`: `manual` (khóa tay, gồm cả đổi trạng thái ở form sửa), `employee-left`, `employee-deleted`, `restored`. Mở khóa xóa `lock`; lịch sử nằm trong audit log. Giao diện hỏi xác nhận thêm khi mở khóa `employee-left`/`employee-deleted`.
+- **Thùng rác tài khoản:** xóa ở danh sách là **xóa mềm** (`isDeleted`, `deletedAt`, `deletedBy`, status `inactive`, tăng `authVersion`). Tài khoản trong thùng rác không đăng nhập được (`findByEmailWithPassword`, `findActiveById` loại trừ), không hiện trong danh sách và số liệu, nhưng vẫn giữ email/số điện thoại. Quyền `accounts:trash` (kèm `accounts:manage-users`) cho xem thùng rác, khôi phục (về trạng thái khóa, `lock.kind = restored`) và xóa vĩnh viễn; Quản lý chỉ thao tác tài khoản `user`.
+- **Luật mật khẩu mới** (`newPasswordSchema`, dùng cho đăng ký, tạo, đặt lại và tự đổi mật khẩu ở cả trang quản trị và người dùng): 8–32 ký tự, có chữ hoa, chữ thường, số, ký tự đặc biệt, **chỉ ký tự ASCII in được** (không dấu, không emoji), không khoảng trắng. Đăng nhập và ô "mật khẩu hiện tại" không áp luật này, nên mật khẩu cũ có dấu vẫn đăng nhập được.
+- **Quản lý phải có nhóm quyền:** tạo tài khoản `manager` cần ít nhất một nhóm quyền (Joi `createAccountSchema` và `adminAccountService`). Khi sửa, đổi sang `manager` hoặc gửi `permissionGroupIds` cho một Quản lý cũng phải còn ít nhất một nhóm; Quản lý tạo trước luật này vẫn sửa được các trường khác. Quản lý có quyền `accounts:manage-users` không thấy ô chọn loại tài khoản: tài khoản họ tạo luôn là Người dùng.
+
+## Cổng người dùng khi website mở ra Internet
+
+- Danh bạ nhân viên, sơ đồ tổ chức (phần nhân viên theo phòng), lịch họp, đặt/hủy phòng, góp ý, hồ sơ, cài đặt và thông báo đều qua `requireUserAuth` (`backend/src/middlewares/user-auth.middleware.ts`). Giao diện ẩn các phần này với khách, nhưng chính API mới là nơi chặn.
+- `/user/media` dùng `attachUser`: khách chỉ thấy bài `visibility: "public"`.
+- Chỉ nhận cookie `asia_user_token` (JWT `aud: "asia-user"`); token cổng quản trị bị từ chối. Phiên vẫn kiểm tra `authVersion` và bản ghi `AuthSession` như cổng quản trị.
+- `GET /user/auth/me` và `/refresh` trả thêm `canAccessAdmin` (role admin/manager), `position`, `department`, `avatar` từ hồ sơ nhân viên cùng email. `canAccessAdmin` chỉ để hiện liên kết "Vào trang quản trị" (mở tab mới); trang quản trị vẫn bắt đăng nhập riêng và phiên cổng người dùng luôn có `permissions: []`.
+- Đổi mật khẩu ở cổng người dùng cần mật khẩu hiện tại, dùng chung chính sách mật khẩu; sau khi đổi, `authVersion` tăng nên mọi phiên khác bị đăng xuất, thiết bị hiện tại được cấp phiên mới.
+- Đặt phòng họp không còn OTP: danh tính đã được xác thực bằng đăng nhập, tên và email lấy từ tài khoản.

@@ -59,6 +59,14 @@ export const adminEmployeeRepository = {
     return EmployeeModel.findOne({ _id: id, isDeleted: { $ne: true } }).lean();
   },
 
+  /** email -> HR photo for active (not trashed) employees. */
+  async findAvatarsByEmails(emails: string[]): Promise<Map<string, string>> {
+    const list = [...new Set(emails.map((email) => email.trim().toLowerCase()).filter(Boolean))];
+    if (!list.length) return new Map();
+    const rows = await EmployeeModel.find({ email: { $in: list }, isDeleted: { $ne: true } }).select("email avatar").lean();
+    return new Map(rows.map((row) => [String(row.email).toLowerCase(), row.avatar ?? ""]));
+  },
+
   findByEmail(email: string) {
     return EmployeeModel.findOne({ email: email.toLowerCase(), isDeleted: { $ne: true } }).lean();
   },

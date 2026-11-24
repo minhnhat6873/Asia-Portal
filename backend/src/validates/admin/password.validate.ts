@@ -3,6 +3,9 @@ import Joi from "joi";
 // Never trim/replace password characters during validation.
 export const newPasswordSchema = Joi.string().min(8).max(32).custom((value: string, helpers) => {
   if (/\s/u.test(value)) return helpers.error("password.whitespace");
+  // No accents or other non-ASCII characters: they are easy to mistype on another device or
+  // keyboard layout. Existing passwords still sign in; this applies when a password is set.
+  if (/[^\x21-\x7E]/.test(value)) return helpers.error("password.ascii");
   // bcrypt only uses the first 72 UTF-8 bytes. Character limits alone do not
   // prevent truncation for non-ASCII passwords.
   if (Buffer.byteLength(value, "utf8") > 72) return helpers.error("password.byteLimit");
@@ -20,6 +23,7 @@ export const newPasswordSchema = Joi.string().min(8).max(32).custom((value: stri
   "string.min": "Mật khẩu phải có ít nhất 8 ký tự.",
   "string.max": "Mật khẩu không được vượt quá 32 ký tự.",
   "password.whitespace": "Mật khẩu không được chứa khoảng trắng.",
+  "password.ascii": "Mật khẩu chỉ được dùng ký tự không dấu.",
   "password.byteLimit": "Mật khẩu chứa ký tự Unicode vượt giới hạn an toàn. Vui lòng rút ngắn hoặc dùng ít ký tự có dấu/biểu tượng hơn.",
   "password.missingRequirements": "Mật khẩu còn thiếu: {{#missing}}.",
 });

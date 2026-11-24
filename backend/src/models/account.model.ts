@@ -3,6 +3,7 @@ import { model, models, Schema } from "mongoose";
 import { normalizeAccountPhone } from "../utils/account/normalizeContact";
 
 import {
+  ACCOUNT_LOCK_KINDS,
   ACCOUNT_ROLES,
   ACCOUNT_STATUSES,
   type Account,
@@ -48,6 +49,22 @@ const accountSchema = new Schema<Account>(
       type: [Schema.Types.ObjectId],
       ref: "PermissionGroup",
       default: [],
+    },
+    lock: {
+      type: new Schema({
+        kind: { type: String, enum: ACCOUNT_LOCK_KINDS, required: true },
+        note: { type: String, trim: true, maxlength: 200 },
+        byName: { type: String, trim: true },
+        at: { type: Date, required: true },
+      }, { _id: false }),
+      default: null,
+    },
+    avatar: { type: String, trim: true, default: "" },
+    avatarPublicId: { type: String, trim: true, select: false },
+    isDeleted: { type: Boolean, default: false, index: true },
+    deletedAt: { type: Date },
+    deletedBy: {
+      type: new Schema({ accountId: String, name: String, email: String }, { _id: false }),
     },
   },
   {

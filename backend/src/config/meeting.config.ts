@@ -23,3 +23,5 @@ export const MIN_MEETING_DURATION_MINUTES = 30;
 export const MEETING_DURATION_STEP_MINUTES = 15;
 export const MIN_MEETING_GAP_MINUTES = 15;
 export const MEETING_TRASH_RETENTION_MS = 15 * 24 * 60 * 60 * 1000;
+/** Reminders (email and website) go out this many minutes before a meeting starts. */
+export const MEETING_REMINDER_LEAD_MINUTES = 15;

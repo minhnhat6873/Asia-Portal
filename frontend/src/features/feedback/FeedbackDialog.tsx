@@ -3,13 +3,15 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import Image from "next/image";
 import { Frown, Leaf, MessageSquareText, Send, User, X } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
 import { ApiError } from "@/services/api";
+import { useUserSession } from "@/lib/userSession";
+import { loginHref } from "@/components/auth/LoginRequired";
 import { submitFeedback } from "@/services/feedback.service";
 import RichTextEditor from "@/components/ui/RichTextEditor";
 import { FEEDBACK_LIMITS, type FeedbackSubmission } from "@/features/admin/feedback/feedback.types";
 import { feedbackPlainText } from "@/features/admin/feedback/feedback.utils";
 
-const EMAIL_PATTERN = /^(?!.*\.\.)[a-z0-9](?:[a-z0-9._-]{0,62}[a-z0-9])?@asiafnb\.com$/i;
 const INPUT_CLASS = "w-full rounded-xl border bg-slate-50 px-3.5 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:bg-white focus:ring-2";
 const inputTone = (hasError: boolean) => (hasError ? "border-rose-300 focus:border-rose-400 focus:ring-rose-500/20" : "border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20");
 
@@ -77,8 +79,12 @@ export default function FeedbackDialog() {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [anonymous, setAnonymous] = useState(false);
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  // Only signed-in accounts can send feedback; a named one always uses the account's name and email.
+  const session = useUserSession();
+  const router = useRouter();
+  const pathname = usePathname();
+  const name = session.account?.name ?? "";
+  const email = session.account?.email ?? "";
   const [touched, setTouched] = useState<Partial<Record<FieldName, boolean>>>({});
   const [submitted, setSubmitted] = useState(false);
   const [sending, setSending] = useState(false);
@@ -109,8 +115,6 @@ export default function FeedbackDialog() {
   const errors: Partial<Record<FieldName, string>> = {
     title: title.trim() ? undefined : "Vui lòng nhập tiêu đề.",
     content: contentText.length < 10 ? "Nội dung cần ít nhất 10 ký tự." : contentText.length > FEEDBACK_LIMITS.content ? `Nội dung tối đa ${FEEDBACK_LIMITS.content} ký tự.` : undefined,
-    name: anonymous ? undefined : !name.trim() ? "Vui lòng nhập họ và tên." : name.trim().length < 2 || !/^[\p{L} .'-]+$/u.test(name.trim()) ? "Họ và tên không hợp lệ." : undefined,
-    email: anonymous ? undefined : !email.trim() ? "Vui lòng nhập email." : EMAIL_PATTERN.test(email.trim()) ? undefined : "Email phải có dạng ten@asiafnb.com.",
   };
   const shownError = (field: FieldName) => (serverErrors[field] ?? (touched[field] ? errors[field] : undefined));
   const touch = (field: FieldName) => () => { setServerErrors((current) => ({ ...current, [field]: undefined })); setTouched((current) => ({ ...current, [field]: true })); };
@@ -131,13 +135,15 @@ export default function FeedbackDialog() {
     if (Object.values(errors).some(Boolean)) return;
     setSending(true);
     try {
-      await submitFeedback({ title: submission.title, content: submission.content, isAnonymous: anonymous, ...(submission.sender ? { senderName: submission.sender.name, senderEmail: submission.sender.email } : {}) });
-      setTitle(""); setContent(""); setName(""); setEmail(""); setAnonymous(false); setTouched({}); setSubmitted(true);
+      await submitFeedback({ title: submission.title, content: submission.content, isAnonymous: anonymous });
+      setTitle(""); setContent(""); setAnonymous(false); setTouched({}); setSubmitted(true);
     } catch (error) {
       if (error instanceof ApiError && error.status === 400 && Object.keys(error.fieldErrors).length) {
         const fields = error.fieldErrors;
         setServerErrors({ title: fields.title, content: fields.content, name: fields.senderName, email: fields.senderEmail });
         if (fields.isAnonymous) setGeneralError(fields.isAnonymous);
+      } else if (error instanceof ApiError && error.status === 401) {
+        setGeneralError("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại để gửi ý kiến.");
       } else setGeneralError(error instanceof ApiError ? error.message : "Không thể kết nối tới máy chủ. Vui lòng thử lại.");
     } finally { setSending(false); }
   };
@@ -146,7 +152,7 @@ export default function FeedbackDialog() {
 
   return (
     <>
-      <button ref={triggerRef} type="button" aria-haspopup="dialog" onClick={() => setIsOpen(true)} className="text-left text-sm text-white/60 transition-colors hover:text-[#f5c800] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white">
+      <button ref={triggerRef} type="button" aria-haspopup="dialog" onClick={() => { if (session.status === "user") setIsOpen(true); else router.push(loginHref(pathname)); }} title={session.status === "user" ? undefined : "Đăng nhập để gửi ý kiến"} className="text-left text-sm text-white/60 transition-colors hover:text-[#f5c800] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white">
         Đóng góp ý kiến
       </button>
       {isOpen && <div role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }} className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">
@@ -197,14 +203,17 @@ export default function FeedbackDialog() {
               </div>
 
               {!anonymous && (
-                <div className="mt-4 grid gap-4 border-t border-slate-100 pt-4 sm:grid-cols-2">
-                  <Field id={ids.name} label="Họ và tên" required error={shownError("name")}>
-                    <input id={ids.name} autoComplete="name" value={name} maxLength={FEEDBACK_LIMITS.name} onChange={(event) => setName(event.target.value)} onBlur={touch("name")} placeholder="Nguyễn Văn A" className={`${INPUT_CLASS} ${inputTone(Boolean(shownError("name")))}`} {...errorProps("name")} />
-                  </Field>
-                  <Field id={ids.email} label="Email" required error={shownError("email")}>
-                    <input id={ids.email} type="email" autoComplete="email" value={email} maxLength={FEEDBACK_LIMITS.email} onChange={(event) => setEmail(event.target.value)} onBlur={touch("email")} placeholder="ten@asiafnb.com" className={`${INPUT_CLASS} ${inputTone(Boolean(shownError("email")))}`} {...errorProps("email")} />
-                  </Field>
-                </div>
+                <dl className="mt-4 grid gap-4 border-t border-slate-100 pt-4 sm:grid-cols-2">
+                  <div>
+                    <dt className="text-sm font-semibold text-slate-700">Họ và tên</dt>
+                    <dd className="mt-1.5 truncate rounded-xl border border-slate-200 bg-slate-100 px-3.5 py-2.5 text-sm text-slate-700">{name}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-sm font-semibold text-slate-700">Email</dt>
+                    <dd className="mt-1.5 truncate rounded-xl border border-slate-200 bg-slate-100 px-3.5 py-2.5 text-sm text-slate-700">{email}</dd>
+                  </div>
+                  <p className="text-xs text-slate-500 sm:col-span-2">Lấy từ tài khoản đang đăng nhập.</p>
+                </dl>
               )}
             </div>
 

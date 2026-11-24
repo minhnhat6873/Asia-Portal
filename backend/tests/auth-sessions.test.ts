@@ -1,3 +1,9 @@
+// Account pictures come from the employee table; keep these auth tests off the database.
+jest.mock("../src/utils/account/accountAvatar", () => ({
+  resolveAccountAvatar: jest.fn(async (account: { avatar?: string }) => account.avatar ?? ""),
+  resolveAccountAvatars: jest.fn(async () => new Map()),
+  removeAccountAvatarFile: jest.fn(async () => undefined),
+}));
 import express from "express";
 import cookieParser from "cookie-parser";
 import type { Server } from "node:http";

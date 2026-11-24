@@ -28,6 +28,7 @@ export const userAccountService = {
       role: created.role,
       status: created.status,
       permissionGroupIds: [],
+      lock: null,
       createdAt: created.createdAt,
       updatedAt: created.updatedAt,
     };

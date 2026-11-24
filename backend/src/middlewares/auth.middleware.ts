@@ -58,7 +58,7 @@ export async function requireAdminAuth(
     response.status(401).json({ success: false, message: "Phiên đăng nhập đã hết hạn hoặc không hợp lệ" });
     return;
   }
-  if (!payload || typeof payload !== "object" || payload.tokenType !== "access" || typeof payload.sid !== "string" || !payload.sid || !Number.isInteger(payload.version) || typeof payload.sub !== "string" || !mongoose.isValidObjectId(payload.sub)) {
+  if (!payload || typeof payload !== "object" || payload.aud !== undefined || payload.tokenType !== "access" || typeof payload.sid !== "string" || !payload.sid || !Number.isInteger(payload.version) || typeof payload.sub !== "string" || !mongoose.isValidObjectId(payload.sub)) {
     response.status(401).json({
       success: false,
       message: "Phiên đăng nhập không hợp lệ",

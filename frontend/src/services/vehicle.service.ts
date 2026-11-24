@@ -1,0 +1,139 @@
+import { apiDelete, apiGet, apiPatch, apiPost, apiPostFormData } from "./api";
+
+export type VehiclePurpose = "guest" | "delivery";
+export type VehicleType = "company" | "external";
+export type VehicleStatus = "pending" | "arranged" | "arrived" | "completed" | "cancelled";
+
+export const VEHICLE_PURPOSE_LABELS: Record<VehiclePurpose, string> = { guest: "Đón/đưa khách", delivery: "Giao/nhận hàng" };
+export const VEHICLE_TYPE_LABELS: Record<VehicleType, string> = { company: "Xe công ty", external: "Xe ngoài (Grab)" };
+export const VEHICLE_STATUS_LABELS: Record<VehicleStatus, string> = {
+  pending: "Chờ xử lý",
+  arranged: "Đã sắp xếp xe",
+  arrived: "Đã đi xong, chờ HR chốt",
+  completed: "Hoàn thành",
+  cancelled: "Đã hủy",
+};
+export const VEHICLE_STATUS_TONES: Record<VehicleStatus, string> = {
+  pending: "bg-amber-50 text-amber-700 ring-amber-200",
+  arranged: "bg-sky-50 text-sky-700 ring-sky-200",
+  arrived: "bg-violet-50 text-violet-700 ring-violet-200",
+  completed: "bg-emerald-50 text-emerald-700 ring-emerald-200",
+  cancelled: "bg-slate-100 text-slate-500 ring-slate-200",
+};
+/** Requests must be sent at least this long before departure (same as the server). */
+export const VEHICLE_MIN_LEAD_MINUTES = 15;
+
+export interface VehicleTrip {
+  id: string;
+  requester: { accountId: string; name: string; email: string; department: string };
+  purpose: VehiclePurpose;
+  customerName: string;
+  customerPhone: string;
+  passengerCount: number | null;
+  goodsDescription: string;
+  senderName: string;
+  senderPhone: string;
+  receiverName: string;
+  receiverPhone: string;
+  pickup: string;
+  destination: string;
+  departAt: string;
+  roundTrip: boolean;
+  returnAt: string | null;
+  expectedEndAt: string;
+  note: string;
+  status: VehicleStatus;
+  vehicleType: VehicleType | null;
+  driverName: string;
+  driverPlate: string;
+  driverPhone: string;
+  estimatedCost: number | null;
+  actualCost: number | null;
+  receipts: { url: string; uploadedBy: "requester" | "hr"; at: string }[];
+  arrangedBy: { name: string } | null;
+  arrivedAt: string | null;
+  completedAt: string | null;
+  completedBy: { name: string } | null;
+  cancel: { byName: string; byRequester: boolean; reason: string; at: string } | null;
+  createdAt?: string;
+}
+
+/** Form values; times are Vietnam local "YYYY-MM-DDTHH:mm" (what datetime-local gives). */
+export interface VehicleRequestInput {
+  purpose: VehiclePurpose;
+  customerName: string;
+  customerPhone: string;
+  passengerCount: number | null;
+  goodsDescription: string;
+  /** Deliveries: both sides with a phone number (required). */
+  senderName: string;
+  senderPhone: string;
+  receiverName: string;
+  receiverPhone: string;
+  pickup: string;
+  destination: string;
+  departAt: string;
+  roundTrip: boolean;
+  returnAt: string | null;
+  expectedEndAt: string;
+  note: string;
+}
+
+export interface VehicleArrangeInput extends Partial<VehicleRequestInput> {
+  vehicleType?: VehicleType;
+  driverName?: string;
+  driverPlate?: string;
+  driverPhone?: string;
+  estimatedCost?: number | null;
+}
+
+export interface VehicleReport {
+  month: string;
+  totals: { trips: number; completed: number; cancelled: number; companyTrips: number; externalTrips: number; externalCost: number; notClosed: number };
+  byDepartment: { name: string; trips: number; cost: number }[];
+  byPurpose: { name: string; trips: number; cost: number }[];
+  trips: VehicleTrip[];
+}
+
+const VN_TIME = new Intl.DateTimeFormat("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit", year: "numeric" });
+export const formatTripTime = (value?: string | null) => (value ? VN_TIME.format(new Date(value)) : "—");
+export const formatVnd = (value?: number | null) => (value == null ? "—" : `${value.toLocaleString("vi-VN")} đ`);
+
+/** ISO time -> "YYYY-MM-DDTHH:mm" in Vietnam time, for datetime-local inputs. */
+export function toLocalInput(value?: string | null): string {
+  if (!value) return "";
+  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Ho_Chi_Minh", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" })
+    .formatToParts(new Date(value));
+  const get = (type: string) => parts.find((part) => part.type === type)?.value ?? "";
+  return `${get("year")}-${get("month")}-${get("day")}T${get("hour")}:${get("minute")}`;
+}
+
+function receiptsForm(files: File[], fields: Record<string, string> = {}) {
+  const body = new FormData();
+  files.forEach((file) => body.append("receipts", file));
+  Object.entries(fields).forEach(([key, value]) => body.append(key, value));
+  return body;
+}
+
+// ---- requester (user portal) ----
+export const requestVehicle = (input: VehicleRequestInput) => apiPost<VehicleTrip>("/user/vehicles", input);
+export const getMyTrips = (signal?: AbortSignal) => apiGet<VehicleTrip[]>("/user/vehicles/mine", signal);
+export const updateMyTrip = (id: string, input: Partial<VehicleRequestInput>) => apiPatch<VehicleTrip>(`/user/vehicles/${encodeURIComponent(id)}`, input);
+export const cancelMyTrip = (id: string, reason = "") => apiPost<VehicleTrip>(`/user/vehicles/${encodeURIComponent(id)}/cancel`, { reason });
+export const markTripArrived = (id: string, files: File[]) => apiPostFormData<VehicleTrip>(`/user/vehicles/${encodeURIComponent(id)}/arrived`, receiptsForm(files));
+
+// ---- HR (admin portal) ----
+export interface VehicleListParams { status?: VehicleStatus; vehicleType?: VehicleType; purpose?: VehiclePurpose; month?: string; search?: string; page?: number; limit?: number }
+export function listVehicleTrips(params: VehicleListParams, signal?: AbortSignal) {
+  const query = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => { if (value !== undefined && value !== "") query.set(key, String(value)); });
+  return apiGet<{ items: VehicleTrip[]; pagination: { page: number; limit: number; total: number; totalPages: number }; waiting: number }>(`/admin/vehicles${query.size ? `?${query}` : ""}`, signal);
+}
+export const getVehicleTrip = (id: string, signal?: AbortSignal) => apiGet<VehicleTrip>(`/admin/vehicles/${encodeURIComponent(id)}`, signal);
+export const arrangeVehicleTrip = (id: string, input: VehicleArrangeInput) => apiPatch<VehicleTrip>(`/admin/vehicles/${encodeURIComponent(id)}`, input);
+export const completeVehicleTrip = (id: string, actualCost: number | null, files: File[]) =>
+  apiPostFormData<VehicleTrip>(`/admin/vehicles/${encodeURIComponent(id)}/complete`, receiptsForm(files, actualCost ? { actualCost: String(actualCost) } : {}));
+export const cancelVehicleTrip = (id: string, reason: string) => apiPost<VehicleTrip>(`/admin/vehicles/${encodeURIComponent(id)}/cancel`, { reason });
+export const deleteVehicleTrip = (id: string) => apiDelete<{ id: string }>(`/admin/vehicles/${encodeURIComponent(id)}`);
+export const getVehicleReport = (month: string, signal?: AbortSignal) => apiGet<VehicleReport>(`/admin/vehicles/report?month=${encodeURIComponent(month)}`, signal);
+export const vehicleReportExportUrl = (month: string) => `/backend-api/admin/vehicles/report/export?month=${encodeURIComponent(month)}`;

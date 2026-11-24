@@ -15,6 +15,7 @@ export default function ProductCarousel() {
   const pointer = useRef<{id:number; x:number; y:number} | null>(null);
   const pausedRef = useRef(false), reduced = useRef(false), timer = useRef<ReturnType<typeof setInterval> | null>(null);
   const [paused, setPaused] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(0);
   const stepRef = useRef<(direction:number) => void>(() => {});
   const scheduleRef = useRef<() => void>(() => {});
   useEffect(() => {
@@ -29,9 +30,11 @@ export default function ProductCarousel() {
     };
     scheduleRef.current = schedule;
     stepRef.current = (direction) => {
-      if (moving.current) return;
+      if (moving.current || direction === 0) return;
       const previous = active.current;
       active.current = (previous + direction + slides.length) % slides.length;
+      setActiveIndex(active.current);
+      direction = Math.sign(direction);
       const old = slides[previous], next = slides[active.current];
       old.setAttribute("aria-hidden", "true"); next.setAttribute("aria-hidden", "false");
       if (reduced.current) { old.classList.remove("is-active"); next.classList.add("is-active"); return; }
@@ -64,6 +67,9 @@ export default function ProductCarousel() {
       {(["fruit","corner"] as const).map(layer => <div key={layer} className="wl" data-layer={layer}>{product.layers[layer].map((fruit,i) => <img key={i} draggable={false} src={fruit.src} alt="" style={inlineStyle(fruit.style)} />)}</div>)}
       <div className="wcaption"><strong>{product.title}</strong><small>{product.description}</small></div>
     </section>)}
+    <div className="wdots" role="group" aria-label="Chọn hình sản phẩm">
+      {products.map((product, index) => <button key={product.title} type="button" aria-label={`Xem hình ${product.title}`} aria-pressed={activeIndex === index} onClick={() => step(index - active.current)}><span /></button>)}
+    </div>
     <div className="wcontrols"><button type="button" id="wpause" aria-label={paused ? "Tiếp tục chuyển cảnh" : "Tạm dừng chuyển cảnh"} onClick={() => {pausedRef.current = !pausedRef.current; setPaused(pausedRef.current); scheduleRef.current();}}>{paused ? "▶" : "❚❚"}</button></div>
   </div></aside>;
 }

@@ -1,9 +1,11 @@
 import mongoose, { type QueryFilter } from "mongoose";
 
+import { MEDIA_FEATURED_LIMIT } from "../../interfaces/media.interface";
 import type {
   CreateMediaInput,
   Media,
   MediaActor,
+  MediaCategory,
   MediaListQuery,
   UpdateMediaInput,
 } from "../../interfaces/media.interface";
@@ -14,6 +16,7 @@ import { sanitizeRichText, richTextToPlainText } from "../../utils/html/sanitize
 import { normalizeSearchText } from "../../utils/text/normalizeSearchText";
 import { MEDIA_EXPIRED_PUBLISH_ERROR, validateMediaDates, withMediaExpiry } from "../../utils/media/validateMediaDates";
 import { deleteCloudinaryAsset } from "../../helpers/multerCloudinary.helper";
+import { notificationService } from "../user/notification.service";
 
 function ensureValidId(id: string): void {
   if (!mongoose.isValidObjectId(id)) {
@@ -56,7 +59,17 @@ export const adminMediaService = {
     const filter: QueryFilter<Media> = { isDeleted: deleted ? true : { $ne: true } };
 
     if (query.category) filter.category = query.category;
+    if (query.categories) filter.category = { $in: query.categories.split(",") as MediaCategory[] };
     if (!deleted && query.status) filter.status = query.status;
+    // Older posts have no visibility and count as internal.
+    if (query.visibility) filter.visibility = query.visibility === "public" ? "public" : { $ne: "public" };
+    // featured=true: only highlighted posts; featured=false: only the others.
+    if (query.featured !== undefined) filter.featured = String(query.featured) === "true" ? true : { $ne: true };
+    if (query.visibilities) {
+      const visibilities = query.visibilities.split(",");
+      if (visibilities.length === 2) delete filter.visibility;
+      else filter.visibility = visibilities[0] === "public" ? "public" : { $ne: "public" };
+    }
 
     const sort = { [deleted ? "deletedAt" : "publishDate"]: query.sort === "oldest" ? 1 as const : -1 as const };
     const normalizedSearch = normalizeSearchText(query.search);
@@ -91,7 +104,7 @@ export const adminMediaService = {
   },
 
   async createMedia(data: CreateMediaInput) {
-    if (data.featured && !data.featuredSlot) throw new AppError(400, "Vui lòng chọn vị trí nổi bật từ 1 đến 5.");
+    if (data.featured && !data.featuredSlot) throw new AppError(400, `Vui lòng chọn vị trí nổi bật từ 1 đến ${MEDIA_FEATURED_LIMIT}.`);
     if (data.featured && data.status !== "published") throw new AppError(400, "Chỉ bài đang hiển thị mới được bật nổi bật. Vui lòng đăng bài trước.");
     if (!data.publishIndefinitely && !data.expiryDate) throw new AppError(400, "Vui lòng chọn ngày hết hạn hoặc chọn Đăng tin vĩnh viễn.");
     if (!data.publishIndefinitely) validateMediaDates(data.publishDate, data.expiryDate);
@@ -103,6 +116,7 @@ export const adminMediaService = {
     await mediaAssetService.prepareForReference(contentAssetPublicIds);
     const post = await adminMediaRepository.create({ ...sanitized, contentAssetPublicIds, hiddenReason: sanitized.status === "draft" ? "manual" : null });
     await mediaAssetService.synchronizeReferenceStatuses(contentAssetPublicIds);
+    if (post.status === "published") await notificationService.announceMedia(post);
     return withoutInternalAssetReferences(post);
   },
 
@@ -135,7 +149,7 @@ export const adminMediaService = {
       const requestedSlot = sanitized.featuredSlot === undefined ? previous.featuredSlot : sanitized.featuredSlot;
       const requestedFeatured = sanitized.featured ?? previous.featured ?? false;
       if (requestedFeatured && status === "published" && !requestedSlot && (sanitized.featured === true || sanitized.featuredSlot !== undefined)) {
-        throw new AppError(400, "Vui lòng chọn vị trí nổi bật từ 1 đến 5.");
+        throw new AppError(400, `Vui lòng chọn vị trí nổi bật từ 1 đến ${MEDIA_FEATURED_LIMIT}.`);
       }
       const hiddenReason: Media["hiddenReason"] = status !== "draft" ? null
         : sanitized.status === "draft" ? "manual"
@@ -159,6 +173,8 @@ export const adminMediaService = {
       );
       if (!post) continue;
       await mediaAssetService.synchronizeReferenceStatuses([...previousAssetIds, ...contentAssetPublicIds]);
+      // "New post" goes out the first time a post is published (once per post).
+      if (previous.status !== "published" && post.status === "published") await notificationService.announceMedia(post);
       return withoutInternalAssetReferences(post);
     }
 
@@ -171,6 +187,7 @@ export const adminMediaService = {
     ensureValidId(id);
     const post = await adminMediaRepository.softDeleteById(id, actor);
     if (!post) throw new AppError(404, "Không tìm thấy bài viết hoặc bài đã ở trong thùng rác");
+    await notificationService.withdrawMedia(id);
     return withoutInternalAssetReferences(post);
   },
 

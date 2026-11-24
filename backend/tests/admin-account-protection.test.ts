@@ -16,12 +16,12 @@ beforeEach(() => {
   jest.spyOn(adminAccountRepository, "updateById").mockResolvedValue(account as never);
   jest.spyOn(adminAccountRepository, "countActiveAdmins").mockResolvedValue(2);
   jest.spyOn(adminAccountRepository, "resetManagedPassword").mockResolvedValue(account as never);
-  jest.spyOn(permissionGroupRepository, "findActiveByIds").mockResolvedValue([]);
+  jest.spyOn(permissionGroupRepository, "findActiveByIds").mockImplementation((ids) => Promise.resolve(ids.map((id) => ({ _id: id, actions: [] }))) as never);
 });
 afterEach(() => jest.restoreAllMocks());
 
 describe("equal root Admin accounts", () => {
-  it.each([{ name: "Changed name" }, { role: "manager" as const }, { status: "inactive" as const }])("allows another root Admin to change %j", async (data) => {
+  it.each([{ name: "Changed name" }, { role: "manager" as const, permissionGroupIds: ["507f1f77bcf86cd7994390aa"] }, { status: "inactive" as const }])("allows another root Admin to change %j", async (data) => {
     await expect(adminAccountService.updateAccount(ownerId, data, otherAdminId)).resolves.toMatchObject({ id: ownerId });
     expect(adminAccountRepository.updateById).toHaveBeenCalledWith(ownerId, expect.objectContaining(data), "admin", session);
   });
@@ -58,11 +58,12 @@ describe("equal root Admin accounts", () => {
 });
 
 describe("root Admin creation and passwords", () => {
-  it("defaults to manager and accepts the two visible account types", () => {
+  it("defaults to manager and accepts every account type, including user", () => {
     const data = { name: "Nguyễn Văn An", email: "an@asiafnb.com", phone: "0901234567", password: "Password123!", confirmPassword: "Password123!" };
     expect(createAccountSchema.validate(data).value.role).toBe("manager");
     expect(createAccountSchema.validate({ ...data, role: "admin" }).error).toBeUndefined();
-    expect(createAccountSchema.validate({ ...data, role: "user" }).error).toBeDefined();
+    expect(createAccountSchema.validate({ ...data, role: "user" }).error).toBeUndefined();
+    expect(createAccountSchema.validate({ ...data, role: "owner" }).error).toBeDefined();
   });
   it("creates an Admin without needing permission groups", async () => {
     jest.spyOn(adminAccountRepository, "findByEmail").mockResolvedValue(null);

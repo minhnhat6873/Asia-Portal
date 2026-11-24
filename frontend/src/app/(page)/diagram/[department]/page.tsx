@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import LoginRequired from "@/components/auth/LoginRequired";
 import DepartmentDiagramPage from "@/features/diagram/DepartmentDiagramPage";
 import {
   DIAGRAM_DEPARTMENTS,
@@ -31,5 +32,9 @@ export default async function DepartmentPage({ params }: DepartmentPageProps) {
 
   if (!department) notFound();
 
-  return <DepartmentDiagramPage department={department.name} employeeDepartments={department.employeeDepartments} />;
+  return (
+    <LoginRequired what="sơ đồ tổ chức">
+      <DepartmentDiagramPage department={department.name} employeeDepartments={department.employeeDepartments} />
+    </LoginRequired>
+  );
 }
