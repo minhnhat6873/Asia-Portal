@@ -9,6 +9,7 @@ import InternalSystemsMenu from "./InternalSystemsMenu";
 import { getPublicSiteSettings } from "@/services/site-settings.service";
 import UserSessionButton from "./UserSessionButton";
 import NotificationBell from "./NotificationBell";
+import NotificationSound from "./NotificationSound";
 import { useUserSession } from "@/lib/userSession";
 
 const navLinks = [
@@ -101,7 +102,7 @@ export default function Navbar() {
           </div>
 
           <div className={`ml-auto flex min-w-0 items-center justify-end gap-2 ${internalSystemsEnabled ? "" : "xl:w-full"}`}>
-            {signedIn ? <NotificationBell /> : null}
+            {signedIn ? <><NotificationBell /><NotificationSound /></> : null}
             <UserSessionButton />
             <button
               type="button"
