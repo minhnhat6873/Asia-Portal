@@ -14,13 +14,13 @@ export interface SavedPlace {
 export const SAVED_PLACES: SavedPlace[] = [
   {
     id: "asia-fnb",
-    name: "Công ty Á Châu (Asia F&B)",
+    name: "Asia Beverage Office",
     address: "Administrative Center Urban Area, No. 2 Street No. 3, Khu Phố Nhị Đồng 2, Dĩ An, Hồ Chí Minh 75306, Việt Nam",
     keywords: ["á châu", "công ty á châu", "asia", "asia f&b", "asia food", "asia food & beverage", "afb"],
   },
   {
     id: "wana",
-    name: "Công ty Wana",
+    name: "Wana Beverage Office",
     address: "No. 435, Nguyen Tri Phuong Street, Bình Đường 4, Quater, Ward, Hồ Chí Minh 75300, Việt Nam",
     // 10°53'16.2"N 106°45'35.7"E
     location: { lat: 10.887833, lng: 106.759917 },

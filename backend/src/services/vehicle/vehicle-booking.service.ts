@@ -14,7 +14,7 @@ import type {
 import { adminEmployeeRepository } from "../../repositories/admin/employee.repository";
 import { vehicleBookingRepository } from "../../repositories/vehicle-booking.repository";
 import { AppError } from "../../utils/errors/AppError";
-import { escapeRegex } from "../../utils/regex/escapeRegex";
+import { vietnameseSearchRegex } from "../../utils/text/vietnameseSearchRegex";
 import { getVietnamDateTimeAsUtc } from "../../utils/time/vietnamTime";
 import { removeVehicleReceiptFiles } from "../../utils/vehicle/receipts";
 import { formatVietnamTime, vehicleNotifier } from "./vehicle-notifier";
@@ -261,7 +261,7 @@ function listFilter(query: VehicleListQuery): QueryFilter<VehicleBooking> {
   }
   const search = query.search?.trim();
   if (search) {
-    const expression = new RegExp(escapeRegex(search), "i");
+    const expression = vietnameseSearchRegex(search);
     filter.$or = [{ customerName: expression }, { "requester.name": expression }, { "requester.email": expression }, { forOtherName: expression }, { pickup: expression }, { destination: expression }];
   }
   return filter;

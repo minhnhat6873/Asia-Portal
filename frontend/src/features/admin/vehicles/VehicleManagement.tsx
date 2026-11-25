@@ -1,12 +1,12 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { ChevronLeft, ChevronRight, Download, RotateCcw, Search } from "lucide-react";
+import { Building2, CalendarDays, Car, CheckCircle2, ChevronLeft, ChevronRight, CircleDot, Download, RotateCcw, Search, Target, Wallet, XCircle, type LucideIcon } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useAdminPermissions } from "@/lib/adminPermissions";
 import { useDelayedLoading } from "@/lib/useDelayedLoading";
 import {
-  formatTripTime,
+  toLocalInput,
   formatVnd,
   getVehicleReport,
   getVehicleTrip,
@@ -21,6 +21,8 @@ import {
   type VehicleTrip,
 } from "@/services/vehicle.service";
 import VehicleTripDialog from "./VehicleTripDialog";
+import { mediaFont } from "@/features/admin/dashboard/media-font";
+import { AdminSelect } from "@/features/admin/dashboard/components/AdminSelect";
 
 const SELECT = "h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 outline-none focus:border-emerald-500";
 const currentMonth = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Ho_Chi_Minh", year: "numeric", month: "2-digit" }).format(new Date());
@@ -38,8 +40,8 @@ function TripsTable({ onOpen, refreshKey }: { onOpen: (trip: VehicleTrip) => voi
     const controller = new AbortController();
     const timer = window.setTimeout(() => {
       setLoading(true);
-      listVehicleTrips({ ...filters, search: search.trim() || undefined, page, limit: 20 }, controller.signal)
-        .then((result) => { setData(result); setError(""); })
+      listVehicleTrips({ ...filters, search: search.trim() || undefined, page, limit: 10 }, controller.signal)
+        .then((result) => { if (controller.signal.aborted) return; const lastPage = Math.max(1, result.pagination.totalPages); if (page > lastPage) { setPage(lastPage); return; } setData(result); setError(""); })
         .catch((reason) => { if (!controller.signal.aborted) setError(reason instanceof Error ? reason.message : "Không tải được danh sách chuyến xe."); })
         .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     }, 250);
@@ -47,26 +49,19 @@ function TripsTable({ onOpen, refreshKey }: { onOpen: (trip: VehicleTrip) => voi
   }, [filters, search, page, refreshKey]);
 
   const change = (next: VehicleListParams) => { setFilters((current) => ({ ...current, ...next })); setPage(1); };
+  const totalPages = Math.max(1, data?.pagination.totalPages ?? 1);
+  const pageNumbers = [...new Set([1, totalPages, page - 1, page, page + 1])].filter((number) => number >= 1 && number <= totalPages).sort((a, b) => a - b);
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2.5 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-        <label className="relative min-w-0 flex-1 basis-60">
+        <label className="relative min-w-0 flex-1 basis-48">
           <Search aria-hidden="true" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <input value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} placeholder="Tìm khách hàng, người đặt, địa điểm…" aria-label="Tìm chuyến xe" className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-3 text-sm outline-none focus:border-emerald-500" />
+          <input value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} placeholder="Tìm theo người đặt hoặc khách hàng…" aria-label="Tìm theo người đặt hoặc khách hàng" className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-3 text-sm outline-none focus:border-emerald-500" />
         </label>
-        <select aria-label="Trạng thái" value={filters.status ?? ""} onChange={(event) => change({ status: (event.target.value || undefined) as VehicleListParams["status"] })} className={SELECT}>
-          <option value="">Tất cả trạng thái</option>
-          {Object.entries(VEHICLE_STATUS_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-        </select>
-        <select aria-label="Loại xe" value={filters.vehicleType ?? ""} onChange={(event) => change({ vehicleType: (event.target.value || undefined) as VehicleListParams["vehicleType"] })} className={SELECT}>
-          <option value="">Tất cả loại xe</option>
-          {Object.entries(VEHICLE_TYPE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-        </select>
-        <select aria-label="Mục đích" value={filters.purpose ?? ""} onChange={(event) => change({ purpose: (event.target.value || undefined) as VehicleListParams["purpose"] })} className={SELECT}>
-          <option value="">Tất cả mục đích</option>
-          {Object.entries(VEHICLE_PURPOSE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-        </select>
+        <AdminSelect value={filters.status ?? ""} onChange={(value) => change({ status: (value || undefined) as VehicleListParams["status"] })} options={[{ value: "", label: "Tất cả trạng thái" }, ...Object.entries(VEHICLE_STATUS_LABELS).map(([value, label]) => ({ value, label }))]} searchable={false} showSelectionCheck={false} icon={<CircleDot className="h-4 w-4 text-emerald-600" />} className="w-full sm:w-56" />
+        <AdminSelect value={filters.vehicleType ?? ""} onChange={(value) => change({ vehicleType: (value || undefined) as VehicleListParams["vehicleType"] })} options={[{ value: "", label: "Tất cả loại xe" }, ...Object.entries(VEHICLE_TYPE_LABELS).map(([value, label]) => ({ value, label }))]} searchable={false} showSelectionCheck={false} icon={<Car className="h-4 w-4 text-sky-600" />} className="w-full shrink-0 sm:w-52" />
+        <AdminSelect value={filters.purpose ?? ""} onChange={(value) => change({ purpose: (value || undefined) as VehicleListParams["purpose"] })} options={[{ value: "", label: "Tất cả mục đích" }, ...Object.entries(VEHICLE_PURPOSE_LABELS).map(([value, label]) => ({ value, label }))]} searchable={false} showSelectionCheck={false} icon={<Target className="h-4 w-4 text-amber-600" />} className="w-full shrink-0 sm:w-56" />
         <input type="month" aria-label="Tháng đi" value={filters.month ?? ""} onChange={(event) => change({ month: event.target.value || undefined })} className={SELECT} />
         <button type="button" onClick={() => { setFilters({}); setSearch(""); setPage(1); }} className="inline-flex h-11 items-center gap-2 rounded-xl border border-slate-200 px-3 text-sm font-semibold text-slate-600 hover:bg-slate-50"><RotateCcw aria-hidden="true" size={15} />Đặt lại</button>
       </div>
@@ -83,34 +78,44 @@ function TripsTable({ onOpen, refreshKey }: { onOpen: (trip: VehicleTrip) => voi
             : !data?.items.length ? <p className="p-10 text-center text-sm text-slate-500">Không có chuyến xe phù hợp.</p>
               : (
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[980px] text-left text-sm">
-                    <thead className="bg-slate-50 text-xs font-bold uppercase tracking-wide text-slate-500">
-                      <tr>{["Giờ đi", "Người đặt", "Mục đích / Khách", "Lộ trình", "Xe", "Chi phí", "Trạng thái", ""].map((heading) => <th key={heading} className="px-4 py-3">{heading}</th>)}</tr>
+                  <table className="w-full min-w-[980px] text-center text-[13px] text-[#172B24]">
+                    <thead className="border-b border-[#f0f3f6] bg-[#eef7f3] text-[14px] font-bold text-[#172B24] [&_th]:font-bold">
+                      <tr>{["Giờ đi", "Người đặt", "Mục đích / Khách", "Lộ trình", "Xe", "Trạng thái / Chi phí", "Thao tác"].map((heading) => <th key={heading} className="px-4 py-3 text-center">{heading}</th>)}</tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {data.items.map((trip) => (
-                        <tr key={trip.id} className="align-top hover:bg-slate-50">
-                          <td className="whitespace-nowrap px-4 py-3 font-semibold text-slate-800">{formatTripTime(trip.departAt)}{trip.roundTrip && <span className="block text-xs font-normal text-slate-500">Khứ hồi</span>}</td>
-                          <td className="px-4 py-3"><span className="font-semibold text-slate-800">{trip.requester.name}</span><span className="block text-xs text-slate-500">{trip.requester.department || "—"}</span>{trip.forOther && <span className="mt-0.5 block text-xs font-semibold text-sky-700">Đặt giúp: {trip.forOtherName}</span>}</td>
-                          <td className="max-w-52 px-4 py-3"><span className="text-xs font-semibold text-slate-500">{VEHICLE_PURPOSE_LABELS[trip.purpose]}</span><span className="block truncate font-semibold text-slate-800" title={trip.customerName}>{trip.customerName}</span></td>
-                          <td className="max-w-64 px-4 py-3 text-slate-600"><span className="line-clamp-2">{trip.pickup} → {trip.destination}</span></td>
-                          <td className="whitespace-nowrap px-4 py-3 text-slate-700">{trip.vehicleType ? VEHICLE_TYPE_LABELS[trip.vehicleType] : <span className="text-amber-700">Chưa chọn</span>}</td>
-                          <td className="whitespace-nowrap px-4 py-3 text-slate-700">{trip.vehicleType === "external" ? (trip.actualCost ? <strong>{formatVnd(trip.actualCost)}</strong> : <span title="Giá dự kiến">~ {formatVnd(trip.estimatedCost)}</span>) : "—"}</td>
-                          <td className="px-4 py-3"><span className={`inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${VEHICLE_STATUS_TONES[trip.status]}`}>{VEHICLE_STATUS_LABELS[trip.status]}</span></td>
-                          <td className="px-4 py-3 text-right"><button type="button" onClick={() => onOpen(trip)} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-bold text-emerald-700 hover:bg-emerald-50">Xử lý</button></td>
+                        <tr key={trip.id} className="align-middle hover:bg-emerald-50">
+                          <td className="whitespace-nowrap px-4 py-3 text-center text-[15px] font-bold text-[#111827]">
+                            {(() => {
+                              const [date, time] = toLocalInput(trip.departAt).split("T");
+                              return date && time ? <><span className="block">{date.split("-").reverse().join("/")}</span><span className="mt-1 block">{time}{trip.roundTrip ? " · Khứ hồi" : ""}</span></> : "—";
+                            })()}
+                          </td>
+                          <td className="px-4 py-3"><span className="text-[15px] font-bold text-[#172B24]">{trip.requester.name}</span><span className="block text-xs text-[#64748B]">{trip.requester.department || "—"}</span>{trip.forOther && <span className="mt-0.5 block text-xs font-semibold text-sky-700">Đặt giúp: {trip.forOtherName}</span>}</td>
+                          <td className="max-w-52 px-4 py-3"><span className={`inline-flex rounded-md border px-2 py-1 text-xs font-medium ${trip.purpose === "delivery" ? "border-orange-200 bg-orange-50 text-orange-600" : "border-sky-100 bg-sky-100 text-blue-700"}`}>{VEHICLE_PURPOSE_LABELS[trip.purpose]}</span><span className="mt-1 block truncate font-bold text-[#172B24]" title={trip.customerName}>{trip.customerName}</span></td>
+                          <td className="min-w-56 max-w-64 px-4 py-3">
+                            <div className="relative grid w-full gap-3 pl-4 text-left text-sm leading-5 before:absolute before:bottom-2.5 before:left-[3px] before:top-2.5 before:border-l before:border-dashed before:border-slate-400">
+                              <div className="relative text-slate-700"><span aria-hidden="true" className="absolute -left-4 top-[6px] h-2 w-2 rounded-full border-2 border-emerald-600 bg-white" /><span className="sr-only">Điểm đón: </span><span className="line-clamp-2 break-words">{trip.pickup}</span></div>
+                              <div className="relative text-slate-700"><span aria-hidden="true" className="absolute -left-4 top-[6px] h-2 w-2 rounded-full border-2 border-slate-500 bg-white" /><span className="sr-only">Điểm đến: </span><span className="line-clamp-2 break-words">{trip.destination}</span></div>
+                            </div>
+                          </td>
+                          <td className="whitespace-nowrap px-4 py-3 text-[15px] font-bold text-[#172B24]">{trip.vehicleType ? VEHICLE_TYPE_LABELS[trip.vehicleType] : <span className="text-amber-700">Chưa chọn</span>}</td>
+                          <td className="px-4 py-3"><span className={`inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${VEHICLE_STATUS_TONES[trip.status]}`}>{VEHICLE_STATUS_LABELS[trip.status]}</span><span className="mt-2 block whitespace-nowrap text-slate-700">{trip.vehicleType === "external" ? (trip.actualCost ? <strong>{formatVnd(trip.actualCost)}</strong> : <span title="Giá dự kiến">~ {formatVnd(trip.estimatedCost)}</span>) : "—"}</span></td>
+                          <td className="px-4 py-3 text-center align-middle"><button type="button" onClick={() => onOpen(trip)} className="min-h-10 rounded-lg border border-slate-200 px-4 py-2 text-sm font-bold text-emerald-700 hover:bg-emerald-50">Xử lý</button></td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
               )}
-        {data && data.pagination.totalPages > 1 && (
-          <div className="flex items-center justify-between border-t border-slate-100 px-4 py-3 text-sm text-slate-500">
-            <span>Trang {data.pagination.page}/{data.pagination.totalPages} · {data.pagination.total} chuyến</span>
-            <div className="flex gap-2">
-              <button type="button" aria-label="Trang trước" disabled={page <= 1} onClick={() => setPage(page - 1)} className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 disabled:opacity-40"><ChevronLeft aria-hidden="true" size={16} /></button>
-              <button type="button" aria-label="Trang sau" disabled={page >= data.pagination.totalPages} onClick={() => setPage(page + 1)} className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 disabled:opacity-40"><ChevronRight aria-hidden="true" size={16} /></button>
-            </div>
+        {data && data.pagination.total > 0 && (
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-slate-50/60 px-4 py-3 text-sm text-slate-700">
+            <span>Trang <span className="font-semibold text-emerald-700">{page}</span> / {totalPages}</span>
+            <nav aria-label="Phân trang chuyến xe" className="flex items-center gap-2">
+              <button type="button" aria-label="Trang trước" disabled={page <= 1 || loading} onClick={() => setPage(page - 1)} className="grid h-9 w-9 place-items-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm hover:border-emerald-300 disabled:cursor-not-allowed disabled:opacity-40"><ChevronLeft aria-hidden="true" size={16} /></button>
+              {pageNumbers.map((number, index) => <span key={number} className="contents">{index > 0 && number - pageNumbers[index - 1] > 1 && <span aria-hidden="true" className="px-1 text-slate-400">…</span>}<button type="button" aria-label={`Trang ${number}`} aria-current={page === number ? "page" : undefined} disabled={loading} onClick={() => setPage(number)} className={`grid h-9 w-9 place-items-center rounded-full border text-sm font-semibold shadow-sm transition-colors disabled:cursor-not-allowed ${page === number ? "border-emerald-700 bg-emerald-700 text-white" : "border-slate-200 bg-white text-slate-700 hover:border-emerald-300"}`}>{number}</button></span>)}
+              <button type="button" aria-label="Trang sau" disabled={page >= totalPages || loading} onClick={() => setPage(page + 1)} className="grid h-9 w-9 place-items-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm hover:border-emerald-300 disabled:cursor-not-allowed disabled:opacity-40"><ChevronRight aria-hidden="true" size={16} /></button>
+            </nav>
           </div>
         )}
       </section>
@@ -118,8 +123,8 @@ function TripsTable({ onOpen, refreshKey }: { onOpen: (trip: VehicleTrip) => voi
   );
 }
 
-function Stat({ label, value, strong }: { label: string; value: string | number; strong?: boolean }) {
-  return <div className={`rounded-2xl border p-4 ${strong ? "border-emerald-200 bg-emerald-50" : "border-slate-100 bg-white"}`}><p className="text-xs font-semibold text-slate-500">{label}</p><p className={`mt-1 text-xl font-extrabold ${strong ? "text-emerald-800" : "text-slate-900"}`}>{value}</p></div>;
+function Stat({ label, value, icon: Icon, tone }: { label: string; value: string | number; icon: LucideIcon; tone: string }) {
+  return <div className="flex min-h-28 items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5"><span aria-hidden="true" className={`grid h-14 w-14 shrink-0 place-items-center rounded-2xl ${tone}`}><Icon className="h-7 w-7" /></span><div className="min-w-0"><p className="text-sm font-semibold text-slate-600">{label}</p><p className="mt-1 break-words text-2xl font-extrabold text-slate-900">{value}</p></div></div>;
 }
 
 function CostTable({ title, rows, label }: { title: string; rows: VehicleReport["byDepartment"]; label: (name: string) => string }) {
@@ -150,25 +155,24 @@ function ReportView() {
   const totals = report?.month === month ? report.totals : undefined;
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-        <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">Tháng<input type="month" value={month} onChange={(event) => event.target.value && setMonth(event.target.value)} className={SELECT} /></label>
-        <a href={vehicleReportExportUrl(month)} download className="ml-auto inline-flex h-11 items-center gap-2 rounded-xl bg-emerald-700 px-4 text-sm font-bold text-white hover:bg-emerald-800"><Download aria-hidden="true" size={16} />Xuất Excel</a>
-      </div>
-      {error ? <p role="alert" className="rounded-2xl bg-rose-50 p-4 text-sm text-rose-700">{error}</p> : !totals ? <p role="status" className="p-6 text-center text-sm text-slate-500">Đang tải báo cáo…</p> : (
-        <>
-          {totals.notClosed > 0 && <p className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">Còn {totals.notClosed} chuyến chưa chốt trong tháng này, chi phí của các chuyến đó chưa được tính.</p>}
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-            <Stat label="Tổng tiền xe ngoài" value={formatVnd(totals.externalCost)} strong />
-            <Stat label="Chuyến xe ngoài" value={totals.externalTrips} />
-            <Stat label="Chuyến xe công ty" value={totals.companyTrips} />
-            <Stat label="Đã hoàn thành / Tổng" value={`${totals.completed} / ${totals.trips}`} />
-            <Stat label="Đã hủy" value={totals.cancelled} />
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <Stat label="Tổng tiền xe ngoài" value={totals ? formatVnd(totals.externalCost) : "—"} icon={Wallet} tone="bg-emerald-50 text-emerald-600" />
+            <Stat label="Chuyến xe ngoài" value={totals?.externalTrips ?? "—"} icon={Car} tone="bg-sky-50 text-sky-600" />
+            <Stat label="Chuyến xe công ty" value={totals?.companyTrips ?? "—"} icon={Building2} tone="bg-amber-50 text-amber-600" />
+            <Stat label="Đã hoàn thành / Tổng" value={totals ? `${totals.completed} / ${totals.trips}` : "—"} icon={CheckCircle2} tone="bg-violet-50 text-violet-600" />
+            <Stat label="Đã hủy" value={totals?.cancelled ?? "—"} icon={XCircle} tone="bg-rose-50 text-rose-600" />
+            <div className="flex min-h-28 items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+              <span aria-hidden="true" className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-emerald-50 text-emerald-600"><CalendarDays className="h-7 w-7" /></span>
+              <div className="min-w-0 flex-1"><p className="mb-2 text-sm font-semibold text-slate-600">Báo Cáo Tháng</p><div className="flex flex-wrap items-center gap-2"><input type="month" aria-label="Tháng báo cáo" value={month} onChange={(event) => event.target.value && setMonth(event.target.value)} className={SELECT} />
+              <a href={vehicleReportExportUrl(month)} download className="inline-flex h-11 items-center gap-2 rounded-xl bg-emerald-700 px-4 text-sm font-bold text-white hover:bg-emerald-800"><Download aria-hidden="true" size={16} />Xuất Excel</a></div></div>
+            </div>
           </div>
+      {totals && totals.notClosed > 0 && <p className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">Còn {totals.notClosed} chuyến chưa chốt trong tháng này, chi phí của các chuyến đó chưa được tính.</p>}
+      {error ? <p role="alert" className="rounded-2xl bg-rose-50 p-4 text-sm text-rose-700">{error}</p> : !totals ? <p role="status" className="p-6 text-center text-sm text-slate-500">Đang tải báo cáo…</p> : (
           <div className="grid gap-4 lg:grid-cols-2">
             <CostTable title="Theo phòng ban" rows={report!.byDepartment} label={(name) => name} />
             <CostTable title="Theo mục đích" rows={report!.byPurpose} label={(name) => VEHICLE_PURPOSE_LABELS[name as keyof typeof VEHICLE_PURPOSE_LABELS] ?? name} />
           </div>
-        </>
       )}
     </div>
   );
@@ -197,7 +201,7 @@ export default function VehicleManagement() {
   }, [linkedId]);
 
   return (
-    <div className="space-y-4">
+    <div className={`${mediaFont.className} space-y-4 text-[#172B24]`}>
       <div role="tablist" aria-label="Quản lý đặt xe" className="inline-flex rounded-xl border border-slate-200 bg-white p-1">
         {([["trips", "Danh sách chuyến"], ["report", "Báo cáo chi phí"]] as const).map(([id, label]) => (
           <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => setTab(id)} className={`rounded-lg px-4 py-2 text-sm font-semibold ${tab === id ? "bg-emerald-700 text-white" : "text-slate-600 hover:bg-slate-50"}`}>{label}</button>

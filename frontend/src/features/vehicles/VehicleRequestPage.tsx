@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { CarFront, ChevronRight, CircleDot, Flag, LocateFixed, MapPinned, Package, Send, UserRound, UserRoundPlus, Users, X } from "lucide-react";
+import { ArrowDownUp, CarFront, ChevronRight, LocateFixed, Mail, Package, Send, UserRound, Users, X } from "lucide-react";
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
@@ -10,6 +10,9 @@ import { ApiError } from "@/services/api";
 import { useUserSession } from "@/lib/userSession";
 import { showToast } from "@/features/admin/auth/notify";
 import { getEmployeeDepartmentLabel } from "@/components/ui/employee-department-options";
+import { getPublicEmployees } from "@/services/employee.service";
+import { normalizeSearchText } from "@/utils/normalizeSearchText";
+import type { Employee } from "@/types/employee";
 import PlaceInput from "./PlaceInput";
 import DateTimeInput, { isCompleteDateTime } from "@/components/ui/DateTimeInput";
 import { validateVehicleRequest, vietnamLocal, VEHICLE_MIN_LEAD_MINUTES, type VehicleRequestErrors as Errors } from "@/lib/vehicleValidation";
@@ -64,6 +67,27 @@ export default function VehicleRequestPage() {
   const [loadError, setLoadError] = useState("");
   const [locating, setLocating] = useState(false);
   const [locationError, setLocationError] = useState("");
+  const [extraDestinations, setExtraDestinations] = useState<string[]>([]);
+  const [extraDestinationError, setExtraDestinationError] = useState("");
+  const [goodsImages, setGoodsImages] = useState<File[]>([]);
+  const [goodsImageError, setGoodsImageError] = useState("");
+  const [otherMode, setOtherMode] = useState<"search" | "manual">("search");
+  const [employeeQuery, setEmployeeQuery] = useState("");
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [employeeState, setEmployeeState] = useState<"loading" | "ready" | "error">("loading");
+  useEffect(() => {
+    if (!values.forOther || otherMode !== "search") return;
+    const controller = new AbortController();
+    const load = async () => {
+      try {
+        const first = await getPublicEmployees({ page: 1, limit: 100 }, controller.signal);
+        const pages = await Promise.all(Array.from({ length: Math.max(0, first.pagination.totalPages - 1) }, (_, index) => getPublicEmployees({ page: index + 2, limit: 100 }, controller.signal)));
+        if (!controller.signal.aborted) { setEmployees([first, ...pages].flatMap(page => page.items)); setEmployeeState("ready"); }
+      } catch { if (!controller.signal.aborted) setEmployeeState("error"); }
+    };
+    void load();
+    return () => controller.abort();
+  }, [values.forOther, otherMode]);
 
   // Pickup = where the person is now. Browsers only allow this on HTTPS (or localhost)
   // and always ask permission; the typed pickup text stays as a fallback.
@@ -135,10 +159,24 @@ export default function VehicleRequestPage() {
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (saving) return;
+    if (extraDestinations.length) {
+      setExtraDestinationError("Hệ thống hiện chỉ lưu được một điểm đến. Vui lòng xóa các điểm đến thêm để gửi yêu cầu.");
+      return;
+    }
+    if (goodsImages.length) {
+      setGoodsImageError("Hệ thống chưa hỗ trợ gửi ảnh cùng yêu cầu đặt xe. Vui lòng gỡ ảnh để gửi yêu cầu.");
+      return;
+    }
     const next = validateVehicleRequest(values);
     setErrors(next);
     const first = (Object.keys(next) as Field[])[0];
-    if (first) { document.getElementById(`vehicle-${first}`)?.focus(); return; }
+    if (first) {
+      const element = document.getElementById(`vehicle-${first}`);
+      const section = element?.closest("details");
+      if (section) section.open = true;
+      requestAnimationFrame(() => element?.focus());
+      return;
+    }
     setSaving(true);
     const payload: VehicleRequestInput = {
       ...values,
@@ -172,13 +210,11 @@ export default function VehicleRequestPage() {
   );
   const purposeOption = (value: VehiclePurpose, title: string, description: string, Icon: typeof Users) =>
     choiceCard("vehicle-purpose", values.purpose === value, () => set("purpose", value), title, description, Icon);
-  const forOtherOption = (forOther: boolean, title: string, description: string, Icon: typeof Users) =>
-    choiceCard("vehicle-forOther", values.forOther === forOther, () => set("forOther", forOther), title, description, Icon);
 
   return (
     <main className="flex min-h-screen flex-col bg-slate-50 text-slate-800">
       <Navbar />
-      <div className="mx-auto w-full max-w-[1040px] flex-1 px-4 py-8 sm:px-6 lg:py-10">
+      <div className="mx-auto w-full max-w-[1200px] flex-1 px-4 py-8 sm:px-6 lg:py-10">
         <nav aria-label="Breadcrumb" className="mb-6 flex items-center gap-2 text-sm text-slate-500">
           <Link href="/user" className="hover:text-emerald-700">Trang chủ</Link><ChevronRight aria-hidden="true" size={15} />
           <span className="font-semibold text-slate-800">{editId ? "Sửa yêu cầu đặt xe" : "Đặt xe"}</span>
@@ -192,32 +228,57 @@ export default function VehicleRequestPage() {
         </header>
 
         {loadError ? <p role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">{loadError} <Link href="/user/account/trips" className="font-semibold underline">Về Chuyến xe của tôi</Link></p> : (
-          <form noValidate onSubmit={submit} className="space-y-5">
-            <section className="space-y-4 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm sm:p-6">
-              <h2 className="text-base font-bold text-slate-900">Người đặt</h2>
-              <div className="grid gap-3 sm:grid-cols-2">
-                {forOtherOption(false, "Đặt cho bản thân", "Dùng thông tin tài khoản của bạn.", UserRound)}
-                {forOtherOption(true, "Đặt giúp người khác", "Nhập tên và số điện thoại người cần xe.", UserRoundPlus)}
+          <form noValidate onSubmit={submit} className="grid gap-5 md:grid-cols-2 md:items-start">
+            <div className="contents md:flex md:flex-col md:gap-5">
+            <details open className="order-1 rounded-2xl border border-slate-200 bg-white p-5 sm:p-6"><summary className="cursor-pointer text-lg font-semibold text-slate-900">Người đặt</summary><div className="mt-4 space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div className="flex min-w-0 flex-1 items-center gap-4">
+                  <span className="relative shrink-0">
+                    {account?.avatar ? <img src={account.avatar} alt="" className="h-14 w-14 rounded-full object-cover" /> : <span className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 text-lg font-bold text-emerald-800">{account?.name?.trim().split(/\s+/).slice(-2).map(part => part[0]).join("").toUpperCase() || "—"}</span>}
+                    <span aria-hidden="true" className="absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full border-2 border-white bg-emerald-500" />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="truncate text-lg font-bold text-slate-900">{account?.name}</p>
+                    <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-slate-500">
+                      <span className="inline-flex min-w-0 items-center gap-1.5"><Mail aria-hidden="true" size={15} className="shrink-0" /><span className="break-all">{account?.email}</span></span>
+                      {account?.department && <>
+                        <span aria-hidden="true" className="text-slate-300">•</span>
+                        <span className="rounded-md bg-slate-100 px-2.5 py-1 text-xs font-bold uppercase tracking-wide text-slate-600">Bộ phận {getEmployeeDepartmentLabel(account.department)}</span>
+                      </>}
+                    </div>
+                  </div>
+                </div>
+                <label className="inline-flex min-h-11 cursor-pointer items-center gap-3 text-sm font-bold text-slate-700">
+                  Đặt giúp người khác
+                  <input type="checkbox" role="switch" checked={values.forOther} onChange={event => { set("forOther", event.target.checked); if (event.target.checked) setEmployeeState("loading"); }} className="peer sr-only" />
+                  <span aria-hidden="true" className="relative block h-7 w-12 shrink-0 rounded-full bg-slate-200 transition-colors duration-300 peer-checked:bg-[#F59E0B] peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-emerald-700 motion-reduce:transition-none">
+                    <span className={`absolute left-0.5 top-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-white shadow transition-transform duration-300 motion-reduce:transition-none ${values.forOther ? "translate-x-5 text-emerald-700" : "translate-x-0 text-slate-400"}`}><UserRound size={13} /></span>
+                  </span>
+                </label>
               </div>
-              <dl className="grid gap-4 rounded-xl bg-slate-50 px-4 py-3 text-sm sm:grid-cols-3 sm:divide-x sm:divide-slate-200 sm:[&>div:not(:first-child)]:pl-6">
-                <div><dt className="text-slate-500">{values.forOther ? "Người gửi yêu cầu" : "Họ và tên"}</dt><dd className="mt-0.5 font-semibold text-slate-800">{account?.name}</dd></div>
-                <div><dt className="text-slate-500">Email</dt><dd className="mt-0.5 truncate font-semibold text-slate-800">{account?.email}</dd></div>
-                <div><dt className="text-slate-500">Bộ phận</dt><dd className="mt-0.5 font-semibold text-slate-800">{account?.department ? getEmployeeDepartmentLabel(account.department) : "—"}</dd></div>
-              </dl>
               {values.forOther && (
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <Field id="vehicle-forOtherName" label="Họ tên người được đặt giúp" required error={errors.forOtherName}>
-                    <input {...props("forOtherName")} maxLength={150} value={values.forOtherName} onChange={(event) => set("forOtherName", event.target.value)} placeholder="Nhập họ và tên…" className={`${INPUT} ${tone(errors.forOtherName)}`} />
-                  </Field>
-                  <Field id="vehicle-forOtherPhone" label="Số điện thoại người được đặt giúp" required error={errors.forOtherPhone} hint="HR và tài xế sẽ liên hệ số này.">
-                    <input {...props("forOtherPhone")} type="tel" inputMode="tel" maxLength={20} value={values.forOtherPhone} onChange={(event) => set("forOtherPhone", event.target.value)} placeholder="Nhập số điện thoại…" className={`${INPUT} ${tone(errors.forOtherPhone)}`} />
-                  </Field>
+                <div className="space-y-4 rounded-xl border border-slate-200 bg-slate-50/50 p-4">
+                  <h3 className="text-sm font-bold text-slate-900">Người được đặt giúp</h3>
+                  <div className="grid grid-cols-2 gap-2" role="group" aria-label="Cách chọn người được đặt giúp">{([ ["search", "Chọn nhân viên"], ["manual", "Nhập thủ công"] ] as const).map(([mode, label]) => <button key={mode} type="button" aria-pressed={otherMode === mode} onClick={() => { setOtherMode(mode); if (mode === "search") setEmployeeState("loading"); }} className={`min-h-11 rounded-xl border px-3 text-sm font-semibold ${otherMode === mode ? "border-emerald-300 bg-emerald-50 text-emerald-800" : "border-slate-200 bg-white text-slate-600"}`}>{label}</button>)}</div>
+                  {otherMode === "search" && !values.forOtherName.trim() && <div><label htmlFor="vehicle-employee-search" className="mb-1.5 block text-sm font-semibold text-slate-700">Tìm nhân viên</label><input id="vehicle-employee-search" value={employeeQuery} onChange={event => setEmployeeQuery(event.target.value)} placeholder="Tìm theo tên hoặc bộ phận..." aria-invalid={Boolean(errors.forOtherName)} className={`${INPUT} ${tone(errors.forOtherName)}`} />
+                    {errors.forOtherName && <p role="alert" className="mt-1 text-xs text-rose-600">{errors.forOtherName}</p>}
+                    <div className="mt-2 max-h-52 space-y-2 overflow-y-auto" aria-live="polite">{employeeState === "loading" ? <p className="text-sm text-slate-500">Đang tải nhân viên…</p> : employeeState === "error" ? <p role="alert" className="text-sm text-rose-700">Không tải được danh sách nhân viên. Vui lòng chọn nhập thủ công.</p> : (() => { const query = normalizeSearchText(employeeQuery); const matches = employees.filter(employee => normalizeSearchText(`${employee.name} ${getEmployeeDepartmentLabel(employee.department)}`).includes(query)).slice(0, 20); return matches.length ? matches.map(employee => <button key={employee.id} type="button" onClick={() => { setValues(current => ({...current, forOtherName: employee.name, forOtherPhone: employee.phone || ""})); setEmployeeQuery(employee.name); setErrors(current => ({...current, forOtherName: undefined, forOtherPhone: undefined})); }} className="block w-full rounded-xl border border-slate-200 bg-white p-3 text-left text-sm hover:border-emerald-400"><strong>{employee.name}</strong><span className="block text-xs text-slate-500">{getEmployeeDepartmentLabel(employee.department)}</span></button>) : <p className="text-sm text-slate-500">Không tìm thấy nhân viên.</p>; })()}</div>
+                  </div>}
+                  {(otherMode === "manual" || values.forOtherName.trim()) && <>
+                    <Field id="vehicle-forOtherName" label={otherMode === "search" ? "Người đã chọn" : "Họ tên người được đặt giúp"} required error={errors.forOtherName}>{otherMode === "search" ? (
+                      <div className="relative">
+                        <input {...props("forOtherName")} maxLength={150} value={values.forOtherName} readOnly className={`${INPUT} pr-12 ${tone(errors.forOtherName)}`} />
+                        {/* Bỏ người đã chọn → quay lại bảng tìm nhân viên. */}
+                        <button type="button" aria-label="Bỏ chọn nhân viên, chọn lại" onClick={() => { setValues(current => ({...current, forOtherName: "", forOtherPhone: ""})); setEmployeeQuery(""); setErrors(current => ({...current, forOtherName: undefined, forOtherPhone: undefined})); }} className="absolute right-1.5 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-rose-600 focus-visible:outline-2 focus-visible:outline-emerald-700"><X aria-hidden="true" size={18} /></button>
+                      </div>
+                    ) : <input {...props("forOtherName")} maxLength={150} value={values.forOtherName} onChange={event => set("forOtherName", event.target.value)} placeholder="Nhập họ và tên…" className={`${INPUT} ${tone(errors.forOtherName)}`} />}</Field>
+                    <Field id="vehicle-forOtherPhone" label="Số điện thoại người được đặt giúp" required error={errors.forOtherPhone} hint="HR và tài xế sẽ liên hệ số này."><input {...props("forOtherPhone")} type="tel" inputMode="tel" maxLength={20} value={values.forOtherPhone} onChange={event => set("forOtherPhone", event.target.value)} placeholder="Nhập số điện thoại…" className={`${INPUT} ${tone(errors.forOtherPhone)}`} /></Field>
+                  </>}
                 </div>
               )}
-            </section>
+            </div></details>
 
-            <section className="space-y-4 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm sm:p-6">
-              <h2 className="text-base font-bold text-slate-900">Mục đích</h2>
+            <details open className="order-2 rounded-2xl border border-slate-200 bg-white p-5 sm:p-6"><summary className="cursor-pointer text-lg font-semibold text-slate-900">Mục đích</summary><div className="mt-4 space-y-4">
               <div className="grid gap-3 sm:grid-cols-2">
                 {purposeOption("guest", "Đón/đưa khách", "Đưa đón khách hàng, đối tác.", Users)}
                 {purposeOption("delivery", "Giao/nhận hàng", "Giao hàng cho khách hoặc nhận hàng về.", Package)}
@@ -265,42 +326,24 @@ export default function VehicleRequestPage() {
                   </div>
                 </div>
               )}
-            </section>
-
-            <section className="space-y-4 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm sm:p-6">
-              <h2 className="flex items-center gap-2 text-base font-bold text-slate-900"><MapPinned size={22} aria-hidden="true" className="text-green-700" />Lộ trình và thời gian</h2>
+            </div></details>
+            </div>
+            <div className="contents md:flex md:flex-col md:gap-5">
+            <details open className="order-3 rounded-2xl border border-slate-200 bg-white p-5 sm:p-6"><summary className="cursor-pointer text-lg font-semibold text-slate-900">Lộ trình và thời gian</summary><div className="mt-4 space-y-4">
               <div className="grid gap-4 sm:grid-cols-2">
-                <div className="sm:col-span-2">
-                  <Field id="vehicle-pickup" label="Điểm đón" required error={errors.pickup}>
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
-                      <div className="relative min-w-0 flex-1">
-                        <CircleDot size={18} aria-hidden="true" className="pointer-events-none absolute left-3.5 top-1/2 z-10 -translate-y-1/2 text-emerald-600" />
-                        <PlaceInput {...props("pickup")} maxLength={300} value={values.pickup} onChange={(value) => set("pickup", value)} onPick={(place) => {
-                          set("pickupLocation", place.location ? { ...place.location, accuracy: null } : null);
-                          // Check right away (also whether it now equals the destination).
-                          checkFields(["pickup"], ["destination"]);
-                        }} placeholder="Gõ địa chỉ, tọa độ, Wana, Á Châu… hoặc lấy vị trí hiện tại" className={`${INPUT} pl-10 ${tone(errors.pickup)}`} />
-                      </div>
-                      <button type="button" onClick={useCurrentLocation} disabled={locating} className="inline-flex min-h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-green-300 bg-green-50 px-4 text-xs font-semibold text-green-800 hover:bg-green-100 disabled:cursor-wait disabled:opacity-60">
-                        <LocateFixed aria-hidden="true" size={17} />{locating ? "Đang lấy vị trí…" : "Lấy vị trí hiện tại"}
-                      </button>
+                <div className="space-y-4 sm:col-span-2">
+                  <div className="relative ml-2 border-l-2 border-dashed border-slate-200 pl-5">
+                    <div className="relative pb-4"><span aria-hidden="true" className="absolute -left-[27px] top-8 h-3 w-3 rounded-full border-[3px] border-emerald-500 bg-white" />
+                      <Field id="vehicle-pickup" label="Điểm đón" required error={errors.pickup}><div className="relative"><PlaceInput {...props("pickup")} showAllOnEmpty maxLength={300} value={values.pickup} onChange={value => set("pickup", value)} onPick={place => { set("pickupLocation", place.location ? {...place.location, accuracy: null} : null); checkFields(["pickup"], ["destination"]); }} placeholder="Ví dụ: 123 Nguyễn Huệ, Quận 1, TP.HCM" className={`${INPUT} pr-12 ${tone(errors.pickup)}`} /><button type="button" aria-label="Đổi điểm đón và điểm đến" onClick={() => { setValues(current => ({...current, pickup: current.destination, destination: current.pickup, pickupLocation: null})); setErrors(current => ({...current, pickup: undefined, destination: undefined})); }} className="absolute right-2 top-2 grid h-8 w-8 place-items-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm"><ArrowDownUp size={16}/></button></div></Field>
                     </div>
-                  </Field>
-                  {values.pickupLocation ? (
-                    <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
-                      <span className="inline-flex items-center gap-1.5 font-semibold"><MapPinned aria-hidden="true" size={14} />{values.pickupLocation.accuracy ? `Đã lấy vị trí (sai số khoảng ${values.pickupLocation.accuracy} m)` : "Đã có tọa độ điểm đón"}</span>
-                      <a href={mapLink(values.pickupLocation)} target="_blank" rel="noopener noreferrer" className="font-semibold underline">Xem trên bản đồ</a>
-                      <button type="button" onClick={() => set("pickupLocation", null)} className="inline-flex items-center gap-1 text-slate-500 hover:text-rose-600"><X aria-hidden="true" size={13} />Bỏ vị trí</button>
-                    </p>
-                  ) : null}
-                  {locationError && <p role="alert" className="mt-1.5 text-xs text-amber-700">{locationError}</p>}
-                </div>
-                <Field id="vehicle-destination" label="Điểm đến" required error={errors.destination} className="sm:col-span-2">
-                  <div className="relative">
-                    <Flag size={18} aria-hidden="true" className="pointer-events-none absolute left-3.5 top-1/2 z-10 -translate-y-1/2 text-rose-500" />
-                    <PlaceInput {...props("destination")} maxLength={300} value={values.destination} onChange={(value) => set("destination", value)} onPick={() => checkFields(["destination"])} placeholder="Gõ địa chỉ, tọa độ, Wana, Á Châu…" className={`${INPUT} pl-10 ${tone(errors.destination)}`} />
+                    <div className="relative pb-4"><span aria-hidden="true" className="absolute -left-[27px] top-8 h-3 w-3 rounded-full border-[3px] border-indigo-500 bg-white" /><Field id="vehicle-destination" label="Điểm đến 1" required error={errors.destination}><PlaceInput {...props("destination")} maxLength={300} value={values.destination} onChange={value => set("destination", value)} onPick={() => checkFields(["destination"])} placeholder="Ví dụ: Bến xe Miền Đông mới" className={`${INPUT} ${tone(errors.destination)}`} /></Field></div>
+                    {extraDestinations.map((destination, index) => <div key={index} className="relative pb-4"><span aria-hidden="true" className="absolute -left-[27px] top-8 h-3 w-3 rounded border-[3px] border-orange-400 bg-white"/><Field id={`vehicle-extra-destination-${index}`} label={`Điểm đến ${index + 2}`} required><div className="relative"><PlaceInput id={`vehicle-extra-destination-${index}`} maxLength={300} value={destination} onChange={value => { setExtraDestinations(current => current.map((item, i) => i === index ? value : item)); setExtraDestinationError(""); }} placeholder="Nhập địa chỉ điểm đến" className={`${INPUT} border-slate-200 pr-12`} /><button type="button" aria-label={`Xóa điểm đến ${index + 2}`} onClick={() => { setExtraDestinations(current => current.filter((_, i) => i !== index)); setExtraDestinationError(""); }} className="absolute right-2 top-2 grid h-8 w-8 place-items-center rounded-lg border border-slate-200 bg-white text-slate-500 shadow-sm"><X size={16}/></button></div></Field></div>)}
                   </div>
-                </Field>
+                  <div className="flex flex-wrap items-center justify-between gap-2"><button type="button" onClick={() => { const next = extraDestinations.length; setExtraDestinations(current => [...current, ""]); requestAnimationFrame(() => document.getElementById(`vehicle-extra-destination-${next}`)?.focus()); }} className="min-h-11 text-sm font-semibold text-indigo-600">+ Thêm điểm đến</button><button type="button" onClick={useCurrentLocation} disabled={locating} className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-indigo-600 disabled:opacity-60"><LocateFixed size={16}/>{locating ? "Đang lấy vị trí…" : "Lấy vị trí hiện tại"}</button></div>
+                  {extraDestinations.length > 0 && <p className="text-xs text-amber-700">Yêu cầu hiện chỉ hỗ trợ lưu một điểm đến. Điểm thêm chỉ dùng để xem trước.</p>}{extraDestinationError && <p role="alert" className="text-sm text-rose-700">{extraDestinationError}</p>}
+                  {values.pickupLocation && <p className="text-xs text-emerald-800">Đã có tọa độ điểm đón · <a href={mapLink(values.pickupLocation)} target="_blank" rel="noopener noreferrer" className="font-semibold underline">Xem trên bản đồ</a> <button type="button" onClick={() => set("pickupLocation", null)} className="ml-2 text-slate-600">Bỏ vị trí</button></p>}
+                  {locationError && <p role="alert" className="text-xs text-amber-700">{locationError}</p>}
+                </div>
                 <div className="sm:col-span-2">
                   <DateTimeInput id="vehicle-departAt" showLabels minuteStep={5} dateLabel="Ngày đi" timeLabel="Giờ đi" invalid={Boolean(errors.departAt)} min={localFromNow(VEHICLE_MIN_LEAD_MINUTES)} value={values.departAt} onChange={(value) => set("departAt", value)} />
                   {errors.departAt && <p id="vehicle-departAt-error" className="mt-1.5 text-xs font-medium text-rose-600">{errors.departAt}</p>}
@@ -316,16 +359,20 @@ export default function VehicleRequestPage() {
                   {errors.returnAt && <p id="vehicle-returnAt-error" className="mt-1.5 text-xs font-medium text-rose-600">{errors.returnAt}</p>}
                 </div>
               )}
+            </div></details>
+            <details className="order-4 rounded-2xl border border-slate-200 bg-white p-5 sm:p-6"><summary className="cursor-pointer text-lg font-semibold text-slate-900">Thông tin bổ sung</summary><div className="mt-4">
               <Field id="vehicle-note" label="Ghi chú" error={errors.note}>
                 <textarea {...props("note")} rows={3} maxLength={1000} value={values.note} onChange={(event) => set("note", event.target.value)} className={`${INPUT} ${tone(errors.note)}`} placeholder="Ví dụ: khách có hành lý cồng kềnh, cần xe 7 chỗ…" />
               </Field>
-            <div className="flex flex-wrap justify-end gap-3 pt-2">
+              <div className="mt-4"><label htmlFor="vehicle-goods-images" className="block text-sm font-semibold text-slate-700">Ảnh đính kèm <span className="font-normal text-slate-500">· Không bắt buộc</span></label><div className="mt-2 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-3"><input id="vehicle-goods-images" type="file" accept="image/jpeg,image/png,image/webp" multiple className="block w-full text-sm text-slate-700" onChange={event => { const files = Array.from(event.target.files ?? []); if (files.some(file => !["image/jpeg", "image/png", "image/webp"].includes(file.type))) { setGoodsImageError("Chỉ hỗ trợ ảnh JPG, PNG hoặc WebP."); return; } setGoodsImages(files); setGoodsImageError(files.length ? "Ảnh hàng hóa chưa được gửi lên hệ thống trong phiên bản hiện tại." : ""); }} /><p className="mt-2 text-xs text-slate-500">Chọn ảnh hàng hóa hoặc thông tin cần lưu ý.</p>{goodsImages.map((file, index) => <div key={`${file.name}-${index}`} className="mt-2 flex items-center justify-between gap-2 text-sm text-slate-700"><span className="break-all">{file.name}</span><button type="button" onClick={() => { setGoodsImages(current => current.filter((_, i) => i !== index)); setGoodsImageError(""); }} className="shrink-0 font-semibold text-rose-700" aria-label={`Gỡ ảnh ${file.name}`}>Gỡ</button></div>)}{goodsImageError && <p role="status" className="mt-2 text-xs text-amber-700">{goodsImageError}</p>}</div></div>
+            </div></details>
+            </div>
+            <div className="order-5 flex flex-wrap items-center justify-end gap-3 pt-2 md:col-span-2">
               <button type="submit" disabled={saving} className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl bg-green-700 px-6 py-3 text-sm font-bold text-white hover:bg-green-800 disabled:cursor-wait disabled:opacity-60">
                 <Send size={20} aria-hidden="true" />
                 {saving ? "Đang gửi…" : editId ? "Lưu thay đổi" : "Gửi yêu cầu đặt xe"}
               </button>
             </div>
-            </section>
           </form>
         )}
       </div>

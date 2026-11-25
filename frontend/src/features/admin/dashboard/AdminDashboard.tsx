@@ -671,7 +671,7 @@ export default function AdminDashboard(_props: AdminDashboardProps) {
           </div>
         )}
         <div hidden={showPageLoading} className={activeTab === 'meetings' ? 'p-3 sm:p-4 lg:p-[18px]' : 'p-3 sm:p-4 md:p-6 lg:p-8'}>
-          <div className={activeTab === 'meetings' || pathname === '/admin/employees' || isEmployeeTrashPage ? 'mx-0 w-full min-w-0 max-w-none' : 'mx-auto w-full min-w-0 max-w-7xl'}>
+          <div className={activeTab === 'meetings' || activeTab === 'vehicles' || activeTab === 'media' || pathname === '/admin/employees' || isEmployeeTrashPage ? 'mx-0 w-full min-w-0 max-w-none' : 'mx-auto w-full min-w-0 max-w-7xl'}>
             {/* 1. Tổng quan Dashboard */}
             {activeTab === 'overview' && (
               <DashboardOverview

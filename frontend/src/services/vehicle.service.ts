@@ -9,7 +9,7 @@ export const VEHICLE_TYPE_LABELS: Record<VehicleType, string> = { company: "Xe c
 export const VEHICLE_STATUS_LABELS: Record<VehicleStatus, string> = {
   pending: "Chờ xử lý",
   arranged: "Đã sắp xếp xe",
-  arrived: "Đã đi xong, chờ HR chốt",
+  arrived: "Hoàn Thành, Chờ HR Chốt",
   completed: "Hoàn thành",
   cancelled: "Đã hủy",
 };

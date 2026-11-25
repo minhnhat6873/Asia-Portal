@@ -20,5 +20,5 @@ test("short or unrelated text suggests nothing", () => {
 test("Wana carries its coordinates", () => {
   const wana = places.SAVED_PLACES.find((place) => place.id === "wana");
   assert.deepEqual(wana.location, { lat: 10.887833, lng: 106.759917 });
-  assert.match(places.placeText(wana), /^Công ty Wana – No\. 435, Nguyen Tri Phuong Street/);
+  assert.match(places.placeText(wana), /^Wana Beverage Office – No\. 435, Nguyen Tri Phuong Street/);
 });

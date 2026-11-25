@@ -2,21 +2,22 @@
 
 import { Building2 } from "lucide-react";
 import { useId, useState, type InputHTMLAttributes } from "react";
-import { matchSavedPlaces, placeText, type SavedPlace } from "./savedPlaces";
+import { matchSavedPlaces, placeText, SAVED_PLACES, type SavedPlace } from "./savedPlaces";
 
 /**
  * Text input with company-place suggestions (type "Wana", "Á Châu"…). Free text and
  * coordinates are still accepted; a suggestion only fills the box.
  */
-export default function PlaceInput({ value, onChange, onPick, onBlur, className, ...rest }: Omit<InputHTMLAttributes<HTMLInputElement>, "value" | "onChange"> & {
+export default function PlaceInput({ value, onChange, onPick, onBlur, className, showAllOnEmpty = false, ...rest }: Omit<InputHTMLAttributes<HTMLInputElement>, "value" | "onChange"> & {
   value: string;
   onChange: (value: string) => void;
   onPick?: (place: SavedPlace) => void;
+  showAllOnEmpty?: boolean;
 }) {
   const listId = useId();
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
-  const matches = open ? matchSavedPlaces(value) : [];
+  const matches = open ? (showAllOnEmpty && !value.trim() ? SAVED_PLACES : matchSavedPlaces(value)) : [];
   const shown = matches.length > 0;
 
   const pick = (place: SavedPlace) => {
