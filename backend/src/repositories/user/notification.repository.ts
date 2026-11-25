@@ -73,6 +73,10 @@ export const notificationRepository = {
     return NotificationModel.updateMany({ accountId, readAt: null }, { $set: { readAt: new Date() } });
   },
 
+  deleteAll(accountId: string) {
+    return NotificationModel.deleteMany({ accountId });
+  },
+
   removeByRef(type: NotificationType, refId: string) {
     return NotificationModel.deleteMany({ type, refId });
   },

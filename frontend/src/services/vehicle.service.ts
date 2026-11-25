@@ -9,7 +9,7 @@ export const VEHICLE_TYPE_LABELS: Record<VehicleType, string> = { company: "Xe c
 export const VEHICLE_STATUS_LABELS: Record<VehicleStatus, string> = {
   pending: "Chờ xử lý",
   arranged: "Đã sắp xếp xe",
-  arrived: "Hoàn Thành, Chờ HR Chốt",
+  arrived: "Chưa Hoàn Tất",
   completed: "Hoàn thành",
   cancelled: "Đã hủy",
 };
@@ -47,6 +47,7 @@ export interface VehicleTrip {
   pickup: string;
   pickupLocation: VehicleLocation | null;
   destination: string;
+  extraDestinations?: string[];
   departAt: string;
   roundTrip: boolean;
   returnAt: string | null;
@@ -61,6 +62,8 @@ export interface VehicleTrip {
   estimatedCost: number | null;
   actualCost: number | null;
   receipts: { url: string; uploadedBy: "requester" | "hr"; at: string }[];
+  /** Pictures the requester sent with the request (goods, notes). */
+  attachments: { url: string; uploadedBy: "requester" | "hr"; at: string }[];
   /** Times or places HR changed from the request, with the reason sent to the requester. */
   changes: VehicleChange[];
   arrangedBy: { name: string } | null;
@@ -94,6 +97,7 @@ export interface VehicleRequestInput {
   pickup: string;
   pickupLocation: VehicleLocation | null;
   destination: string;
+  extraDestinations?: string[];
   departAt: string;
   roundTrip: boolean;
   returnAt: string | null;
@@ -142,7 +146,16 @@ function receiptsForm(files: File[], fields: Record<string, string> = {}) {
 }
 
 // ---- requester (user portal) ----
-export const requestVehicle = (input: VehicleRequestInput) => apiPost<VehicleTrip>("/user/vehicles", input);
+/** Max pictures sent with a new request (same as the server). */
+export const VEHICLE_MAX_ATTACHMENTS = 3;
+/** With pictures: multipart, the request as JSON in field "payload" and the files in "attachments". */
+export function requestVehicle(input: VehicleRequestInput, files: File[] = []) {
+  if (!files.length) return apiPost<VehicleTrip>("/user/vehicles", input);
+  const body = new FormData();
+  body.append("payload", JSON.stringify(input));
+  files.forEach((file) => body.append("attachments", file));
+  return apiPostFormData<VehicleTrip>("/user/vehicles", body);
+}
 export const getMyTrips = (signal?: AbortSignal) => apiGet<VehicleTrip[]>("/user/vehicles/mine", signal);
 export const updateMyTrip = (id: string, input: Partial<VehicleRequestInput>) => apiPatch<VehicleTrip>(`/user/vehicles/${encodeURIComponent(id)}`, input);
 export const cancelMyTrip = (id: string, reason = "") => apiPost<VehicleTrip>(`/user/vehicles/${encodeURIComponent(id)}/cancel`, { reason });

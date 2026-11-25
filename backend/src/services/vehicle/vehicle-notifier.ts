@@ -75,18 +75,27 @@ export const vehicleNotifier = {
     });
   },
 
-  toHr(trip: StoredVehicleBooking, type: Extract<NotificationType, "vehicle-new" | "vehicle-arrived" | "vehicle-overdue" | "vehicle-pending-overdue">) {
+  toHr(trip: StoredVehicleBooking, type: Extract<NotificationType, "vehicle-new" | "vehicle-arrived" | "vehicle-overdue" | "vehicle-pending-overdue" | "vehicle-request-updated" | "vehicle-request-cancelled">) {
     return safely(type, async () => {
       const titles = {
         "vehicle-new": `Yêu cầu đặt xe mới từ ${trip.requester.name}`,
         "vehicle-arrived": `${trip.requester.name} báo đã đi xong, cần chốt chuyến`,
         "vehicle-overdue": "Chuyến xe quá giờ hoàn thành, chưa chốt",
         "vehicle-pending-overdue": "Yêu cầu đặt xe đã quá giờ đi mà chưa được xử lý",
+        "vehicle-request-updated": `${trip.requester.name} đã sửa yêu cầu đặt xe`,
+        "vehicle-request-cancelled": `${trip.requester.name} đã hủy yêu cầu đặt xe`,
       } as const;
-      const accounts = await vehicleBookingRepository.managerAccounts();
-      await notificationRepository.insertForAccounts(accounts.map((account) => account.id), {
-        type, refId: String(trip._id), link: hrLink(trip), title: titles[type], message: summary(trip),
-      });
+      const refId = String(trip._id);
+      const accounts = (await vehicleBookingRepository.managerAccounts()).map((account) => account.id);
+      if (type === "vehicle-request-cancelled") {
+        // Nothing is left to arrange: earlier "new"/"edited" notices would open a cancelled trip.
+        await Promise.all([notificationRepository.removeByRef("vehicle-new", refId), notificationRepository.removeByRef("vehicle-request-updated", refId)]);
+      }
+      const message = type === "vehicle-request-cancelled" && trip.cancel?.reason ? shorten(`Lý do: ${trip.cancel.reason} · ${summary(trip)}`, 480) : summary(trip);
+      const data = { type, refId, link: hrLink(trip), title: titles[type], message };
+      // Repeated edits replace the previous notice so it shows once, as new and unread.
+      if (type === "vehicle-request-updated") await notificationRepository.replaceForAccounts(accounts, data);
+      else await notificationRepository.insertForAccounts(accounts, data);
     });
   },
 
@@ -157,6 +166,7 @@ export const vehicleNotifier = {
           ["Điểm đón", trip.pickup],
           ...(trip.pickupLocation?.lat != null ? [["Bản đồ điểm đón", `https://www.google.com/maps?q=${trip.pickupLocation.lat},${trip.pickupLocation.lng}`]] as [string, string][] : []),
           ["Điểm đến", trip.destination],
+          ...(trip.extraDestinations ?? []).map((destination, index): [string, string] => [`Điểm đến ${index + 2}`, destination]),
           ["Xe", trip.vehicleType ? TYPE_LABEL[trip.vehicleType] : "HR chưa sắp xếp xe"],
           ...(trip.driverName || trip.driverPhone ? [["Tài xế", [trip.driverName, trip.driverPlate, trip.driverPhone].filter(Boolean).join(" · ")] as [string, string]] : []),
         ],

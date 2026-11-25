@@ -56,6 +56,21 @@ describe("requester", () => {
     expect(vehicleNotifier.emailHrNew).toHaveBeenCalledWith(expect.objectContaining({ status: "pending" }));
   });
 
+  it("saves pictures sent with the request as attachments, not as trip receipts", async () => {
+    const uploads = [{ url: "https://res.cloudinary.com/x/a.jpg", publicId: "asia-portal/vehicle-receipts/a" }];
+    const trip = await userVehicleService.create(user, request, uploads);
+    expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ receipts: [], attachments: [expect.objectContaining({ ...uploads[0], uploadedBy: "requester" })] }));
+    expect(trip.attachments).toEqual([expect.objectContaining({ url: uploads[0].url, uploadedBy: "requester" })]);
+    expect(trip.attachments[0]).not.toHaveProperty("publicId");
+  });
+
+  it("removes uploaded pictures when the request is rejected", async () => {
+    const uploads = [{ url: "https://res.cloudinary.com/x/a.jpg", publicId: "asia-portal/vehicle-receipts/a" }];
+    await expect(userVehicleService.create(user, { ...request, departAt: "2026-11-25T08:10" }, uploads)).rejects.toMatchObject({ statusCode: 400 });
+    expect(removeVehicleReceiptFiles).toHaveBeenCalledWith(["asia-portal/vehicle-receipts/a"]);
+    expect(repo.create).not.toHaveBeenCalled();
+  });
+
   it("needs at least 15 minutes before departure", async () => {
     await expect(userVehicleService.create(user, { ...request, departAt: "2026-11-25T08:10" }))
       .rejects.toMatchObject({ statusCode: 400, fieldErrors: { departAt: expect.stringContaining("15 phút") } });
@@ -138,6 +153,15 @@ describe("requester", () => {
     await expect(userVehicleService.cancel(user, String(new Types.ObjectId()))).resolves.toMatchObject({ status: "cancelled" });
   });
 
+  it("tells HR when the requester edits or cancels a pending request", async () => {
+    repo.findById.mockResolvedValueOnce(stored() as never);
+    await userVehicleService.update(user, String(new Types.ObjectId()), { note: "Thêm hành lý" });
+    expect(vehicleNotifier.toHr).toHaveBeenCalledWith(expect.anything(), "vehicle-request-updated");
+    repo.findById.mockResolvedValueOnce(stored() as never);
+    await userVehicleService.cancel(user, String(new Types.ObjectId()), "Đổi lịch");
+    expect(vehicleNotifier.toHr).toHaveBeenCalledWith(expect.objectContaining({ status: "cancelled" }), "vehicle-request-cancelled");
+  });
+
   it("'Đã đi xong' tells HR; pictures are dropped if the trip cannot take them", async () => {
     repo.findById.mockResolvedValueOnce(stored({ status: "arranged", vehicleType: "company" }) as never);
     const trip = await userVehicleService.markArrived(user, String(new Types.ObjectId()), [{ url: "u", publicId: "asia-portal/vehicle-receipts/a" }]);
@@ -156,6 +180,9 @@ describe("HR", () => {
     repo.findById.mockResolvedValue(stored({ expectedEndAt: null }) as never);
     await expect(hrVehicleService.arrange(hr, String(new Types.ObjectId()), { vehicleType: "company" })).rejects.toMatchObject({ fieldErrors: { expectedEndAt: expect.any(String) } });
     await expect(hrVehicleService.arrange(hr, String(new Types.ObjectId()), { vehicleType: "company", expectedEndAt: "2026-11-25T09:00" })).rejects.toMatchObject({ fieldErrors: { expectedEndAt: expect.stringContaining("sau giờ đi") } });
+    // Giờ đi 10:00 25/11/2026: tối đa đúng 90 ngày sau (10:00 23/02/2027).
+    await expect(hrVehicleService.arrange(hr, String(new Types.ObjectId()), { vehicleType: "company", expectedEndAt: "2027-02-23T10:01" })).rejects.toMatchObject({ fieldErrors: { expectedEndAt: expect.stringContaining("90 ngày") } });
+    await expect(hrVehicleService.arrange(hr, String(new Types.ObjectId()), { vehicleType: "company", expectedEndAt: "2027-02-23T10:00" })).resolves.toBeDefined();
     repo.findById.mockResolvedValue(stored({ expectedEndAt: null, roundTrip: true, returnAt: new Date("2026-11-25T06:00:00Z") }) as never);
     await expect(hrVehicleService.arrange(hr, String(new Types.ObjectId()), { vehicleType: "company", expectedEndAt: "2026-11-25T12:00" })).rejects.toMatchObject({ fieldErrors: { expectedEndAt: expect.stringContaining("giờ về") } });
     repo.findById.mockResolvedValue(stored({ expectedEndAt: null }) as never);
@@ -220,6 +247,13 @@ describe("HR", () => {
     await expect(hrVehicleService.complete(hr, String(new Types.ObjectId()), { actualCost: 172000, actualEndAt: end }, [])).resolves.toMatchObject({ status: "completed", actualCost: 172000 });
     repo.findById.mockResolvedValue(stored({ status: "pending" }) as never);
     await expect(hrVehicleService.complete(hr, String(new Types.ObjectId()), { actualCost: null, actualEndAt: end }, [])).rejects.toMatchObject({ statusCode: 409 });
+  });
+
+  it("the real end, like the expected end, is at most 90 days after departure", async () => {
+    repo.findById.mockResolvedValue(stored({ status: "arranged", vehicleType: "company" }) as never);
+    // Giờ đi 10:00 25/11/2026.
+    await expect(hrVehicleService.complete(hr, String(new Types.ObjectId()), { actualCost: null, actualEndAt: "2027-02-23T10:01" }, [])).rejects.toMatchObject({ fieldErrors: { actualEndAt: expect.stringContaining("90 ngày") } });
+    await expect(hrVehicleService.complete(hr, String(new Types.ObjectId()), { actualCost: null, actualEndAt: "2026-11-25T09:59" }, [])).rejects.toMatchObject({ fieldErrors: { actualEndAt: expect.stringContaining("sau giờ đi") } });
   });
 
   it("closing a trip records when it really ended: after departure and not in the future", async () => {

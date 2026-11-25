@@ -25,6 +25,8 @@ export const VEHICLE_MIN_LEAD_MINUTES = 15;
 export const VEHICLE_MAX_DAYS_AHEAD = 90;
 /** A round trip comes back within this many days. */
 export const VEHICLE_MAX_TRIP_DAYS = 30;
+/** Expected end (set by HR) must be after departure and at most this many days later. */
+export const VEHICLE_MAX_EXPECTED_END_DAYS = 90;
 /**
  * TẠM ĐỂ TEST: true cho phép chốt chuyến với giờ hoàn thành thật ở tương lai.
  * Test xong đổi về false (và VEHICLE_ALLOW_FUTURE_END trong VehicleTripDialog.tsx).
@@ -61,6 +63,7 @@ function buildTrip(input: Partial<VehicleRequestInput>, current: Partial<Vehicle
   }
   if (has("passengerCount")) next.passengerCount = input.passengerCount ?? null;
   if (has("pickupLocation")) next.pickupLocation = input.pickupLocation ?? null;
+  if (has("extraDestinations")) next.extraDestinations = input.extraDestinations;
   if (has("departAt")) next.departAt = parseLocal(input.departAt!);
   if (has("expectedEndAt")) next.expectedEndAt = parseLocal(input.expectedEndAt!);
   if (has("returnAt")) next.returnAt = input.returnAt ? parseLocal(input.returnAt) : null;
@@ -111,6 +114,9 @@ function buildTrip(input: Partial<VehicleRequestInput>, current: Partial<Vehicle
   if (returnAt && returnAt.getTime() - departAt.getTime() > VEHICLE_MAX_TRIP_DAYS * DAY_MS) throw fieldError("returnAt", `Giờ về cách giờ đi tối đa ${VEHICLE_MAX_TRIP_DAYS} ngày.`);
   const expectedEndAt = merged.expectedEndAt ?? null;
   if (expectedEndAt && expectedEndAt <= departAt) throw fieldError("expectedEndAt", "Thời gian hoàn thành dự kiến phải sau giờ đi.");
+  if (expectedEndAt && expectedEndAt.getTime() - departAt.getTime() > VEHICLE_MAX_EXPECTED_END_DAYS * DAY_MS) {
+    throw fieldError("expectedEndAt", `Thời gian hoàn thành dự kiến cách giờ đi tối đa ${VEHICLE_MAX_EXPECTED_END_DAYS} ngày.`);
+  }
   if (expectedEndAt && returnAt && expectedEndAt < returnAt) throw fieldError("expectedEndAt", "Thời gian hoàn thành dự kiến không được trước giờ về.");
   // A changed time starts the reminders again.
   if (has("departAt")) (next as Record<string, unknown>).departReminderSentAt = null;
@@ -138,6 +144,7 @@ function toResponse(trip: StoredVehicleBooking) {
     pickup: trip.pickup,
     pickupLocation: trip.pickupLocation?.lat != null ? { lat: trip.pickupLocation.lat, lng: trip.pickupLocation.lng, accuracy: trip.pickupLocation.accuracy ?? null } : null,
     destination: trip.destination,
+    extraDestinations: trip.extraDestinations ?? [],
     departAt: trip.departAt,
     roundTrip: trip.roundTrip,
     returnAt: trip.returnAt ?? null,
@@ -151,6 +158,7 @@ function toResponse(trip: StoredVehicleBooking) {
     estimatedCost: trip.estimatedCost ?? null,
     actualCost: trip.actualCost ?? null,
     receipts: (trip.receipts ?? []).map(({ url, uploadedBy, at }) => ({ url, uploadedBy, at })),
+    attachments: (trip.attachments ?? []).map(({ url, uploadedBy, at }) => ({ url, uploadedBy, at })),
     changes: (trip.changes ?? []).map((change) => ({ at: change.at, byName: change.by?.name ?? "", reason: change.reason, items: change.items })),
     arrangedBy: trip.arrangedBy ? { name: trip.arrangedBy.name } : null,
     arrivedAt: trip.arrivedAt ?? null,
@@ -193,13 +201,20 @@ function describeChange(trip: StoredVehicleBooking, set: Record<string, unknown>
 
 /** The requester's side (user portal). */
 export const userVehicleService = {
-  async create(account: AuthenticatedAccount, input: VehicleRequestInput) {
-    const trip = buildTrip(input, null, { requireLead: true });
-    const employee = await adminEmployeeRepository.findByEmail(account.email);
-    const created = await vehicleBookingRepository.create({
-      ...trip, status: "pending", receipts: [],
-      requester: { ...person(account), department: employee?.department ?? "" },
-    }) as StoredVehicleBooking;
+  /** `uploads`: up to 3 optional pictures sent with the request; removed again if the request fails. */
+  async create(account: AuthenticatedAccount, input: VehicleRequestInput, uploads: UploadedReceipt[] = []) {
+    let created: StoredVehicleBooking;
+    try {
+      const trip = buildTrip(input, null, { requireLead: true });
+      const employee = await adminEmployeeRepository.findByEmail(account.email);
+      created = await vehicleBookingRepository.create({
+        ...trip, status: "pending", receipts: [], attachments: receiptsFrom(uploads, "requester"),
+        requester: { ...person(account), department: employee?.department ?? "" },
+      }) as StoredVehicleBooking;
+    } catch (error) {
+      await removeVehicleReceiptFiles(uploads.map((upload) => upload.publicId));
+      throw error;
+    }
     await vehicleNotifier.toHr(created, "vehicle-new");
     // Not awaited: the requester does not wait for the mail server.
     void vehicleNotifier.emailHrNew(created);
@@ -218,6 +233,7 @@ export const userVehicleService = {
     const update = buildTrip(input, trip, { requireLead: true });
     const saved = await vehicleBookingRepository.updateIfStatus(id, ["pending"], { $set: update }, { "requester.accountId": account.id });
     if (!saved) throw changedElsewhere();
+    await vehicleNotifier.toHr(saved as StoredVehicleBooking, "vehicle-request-updated");
     return toResponse(saved as StoredVehicleBooking);
   },
 
@@ -228,6 +244,7 @@ export const userVehicleService = {
       $set: { status: "cancelled", cancel: { by: person(account), byRequester: true, reason: reason.trim() || "Người đặt hủy yêu cầu.", at: new Date() } },
     }, { "requester.accountId": account.id });
     if (!saved) throw changedElsewhere();
+    await vehicleNotifier.toHr(saved as StoredVehicleBooking, "vehicle-request-cancelled");
     return toResponse(saved as StoredVehicleBooking);
   },
 
@@ -264,7 +281,7 @@ function listFilter(query: VehicleListQuery): QueryFilter<VehicleBooking> {
   const search = query.search?.trim();
   if (search) {
     const expression = vietnameseSearchRegex(search);
-    filter.$or = [{ customerName: expression }, { "requester.name": expression }, { "requester.email": expression }, { forOtherName: expression }, { pickup: expression }, { destination: expression }];
+    filter.$or = [{ customerName: expression }, { "requester.name": expression }, { "requester.email": expression }, { forOtherName: expression }, { pickup: expression }, { destination: expression }, { extraDestinations: expression }];
   }
   return filter;
 }
@@ -364,6 +381,9 @@ export const hrVehicleService = {
       if (!result.actualEndAt) throw fieldError("actualEndAt", "Vui lòng chọn thời gian hoàn thành thật.");
       const actualEndAt = parseLocal(result.actualEndAt);
       if (actualEndAt <= trip.departAt) throw fieldError("actualEndAt", "Thời gian hoàn thành thật phải sau giờ đi.");
+      if (actualEndAt.getTime() - trip.departAt.getTime() > VEHICLE_MAX_EXPECTED_END_DAYS * DAY_MS) {
+        throw fieldError("actualEndAt", `Thời gian hoàn thành thật cách giờ đi tối đa ${VEHICLE_MAX_EXPECTED_END_DAYS} ngày.`);
+      }
       // A minute of slack for clocks; the trip cannot have ended in the future.
       if (!VEHICLE_ALLOW_FUTURE_END && actualEndAt.getTime() > Date.now() + 60_000) throw fieldError("actualEndAt", "Thời gian hoàn thành thật không được ở tương lai.");
       if ((trip.receipts?.length ?? 0) + uploads.length > MAX_RECEIPTS) throw new AppError(400, `Mỗi chuyến tối đa ${MAX_RECEIPTS} ảnh.`);
@@ -397,7 +417,7 @@ export const hrVehicleService = {
     ensureId(id);
     const deleted = await vehicleBookingRepository.deleteCancelled(id) as StoredVehicleBooking | null;
     if (!deleted) throw new AppError(409, "Chỉ xóa được chuyến xe đã hủy.");
-    await removeVehicleReceiptFiles((deleted.receipts ?? []).map((receipt) => receipt.publicId));
+    await removeVehicleReceiptFiles([...(deleted.receipts ?? []), ...(deleted.attachments ?? [])].map((receipt) => receipt.publicId));
     return { id };
   },
 

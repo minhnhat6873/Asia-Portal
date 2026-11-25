@@ -23,6 +23,7 @@ Tất cả endpoint đi qua middleware toàn cục tại `backend/index.ts`: Hel
 | POST | `/user/account/avatar` | USER GATE, limiter theo account, multipart `avatar` (JPG/PNG/WEBP ≤ 5MB, Cloudinary `asia-portal/account-avatars`) | `uploadAvatar` | `accountAvatarService.set` | `{ avatar, customAvatar: true }`; xóa file ảnh riêng cũ. Không đổi ảnh hồ sơ nhân sự |
 | DELETE | `/user/account/avatar` | USER GATE, limiter theo account | `removeAvatar` | `accountAvatarService.clear` | `{ avatar, customAvatar: false }`: quay về ảnh hồ sơ nhân sự cùng email (hoặc rỗng) |
 | GET | `/user/notifications` | USER GATE, validate query (`before`) | `listNotifications` | `notificationService.list` | `{ items, unread, hasMore }`, 20 mục mỗi trang |
+| DELETE | `/user/notifications` | USER GATE, CSRF | `deleteAllNotifications` | `notificationService.deleteAll` | Delete current account notifications |
 | GET | `/user/notifications/unread-count` | USER GATE | `unreadNotifications` | `notificationService.unreadCount` | `{ unread }` |
 | GET | `/user/notifications/stream` (và `/admin/notifications/stream`) | USER GATE / ADMIN GATE | `openNotificationStream` | `notificationEvents` | Server-Sent Events: gửi `event: notification` (không kèm dữ liệu) ngay khi tài khoản có thông báo mới, trang tự tải lại danh sách và phát âm thanh; `: ping` mỗi 25 giây; đóng sau 10 phút để trình duyệt kết nối lại và kiểm tra phiên. Tín hiệu nằm trong bộ nhớ, chỉ đúng khi backend chạy 1 tiến trình. Nginx không đệm nhờ header `X-Accel-Buffering: no` |
 | POST | `/user/notifications/read-all` | USER GATE | `markAllNotificationsRead` | `notificationService.markAllRead` | — |
@@ -130,6 +131,8 @@ Bài truyền thông không còn phạm vi Công khai/Nội bộ: cả cổng l�
 
 Nhân viên gửi yêu cầu (đón/đưa khách hoặc giao/nhận hàng); HR (quyền `vehicles:manage`) chọn xe công ty hoặc xe ngoài (Grab), nhập giá dự kiến và giá thật, chốt chuyến. Xóa chuyến đã hủy cần thêm quyền `vehicles:delete`. Chuyến đã hoàn thành không bao giờ xóa được.
 
+Yêu cầu đặt xe hỗ trợ `extraDestinations`, một mảng tùy chọn tối đa 20 địa chỉ bổ sung, mỗi địa chỉ từ 3 đến 300 ký tự. `destination` vẫn là điểm đến đầu tiên. Các chuyến cũ không có mảng này được trả về với danh sách rỗng.
+
 Trạng thái: `pending` (chờ xử lý) → `arranged` (đã sắp xếp xe) → `arrived` (người đặt báo đã đi xong, tùy chọn) → `completed` (HR chốt; xe ngoài bắt buộc `actualCost`) hoặc `cancelled` (có lý do; HR hủy bắt buộc ghi lý do). Thời gian gửi lên là giờ Việt Nam dạng `YYYY-MM-DDTHH:mm`; phải đặt trước giờ đi ít nhất 15 phút.
 
 Người đặt chọn `forOther`: `false` là đặt cho bản thân (lấy tên, email, phòng ban từ tài khoản); `true` là đặt giúp người khác, bắt buộc `forOtherName` và `forOtherPhone`. Giao/nhận hàng bắt buộc tên và SĐT người gửi, người nhận, `goodsDescription` và `goodsQuantity` (số lượng/khối lượng, ghi tự do nhưng phải có con số, ví dụ "15 thùng, 500 kg").
@@ -139,7 +142,7 @@ Kiểm tra dữ liệu (frontend `src/lib/vehicleValidation.ts` và backend dùn
 | Method | Path | Middleware | Ghi chú |
 | --- | --- | --- | --- |
 | GET | `/user/vehicles/mine` | USER GATE | chuyến của mình (60 ngày gần nhất và mọi chuyến chưa xong) |
-| POST | `/user/vehicles` | USER GATE, limiter, validate | tạo yêu cầu; tên/email từ tài khoản, bộ phận từ hồ sơ nhân viên; báo HR |
+| POST | `/user/vehicles` | USER GATE, limiter, upload, validate | tạo yêu cầu; tên/email từ tài khoản, bộ phận từ hồ sơ nhân viên; báo HR. JSON, hoặc multipart: field `payload` (JSON) + tối đa 3 ảnh `attachments` (JPG/PNG/WebP), lưu vào `attachments`, tách riêng với `receipts` |
 | PATCH | `/user/vehicles/:id` | USER GATE, limiter, validate | chỉ khi `pending` |
 | POST | `/user/vehicles/:id/cancel` | USER GATE, limiter, validate | chỉ khi `pending` |
 | POST | `/user/vehicles/:id/arrived` | USER GATE, limiter, multipart `receipts` ≤ 3 ảnh | "Đã đi xong" khi `arranged`; báo HR |

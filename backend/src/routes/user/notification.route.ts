@@ -1,6 +1,7 @@
 import { Router } from "express";
 
 import {
+  deleteAllNotifications,
   listNotifications,
   markAllNotificationsRead,
   markNotificationRead,
@@ -17,6 +18,7 @@ router.use((_request, response, next) => { response.setHeader("Cache-Control", "
 router.use(requireUserAuth, requireCsrfProtection);
 
 router.get("/", validateQuery(notificationListQuerySchema), listNotifications);
+router.delete("/", deleteAllNotifications);
 router.get("/unread-count", unreadNotifications);
 // Live signal for new notifications (Server-Sent Events; see utils/notification/notificationEvents.ts).
 router.get("/stream", (request, response) => openNotificationStream(request, response, request.user!.id));

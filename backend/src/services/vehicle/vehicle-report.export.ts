@@ -54,7 +54,7 @@ export async function buildVehicleReportWorkbook(report: Report): Promise<Buffer
       formatVietnamTime(new Date(trip.departAt)), trip.requester.name, trip.requester.department,
       trip.forOther ? `${trip.forOtherName} · ${trip.forOtherPhone}` : "", PURPOSE[trip.purpose],
       trip.customerName, trip.purpose === "delivery" ? `${trip.senderPhone} → ${trip.receiverPhone}` : trip.customerPhone,
-      trip.purpose === "delivery" ? [trip.goodsDescription, trip.goodsQuantity].filter(Boolean).join(" · ") : "", trip.pickup, trip.destination, trip.roundTrip ? "Có" : "", trip.vehicleType ? TYPE[trip.vehicleType] : "",
+      trip.purpose === "delivery" ? [trip.goodsDescription, trip.goodsQuantity].filter(Boolean).join(" · ") : "", trip.pickup, [trip.destination, ...(trip.extraDestinations ?? [])].join(" → "), trip.roundTrip ? "Có" : "", trip.vehicleType ? TYPE[trip.vehicleType] : "",
       trip.estimatedCost ?? "", trip.actualCost ?? "", trip.actualEndAt ? formatVietnamTime(new Date(trip.actualEndAt)) : "", STATUS[trip.status],
     ]);
     row.getCell(13).numFmt = MONEY;

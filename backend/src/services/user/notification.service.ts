@@ -9,6 +9,8 @@ const roomName = (roomId: string) => MEETING_ROOMS.find(({ id }) => id === roomI
 const shorten = (text: string, max: number) => (text.length > max ? `${text.slice(0, max - 1)}…` : text);
 
 type BookingRef = Pick<MeetingBooking, "title" | "roomId" | "date" | "start" | "end" | "email"> & { _id: unknown };
+/** A meeting as the admin service returns it (id is the booking id used as refId). */
+type AdminMeetingSnapshot = Pick<MeetingBooking, "title" | "roomId" | "date" | "start" | "end" | "email"> & { id: string };
 
 /** Notifications never block the action that caused them; failures are only logged. */
 async function safely(label: string, work: () => Promise<void>): Promise<void> {
@@ -66,7 +68,60 @@ export const notificationService = {
       await Promise.all([
         notificationRepository.removeByRef("meeting-booked", bookingId),
         notificationRepository.removeByRef("meeting-reminder", bookingId),
+        notificationRepository.removeByRef("meeting-updated", bookingId),
       ]);
+    });
+  },
+
+  /**
+   * An admin changed a meeting: tells the person who booked it what changed. Only title, room,
+   * date, time or booker email count (organizer/department edits stay silent). When the booker
+   * email changed, the previous person is told the meeting is no longer theirs.
+   */
+  meetingUpdatedByAdmin(before: AdminMeetingSnapshot, after: AdminMeetingSnapshot): Promise<void> {
+    return safely("admin sửa lịch họp", async () => {
+      const changes: string[] = [];
+      if (before.title !== after.title) changes.push(`Tiêu đề: ${before.title} → ${after.title}`);
+      if (before.roomId !== after.roomId) changes.push(`Phòng: ${roomName(before.roomId)} → ${roomName(after.roomId)}`);
+      if (before.date !== after.date || before.start !== after.start || before.end !== after.end) {
+        changes.push(`Giờ: ${before.start}–${before.end} ${toDisplayDate(before.date)} → ${after.start}–${after.end} ${toDisplayDate(after.date)}`);
+      }
+      const emailChanged = before.email.trim().toLowerCase() !== after.email.trim().toLowerCase();
+      if (!changes.length && !emailChanged) return;
+      // The old reminder points to the old time; the reminder job sends a new one for the new time.
+      if (before.date !== after.date || before.start !== after.start) await notificationRepository.removeByRef("meeting-reminder", after.id);
+      if (emailChanged) {
+        const previous = await notificationRepository.activeAccountIdByEmail(before.email);
+        if (previous) {
+          await Promise.all((["meeting-booked", "meeting-reminder", "meeting-updated"] as const).map((type) => notificationRepository.removeByRef(type, after.id)));
+          await notificationRepository.replaceForAccounts([previous], {
+            type: "meeting-cancelled", refId: after.id, link: "/user/account/meetings",
+            title: "Lịch họp đã được chuyển cho người khác",
+            message: shorten(`${before.title} · ${roomName(before.roomId)} · ${before.start}–${before.end}, ${toDisplayDate(before.date)}`, 500),
+          });
+        }
+      }
+      const accountId = await notificationRepository.activeAccountIdByEmail(after.email);
+      if (!accountId) return;
+      await notificationRepository.replaceForAccounts([accountId], {
+        type: "meeting-updated", refId: after.id, link: "/user/account/meetings",
+        title: emailChanged ? "Bạn được giao một lịch họp" : "Lịch họp của bạn đã được thay đổi",
+        message: shorten([...changes, `${after.title} · ${roomName(after.roomId)} · ${after.start}–${after.end}, ${toDisplayDate(after.date)}`].join(" · "), 500),
+      });
+    });
+  },
+
+  /** An admin deleted a meeting that had not ended: earlier notices go, the booker is told. */
+  meetingCancelledByAdmin(booking: AdminMeetingSnapshot): Promise<void> {
+    return safely("admin xóa lịch họp", async () => {
+      await Promise.all((["meeting-booked", "meeting-reminder", "meeting-updated"] as const).map((type) => notificationRepository.removeByRef(type, booking.id)));
+      const accountId = await notificationRepository.activeAccountIdByEmail(booking.email);
+      if (!accountId) return;
+      await notificationRepository.replaceForAccounts([accountId], {
+        type: "meeting-cancelled", refId: booking.id, link: "/user/account/meetings",
+        title: "Lịch họp của bạn đã bị hủy",
+        message: shorten(`${booking.title} · ${roomName(booking.roomId)} · ${booking.start}–${booking.end}, ${toDisplayDate(booking.date)} · Quản trị viên đã xóa lịch này.`, 500),
+      });
     });
   },
 
@@ -88,6 +143,10 @@ export const notificationService = {
 
   async markRead(accountId: string, id: string): Promise<boolean> {
     return Boolean(await notificationRepository.markRead(accountId, id));
+  },
+
+  async deleteAll(accountId: string): Promise<void> {
+    await notificationRepository.deleteAll(accountId);
   },
 
   async markAllRead(accountId: string): Promise<void> {

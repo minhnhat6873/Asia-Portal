@@ -90,14 +90,14 @@ export default function ProfilePage() {
         <Card><p role="status" className="text-sm text-slate-500">Đang tải thông tin…</p></Card>
       ) : (
         <div className="space-y-5">
-          <Card className="flex flex-col gap-4 sm:flex-row sm:items-center">
+          <Card className="flex flex-col items-center gap-4 text-center min-[641px]:flex-row min-[641px]:items-center min-[641px]:text-left">
             <UserAvatar src={profile.account.avatar} name={name} className="h-20 w-20 bg-[#0b851d] text-2xl font-bold text-white ring-4 ring-emerald-50" />
             <div className="min-w-0 flex-1">
               <p className="truncate text-lg font-extrabold text-slate-900">{name}</p>
               <p className="truncate text-sm text-slate-500">{employee?.position || "Nhân viên"}{employee?.department ? ` · ${getEmployeeDepartmentLabel(employee.department)}` : ""}</p>
               <p className="mt-1 text-xs text-slate-400">{profile.account.customAvatar ? "Đang dùng ảnh riêng của tài khoản." : employee?.avatar ? "Đang dùng ảnh trong hồ sơ nhân sự." : "Chưa có ảnh đại diện."}</p>
             </div>
-            <div className="flex flex-wrap gap-2 sm:flex-col sm:items-stretch">
+            <div className="flex flex-wrap justify-center gap-2 min-[641px]:flex-col min-[641px]:items-stretch">
               <input ref={fileInput} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={pickFile} />
               <button type="button" disabled={savingAvatar} onClick={() => fileInput.current?.click()} className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-800 disabled:cursor-wait disabled:opacity-60">
                 <Camera aria-hidden="true" size={16} />{savingAvatar ? "Đang lưu…" : "Đổi ảnh đại diện"}

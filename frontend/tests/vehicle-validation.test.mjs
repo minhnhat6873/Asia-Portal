@@ -34,7 +34,7 @@ test("only real Vietnamese mobile and landline numbers are accepted", () => {
   for (const value of bad) {
     assert.equal(isValidPhone(value), false, value);
     // Every wrong number gets the same message.
-    assert.equal(errorsOf({ customerPhone: value }).customerPhone, "Số điện thoại không hợp lệ.", value);
+    assert.equal(errorsOf({ customerPhone: value }).customerPhone, "Số điện thoại Việt Nam không hợp lệ.", value);
   }
   assert.equal(normalizeVietnamPhone("+84 901 234 567"), "0901234567");
   assert.match(errorsOf({ receiverPhone: "+84 901 234 567" }, delivery).receiverPhone, /khác người gửi/);
@@ -75,4 +75,14 @@ test("times: 15 minutes ahead, at most 90 days ahead, return within 30 days", ()
   assert.match(errorsOf({ roundTrip: true, returnAt: "2026-11-25T09:00" }).returnAt, /sau giờ đi/);
   assert.match(errorsOf({ roundTrip: true, returnAt: "2026-12-30T08:00" }).returnAt, /30 ngày/);
   assert.equal(errorsOf({ roundTrip: true, returnAt: "2026-11-25T17:00" }).returnAt, undefined);
+});
+
+test("customer phone is optional, but both phones must be Vietnamese when supplied", () => {
+  assert.equal(errorsOf({ customerPhone: "" }).customerPhone, undefined);
+  assert.ok(errorsOf({ customerPhone: "+1 202 555 0123" }).customerPhone);
+  assert.equal(errorsOf({ customerPhone: "+84 901 234 567" }).customerPhone, undefined);
+  const other = { forOther: true, forOtherName: "Lan" };
+  assert.ok(errorsOf({ ...other, forOtherPhone: "" }).forOtherPhone);
+  assert.ok(errorsOf({ ...other, forOtherPhone: "+1 202 555 0123" }).forOtherPhone);
+  assert.equal(errorsOf({ ...other, forOtherPhone: "0901234567" }).forOtherPhone, undefined);
 });

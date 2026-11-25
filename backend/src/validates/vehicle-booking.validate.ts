@@ -65,6 +65,7 @@ const tripFields = {
     accuracy: Joi.number().min(0).max(100_000).allow(null),
   }).allow(null).messages({ "number.min": "Vị trí không hợp lệ.", "number.max": "Vị trí không hợp lệ.", "any.required": "Vị trí không hợp lệ.", "object.base": "Vị trí không hợp lệ." }),
   destination: text("điểm đến", 300).min(3).messages({ "string.min": "Điểm đến cần ít nhất 3 ký tự." }),
+  extraDestinations: Joi.array().items(text("điểm đến", 300).min(3)).max(20),
   departAt: localTime,
   roundTrip: Joi.boolean(),
   returnAt: localTime.allow(null, ""),

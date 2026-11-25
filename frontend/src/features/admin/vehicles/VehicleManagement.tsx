@@ -21,10 +21,10 @@ import {
   type VehicleTrip,
 } from "@/services/vehicle.service";
 import VehicleTripDialog from "./VehicleTripDialog";
+import MonthPicker from "./MonthPicker";
 import { mediaFont } from "@/features/admin/dashboard/media-font";
 import { AdminSelect } from "@/features/admin/dashboard/components/AdminSelect";
 
-const SELECT = "h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 outline-none focus:border-emerald-500";
 const currentMonth = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Ho_Chi_Minh", year: "numeric", month: "2-digit" }).format(new Date());
 
 function TripsTable({ onOpen, refreshKey }: { onOpen: (trip: VehicleTrip) => void; refreshKey: number }) {
@@ -62,7 +62,7 @@ function TripsTable({ onOpen, refreshKey }: { onOpen: (trip: VehicleTrip) => voi
         <AdminSelect value={filters.status ?? ""} onChange={(value) => change({ status: (value || undefined) as VehicleListParams["status"] })} options={[{ value: "", label: "Tất cả trạng thái" }, ...Object.entries(VEHICLE_STATUS_LABELS).map(([value, label]) => ({ value, label }))]} searchable={false} showSelectionCheck={false} icon={<CircleDot className="h-4 w-4 text-emerald-600" />} className="w-full sm:w-56" />
         <AdminSelect value={filters.vehicleType ?? ""} onChange={(value) => change({ vehicleType: (value || undefined) as VehicleListParams["vehicleType"] })} options={[{ value: "", label: "Tất cả loại xe" }, ...Object.entries(VEHICLE_TYPE_LABELS).map(([value, label]) => ({ value, label }))]} searchable={false} showSelectionCheck={false} icon={<Car className="h-4 w-4 text-sky-600" />} className="w-full shrink-0 sm:w-52" />
         <AdminSelect value={filters.purpose ?? ""} onChange={(value) => change({ purpose: (value || undefined) as VehicleListParams["purpose"] })} options={[{ value: "", label: "Tất cả mục đích" }, ...Object.entries(VEHICLE_PURPOSE_LABELS).map(([value, label]) => ({ value, label }))]} searchable={false} showSelectionCheck={false} icon={<Target className="h-4 w-4 text-amber-600" />} className="w-full shrink-0 sm:w-56" />
-        <input type="month" aria-label="Tháng đi" value={filters.month ?? ""} onChange={(event) => change({ month: event.target.value || undefined })} className={SELECT} />
+        <MonthPicker label="Tháng đi" value={filters.month ?? ""} onChange={(value) => change({ month: value || undefined })} allowClear />
         <button type="button" onClick={() => { setFilters({}); setSearch(""); setPage(1); }} className="inline-flex h-11 items-center gap-2 rounded-xl border border-slate-200 px-3 text-sm font-semibold text-slate-600 hover:bg-slate-50"><RotateCcw aria-hidden="true" size={15} />Đặt lại</button>
       </div>
 
@@ -80,7 +80,7 @@ function TripsTable({ onOpen, refreshKey }: { onOpen: (trip: VehicleTrip) => voi
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[980px] text-center text-[13px] text-[#172B24]">
                     <thead className="border-b border-[#f0f3f6] bg-[#eef7f3] text-[14px] font-bold text-[#172B24] [&_th]:font-bold">
-                      <tr>{["Giờ đi", "Người đặt", "Mục đích / Khách", "Lộ trình", "Xe", "Trạng thái / Chi phí", "Thao tác"].map((heading) => <th key={heading} className="px-4 py-3 text-center">{heading}</th>)}</tr>
+                      <tr>{["Giờ đi", "Người đặt", "Mục đích / Khách", "Ngày giờ đặt", "Lộ trình", "Xe", "Trạng thái / Chi phí", "Thao tác"].map((heading) => <th key={heading} className={`px-4 py-3 ${heading === "Thao tác" ? "text-left" : "text-center"}`}>{heading}</th>)}</tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {data.items.map((trip) => (
@@ -93,15 +93,22 @@ function TripsTable({ onOpen, refreshKey }: { onOpen: (trip: VehicleTrip) => voi
                           </td>
                           <td className="px-4 py-3"><span className="text-[15px] font-bold text-[#172B24]">{trip.requester.name}</span><span className="block text-xs text-[#64748B]">{trip.requester.department || "—"}</span>{trip.forOther && <span className="mt-0.5 block text-xs font-semibold text-sky-700">Đặt giúp: {trip.forOtherName}</span>}</td>
                           <td className="max-w-52 px-4 py-3"><span className={`inline-flex rounded-md border px-2 py-1 text-xs font-medium ${trip.purpose === "delivery" ? "border-orange-200 bg-orange-50 text-orange-600" : "border-sky-100 bg-sky-100 text-blue-700"}`}>{VEHICLE_PURPOSE_LABELS[trip.purpose]}</span><span className="mt-1 block truncate font-bold text-[#172B24]" title={trip.customerName}>{trip.customerName}</span></td>
+                          <td className="whitespace-nowrap px-4 py-3 text-center text-sm text-slate-700">
+                            {trip.createdAt && !Number.isNaN(new Date(trip.createdAt).getTime()) ? (() => {
+                              const [date, time] = toLocalInput(trip.createdAt).split("T");
+                              return <><span className="block font-semibold">{date.split("-").reverse().join("/")}</span><span className="mt-1 block">{time}</span></>;
+                            })() : "—"}
+                          </td>
                           <td className="min-w-56 max-w-64 px-4 py-3">
                             <div className="relative grid w-full gap-3 pl-4 text-left text-sm leading-5 before:absolute before:bottom-2.5 before:left-[3px] before:top-2.5 before:border-l before:border-dashed before:border-slate-400">
                               <div className="relative text-slate-700"><span aria-hidden="true" className="absolute -left-4 top-[6px] h-2 w-2 rounded-full border-2 border-emerald-600 bg-white" /><span className="sr-only">Điểm đón: </span><span className="line-clamp-2 break-words">{trip.pickup}</span></div>
                               <div className="relative text-slate-700"><span aria-hidden="true" className="absolute -left-4 top-[6px] h-2 w-2 rounded-full border-2 border-slate-500 bg-white" /><span className="sr-only">Điểm đến: </span><span className="line-clamp-2 break-words">{trip.destination}</span></div>
+                              {(trip.extraDestinations?.length ?? 0) > 0 && <span className="text-xs font-semibold text-emerald-700">+{trip.extraDestinations!.length} điểm đến · Xem chi tiết</span>}
                             </div>
                           </td>
                           <td className="whitespace-nowrap px-4 py-3 text-[15px] font-bold text-[#172B24]">{trip.vehicleType ? VEHICLE_TYPE_LABELS[trip.vehicleType] : <span className="text-amber-700">Chưa chọn</span>}</td>
                           <td className="px-4 py-3"><span className={`inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${VEHICLE_STATUS_TONES[trip.status]}`}>{VEHICLE_STATUS_LABELS[trip.status]}</span><span className="mt-2 block whitespace-nowrap text-slate-700">{trip.vehicleType === "external" ? (trip.actualCost ? <strong>{formatVnd(trip.actualCost)}</strong> : <span title="Giá dự kiến">~ {formatVnd(trip.estimatedCost)}</span>) : "—"}</span></td>
-                          <td className="px-4 py-3 text-center align-middle"><button type="button" onClick={() => onOpen(trip)} className="min-h-10 rounded-lg border border-slate-200 px-4 py-2 text-sm font-bold text-emerald-700 hover:bg-emerald-50">Xử lý</button></td>
+                          <td className="px-4 py-3 text-left align-middle"><button type="button" onClick={() => onOpen(trip)} className={`min-h-10 whitespace-nowrap rounded-lg border px-4 py-2 text-sm font-bold ${trip.status === "pending" ? "border-emerald-700 bg-emerald-700 text-white hover:bg-emerald-800" : trip.status === "completed" || trip.status === "cancelled" ? "border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100" : "border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100"}`}>{trip.status === "pending" ? "Xử lý" : trip.status === "arranged" ? "Chỉnh Sửa" : trip.status === "arrived" ? "Hoàn Thành" : "Xem"}</button></td>
                         </tr>
                       ))}
                     </tbody>
@@ -163,7 +170,7 @@ function ReportView() {
             <Stat label="Đã hủy" value={totals?.cancelled ?? "—"} icon={XCircle} tone="bg-rose-50 text-rose-600" />
             <div className="flex min-h-28 items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
               <span aria-hidden="true" className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-emerald-50 text-emerald-600"><CalendarDays className="h-7 w-7" /></span>
-              <div className="min-w-0 flex-1"><p className="mb-2 text-sm font-semibold text-slate-600">Báo Cáo Tháng</p><div className="flex flex-wrap items-center gap-2"><input type="month" aria-label="Tháng báo cáo" value={month} onChange={(event) => event.target.value && setMonth(event.target.value)} className={SELECT} />
+              <div className="min-w-0 flex-1"><p className="mb-2 text-sm font-semibold text-slate-600">Báo Cáo Tháng</p><div className="flex flex-wrap items-center gap-2"><MonthPicker label="Tháng báo cáo" value={month} onChange={setMonth} />
               <a href={vehicleReportExportUrl(month)} download className="inline-flex h-11 items-center gap-2 rounded-xl bg-emerald-700 px-4 text-sm font-bold text-white hover:bg-emerald-800"><Download aria-hidden="true" size={16} />Xuất Excel</a></div></div>
             </div>
           </div>

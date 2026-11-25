@@ -47,6 +47,7 @@ export interface VehicleBooking {
   /** Where the pickup is, taken from the requester's current position (optional). */
   pickupLocation?: VehicleLocation | null;
   destination: string;
+  extraDestinations?: string[];
   departAt: Date;
   roundTrip: boolean;
   returnAt?: Date | null;
@@ -62,6 +63,8 @@ export interface VehicleBooking {
   estimatedCost?: number | null;
   actualCost?: number | null;
   receipts: VehicleReceipt[];
+  /** Pictures the requester sent with the request (goods, notes). Separate from trip receipts. */
+  attachments?: VehicleReceipt[];
   /** Changes HR made to the time or route, oldest first. */
   changes?: VehicleChange[];
   arrangedBy?: VehiclePerson | null;
@@ -102,6 +105,7 @@ export interface VehicleRequestInput {
   pickup: string;
   pickupLocation?: VehicleLocation | null;
   destination: string;
+  extraDestinations?: string[];
   departAt: string;
   roundTrip: boolean;
   returnAt?: string | null;

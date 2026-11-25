@@ -57,7 +57,7 @@ function TimeSelect({ time, minTime, label, minuteStep, height, radius, disabled
     <ConfigProvider locale={viVN} theme={{ token: { colorPrimary: "#15803d", controlHeight: height, borderRadius: radius, fontSize: 14, colorBorder: "#e2e8f0" } }}>
       <TimePicker
         aria-label={label}
-        format="HH:mm"
+        format={["HH:mm", "HHmm"]}
         placement="topLeft"
         minuteStep={minuteStep as 1}
         needConfirm

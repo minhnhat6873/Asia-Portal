@@ -48,6 +48,7 @@ const protectedRequests: [string, string][] = [
   ["POST", "/user/vehicles/507f1f77bcf86cd799439011/cancel"],
   ["POST", "/user/vehicles/507f1f77bcf86cd799439011/arrived"],
   ["GET", "/user/notifications"],
+  ["DELETE", "/user/notifications"],
   ["GET", "/user/notifications/unread-count"],
   ["POST", "/user/notifications/read-all"],
   ["POST", "/user/notifications/507f1f77bcf86cd799439011/read"],

@@ -43,7 +43,7 @@ export const VIETNAM_MOBILE_PREFIXES: ReadonlySet<string> = new Set([
 ]);
 
 /** One message for every wrong number (wrong length, prefix, letters, foreign number…). */
-export const VIETNAM_PHONE_INVALID = "Số điện thoại không hợp lệ.";
+export const VIETNAM_PHONE_INVALID = "Số điện thoại Việt Nam không hợp lệ.";
 
 /** The plain local number ("0901234567"), or null when it is not a Vietnamese phone number. */
 export function normalizeVietnamPhone(value: string): string | null {

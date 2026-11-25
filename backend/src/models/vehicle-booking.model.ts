@@ -34,6 +34,7 @@ const vehicleBookingSchema = new Schema<VehicleBooking>(
       default: null,
     },
     destination: { type: String, required: true, trim: true, maxlength: 300 },
+    extraDestinations: { type: [{ type: String, trim: true, maxlength: 300 }], default: [] },
     departAt: { type: Date, required: true },
     roundTrip: { type: Boolean, default: false },
     returnAt: { type: Date, default: null },
@@ -47,6 +48,11 @@ const vehicleBookingSchema = new Schema<VehicleBooking>(
     estimatedCost: { type: Number, min: 0, default: null },
     actualCost: { type: Number, min: 0, default: null },
     receipts: {
+      type: [new Schema({ url: String, publicId: String, uploadedBy: { type: String, enum: ["requester", "hr"] }, at: Date }, { _id: false })],
+      default: [],
+    },
+    // Pictures sent with the request (goods, notes), separate from trip receipts.
+    attachments: {
       type: [new Schema({ url: String, publicId: String, uploadedBy: { type: String, enum: ["requester", "hr"] }, at: Date }, { _id: false })],
       default: [],
     },

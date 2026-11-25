@@ -10,7 +10,7 @@ import {
 } from "../../controllers/vehicle-booking.controller";
 import { uploadVehicleReceipts } from "../../helpers/multerCloudinary.helper";
 import { requireCsrfProtection } from "../../middlewares/csrf.middleware";
-import { validateVehicleMultipart } from "../../middlewares/multipart-validate.middleware";
+import { parseVehicleJsonPayload, validateVehicleMultipart } from "../../middlewares/multipart-validate.middleware";
 import { requireUserAuth } from "../../middlewares/user-auth.middleware";
 import { validateBody } from "../../middlewares/validate.middleware";
 import {
@@ -34,7 +34,8 @@ const writeLimiter = rateLimit({
 });
 
 router.get("/mine", getMyVehicleRequests);
-router.post("/", writeLimiter, validateBody(vehicleRequestSchema), createVehicleRequest);
+// JSON, or multipart with the JSON in field "payload" plus up to 3 optional pictures (field "attachments").
+router.post("/", writeLimiter, uploadVehicleReceipts.array("attachments", 3), parseVehicleJsonPayload, validateVehicleMultipart(vehicleRequestSchema), createVehicleRequest);
 router.patch("/:id", writeLimiter, validateBody(vehicleRequestUpdateSchema), updateMyVehicleRequest);
 router.post("/:id/cancel", writeLimiter, validateBody(vehicleCancelSchema), cancelMyVehicleRequest);
 // "Đã đi xong", with up to 3 optional pictures (field "receipts").

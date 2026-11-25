@@ -21,7 +21,7 @@ function uploadedReceipts(request: Request): UploadedReceipt[] {
 const id = (request: Request) => String(request.params.id);
 
 // ---- requester (user portal; request.user set by requireUserAuth) ----
-export const createVehicleRequest = handle((request) => userVehicleService.create(request.user!, request.body), "Đã gửi yêu cầu đặt xe. HR sẽ sắp xếp xe cho bạn.", 201);
+export const createVehicleRequest = handle((request) => userVehicleService.create(request.user!, request.body, uploadedReceipts(request)), "Đã gửi yêu cầu đặt xe. HR sẽ sắp xếp xe cho bạn.", 201);
 export const getMyVehicleRequests = handle((request) => userVehicleService.mine(request.user!));
 export const updateMyVehicleRequest = handle((request) => userVehicleService.update(request.user!, id(request), request.body), "Đã cập nhật yêu cầu đặt xe.");
 export const cancelMyVehicleRequest = handle((request) => userVehicleService.cancel(request.user!, id(request), request.body.reason), "Đã hủy yêu cầu đặt xe.");

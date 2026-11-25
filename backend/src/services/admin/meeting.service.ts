@@ -9,6 +9,7 @@ import { escapeRegex } from "../../utils/regex/escapeRegex";
 import { getVietnamDateTimeAsUtc, getVietnamNow } from "../../utils/time/vietnamTime";
 import { MIN_MEETING_GAP_MINUTES } from "../../config/meeting.config";
 import { remindMeetingBookingIfDue } from "../../jobs/meeting-booking-reminder.job";
+import { notificationService } from "../user/notification.service";
 
 const VIETNAMESE_LETTER_GROUPS: Record<string, string> = {
   a: "aáàảãạăắằẳẵặâấầẩẫậ",
@@ -123,7 +124,9 @@ export const adminMeetingService = {
       const updated = await adminMeetingRepository.update(booking, data, status === "upcoming", scheduleChanged);
       if (!updated) throw new AppError(409, "Lịch vừa thay đổi hoặc chuyển trạng thái. Vui lòng tải lại.");
       await adminMeetingRepository.revokeCancel(id);
-      return { before, after: toResponse(updated) };
+      const after = toResponse(updated);
+      await notificationService.meetingUpdatedByAdmin(before, after);
+      return { before, after };
     } catch (error) { return conflict(error); }
   },
   async remove(id: string) {
@@ -133,6 +136,8 @@ export const adminMeetingService = {
     const history = await adminMeetingRepository.deleteHistory(id);
     if (!deleted && !history) throw new AppError(404, "Không tìm thấy lịch họp.");
     await adminMeetingRepository.revokeCancel(id);
+    // Only a meeting that has not ended is worth telling the booker about.
+    if (deleted && statusOf(deleted) !== "ended") await notificationService.meetingCancelledByAdmin(toResponse(deleted));
     return deleted ? toResponse(deleted) : toResponse(history!, "history");
   },
   async requests(kind: "pending" | "cancel", query: MeetingRequestQuery) {

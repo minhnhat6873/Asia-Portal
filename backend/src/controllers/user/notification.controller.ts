@@ -31,3 +31,10 @@ export async function markAllNotificationsRead(request: Request, response: Respo
     response.json({ success: true });
   } catch (error) { next(error); }
 }
+
+export async function deleteAllNotifications(request: Request, response: Response, next: NextFunction): Promise<void> {
+  try {
+    await notificationService.deleteAll(request.user!.id);
+    response.json({ success: true });
+  } catch (error) { next(error); }
+}

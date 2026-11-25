@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Bell, CalendarCheck2, CalendarClock, CarFront, CheckCheck, Newspaper } from "lucide-react";
+import { Bell, CalendarCheck2, CalendarClock, CalendarX2, CarFront, CheckCheck, Newspaper } from "lucide-react";
 import { useState } from "react";
 import { Button, Dialog, DialogTrigger, Popover } from "react-aria-components";
 import {
@@ -20,9 +20,12 @@ export const NOTIFICATION_ICONS: Record<NotificationType, typeof Bell> = {
   news: Newspaper,
   "meeting-booked": CalendarCheck2,
   "meeting-reminder": CalendarClock,
+  "meeting-updated": CalendarClock,
+  "meeting-cancelled": CalendarX2,
   "vehicle-arranged": CarFront, "vehicle-updated": CarFront, "vehicle-completed": CarFront, "vehicle-cancelled": CarFront,
   "vehicle-reminder": CarFront, "vehicle-new": CarFront, "vehicle-arrived": CarFront, "vehicle-overdue": CarFront,
   "vehicle-pending-overdue": CarFront,
+  "vehicle-request-updated": CarFront, "vehicle-request-cancelled": CarFront,
 };
 
 export function NotificationRow({ item, onOpen }: { item: UserNotification; onOpen: (item: UserNotification) => void }) {
@@ -113,7 +116,7 @@ export default function NotificationBell() {
             ) : items.length === 0 ? (
               <p className="px-3 py-8 text-center text-sm text-slate-500">Bạn chưa có thông báo nào.</p>
             ) : (
-              items.map((item) => <NotificationRow key={item.id} item={item} onOpen={open} />)
+              items.map((item, index) => <div key={item.id} className={index >= 3 ? "hidden sm:block" : undefined}><NotificationRow item={item} onOpen={open} /></div>)
             )}
           </div>
           <div className="border-t border-slate-100 p-2">

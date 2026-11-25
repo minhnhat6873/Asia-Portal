@@ -113,5 +113,5 @@ export function useUnsavedChanges(hasChanges: boolean, isSaving: boolean) {
     await removeSentinel();
     action();
   };
-  return { isPromptOpen, cancelNavigation, leave };
+  return { isPromptOpen, cancelNavigation, hidePrompt: () => setPromptOpen(false), leave, requestLeave: askToLeave };
 }
