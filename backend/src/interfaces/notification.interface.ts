@@ -12,7 +12,7 @@ export interface UserNotification {
   type: NotificationType;
   title: string;
   message: string;
-  /** Site-relative link the notification opens, e.g. "/news/<id>". */
+  /** Site-relative link the notification opens, e.g. "/user/news/<id>". */
   link: string;
   /** The post or booking it is about; one notification per account, type and ref. */
   refId: string;

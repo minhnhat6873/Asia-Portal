@@ -290,7 +290,7 @@ export default function NewsSection({ preview = false, articleId = null }: Props
           </div>
           {preview && (
             <Link
-              href="/news"
+              href="/user/news"
               className="inline-flex shrink-0 items-center gap-2 text-sm font-bold sm:mb-1 sm:gap-3 sm:text-base text-[#0c5743] transition-colors hover:text-[#16894a] md:text-lg"
             >
               Xem tất cả <ArrowRight size={22} strokeWidth={2.5} />
@@ -388,7 +388,7 @@ export default function NewsSection({ preview = false, articleId = null }: Props
               >
                 {preview && (
                   <Link
-                    href={`/news?article=${encodeURIComponent(String(item.id))}`}
+                    href={`/user/news?article=${encodeURIComponent(String(item.id))}`}
                     scroll={false}
                     aria-label={item.title}
                     className="absolute inset-0 z-10 rounded-2xl focus-visible:outline-2 focus-visible:outline-offset-[-4px] focus-visible:outline-[#f5c800]"

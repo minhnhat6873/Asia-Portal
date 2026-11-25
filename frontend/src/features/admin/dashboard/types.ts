@@ -26,7 +26,6 @@ export interface Employee {
 
 export type MediaCategory = 'Sự kiện' | 'Tin tức' | 'Nhân sự' | 'Thông báo' | 'Đào Tạo';
 
-export type MediaVisibility = "public" | "internal";
 
 export interface MediaPost {
   isDeleted?: boolean;
@@ -48,8 +47,6 @@ export interface MediaPost {
   isExpired?: boolean;
   hiddenReason?: "expired" | "manual" | null;
   status: 'published' | 'draft';
-  /** public: anyone can read it; internal (or missing on older posts): signed-in accounts only. */
-  visibility?: MediaVisibility;
   createdBy?: { accountId: string; name: string; email: string };
   createdAt?: string;
 }

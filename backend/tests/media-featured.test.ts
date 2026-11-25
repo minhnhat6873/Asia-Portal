@@ -13,7 +13,7 @@ it("lấy tối đa 3 bài nổi bật theo thứ tự vị trí, không theo ng
   jest.mocked(userMediaRepository.findAll).mockResolvedValueOnce([
     post("c", { featured: true, featuredSlot: 3 }), post("a", { featured: true, featuredSlot: 1 }), post("b", { featured: true, featuredSlot: 2 }),
   ] as never);
-  const result = await userMediaService.getMedia({ featured: "true", limit: "5" }, true);
+  const result = await userMediaService.getMedia({ featured: "true", limit: "5" });
   expect(result.items.map((item) => item._id)).toEqual(["a", "b", "c"]);
   expect(userMediaRepository.findAll).toHaveBeenCalledTimes(1);
   expect(userMediaRepository.findAll).toHaveBeenCalledWith(expect.objectContaining({ filter: { featured: true } }));
@@ -24,7 +24,7 @@ it("chưa đủ 3 bài nổi bật thì lấy bài mới nhất bù vào, không
   jest.mocked(userMediaRepository.findAll)
     .mockResolvedValueOnce([post("x", { featured: true, featuredSlot: 2 })] as never)
     .mockResolvedValueOnce([post("n1"), post("n2")] as never);
-  const result = await userMediaService.getMedia({ featured: "true" }, true);
+  const result = await userMediaService.getMedia({ featured: "true" });
   expect(result.items.map((item) => item._id)).toEqual(["x", "n1", "n2"]);
   expect(userMediaRepository.findAll).toHaveBeenLastCalledWith(expect.objectContaining({
     filter: { _id: { $nin: ["x"] } }, limit: 2, sort: { publishDate: -1, _id: -1 },
@@ -34,7 +34,7 @@ it("chưa đủ 3 bài nổi bật thì lấy bài mới nhất bù vào, không
 it("không chọn bài nổi bật nào thì hiện 3 bài mới nhất", async () => {
   jest.mocked(userMediaRepository.findAll).mockReset();
   jest.mocked(userMediaRepository.findAll).mockResolvedValueOnce([] as never).mockResolvedValueOnce([post("n1"), post("n2"), post("n3")] as never);
-  const result = await userMediaService.getMedia({ featured: "true" }, true);
+  const result = await userMediaService.getMedia({ featured: "true" });
   expect(result.items.map((item) => item._id)).toEqual(["n1", "n2", "n3"]);
   expect(userMediaRepository.findAll).toHaveBeenLastCalledWith(expect.objectContaining({ limit: 3 }));
 });
@@ -52,34 +52,23 @@ it("cho chọn nổi bật nhưng không cho client đặt thời điểm bật"
   expect(createMediaSchema.validate({}).error).toBeDefined();
 });
 
-it("bài nội bộ (hoặc bài cũ chưa đặt phạm vi) yêu cầu đăng nhập; bài công khai ai cũng xem được", async () => {
+it("mọi bài đều nội bộ: không còn trường phạm vi hiển thị, bài cũ có visibility vẫn mở được", async () => {
   const id = "507f1f77bcf86cd799439011";
-  jest.mocked(userMediaRepository.findById).mockResolvedValue({ _id: id, title: "Tin", visibility: "internal" } as never);
-  await expect(userMediaService.getMediaById(id)).rejects.toMatchObject({ statusCode: 401 });
-  await expect(userMediaService.getMediaById(id, true)).resolves.toMatchObject({ title: "Tin" });
-  jest.mocked(userMediaRepository.findById).mockResolvedValue({ _id: id, title: "Tin cũ" } as never);
-  await expect(userMediaService.getMediaById(id)).rejects.toMatchObject({ statusCode: 401 });
   jest.mocked(userMediaRepository.findById).mockResolvedValue({ _id: id, title: "Tin", visibility: "public" } as never);
   await expect(userMediaService.getMediaById(id)).resolves.toMatchObject({ title: "Tin" });
+  expect(createMediaSchema.describe().keys).not.toHaveProperty("visibility");
+  expect(updateMediaSchema.validate({ visibility: "public" }).error).toBeDefined();
+  expect(mediaListQuerySchema.validate({ visibilities: "public" }).error).toBeDefined();
 });
 
-it("phạm vi hiển thị mặc định là nội bộ và chỉ nhận public/internal", () => {
-  expect(createMediaSchema.extract("visibility").validate(undefined).value).toBe("internal");
-  expect(updateMediaSchema.validate({ visibility: "secret" }).error?.message).toContain("Công khai hoặc Nội bộ");
-  expect(updateMediaSchema.validate({ visibility: "public" }).error).toBeUndefined();
-});
-
-it("khách chưa đăng nhập chỉ nhận bài công khai, kể cả khi tìm kiếm", async () => {
+it("danh sách tin không lọc theo phạm vi, kể cả khi tìm kiếm", async () => {
   jest.mocked(userMediaRepository.findAll).mockReset();
   jest.mocked(userMediaRepository.findAll).mockResolvedValue([]);
   jest.mocked(userMediaRepository.count).mockResolvedValue(0);
   jest.mocked(userMediaRepository.findAllForSearch).mockResolvedValue([]);
   await userMediaService.getMedia({ featured: "true", limit: "5" });
-  expect(userMediaRepository.findAll).toHaveBeenNthCalledWith(1, expect.objectContaining({ filter: { visibility: "public", featured: true } }));
-  // Fill-in posts for guests are public too.
-  expect(userMediaRepository.findAll).toHaveBeenNthCalledWith(2, expect.objectContaining({ filter: { visibility: "public", _id: { $nin: [] } } }));
+  expect(userMediaRepository.findAll).toHaveBeenNthCalledWith(1, expect.objectContaining({ filter: { featured: true } }));
+  expect(userMediaRepository.findAll).toHaveBeenNthCalledWith(2, expect.objectContaining({ filter: { _id: { $nin: [] } } }));
   await userMediaService.getMedia({ search: "abc" });
-  expect(userMediaRepository.findAllForSearch).toHaveBeenLastCalledWith({ visibility: "public" }, expect.anything());
-  await userMediaService.getMedia({ search: "abc" }, true);
   expect(userMediaRepository.findAllForSearch).toHaveBeenLastCalledWith({}, expect.anything());
 });

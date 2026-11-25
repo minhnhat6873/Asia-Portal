@@ -3,10 +3,8 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import Image from "next/image";
 import { Frown, Leaf, MessageSquareText, Send, User, X } from "lucide-react";
-import { usePathname, useRouter } from "next/navigation";
 import { ApiError } from "@/services/api";
 import { useUserSession } from "@/lib/userSession";
-import { loginHref } from "@/components/auth/LoginRequired";
 import { submitFeedback } from "@/services/feedback.service";
 import RichTextEditor from "@/components/ui/RichTextEditor";
 import { FEEDBACK_LIMITS, type FeedbackSubmission } from "@/features/admin/feedback/feedback.types";
@@ -81,8 +79,6 @@ export default function FeedbackDialog() {
   const [anonymous, setAnonymous] = useState(false);
   // Only signed-in accounts can send feedback; a named one always uses the account's name and email.
   const session = useUserSession();
-  const router = useRouter();
-  const pathname = usePathname();
   const name = session.account?.name ?? "";
   const email = session.account?.email ?? "";
   const [touched, setTouched] = useState<Partial<Record<FieldName, boolean>>>({});
@@ -152,7 +148,7 @@ export default function FeedbackDialog() {
 
   return (
     <>
-      <button ref={triggerRef} type="button" aria-haspopup="dialog" onClick={() => { if (session.status === "user") setIsOpen(true); else router.push(loginHref(pathname)); }} title={session.status === "user" ? undefined : "Đăng nhập để gửi ý kiến"} className="text-left text-sm text-white/60 transition-colors hover:text-[#f5c800] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white">
+      <button ref={triggerRef} type="button" aria-haspopup="dialog" onClick={() => setIsOpen(true)} className="text-left text-sm text-white/60 transition-colors hover:text-[#f5c800] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white">
         Đóng góp ý kiến
       </button>
       {isOpen && <div role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }} className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">

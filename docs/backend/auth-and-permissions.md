@@ -160,7 +160,7 @@ Thay đổi thông tin, quyền hoặc mật khẩu chưa lưu đều kích ho�
 ## Cổng người dùng khi website mở ra Internet
 
 - Danh bạ nhân viên, sơ đồ tổ chức (phần nhân viên theo phòng), lịch họp, đặt/hủy phòng, góp ý, hồ sơ, cài đặt và thông báo đều qua `requireUserAuth` (`backend/src/middlewares/user-auth.middleware.ts`). Giao diện ẩn các phần này với khách, nhưng chính API mới là nơi chặn.
-- `/user/media` dùng `attachUser`: khách chỉ thấy bài `visibility: "public"`.
+- `/user/media` cũng qua `requireUserAuth`: toàn bộ cổng là nội bộ, mọi bài truyền thông chỉ dành cho tài khoản đã đăng nhập. Chỉ `/user/auth/*` và `/user/site-settings` (màn hình đăng nhập cần đọc) là công khai.
 - Chỉ nhận cookie `asia_user_token` (JWT `aud: "asia-user"`); token cổng quản trị bị từ chối. Phiên vẫn kiểm tra `authVersion` và bản ghi `AuthSession` như cổng quản trị.
 - `GET /user/auth/me` và `/refresh` trả thêm `canAccessAdmin` (role admin/manager), `position`, `department`, `avatar` từ hồ sơ nhân viên cùng email. `canAccessAdmin` chỉ để hiện liên kết "Vào trang quản trị" (mở tab mới); trang quản trị vẫn bắt đăng nhập riêng và phiên cổng người dùng luôn có `permissions: []`.
 - Đổi mật khẩu ở cổng người dùng cần mật khẩu hiện tại, dùng chung chính sách mật khẩu; sau khi đổi, `authVersion` tăng nên mọi phiên khác bị đăng xuất, thiết bị hiện tại được cấp phiên mới.

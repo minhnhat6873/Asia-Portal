@@ -41,22 +41,18 @@ describe("admin media category and scope filtering", () => {
     jest.mocked(adminMediaRepository.findAll).mockResolvedValue([]);
     jest.mocked(adminMediaRepository.count).mockResolvedValue(13);
   });
-  it("combines categories and internal scope for rows and pagination, including legacy internal posts", async () => {
-    const result = await adminMediaService.getMedia({ categories: "Thông báo,Sự kiện", visibilities: "internal", page: "2", limit: "10", status: "published" });
-    const filter = { isDeleted: { $ne: true }, category: { $in: ["Thông báo", "Sự kiện"] }, visibility: { $ne: "public" }, status: "published" };
+  it("combines categories and status for rows and pagination", async () => {
+    const result = await adminMediaService.getMedia({ categories: "Thông báo,Sự kiện", page: "2", limit: "10", status: "published" });
+    const filter = { isDeleted: { $ne: true }, category: { $in: ["Thông báo", "Sự kiện"] }, status: "published" };
     expect(adminMediaRepository.findAll).toHaveBeenCalledWith(expect.objectContaining({ filter, skip: 10, limit: 10 }));
     expect(adminMediaRepository.count).toHaveBeenCalledWith(filter);
     expect(result.pagination).toMatchObject({ total: 13, page: 2, totalPages: 2 });
   });
-  it("applies the same scope and category restrictions when searching", async () => {
+  it("applies the same category restrictions when searching", async () => {
     jest.mocked(adminMediaRepository.findAllForSearch).mockResolvedValue([post] as never);
-    const result = await adminMediaService.getMedia({ search: "bai viet", categories: "Thông báo", visibilities: "public" });
-    expect(adminMediaRepository.findAllForSearch).toHaveBeenCalledWith({ isDeleted: { $ne: true }, category: { $in: ["Thông báo"] }, visibility: "public" }, expect.anything());
+    const result = await adminMediaService.getMedia({ search: "bai viet", categories: "Thông báo" });
+    expect(adminMediaRepository.findAllForSearch).toHaveBeenCalledWith({ isDeleted: { $ne: true }, category: { $in: ["Thông báo"] } }, expect.anything());
     expect(result.pagination.total).toBe(1);
-  });
-  it("does not restrict visibility when both scopes are selected", async () => {
-    await adminMediaService.getMedia({ visibilities: "public,internal" });
-    expect(adminMediaRepository.count).toHaveBeenCalledWith({ isDeleted: { $ne: true } });
   });
 });
 

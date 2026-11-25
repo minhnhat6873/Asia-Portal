@@ -116,7 +116,7 @@ export default function NotificationBell() {
             )}
           </div>
           <div className="border-t border-slate-100 p-2">
-            <Link href="/account/notifications" onClick={() => setIsOpen(false)} className="block rounded-xl px-3 py-2 text-center text-sm font-semibold text-emerald-700 hover:bg-emerald-50">
+            <Link href="/user/account/notifications" onClick={() => setIsOpen(false)} className="block rounded-xl px-3 py-2 text-center text-sm font-semibold text-emerald-700 hover:bg-emerald-50">
               Xem tất cả thông báo
             </Link>
           </div>

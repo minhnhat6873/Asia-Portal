@@ -332,7 +332,7 @@ export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: b
       window.requestAnimationFrame(() => scheduleRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
       return;
     }
-    router.push("/meeting/schedule");
+    router.push("/user/meeting/schedule");
   };
 
   useEffect(() => {
@@ -560,7 +560,7 @@ export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: b
         {!scheduleOnly ? (
           <>
             <nav aria-label="Breadcrumb" className="mb-7 flex items-center gap-2 text-sm text-slate-500">
-              <Link href="/" className="hover:text-[#1a7a1a]">Trang chủ</Link><ChevronRight size={15} />
+              <Link href="/user" className="hover:text-[#1a7a1a]">Trang chủ</Link><ChevronRight size={15} />
               <span className="font-semibold text-slate-800">Đặt phòng họp</span>
             </nav>
 
@@ -571,7 +571,7 @@ export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: b
 
         <div className={scheduleOnly ? "" : "hidden"}>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <Link href="/meeting" className="group relative flex min-h-[116px] flex-col items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-[#08723d] to-[#159447] px-4 py-3 text-center text-white shadow-[0_8px_18px_rgba(8,114,61,0.2)] transition-transform hover:-translate-y-0.5"><span aria-hidden="true" className="absolute -right-5 -top-7 h-20 w-20 rounded-full bg-lime-300/20" /><span className="relative text-[10px] font-bold uppercase tracking-[0.12em] text-emerald-100">Đặt phòng mới</span><span className="relative mt-1 inline-flex items-center gap-2 text-sm font-extrabold"><span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/15 transition-transform group-hover:-translate-x-0.5"><ArrowLeft size={16} /></span>Quay về đặt phòng</span><span className="relative mt-1 text-[11px] text-emerald-100">Chọn phòng và khung giờ phù hợp</span></Link>
+          <Link href="/user/meeting" className="group relative flex min-h-[116px] flex-col items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-[#08723d] to-[#159447] px-4 py-3 text-center text-white shadow-[0_8px_18px_rgba(8,114,61,0.2)] transition-transform hover:-translate-y-0.5"><span aria-hidden="true" className="absolute -right-5 -top-7 h-20 w-20 rounded-full bg-lime-300/20" /><span className="relative text-[10px] font-bold uppercase tracking-[0.12em] text-emerald-100">Đặt phòng mới</span><span className="relative mt-1 inline-flex items-center gap-2 text-sm font-extrabold"><span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/15 transition-transform group-hover:-translate-x-0.5"><ArrowLeft size={16} /></span>Quay về đặt phòng</span><span className="relative mt-1 text-[11px] text-emerald-100">Chọn phòng và khung giờ phù hợp</span></Link>
           <StatCard label="Tổng lịch đã đặt" value={bookings.length} unit="cuộc họp" description="Tất cả lịch đã xác nhận" />
           <StatCard label="Lịch họp hôm nay" value={todayCount} unit="cuộc họp" description="Lịch diễn ra trong ngày" green />
           <button type="button" onClick={openSchedule} className="group relative flex min-h-[116px] flex-col items-center justify-center overflow-hidden rounded-xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white px-4 py-3 text-center shadow-sm transition-all hover:-translate-y-0.5 hover:border-[#159447] hover:shadow-[0_8px_18px_rgba(8,114,61,0.12)]"><span aria-hidden="true" className="absolute -right-5 -bottom-8 h-20 w-20 rounded-full bg-[#f5c800]/20" /><span className="relative text-[10px] font-bold uppercase tracking-[0.12em] text-emerald-700">Lịch họp hôm nay</span><span className="relative mt-1 inline-flex items-center gap-2 text-sm font-extrabold text-[#08723d]"><span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#159447] text-white shadow-sm transition-transform group-hover:scale-105"><Printer size={15} /></span>In lịch đặt phòng</span><span className="relative mt-1 text-[11px] text-slate-500">Mở trang lịch để xem trước bản in</span></button>
@@ -738,8 +738,8 @@ function BookedScheduleDashboard({
   return <div className="meeting-booked-schedule min-h-screen bg-[#f7faf8] text-slate-800">
     <div className="mx-auto max-w-[1220px] px-5 py-4 pb-7">
       <nav aria-label="Breadcrumb" className="mb-4 flex flex-wrap items-center gap-2 text-sm text-slate-500">
-        <Link href="/" className="transition hover:text-[#1a7a1a]">Trang chủ</Link><ChevronRight size={16} />
-        <Link href="/meeting" className="font-semibold text-slate-700 transition hover:text-[#1a7a1a]">Đặt phòng họp</Link><ChevronRight size={16} />
+        <Link href="/user" className="transition hover:text-[#1a7a1a]">Trang chủ</Link><ChevronRight size={16} />
+        <Link href="/user/meeting" className="font-semibold text-slate-700 transition hover:text-[#1a7a1a]">Đặt phòng họp</Link><ChevronRight size={16} />
         <span className="font-bold text-[#0d5c0d]">Xem lịch phòng họp</span>
       </nav>
       <section className="flex flex-wrap items-center justify-between gap-3">
@@ -1036,7 +1036,7 @@ function RoomBookingCards({ bookings, loaded, loadError, onBook }: { bookings: B
             <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-emerald-200">Á Châu Asia F&amp;B</p>
             <h2 className="mt-2 text-2xl font-extrabold leading-tight tracking-tight sm:text-[28px]">Không gian họp dành cho <span className="text-[#8de29d]">mọi ý tưởng</span></h2>
             <p className="mt-2 max-w-[500px] text-xs leading-5 text-emerald-50">“Nơi tầm nhìn được chia sẻ, trí tuệ được kết nối, khác biệt được tôn trọng và những quyết định lớn được chuyển hóa thành hành động.”</p>
-            <Link href="/meeting/schedule" className="mt-4 inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-emerald-500/60 bg-[#08694f] px-4 py-2 text-xs font-bold text-white shadow-sm transition-colors hover:border-emerald-400/70 hover:bg-[#07966b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300"><CalendarDays size={15} />Xem lịch phòng trống<ArrowRight size={15} /></Link>
+            <Link href="/user/meeting/schedule" className="mt-4 inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-emerald-500/60 bg-[#08694f] px-4 py-2 text-xs font-bold text-white shadow-sm transition-colors hover:border-emerald-400/70 hover:bg-[#07966b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300"><CalendarDays size={15} />Xem lịch phòng trống<ArrowRight size={15} /></Link>
           </div>
         </div>
       </section>

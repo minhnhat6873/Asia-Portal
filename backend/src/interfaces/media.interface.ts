@@ -1,7 +1,5 @@
 export const MEDIA_CATEGORIES = ["Sự kiện", "Tin tức", "Nhân sự", "Thông báo", "Đào Tạo"] as const;
 export const MEDIA_STATUSES = ["published", "draft"] as const;
-// public: anyone on the Internet can read it; internal: only signed-in accounts.
-export const MEDIA_VISIBILITIES = ["public", "internal"] as const;
 /** Home page shows at most this many featured posts (slots 1..N); missing ones are filled with the latest posts. */
 export const MEDIA_FEATURED_LIMIT = 3;
 export const MEDIA_AUTHOR_DEPARTMENTS = [
@@ -12,7 +10,6 @@ export const MEDIA_AUTHOR_DEPARTMENTS = [
 
 export type MediaCategory = (typeof MEDIA_CATEGORIES)[number];
 export type MediaStatus = (typeof MEDIA_STATUSES)[number];
-export type MediaVisibility = (typeof MEDIA_VISIBILITIES)[number];
 
 export interface MediaActor {
   accountId: string;
@@ -57,8 +54,6 @@ export interface Media {
   showAfterExpiry?: boolean;
   hiddenReason?: "expired" | "manual" | null;
   status: MediaStatus;
-  /** Missing on older posts, which count as internal. */
-  visibility?: MediaVisibility;
   /** When the "new post" notification went out; internal, never returned. */
   newsNotifiedAt?: Date | null;
   isDeleted?: boolean;
@@ -78,7 +73,6 @@ export type UpdateMediaInput = Partial<CreateMediaInput>;
 
 export interface MediaListQuery {
   categories?: string;
-  visibilities?: string;
   search?: string;
   category?: MediaCategory;
   status?: MediaStatus;
@@ -86,6 +80,5 @@ export interface MediaListQuery {
   limit?: string;
   sort?: "latest" | "oldest";
   featured?: string;
-  visibility?: MediaVisibility;
 }
 

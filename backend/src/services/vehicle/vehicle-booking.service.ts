@@ -5,6 +5,7 @@ import type {
   StoredVehicleBooking,
   VehicleArrangeInput,
   VehicleBooking,
+  VehicleChange,
   VehicleListQuery,
   VehiclePerson,
   VehicleReceipt,
@@ -16,10 +17,21 @@ import { AppError } from "../../utils/errors/AppError";
 import { escapeRegex } from "../../utils/regex/escapeRegex";
 import { getVietnamDateTimeAsUtc } from "../../utils/time/vietnamTime";
 import { removeVehicleReceiptFiles } from "../../utils/vehicle/receipts";
-import { vehicleNotifier } from "./vehicle-notifier";
+import { formatVietnamTime, vehicleNotifier } from "./vehicle-notifier";
 
 /** Requests must be sent at least this long before departure, so HR can arrange a car. */
 export const VEHICLE_MIN_LEAD_MINUTES = 15;
+/** Departure at most this many days ahead (catches typos such as year 2062). */
+export const VEHICLE_MAX_DAYS_AHEAD = 90;
+/** A round trip comes back within this many days. */
+export const VEHICLE_MAX_TRIP_DAYS = 30;
+/**
+ * TẠM ĐỂ TEST: true cho phép chốt chuyến với giờ hoàn thành thật ở tương lai.
+ * Test xong đổi về false (và VEHICLE_ALLOW_FUTURE_END trong VehicleTripDialog.tsx).
+ */
+export const VEHICLE_ALLOW_FUTURE_END = true;
+const DAY_MS = 24 * 60 * 60_000;
+const placeKey = (text: string) => text.normalize("NFC").toLocaleLowerCase("vi").replace(/\s+/g, " ").trim();
 const MAX_RECEIPTS = 6;
 const MY_TRIPS_DAYS = 60;
 
@@ -44,45 +56,62 @@ const fieldError = (field: string, message: string) => new AppError(400, message
 function buildTrip(input: Partial<VehicleRequestInput>, current: Partial<VehicleBooking> | null, options: { requireLead: boolean }) {
   const next: Partial<VehicleBooking> = {};
   const has = (key: keyof VehicleRequestInput) => input[key] !== undefined;
-  for (const key of ["purpose", "customerName", "customerPhone", "goodsDescription", "senderName", "senderPhone", "receiverName", "receiverPhone", "pickup", "destination", "note", "roundTrip"] as const) {
+  for (const key of ["forOther", "forOtherName", "forOtherPhone", "purpose", "customerName", "customerPhone", "goodsDescription", "goodsQuantity", "senderName", "senderPhone", "receiverName", "receiverPhone", "pickup", "destination", "note", "roundTrip"] as const) {
     if (has(key)) (next as Record<string, unknown>)[key] = input[key];
   }
   if (has("passengerCount")) next.passengerCount = input.passengerCount ?? null;
+  if (has("pickupLocation")) next.pickupLocation = input.pickupLocation ?? null;
   if (has("departAt")) next.departAt = parseLocal(input.departAt!);
   if (has("expectedEndAt")) next.expectedEndAt = parseLocal(input.expectedEndAt!);
   if (has("returnAt")) next.returnAt = input.returnAt ? parseLocal(input.returnAt) : null;
 
   const merged = { ...current, ...next };
   if (!merged.roundTrip) next.returnAt = null;
+  // Booked for someone else: HR needs that person's name and phone to reach them.
+  if (merged.forOther) {
+    if (!merged.forOtherName?.trim()) throw fieldError("forOtherName", "Vui lòng nhập họ tên người được đặt giúp.");
+    if (!merged.forOtherPhone?.trim()) throw fieldError("forOtherPhone", "Vui lòng nhập số điện thoại người được đặt giúp.");
+  } else if (has("forOther")) Object.assign(next, { forOtherName: "", forOtherPhone: "" });
   const purpose = merged.purpose;
   if (purpose === "guest") {
     if (!merged.customerName?.trim()) throw fieldError("customerName", "Vui lòng nhập tên khách hoặc công ty.");
     if (!merged.passengerCount) throw fieldError("passengerCount", "Vui lòng nhập số người.");
-    if (has("purpose")) Object.assign(next, { goodsDescription: "", senderName: "", senderPhone: "", receiverName: "", receiverPhone: "" });
+    if (has("purpose")) Object.assign(next, { goodsDescription: "", goodsQuantity: "", senderName: "", senderPhone: "", receiverName: "", receiverPhone: "" });
   }
   if (purpose === "delivery") {
     const required: [keyof VehicleBooking, string][] = [
       ["senderName", "Vui lòng nhập tên người gửi."], ["senderPhone", "Vui lòng nhập số điện thoại người gửi."],
       ["receiverName", "Vui lòng nhập tên người nhận."], ["receiverPhone", "Vui lòng nhập số điện thoại người nhận."],
       ["goodsDescription", "Vui lòng mô tả hàng hóa."],
+      ["goodsQuantity", "Vui lòng nhập số lượng / khối lượng hàng."],
     ];
     for (const [field, message] of required) if (!String(merged[field] ?? "").trim()) throw fieldError(field, message);
+    // Phones arrive normalised ("0901234567"), so the same number written differently still matches.
+    if (merged.senderPhone === merged.receiverPhone) throw fieldError("receiverPhone", "Số điện thoại người nhận phải khác người gửi.");
     // Lists and reports show the two sides as the "customer".
     next.customerName = `${String(merged.senderName).trim()} → ${String(merged.receiverName).trim()}`;
     next.customerPhone = "";
     next.passengerCount = null;
   }
 
+  if (merged.pickup && merged.destination && placeKey(merged.pickup) === placeKey(merged.destination)) {
+    throw fieldError("destination", "Điểm đến phải khác điểm đón.");
+  }
+
   const departAt = merged.departAt!;
   if (options.requireLead && (has("departAt") || !current) && departAt.getTime() < Date.now() + VEHICLE_MIN_LEAD_MINUTES * 60_000) {
     throw fieldError("departAt", `Vui lòng đặt xe trước giờ đi ít nhất ${VEHICLE_MIN_LEAD_MINUTES} phút.`);
   }
+  if ((has("departAt") || !current) && departAt.getTime() > Date.now() + VEHICLE_MAX_DAYS_AHEAD * DAY_MS) {
+    throw fieldError("departAt", `Chỉ đặt xe trước tối đa ${VEHICLE_MAX_DAYS_AHEAD} ngày.`);
+  }
   const returnAt = merged.roundTrip ? (next.returnAt !== undefined ? next.returnAt : merged.returnAt) : null;
   if (merged.roundTrip && !returnAt) throw fieldError("returnAt", "Vui lòng chọn giờ về.");
   if (returnAt && returnAt <= departAt) throw fieldError("returnAt", "Giờ về phải sau giờ đi.");
-  const expectedEndAt = merged.expectedEndAt!;
-  if (expectedEndAt <= departAt) throw fieldError("expectedEndAt", "Thời gian hoàn thành dự kiến phải sau giờ đi.");
-  if (returnAt && expectedEndAt < returnAt) throw fieldError("expectedEndAt", "Thời gian hoàn thành dự kiến không được trước giờ về.");
+  if (returnAt && returnAt.getTime() - departAt.getTime() > VEHICLE_MAX_TRIP_DAYS * DAY_MS) throw fieldError("returnAt", `Giờ về cách giờ đi tối đa ${VEHICLE_MAX_TRIP_DAYS} ngày.`);
+  const expectedEndAt = merged.expectedEndAt ?? null;
+  if (expectedEndAt && expectedEndAt <= departAt) throw fieldError("expectedEndAt", "Thời gian hoàn thành dự kiến phải sau giờ đi.");
+  if (expectedEndAt && returnAt && expectedEndAt < returnAt) throw fieldError("expectedEndAt", "Thời gian hoàn thành dự kiến không được trước giờ về.");
   // A changed time starts the reminders again.
   if (has("departAt")) (next as Record<string, unknown>).departReminderSentAt = null;
   if (has("expectedEndAt")) Object.assign(next, { hrOverdueNotifiedAt: null, hrOverdueEmailedAt: null });
@@ -93,21 +122,26 @@ function toResponse(trip: StoredVehicleBooking) {
   return {
     id: String(trip._id),
     requester: trip.requester,
+    forOther: trip.forOther === true,
+    forOtherName: trip.forOtherName ?? "",
+    forOtherPhone: trip.forOtherPhone ?? "",
     purpose: trip.purpose,
     customerName: trip.customerName,
     customerPhone: trip.customerPhone ?? "",
     passengerCount: trip.passengerCount ?? null,
     goodsDescription: trip.goodsDescription ?? "",
+    goodsQuantity: trip.goodsQuantity ?? "",
     senderName: trip.senderName ?? "",
     senderPhone: trip.senderPhone ?? "",
     receiverName: trip.receiverName ?? "",
     receiverPhone: trip.receiverPhone ?? "",
     pickup: trip.pickup,
+    pickupLocation: trip.pickupLocation?.lat != null ? { lat: trip.pickupLocation.lat, lng: trip.pickupLocation.lng, accuracy: trip.pickupLocation.accuracy ?? null } : null,
     destination: trip.destination,
     departAt: trip.departAt,
     roundTrip: trip.roundTrip,
     returnAt: trip.returnAt ?? null,
-    expectedEndAt: trip.expectedEndAt,
+    expectedEndAt: trip.expectedEndAt ?? null,
     note: trip.note ?? "",
     status: trip.status,
     vehicleType: trip.vehicleType ?? null,
@@ -117,8 +151,10 @@ function toResponse(trip: StoredVehicleBooking) {
     estimatedCost: trip.estimatedCost ?? null,
     actualCost: trip.actualCost ?? null,
     receipts: (trip.receipts ?? []).map(({ url, uploadedBy, at }) => ({ url, uploadedBy, at })),
+    changes: (trip.changes ?? []).map((change) => ({ at: change.at, byName: change.by?.name ?? "", reason: change.reason, items: change.items })),
     arrangedBy: trip.arrangedBy ? { name: trip.arrangedBy.name } : null,
     arrivedAt: trip.arrivedAt ?? null,
+    actualEndAt: trip.actualEndAt ?? null,
     completedAt: trip.completedAt ?? null,
     completedBy: trip.completedBy ? { name: trip.completedBy.name } : null,
     cancel: trip.cancel ? { byName: trip.cancel.by?.name ?? "", byRequester: trip.cancel.byRequester, reason: trip.cancel.reason, at: trip.cancel.at } : null,
@@ -137,6 +173,22 @@ async function loadOwn(account: AuthenticatedAccount, id: string) {
   const trip = await vehicleBookingRepository.findById(id) as StoredVehicleBooking | null;
   if (!trip || trip.requester.accountId !== account.id) throw new AppError(404, "Không tìm thấy chuyến xe của bạn.");
   return trip;
+}
+
+/** What HR changed compared with the stored trip (only what the requester asked for). */
+function describeChange(trip: StoredVehicleBooking, set: Record<string, unknown>): VehicleChange["items"] {
+  const items: VehicleChange["items"] = [];
+  const time = (value: unknown) => (value instanceof Date ? formatVietnamTime(value) : "—");
+  for (const [key, label] of [["departAt", "Giờ đi"], ["returnAt", "Giờ về"]] as const) {
+    if (!(key in set)) continue;
+    const before = trip[key] ? new Date(trip[key]!).getTime() : null;
+    const after = set[key] instanceof Date ? (set[key] as Date).getTime() : null;
+    if (before !== after) items.push({ label, from: time(trip[key] ? new Date(trip[key]!) : null), to: time(set[key]) });
+  }
+  for (const [key, label] of [["pickup", "Điểm đón"], ["destination", "Điểm đến"]] as const) {
+    if (key in set && String(set[key]).trim() !== trip[key].trim()) items.push({ label, from: trip[key], to: String(set[key]) });
+  }
+  return items;
 }
 
 /** The requester's side (user portal). */
@@ -210,7 +262,7 @@ function listFilter(query: VehicleListQuery): QueryFilter<VehicleBooking> {
   const search = query.search?.trim();
   if (search) {
     const expression = new RegExp(escapeRegex(search), "i");
-    filter.$or = [{ customerName: expression }, { "requester.name": expression }, { "requester.email": expression }, { pickup: expression }, { destination: expression }];
+    filter.$or = [{ customerName: expression }, { "requester.name": expression }, { "requester.email": expression }, { forOtherName: expression }, { pickup: expression }, { destination: expression }];
   }
   return filter;
 }
@@ -258,8 +310,19 @@ export const hrVehicleService = {
   async arrange(admin: AuthenticatedAccount, id: string, input: VehicleArrangeInput) {
     const trip = await loadAny(id);
     if (!["pending", "arranged", "arrived"].includes(trip.status)) throw new AppError(409, "Chuyến xe đã chốt hoặc đã hủy, không sửa được nữa.");
-    const { vehicleType, driverName, driverPlate, driverPhone, estimatedCost, ...tripInput } = input;
+    // The requester's note stays theirs; HR explains changes with changeReason instead.
+    const { vehicleType, driverName, driverPlate, driverPhone, estimatedCost, changeReason, note: _requesterNote, ...tripInput } = input;
     const set: Record<string, unknown> = buildTrip(tripInput, trip, { requireLead: false });
+    // Changing what the requester asked for (time or route) needs a reason, which is sent to
+    // them. Without such a change, a reason typed anyway is kept and sent as a note from HR
+    // (never dropped silently).
+    const change = describeChange(trip, set);
+    const reasonText = (changeReason ?? "").trim();
+    if (change.length && reasonText.length < 3) {
+      throw fieldError("changeReason", "Vui lòng nhập lý do thay đổi (ít nhất 3 ký tự) để báo cho người đặt.");
+    }
+    if (reasonText && reasonText.length < 3) throw fieldError("changeReason", "Lời nhắn cho người đặt cần ít nhất 3 ký tự.");
+    const changeEntry: VehicleChange | null = change.length || reasonText ? { at: new Date(), by: person(admin), reason: reasonText, items: change } : null;
     const type = vehicleType ?? trip.vehicleType ?? null;
     if (vehicleType !== undefined) set.vehicleType = vehicleType;
     if (type === "external") {
@@ -270,26 +333,40 @@ export const hrVehicleService = {
     if (type === "company") set.estimatedCost = null;
     for (const [key, value] of Object.entries({ driverName, driverPlate, driverPhone })) if (value !== undefined) set[key] = value;
     const becomesArranged = trip.status === "pending" && Boolean(type);
+    // HR sets the expected end together with the car; reminders count from it.
+    if (type && !(set.expectedEndAt ?? trip.expectedEndAt)) throw fieldError("expectedEndAt", "Vui lòng nhập thời gian hoàn thành dự kiến.");
     if (becomesArranged) Object.assign(set, { status: "arranged", arrangedBy: person(admin) });
     if (trip.status === "pending" && !type && Object.keys(set).length === 0) throw fieldError("vehicleType", "Vui lòng chọn loại xe.");
 
-    const saved = await vehicleBookingRepository.updateIfStatus(id, [trip.status], { $set: set }) as StoredVehicleBooking | null;
+    const update: UpdateQuery<VehicleBooking> = changeEntry ? { $set: set, $push: { changes: changeEntry } } : { $set: set };
+    const saved = await vehicleBookingRepository.updateIfStatus(id, [trip.status], update) as StoredVehicleBooking | null;
     if (!saved) throw changedElsewhere();
-    await vehicleNotifier.toRequester(saved, becomesArranged ? "vehicle-arranged" : "vehicle-updated");
+    await vehicleNotifier.toRequester(saved, becomesArranged ? "vehicle-arranged" : "vehicle-updated", changeEntry);
+    // A changed time or place matters before departure: email as well, not only the web bell.
+    if (changeEntry) await vehicleNotifier.emailRequesterChange(saved, changeEntry);
     return toResponse(saved);
   },
 
-  /** Closes the trip. HR may close it at any time; an external car needs the real price. */
-  async complete(admin: AuthenticatedAccount, id: string, actualCost: number | null | undefined, uploads: UploadedReceipt[]) {
+  /**
+   * Closes the trip with what really happened: when it ended (required) and, for an
+   * external car, the real price. HR may close it at any time after departure.
+   */
+  async complete(admin: AuthenticatedAccount, id: string, result: { actualCost?: number | null; actualEndAt: string }, uploads: UploadedReceipt[]) {
+    const { actualCost } = result;
     try {
       const trip = await loadAny(id);
       if (!["arranged", "arrived"].includes(trip.status)) {
         throw new AppError(409, trip.status === "pending" ? "Vui lòng chọn loại xe trước khi chốt chuyến." : "Chuyến xe đã chốt hoặc đã hủy.");
       }
       if (trip.vehicleType === "external" && !actualCost) throw fieldError("actualCost", "Xe ngoài cần nhập giá thật trước khi chốt.");
+      if (!result.actualEndAt) throw fieldError("actualEndAt", "Vui lòng chọn thời gian hoàn thành thật.");
+      const actualEndAt = parseLocal(result.actualEndAt);
+      if (actualEndAt <= trip.departAt) throw fieldError("actualEndAt", "Thời gian hoàn thành thật phải sau giờ đi.");
+      // A minute of slack for clocks; the trip cannot have ended in the future.
+      if (!VEHICLE_ALLOW_FUTURE_END && actualEndAt.getTime() > Date.now() + 60_000) throw fieldError("actualEndAt", "Thời gian hoàn thành thật không được ở tương lai.");
       if ((trip.receipts?.length ?? 0) + uploads.length > MAX_RECEIPTS) throw new AppError(400, `Mỗi chuyến tối đa ${MAX_RECEIPTS} ảnh.`);
       const update: UpdateQuery<VehicleBooking> = {
-        $set: { status: "completed", completedAt: new Date(), completedBy: person(admin), actualCost: trip.vehicleType === "external" ? actualCost : null },
+        $set: { status: "completed", actualEndAt, completedAt: new Date(), completedBy: person(admin), actualCost: trip.vehicleType === "external" ? actualCost : null },
         $push: { receipts: { $each: receiptsFrom(uploads, "hr") } },
       };
       const saved = await vehicleBookingRepository.updateIfStatus(id, [trip.status], update) as StoredVehicleBooking | null;

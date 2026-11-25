@@ -558,9 +558,10 @@ export const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({
                   Ngày gia nhập (DD/MM/YYYY)
                 </label>
                 <DatePicker
+                  applyMonthAndYear
                   value={toDatePickerValue(formData.joinDate)}
-                  onChange={(value) => setFormData({ ...formData, joinDate: fromDatePickerValue(value) })}
-                  ariaLabel="Ng?y gia nh?p"
+                  onChange={(value) => setFormData((current) => ({ ...current, joinDate: fromDatePickerValue(value) }))}
+                  ariaLabel="Ngày gia nhập"
                 />
                 {fieldErrors.joinDate && <p className="mt-1 text-xs text-rose-600">{fieldErrors.joinDate}</p>}
               </div>
@@ -569,9 +570,10 @@ export const EmployeeFormPage: React.FC<EmployeeFormPageProps> = ({
                   Ngày sinh (DD/MM/YYYY)
                 </label>
                 <DatePicker
+                  applyMonthAndYear
                   value={toDatePickerValue(formData.birthDate)}
-                  onChange={(value) => setFormData({ ...formData, birthDate: fromDatePickerValue(value) })}
-                  ariaLabel="Ng?y sinh"
+                  onChange={(value) => setFormData((current) => ({ ...current, birthDate: fromDatePickerValue(value) }))}
+                  ariaLabel="Ngày sinh"
                 />
                 {fieldErrors.birthDate && <p className="mt-1 text-xs text-rose-600">{fieldErrors.birthDate}</p>}
               </div>}

@@ -43,20 +43,22 @@ export async function buildVehicleReportWorkbook(report: Report): Promise<Buffer
 
   const sheet = workbook.addWorksheet("Danh sách chuyến");
   sheet.columns = [
-    { header: "Giờ đi", width: 18 }, { header: "Người đặt", width: 24 }, { header: "Phòng ban", width: 22 },
-    { header: "Mục đích", width: 16 }, { header: "Khách hàng / Gửi → Nhận", width: 30 }, { header: "Liên hệ", width: 26 }, { header: "Điểm đón", width: 30 },
+    { header: "Giờ đi", width: 18 }, { header: "Người đặt", width: 24 }, { header: "Phòng ban", width: 22 }, { header: "Đặt giúp cho", width: 26 },
+    { header: "Mục đích", width: 16 }, { header: "Khách hàng / Gửi → Nhận", width: 30 }, { header: "Liên hệ", width: 26 }, { header: "Hàng hóa / khối lượng", width: 28 }, { header: "Điểm đón", width: 30 },
     { header: "Điểm đến", width: 30 }, { header: "Khứ hồi", width: 9 }, { header: "Loại xe", width: 16 },
-    { header: "Giá dự kiến", width: 14 }, { header: "Giá thật", width: 14 }, { header: "Trạng thái", width: 20 },
+    { header: "Giá dự kiến", width: 14 }, { header: "Giá thật", width: 14 }, { header: "Hoàn thành thật", width: 18 }, { header: "Trạng thái", width: 20 },
   ];
   sheet.getRow(1).font = { bold: true };
   for (const trip of report.trips) {
     const row = sheet.addRow([
-      formatVietnamTime(new Date(trip.departAt)), trip.requester.name, trip.requester.department, PURPOSE[trip.purpose],
-      trip.customerName, trip.purpose === "delivery" ? `${trip.senderPhone} → ${trip.receiverPhone}` : trip.customerPhone, trip.pickup, trip.destination, trip.roundTrip ? "Có" : "", trip.vehicleType ? TYPE[trip.vehicleType] : "",
-      trip.estimatedCost ?? "", trip.actualCost ?? "", STATUS[trip.status],
+      formatVietnamTime(new Date(trip.departAt)), trip.requester.name, trip.requester.department,
+      trip.forOther ? `${trip.forOtherName} · ${trip.forOtherPhone}` : "", PURPOSE[trip.purpose],
+      trip.customerName, trip.purpose === "delivery" ? `${trip.senderPhone} → ${trip.receiverPhone}` : trip.customerPhone,
+      trip.purpose === "delivery" ? [trip.goodsDescription, trip.goodsQuantity].filter(Boolean).join(" · ") : "", trip.pickup, trip.destination, trip.roundTrip ? "Có" : "", trip.vehicleType ? TYPE[trip.vehicleType] : "",
+      trip.estimatedCost ?? "", trip.actualCost ?? "", trip.actualEndAt ? formatVietnamTime(new Date(trip.actualEndAt)) : "", STATUS[trip.status],
     ]);
-    row.getCell(11).numFmt = MONEY;
-    row.getCell(12).numFmt = MONEY;
+    row.getCell(13).numFmt = MONEY;
+    row.getCell(14).numFmt = MONEY;
   }
   return Buffer.from(await workbook.xlsx.writeBuffer());
 }

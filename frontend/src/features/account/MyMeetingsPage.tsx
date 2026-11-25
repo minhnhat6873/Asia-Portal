@@ -74,7 +74,7 @@ export default function MyMeetingsPage() {
           <Card>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-base font-bold text-slate-900">Sắp tới <span className="font-medium text-slate-400">({data.upcoming.length})</span></h2>
-              <Link href="/meeting" className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-800"><Plus aria-hidden="true" size={16} />Đặt phòng họp</Link>
+              <Link href="/user/meeting" className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-800"><Plus aria-hidden="true" size={16} />Đặt phòng họp</Link>
             </div>
             {data.upcoming.length ? (
               <ul className="mt-2">{data.upcoming.map((booking) => <MeetingRow key={booking.id} booking={booking} onCancel={cancel} busy={cancelling === booking.id} />)}</ul>

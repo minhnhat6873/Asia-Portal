@@ -123,7 +123,7 @@ function EmployeesContent() {
     if (viewMode === "grid") params.set("view", "grid");
     if (page > 1) params.set("page", String(page));
     const query = params.toString();
-    router.replace(query ? `/employees?${query}` : "/employees", { scroll: false });
+    router.replace(query ? `/user/employees?${query}` : "/user/employees", { scroll: false });
   }, [department, newestFirst, page, rank, router, search, viewMode]);
 
   const openMobileProfile = () => {

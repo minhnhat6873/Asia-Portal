@@ -1,6 +1,6 @@
 import Joi from "joi";
 
-import { MEDIA_AUTHOR_DEPARTMENTS, MEDIA_CATEGORIES, MEDIA_FEATURED_LIMIT, MEDIA_STATUSES, MEDIA_VISIBILITIES } from "../../interfaces/media.interface";
+import { MEDIA_AUTHOR_DEPARTMENTS, MEDIA_CATEGORIES, MEDIA_FEATURED_LIMIT, MEDIA_STATUSES } from "../../interfaces/media.interface";
 import { isMediaExpiryAfterPublication, MEDIA_EXPIRY_DATE_ERROR } from "../../utils/media/validateMediaDates";
 
 const mediaFields = {
@@ -26,7 +26,6 @@ const mediaFields = {
     "number.max": `Vị trí nổi bật chỉ từ 1 đến ${MEDIA_FEATURED_LIMIT}.`,
   }),
   status: Joi.string().valid(...MEDIA_STATUSES),
-  visibility: Joi.string().valid(...MEDIA_VISIBILITIES).messages({ "any.only": "Phạm vi hiển thị chỉ được là Công khai hoặc Nội bộ." }),
 };
 
 export const createMediaSchema = Joi.object({
@@ -46,7 +45,6 @@ export const createMediaSchema = Joi.object({
   featured: mediaFields.featured.default(false),
   featuredSlot: mediaFields.featuredSlot,
   status: mediaFields.status.default("draft"),
-  visibility: mediaFields.visibility.default("internal"),
 }).custom((value, helpers) => {
   if (!value.publishIndefinitely && !isMediaExpiryAfterPublication(value.publishDate, value.expiryDate)) {
     return helpers.message({ custom: MEDIA_EXPIRY_DATE_ERROR });
@@ -77,10 +75,8 @@ function multiSelectQuery(options: readonly string[]) {
 export const mediaListQuerySchema = Joi.object({
   search: Joi.string().trim().allow("").max(200),
   categories: multiSelectQuery(MEDIA_CATEGORIES),
-  visibilities: multiSelectQuery(MEDIA_VISIBILITIES),
   category: mediaFields.category,
   status: mediaFields.status,
-  visibility: mediaFields.visibility,
   page: Joi.number().integer().min(1),
   limit: Joi.number().integer().min(1).max(100),
   sort: Joi.string().valid("latest", "oldest"),

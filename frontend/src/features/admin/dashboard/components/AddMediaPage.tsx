@@ -69,8 +69,6 @@ function initialForm(post?: MediaPost) {
     publishIndefinitely: post ? post.publishIndefinitely ?? !post.expiryDate : false,
     featured: post?.status === "published" && Boolean(post.featured),
     featuredSlot: post?.featuredSlot ? String(post.featuredSlot) : "",
-    // New posts start internal; only a deliberate choice makes a post public.
-    visibility: post?.visibility === "public" ? "public" as const : "internal" as const,
   };
 }
 
@@ -160,7 +158,6 @@ export function AddMediaPage({ mode = "create", initialPost, onBack, onSave }: A
         publishDate: toDisplayDate(formData.publishDate),
         expiryDate: formData.publishIndefinitely ? null : toDisplayDate(formData.expiryDate),
         publishIndefinitely: formData.publishIndefinitely,
-        visibility: formData.visibility,
         featured: formData.featured,
         ...(formData.featured ? { featuredSlot: Number(currentSlot) } : {}),
         ...(mode === "create" ? { status: "draft" as const } : {}),
@@ -246,20 +243,6 @@ export function AddMediaPage({ mode = "create", initialPost, onBack, onSave }: A
               {slotConflict && <div role="alert" className="mt-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">Vị trí {slotConflict.slot} đang được dùng bởi “{slotConflict.title}”. Hãy tắt nổi bật ở bài đó trước. <a href={`/admin/media/${encodeURIComponent(slotConflict.id)}/edit`} target="_blank" rel="noopener noreferrer" className="mt-2 block font-bold underline">Mở bài viết để chỉnh sửa ↗</a></div>}
             </div>
           </div>
-          <fieldset>
-            <legend className="mb-1.5 text-sm font-bold text-slate-700">Phạm vi hiển thị *</legend>
-            <div className="grid gap-3 sm:grid-cols-2">
-              {([
-                { value: "internal", title: "Nội bộ", description: "Chỉ nhân viên đã đăng nhập mới xem được." },
-                { value: "public", title: "Công khai", description: "Ai truy cập website cũng xem được, kể cả người ngoài công ty." },
-              ] as const).map((option) => (
-                <label key={option.value} className={`flex cursor-pointer items-start gap-3 rounded-xl border px-4 py-3 text-sm transition-colors ${formData.visibility === option.value ? "border-emerald-500 bg-emerald-50" : "border-slate-200 bg-white hover:border-slate-300"}`}>
-                  <input type="radio" name="media-visibility" value={option.value} checked={formData.visibility === option.value} onChange={() => setFormData((current) => ({ ...current, visibility: option.value }))} className="mt-0.5 h-4 w-4 shrink-0 accent-emerald-700" />
-                  <span><span className="block font-bold text-slate-800">{option.title}</span><span className="mt-0.5 block text-xs leading-5 text-slate-500">{option.description}</span></span>
-                </label>
-              ))}
-            </div>
-          </fieldset>
           <AvatarUploader key={uploaderKey} inputId="media-cover-upload" inputName="coverImage" initialAvatarUrl={coverRemoved ? "" : formData.coverImage} onFileChange={(file) => { setCoverFile(file); if (file) setCoverRemoved(false); }} onExistingAvatarRemove={() => setCoverRemoved(true)} label="Ảnh bìa" emptyHelperText="Thả tệp vào đây hoặc duyệt. JPEG, PNG, WebP tối đa 5 MB; khung 4:3." selectedHelperText="Ảnh bìa mới đã sẵn sàng." existingHelperText="Đang giữ ảnh bìa hiện tại." imageAlt="Xem trước ảnh bìa" changeLabel="Thay ảnh bìa" />
           <div><label className="mb-1.5 block text-sm font-bold text-slate-700">Tóm tắt ngắn (Sapo) *</label><RichTextEditor value={formData.summary} onChange={(summary) => setFormData({ ...formData, summary })} placeholder="Nhập tóm tắt bài viết..." enableImageInsert enableFontSize uploadImage={uploadAdminMediaContentImage} /></div>
           <div><label className="mb-1.5 block text-sm font-bold text-slate-700">Nội dung chi tiết</label><RichTextEditor value={formData.content} onChange={(content) => setFormData({ ...formData, content })} placeholder="Nhập nội dung chi tiết..." enableImageInsert enableFontSize uploadImage={uploadAdminMediaContentImage} /></div>

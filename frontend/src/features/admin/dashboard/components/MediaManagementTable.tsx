@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { CalendarDays, ChevronDown, Clock3, Edit3, Eye, Globe, GraduationCap, Infinity as InfinityIcon, Megaphone, Newspaper, Trash2, UsersRound } from "lucide-react";
+import { CalendarDays, ChevronDown, Clock3, Edit3, Eye, GraduationCap, Infinity as InfinityIcon, Megaphone, Newspaper, Trash2, UsersRound } from "lucide-react";
 import { Button, ListBox, ListBoxItem, Popover, Select, SelectValue } from "react-aria-components";
 import type { MediaPost } from "../types";
 import { stripHtml } from "@/utils/stripHtml";
@@ -59,9 +59,6 @@ export default function MediaManagementTable({ posts, canPublish, canEdit, canDe
                 <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                   <span className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1 text-[13px] font-bold ${post.category === "Sự kiện" ? "border-orange-200 bg-orange-50 text-orange-600" : "border-green-200 bg-green-100/70 text-green-800"}`}>
                     <CategoryIcon size={16} aria-hidden="true" />{post.category}
-                  </span>
-                  <span className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1 text-[13px] font-bold ${post.visibility === "public" ? "border-sky-100 bg-sky-100 text-sky-700" : "border-sky-100 bg-sky-100 text-blue-700"}`}>
-                    {post.visibility === "public" ? <Globe size={16} aria-hidden="true" /> : <UsersRound size={16} aria-hidden="true" />}{post.visibility === "public" ? "Công khai" : "Nội bộ"}
                   </span>
                 </div>
                 <p className="mt-1.5 line-clamp-3 text-[13px] font-normal leading-[19px] text-[#64748B]">{stripHtml(post.summary)}</p>

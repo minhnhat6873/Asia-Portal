@@ -23,7 +23,7 @@ it("announces a newly published post to every active account, once", async () =>
   await notificationService.announceMedia(post);
   expect(repo.insertForAccounts).toHaveBeenCalledTimes(1);
   expect(repo.insertForAccounts).toHaveBeenCalledWith(["a1", "a2"], expect.objectContaining({
-    type: "news", refId: post._id, link: `/news/${post._id}`, message: post.title,
+    type: "news", refId: post._id, link: `/user/news/${post._id}`, message: post.title,
   }));
 });
 

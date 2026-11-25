@@ -11,14 +11,13 @@ function ensureValidId(id: string): void {
 }
 
 export const userMediaService = {
-  /** Guests (signedIn false) only see public posts; signed-in accounts see all. */
-  async getMedia(query: MediaListQuery, signedIn = false) {
+  /** Signed-in accounts only (the route requires login); every post is internal. */
+  async getMedia(query: MediaListQuery) {
     const page = Math.max(Number(query.page) || 1, 1);
     const limit = Math.min(Math.max(Number(query.limit) || 12, 1), 100);
     const filter: QueryFilter<Media> = {};
 
     if (query.category) filter.category = query.category;
-    if (!signedIn) filter.visibility = "public";
     if (String(query.featured) === "true") return this.getFeatured(filter, Math.min(limit, MEDIA_FEATURED_LIMIT));
 
     const sort: Record<string, SortOrder> = String(query.featured) === "true" ? { featuredSlot: 1, featuredAt: -1, _id: -1 } : { publishDate: query.sort === "oldest" ? 1 : -1 };
@@ -57,14 +56,10 @@ export const userMediaService = {
     return { items, pagination: { page: 1, limit, total: items.length, totalPages: 1 } };
   },
 
-  async getMediaById(id: string, signedIn = false) {
+  async getMediaById(id: string) {
     ensureValidId(id);
     const post = await userMediaRepository.findById(id);
     if (!post) throw new AppError(404, "Không tìm thấy bài viết");
-    // Missing visibility (older posts) counts as internal.
-    if (!signedIn && post.visibility !== "public") {
-      throw new AppError(401, "Bài viết này chỉ dành cho nhân viên. Vui lòng đăng nhập để xem.");
-    }
     return withMediaExpiry(post);
   },
 };

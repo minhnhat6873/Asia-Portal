@@ -60,7 +60,7 @@ function DepartmentLink({ department }: { department: Department }) {
 
   return (
     <Link
-      href={`/diagram/${department.slug}`}
+      href={`/user/diagram/${department.slug}`}
       aria-label={`Xem nhân sự ${department.name}`}
       className="group relative flex min-h-[68px] items-center gap-2.5 rounded-xl border border-[#e5eeeb] bg-gradient-to-br from-white to-[#fdfefe] px-2.5 py-3 text-left shadow-[0_3px_8px_rgba(32,72,62,0.10)] transition-colors hover:border-emerald-300 hover:bg-emerald-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600"
     >
@@ -167,7 +167,7 @@ export default function OrganizationChart() {
 
         <div aria-hidden="true" className="mx-auto h-10 w-[2px] bg-[#24934d]" />
 
-        <Link href="/diagram/ban-giam-doc" aria-label="Xem nhân sự Ban giám đốc / CEO" className="mx-auto block w-fit rounded-2xl transition-shadow hover:shadow-lg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-emerald-600">
+        <Link href="/user/diagram/ban-giam-doc" aria-label="Xem nhân sự Ban giám đốc / CEO" className="mx-auto block w-fit rounded-2xl transition-shadow hover:shadow-lg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-emerald-600">
           <LeadershipPlaceholder label="Ban giám đốc / CEO" kind="ceo" />
         </Link>
 

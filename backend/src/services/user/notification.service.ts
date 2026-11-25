@@ -27,7 +27,7 @@ export const notificationService = {
       if (!(await notificationRepository.claimMediaAnnouncement(String(post._id)))) return;
       const refId = String(post._id);
       await notificationRepository.insertForAccounts(await notificationRepository.activeAccountIds(), {
-        type: "news", refId, link: `/news/${refId}`,
+        type: "news", refId, link: `/user/news/${refId}`,
         title: "Có tin tức mới", message: shorten(post.title, 200),
       });
     });
@@ -41,7 +41,7 @@ export const notificationService = {
   bookingConfirmed(accountId: string, booking: BookingRef): Promise<void> {
     return safely("đặt lịch họp", async () => {
       await notificationRepository.insertForAccounts([accountId], {
-        type: "meeting-booked", refId: String(booking._id), link: "/account/meetings",
+        type: "meeting-booked", refId: String(booking._id), link: "/user/account/meetings",
         title: "Đặt lịch họp thành công",
         message: shorten(`${booking.title} · ${roomName(booking.roomId)} · ${booking.start}–${booking.end}, ${toDisplayDate(booking.date)}`, 500),
       });
@@ -53,7 +53,7 @@ export const notificationService = {
       const accountId = await notificationRepository.activeAccountIdByEmail(booking.email);
       if (!accountId) return;
       await notificationRepository.insertForAccounts([accountId], {
-        type: "meeting-reminder", refId: String(booking._id), link: "/account/meetings",
+        type: "meeting-reminder", refId: String(booking._id), link: "/user/account/meetings",
         title: `Cuộc họp bắt đầu sau ${MEETING_REMINDER_LEAD_MINUTES} phút`,
         message: shorten(`${booking.title} · ${roomName(booking.roomId)} · ${booking.start}–${booking.end}`, 500),
       });

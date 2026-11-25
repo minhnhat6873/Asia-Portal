@@ -3,11 +3,11 @@ import Link from "next/link";
 import FeedbackDialog from "@/features/feedback/FeedbackDialog";
 
 const footerLinks = [
-  { label: "Trang chủ", href: "/" },
-  { label: "Nhân viên", href: "/employees" },
-  { label: "Truyền thông", href: "/news" },
+  { label: "Trang chủ", href: "/user" },
+  { label: "Nhân viên", href: "/user/employees" },
+  { label: "Truyền thông", href: "/user/news" },
 
-  { label: "Về Á Châu", href: "/about-asia" },
+  { label: "Về Á Châu", href: "/user/about-asia" },
 ];
 
 const supportLinks = [

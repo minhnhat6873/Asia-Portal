@@ -4,6 +4,7 @@ import { CarFront, ImagePlus, Trash2, X } from "lucide-react";
 import { useState, type ChangeEvent, type ReactNode } from "react";
 import { toast } from "sonner";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import DateTimeInput, { isCompleteDateTime } from "@/components/ui/DateTimeInput";
 import { ApiError } from "@/services/api";
 import {
   arrangeVehicleTrip,
@@ -12,6 +13,7 @@ import {
   deleteVehicleTrip,
   formatTripTime,
   formatVnd,
+  mapLink,
   toLocalInput,
   VEHICLE_PURPOSE_LABELS,
   VEHICLE_STATUS_LABELS,
@@ -24,6 +26,13 @@ import {
 
 const INPUT = "w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20";
 const MAX_FILES = 3;
+/** "YYYY-MM-DDTHH:mm" (Vietnam time) shown as "HH:mm DD/MM/YYYY". */
+const formatLocal = (value: string) => `${value.slice(11, 16)} ${value.slice(8, 10)}/${value.slice(5, 7)}/${value.slice(0, 4)}`;
+/**
+ * TẠM ĐỂ TEST: true cho phép chốt chuyến với giờ hoàn thành thật ở tương lai.
+ * Test xong đổi về false (cùng VEHICLE_ALLOW_FUTURE_END trong backend vehicle-booking.service.ts).
+ */
+const VEHICLE_ALLOW_FUTURE_END = true;
 const errorText = (reason: unknown, fallback: string) =>
   reason instanceof ApiError ? Object.values(reason.fieldErrors)[0] ?? reason.message : reason instanceof Error ? reason.message : fallback;
 const money = (value: string) => (value.trim() ? Number(value.replace(/[^\d]/g, "")) : null);
@@ -49,8 +58,25 @@ export default function VehicleTripDialog({ trip, canDelete, onClose, onChanged,
   const [estimatedCost, setEstimatedCost] = useState(trip.estimatedCost ? String(trip.estimatedCost) : "");
   const [driver, setDriver] = useState({ driverName: trip.driverName, driverPlate: trip.driverPlate, driverPhone: trip.driverPhone });
   const [times, setTimes] = useState({ departAt: toLocalInput(trip.departAt), returnAt: toLocalInput(trip.returnAt), expectedEndAt: toLocalInput(trip.expectedEndAt) });
-  const [route, setRoute] = useState({ pickup: trip.pickup, destination: trip.destination, note: trip.note });
+  const [route, setRoute] = useState({ pickup: trip.pickup, destination: trip.destination });
+  // Why HR changes the requested time or route; sent to the requester (web and email).
+  const [changeReason, setChangeReason] = useState("");
+  const requested = { departAt: toLocalInput(trip.departAt), returnAt: toLocalInput(trip.returnAt), pickup: trip.pickup, destination: trip.destination };
+  const requestChanges = [
+    times.departAt !== requested.departAt && `Giờ đi: ${formatTripTime(trip.departAt)} → ${times.departAt ? formatLocal(times.departAt) : "—"}`,
+    trip.roundTrip && times.returnAt !== requested.returnAt && `Giờ về: ${formatTripTime(trip.returnAt)} → ${times.returnAt ? formatLocal(times.returnAt) : "—"}`,
+    route.pickup.trim() !== requested.pickup.trim() && "Điểm đón",
+    route.destination.trim() !== requested.destination.trim() && "Điểm đến",
+  ].filter((item): item is string => Boolean(item));
   const [actualCost, setActualCost] = useState(trip.actualCost ? String(trip.actualCost) : trip.estimatedCost ? String(trip.estimatedCost) : "");
+  // When the trip really ended: the requester's "Đã đi xong" time if any, else the expected
+  // end once it has passed, else now. HR corrects it before closing.
+  const [actualEndAt, setActualEndAt] = useState(() => {
+    if (trip.actualEndAt) return toLocalInput(trip.actualEndAt);
+    if (trip.arrivedAt) return toLocalInput(trip.arrivedAt);
+    const now = new Date().toISOString();
+    return toLocalInput(trip.expectedEndAt && trip.expectedEndAt < now ? trip.expectedEndAt : now);
+  });
   const [files, setFiles] = useState<File[]>([]);
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState<"" | "save" | "complete" | "cancel" | "delete">("");
@@ -58,9 +84,17 @@ export default function VehicleTripDialog({ trip, canDelete, onClose, onChanged,
 
   const save = async () => {
     if (!vehicleType) { toast.error("Vui lòng chọn xe công ty hoặc xe ngoài."); return; }
+    if (!isCompleteDateTime(times.expectedEndAt)) { toast.error("Vui lòng chọn đủ ngày và giờ hoàn thành dự kiến."); return; }
+    if (!isCompleteDateTime(times.departAt)) { toast.error("Vui lòng chọn đủ ngày và giờ đi."); return; }
+    if (trip.roundTrip && !isCompleteDateTime(times.returnAt)) { toast.error("Vui lòng chọn đủ ngày và giờ về."); return; }
+    const message = changeReason.trim();
+    if (requestChanges.length && message.length < 3) { toast.error("Bạn đã đổi giờ hoặc lộ trình. Vui lòng nhập lý do thay đổi để báo cho người đặt."); document.getElementById("vehicle-change-reason")?.focus(); return; }
+    if (message && message.length < 3) { toast.error("Lời nhắn cho người đặt cần ít nhất 3 ký tự."); document.getElementById("vehicle-change-reason")?.focus(); return; }
     // Only changed trip fields are sent (a changed time restarts its reminders on the server).
     const input: VehicleArrangeInput = { vehicleType };
-    const original = { departAt: toLocalInput(trip.departAt), returnAt: toLocalInput(trip.returnAt), expectedEndAt: toLocalInput(trip.expectedEndAt), pickup: trip.pickup, destination: trip.destination, note: trip.note };
+    // Whatever is typed is sent: the reason for a change, or a note when nothing changed.
+    if (message) input.changeReason = message;
+    const original = { departAt: toLocalInput(trip.departAt), returnAt: toLocalInput(trip.returnAt), expectedEndAt: toLocalInput(trip.expectedEndAt), pickup: trip.pickup, destination: trip.destination };
     const edited = { ...times, ...route };
     for (const key of Object.keys(edited) as (keyof typeof edited)[]) {
       if (edited[key] !== original[key]) Object.assign(input, { [key]: key === "returnAt" ? edited.returnAt || null : edited[key] });
@@ -74,16 +108,24 @@ export default function VehicleTripDialog({ trip, canDelete, onClose, onChanged,
     setBusy("save");
     try {
       onChanged(await arrangeVehicleTrip(trip.id, input));
-      toast.success(trip.status === "pending" ? "Đã sắp xếp xe. Người đặt đã được báo." : "Đã lưu thay đổi. Người đặt đã được báo.");
+      setChangeReason("");
+      toast.success(input.changeReason
+        ? requestChanges.length ? "Đã lưu. Người đặt đã nhận thông báo và email kèm lý do thay đổi." : "Đã lưu. Lời nhắn đã gửi cho người đặt (thông báo và email)."
+        : trip.status === "pending" ? "Đã sắp xếp xe. Người đặt đã được báo." : "Đã lưu thay đổi. Người đặt đã được báo.");
+      // Show what was just sent (the list sits higher up in the dialog).
+      if (input.changeReason) window.setTimeout(() => document.getElementById("vehicle-change-history")?.scrollIntoView({ behavior: "smooth", block: "center" }), 150);
     } catch (error) { toast.error(errorText(error, "Không lưu được chuyến xe.")); } finally { setBusy(""); }
   };
 
   const complete = async () => {
     const cost = money(actualCost);
+    if (!isCompleteDateTime(actualEndAt)) { toast.error("Vui lòng chọn đủ ngày và giờ hoàn thành thật."); return; }
+    if (actualEndAt <= toLocalInput(trip.departAt)) { toast.error("Thời gian hoàn thành thật phải sau giờ đi."); return; }
+    if (!VEHICLE_ALLOW_FUTURE_END && actualEndAt > toLocalInput(new Date().toISOString())) { toast.error("Thời gian hoàn thành thật không được ở tương lai."); return; }
     if (trip.vehicleType === "external" && !cost) { toast.error("Xe ngoài cần nhập giá thật trước khi chốt."); return; }
     setBusy("complete");
     try {
-      onChanged(await completeVehicleTrip(trip.id, trip.vehicleType === "external" ? cost : null, files));
+      onChanged(await completeVehicleTrip(trip.id, { actualCost: trip.vehicleType === "external" ? cost : null, actualEndAt }, files));
       setFiles([]);
       toast.success("Đã chốt chuyến xe.");
     } catch (error) { toast.error(errorText(error, "Không chốt được chuyến xe.")); } finally { setBusy(""); }
@@ -133,20 +175,35 @@ export default function VehicleTripDialog({ trip, canDelete, onClose, onChanged,
           <Section title="Yêu cầu">
             <dl className="grid gap-3 sm:grid-cols-3">
               <Info label="Người đặt">{trip.requester.name}<span className="block text-xs font-normal text-slate-500">{trip.requester.department || "—"} · {trip.requester.email}</span></Info>
+              {trip.forOther && <Info label="Đặt giúp cho">{trip.forOtherName}<a href={`tel:${trip.forOtherPhone.replace(/\s/g, "")}`} className="block text-xs font-semibold text-emerald-700">{trip.forOtherPhone}</a></Info>}
               <Info label="Giờ đi">{formatTripTime(trip.departAt)}{trip.roundTrip ? <span className="block text-xs font-normal text-slate-500">Về: {formatTripTime(trip.returnAt)}</span> : null}</Info>
               <Info label="Hoàn thành dự kiến">{formatTripTime(trip.expectedEndAt)}</Info>
-              <Info label="Lộ trình">{trip.pickup} → {trip.destination}</Info>
+              <Info label="Lộ trình">{trip.pickup} → {trip.destination}{trip.pickupLocation && <a href={mapLink(trip.pickupLocation)} target="_blank" rel="noopener noreferrer" className="mt-0.5 block text-xs font-semibold text-emerald-700 underline">Xem điểm đón trên bản đồ{trip.pickupLocation.accuracy ? ` (±${trip.pickupLocation.accuracy} m)` : ""}</a>}</Info>
               {trip.purpose === "guest" ? <>
                 <Info label="Khách">{trip.passengerCount ?? "—"} người</Info>
                 <Info label="SĐT khách">{trip.customerPhone}</Info>
               </> : <>
                 <Info label="Người gửi">{trip.senderName}<span className="block text-xs font-normal text-slate-500">{trip.senderPhone}</span></Info>
                 <Info label="Người nhận">{trip.receiverName}<span className="block text-xs font-normal text-slate-500">{trip.receiverPhone}</span></Info>
-                <Info label="Hàng hóa">{trip.goodsDescription}</Info>
+                <Info label="Hàng hóa">{trip.goodsDescription}{trip.goodsQuantity && <span className="block text-xs font-normal text-slate-500">Số lượng / khối lượng: {trip.goodsQuantity}</span>}</Info>
               </>}
             </dl>
-            {trip.note && <p className="mt-3 rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700">{trip.note}</p>}
+            {trip.note && <p className="mt-3 rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700"><span className="block text-xs font-semibold text-slate-500">Ghi chú của người đặt</span>{trip.note}</p>}
           </Section>
+
+          {(trip.changes ?? []).length > 0 && (
+            <Section title="Thay đổi và lời nhắn đã gửi người đặt">
+              <ul id="vehicle-change-history" className="space-y-2.5">
+                {(trip.changes ?? []).map((change) => (
+                  <li key={change.at} className="rounded-xl bg-amber-50 px-3.5 py-2.5 text-sm text-amber-950 ring-1 ring-amber-100">
+                    {change.items.map((item) => <p key={item.label}><strong>{item.label}:</strong> {item.from} → {item.to}</p>)}
+                    <p className={change.items.length ? "mt-1" : ""}><strong>{change.items.length ? "Lý do:" : "Lời nhắn:"}</strong> {change.reason}</p>
+                    <p className="mt-1 text-xs text-amber-800">{change.byName} · {formatTripTime(change.at)} · đã báo người đặt</p>
+                  </li>
+                ))}
+              </ul>
+            </Section>
+          )}
 
           {trip.receipts.length > 0 && (
             <Section title="Ảnh đính kèm">
@@ -184,15 +241,30 @@ export default function VehicleTripDialog({ trip, canDelete, onClose, onChanged,
                   <label className="text-sm font-semibold text-slate-700">SĐT tài xế<input type="tel" maxLength={20} value={driver.driverPhone} onChange={(event) => setDriver({ ...driver, driverPhone: event.target.value })} className={`${INPUT} mt-1.5`} /></label>
                 </div>
               )}
+              <div className="mt-3 sm:w-2/3">
+                <p className="mb-1.5 text-sm font-semibold text-slate-700">Hoàn thành dự kiến <span className="text-rose-500">*</span></p>
+                <DateTimeInput dateLabel="Ngày hoàn thành dự kiến" timeLabel="Giờ hoàn thành dự kiến" min={isCompleteDateTime(times.departAt) ? times.departAt : undefined} value={times.expectedEndAt} onChange={(value) => setTimes((current) => ({ ...current, expectedEndAt: value }))} />
+                <p className="mt-1 text-xs text-slate-500">Quá giờ này mà chưa chốt chuyến, HR sẽ được nhắc.</p>
+              </div>
               <details className="mt-4 rounded-xl bg-slate-50 px-3.5 py-2.5">
                 <summary className="cursor-pointer text-sm font-semibold text-slate-700">Sửa thời gian và lộ trình</summary>
                 <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                  <label className="text-sm font-semibold text-slate-700">Giờ đi<input type="datetime-local" value={times.departAt} onChange={(event) => setTimes({ ...times, departAt: event.target.value })} className={`${INPUT} mt-1.5`} /></label>
-                  <label className="text-sm font-semibold text-slate-700">Hoàn thành dự kiến<input type="datetime-local" value={times.expectedEndAt} onChange={(event) => setTimes({ ...times, expectedEndAt: event.target.value })} className={`${INPUT} mt-1.5`} /></label>
-                  {trip.roundTrip && <label className="text-sm font-semibold text-slate-700">Giờ về<input type="datetime-local" value={times.returnAt} onChange={(event) => setTimes({ ...times, returnAt: event.target.value })} className={`${INPUT} mt-1.5`} /></label>}
+                  <div className="text-sm font-semibold text-slate-700"><p className="mb-1.5">Ngày và giờ đi</p><DateTimeInput dateLabel="Ngày đi" timeLabel="Giờ đi" value={times.departAt} onChange={(value) => setTimes((current) => ({ ...current, departAt: value }))} /></div>
+                  {trip.roundTrip && <div className="text-sm font-semibold text-slate-700"><p className="mb-1.5">Ngày và giờ về</p><DateTimeInput dateLabel="Ngày về" timeLabel="Giờ về" min={isCompleteDateTime(times.departAt) ? times.departAt : undefined} value={times.returnAt} onChange={(value) => setTimes((current) => ({ ...current, returnAt: value }))} /></div>}
                   <label className="text-sm font-semibold text-slate-700">Điểm đón<input maxLength={300} value={route.pickup} onChange={(event) => setRoute({ ...route, pickup: event.target.value })} className={`${INPUT} mt-1.5`} /></label>
                   <label className="text-sm font-semibold text-slate-700">Điểm đến<input maxLength={300} value={route.destination} onChange={(event) => setRoute({ ...route, destination: event.target.value })} className={`${INPUT} mt-1.5`} /></label>
-                  <label className="text-sm font-semibold text-slate-700 sm:col-span-2">Ghi chú<textarea rows={2} maxLength={1000} value={route.note} onChange={(event) => setRoute({ ...route, note: event.target.value })} className={`${INPUT} mt-1.5`} /></label>
+                </div>
+                {/* Always shown; required (and highlighted) once the time or route differs from the request. */}
+                <div className={`mt-3 rounded-xl p-3 ring-1 ${requestChanges.length ? "bg-amber-50 ring-amber-200" : "bg-white ring-slate-200"}`}>
+                  {requestChanges.length > 0 && <>
+                    <p className="text-sm font-semibold text-amber-900">Bạn đang đổi so với yêu cầu của người đặt:</p>
+                    <ul className="mb-3 mt-1 list-disc pl-5 text-sm text-amber-900">{requestChanges.map((item) => <li key={item}>{item}</li>)}</ul>
+                  </>}
+                  <label htmlFor="vehicle-change-reason" className="block text-sm font-semibold text-slate-700">{requestChanges.length ? "Lý do thay đổi" : "Lý do thay đổi / lời nhắn cho người đặt"}{requestChanges.length > 0 && <span className="text-rose-500"> *</span>}</label>
+                  <textarea id="vehicle-change-reason" rows={2} maxLength={300} value={changeReason} onChange={(event) => setChangeReason(event.target.value)} placeholder="Ví dụ: 15:30 mới có xe công ty, xe ngoài hết chuyến…" className={`${INPUT} mt-1.5`} />
+                  <p className={`mt-1 text-xs ${requestChanges.length ? "text-amber-800" : "text-slate-500"}`}>
+                    {requestChanges.length ? "Bắt buộc. Người đặt sẽ nhận lý do này qua thông báo trên web và email." : "Bắt buộc khi đổi giờ đi, giờ về, điểm đón hoặc điểm đến. Không đổi gì mà vẫn ghi thì gửi như lời nhắn. Người đặt nhận qua thông báo và email."}
+                  </p>
                 </div>
               </details>
               <div className="mt-4 flex justify-end">
@@ -207,6 +279,7 @@ export default function VehicleTripDialog({ trip, canDelete, onClose, onChanged,
                   <Info label="Giá dự kiến">{formatVnd(trip.estimatedCost)}</Info>
                   <Info label="Giá thật">{formatVnd(trip.actualCost)}</Info>
                 </> : <Info label="Tài xế">{[trip.driverName, trip.driverPlate, trip.driverPhone].filter(Boolean).join(" · ")}</Info>}
+                {trip.status === "completed" && <Info label="Hoàn thành thật">{formatTripTime(trip.actualEndAt)}<span className="block text-xs font-normal text-slate-500">Dự kiến: {formatTripTime(trip.expectedEndAt)}</span></Info>}
                 {trip.completedBy && <Info label="Chốt bởi">{trip.completedBy.name} · {formatTripTime(trip.completedAt)}</Info>}
                 {trip.cancel && <Info label={trip.cancel.byRequester ? "Người đặt hủy" : `Hủy bởi ${trip.cancel.byName}`}>{trip.cancel.reason}</Info>}
               </dl>
@@ -216,11 +289,19 @@ export default function VehicleTripDialog({ trip, canDelete, onClose, onChanged,
           {(trip.status === "arranged" || trip.status === "arrived") && (
             <Section title="Chốt chuyến">
               {trip.status === "arrived" && <p className="mb-3 rounded-xl bg-violet-50 px-3 py-2 text-sm text-violet-800">Người đặt đã báo đi xong lúc {formatTripTime(trip.arrivedAt)}.</p>}
-              {trip.vehicleType === "external" && (
-                <label className="block text-sm font-semibold text-slate-700">Giá thật (VND) <span className="text-rose-500">*</span>
-                  <input inputMode="numeric" value={actualCost} onChange={(event) => setActualCost(event.target.value.replace(/[^\d]/g, ""))} className={`${INPUT} mt-1.5 sm:w-64`} />
-                </label>
-              )}
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="text-sm font-semibold text-slate-700">
+                  <p className="mb-1.5">Thời gian hoàn thành thật <span className="text-rose-500">*</span></p>
+                  <DateTimeInput dateLabel="Ngày hoàn thành thật" timeLabel="Giờ hoàn thành thật" min={toLocalInput(trip.departAt)} value={actualEndAt} onChange={setActualEndAt} />
+                  <span className="mt-1 block text-xs font-normal text-slate-500">Dự kiến: {formatTripTime(trip.expectedEndAt)}. Ghi giờ chuyến xe thực sự kết thúc.</span>
+                </div>
+                {trip.vehicleType === "external" && (
+                  <label className="block text-sm font-semibold text-slate-700">Giá thật (VND) <span className="text-rose-500">*</span>
+                    <input inputMode="numeric" value={actualCost} onChange={(event) => setActualCost(event.target.value.replace(/[^\d]/g, ""))} className={`${INPUT} mt-1.5`} />
+                    <span className="mt-1 block text-xs font-normal text-slate-500">Dự kiến: {formatVnd(trip.estimatedCost)}</span>
+                  </label>
+                )}
+              </div>
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 {files.map((file, index) => (
                   <span key={`${file.name}-${index}`} className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs text-slate-700">

@@ -3,7 +3,6 @@ import { model, models, Schema } from "mongoose";
 import {
   MEDIA_CATEGORIES,
   MEDIA_STATUSES,
-  MEDIA_VISIBILITIES,
   MEDIA_FEATURED_LIMIT,
   type Media,
 } from "../interfaces/media.interface";
@@ -36,7 +35,6 @@ const mediaSchema = new Schema<Media>(
     showAfterExpiry: { type: Boolean, default: false },
     hiddenReason: { type: String, enum: ["expired", "manual", null], default: null },
     status: { type: String, enum: MEDIA_STATUSES, default: "draft", index: true },
-    visibility: { type: String, enum: MEDIA_VISIBILITIES, default: "internal", index: true },
     newsNotifiedAt: { type: Date, default: null, select: false },
     isDeleted: { type: Boolean, default: false, index: true },
     deletedAt: { type: Date, default: null },

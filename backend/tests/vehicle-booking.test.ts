@@ -4,8 +4,8 @@ jest.mock("../src/repositories/vehicle-booking.repository", () => ({ vehicleBook
   findOverdueEmailDue: jest.fn(), claimFlag: jest.fn(), managerAccounts: jest.fn(),
 } }));
 jest.mock("../src/services/vehicle/vehicle-notifier", () => ({
-  formatVietnamTime: () => "",
-  vehicleNotifier: { toRequester: jest.fn(), toHr: jest.fn(), emailRequesterReminder: jest.fn(), emailHrOverdue: jest.fn() },
+  formatVietnamTime: (value: Date | null) => (value ? value.toISOString() : ""),
+  vehicleNotifier: { toRequester: jest.fn(), toHr: jest.fn(), emailRequesterReminder: jest.fn(), emailHrOverdue: jest.fn(), emailRequesterChange: jest.fn() },
 }));
 jest.mock("../src/utils/vehicle/receipts", () => ({ removeVehicleReceiptFiles: jest.fn() }));
 jest.mock("../src/repositories/admin/employee.repository", () => ({ adminEmployeeRepository: { findByEmail: jest.fn().mockResolvedValue({ department: "Sales" }) } }));
@@ -14,7 +14,7 @@ import { Types } from "mongoose";
 import { vehicleBookingRepository } from "../src/repositories/vehicle-booking.repository";
 import { vehicleNotifier } from "../src/services/vehicle/vehicle-notifier";
 import { removeVehicleReceiptFiles } from "../src/utils/vehicle/receipts";
-import { hrVehicleService, monthRange, userVehicleService } from "../src/services/vehicle/vehicle-booking.service";
+import { hrVehicleService, monthRange, userVehicleService, VEHICLE_ALLOW_FUTURE_END } from "../src/services/vehicle/vehicle-booking.service";
 import { runVehicleReminders } from "../src/jobs/vehicle-booking-reminder.job";
 import { vehicleArrangeSchema, vehicleCompleteSchema, vehicleHrCancelSchema, vehicleRequestSchema } from "../src/validates/vehicle-booking.validate";
 import type { AuthenticatedAccount } from "../src/interfaces/account.interface";
@@ -27,7 +27,7 @@ const hr: AuthenticatedAccount = { id: "h1", name: "Chị HR", email: "hr@asiafn
 const NOW = new Date("2026-11-25T01:00:00Z");
 const request: VehicleRequestInput = {
   purpose: "guest", customerName: "Công ty ABC", passengerCount: 3, pickup: "Văn phòng", destination: "Sân bay Tân Sơn Nhất",
-  departAt: "2026-11-25T10:00", roundTrip: false, expectedEndAt: "2026-11-25T12:00",
+  departAt: "2026-11-25T10:00", roundTrip: false,
 };
 const stored = (extra: object = {}) => ({
   _id: new Types.ObjectId(), requester: { accountId: "u1", name: user.name, email: user.email, department: "Sales" },
@@ -56,32 +56,76 @@ describe("requester", () => {
   });
 
   it("needs at least 15 minutes before departure", async () => {
-    await expect(userVehicleService.create(user, { ...request, departAt: "2026-11-25T08:10", expectedEndAt: "2026-11-25T09:00" }))
+    await expect(userVehicleService.create(user, { ...request, departAt: "2026-11-25T08:10" }))
       .rejects.toMatchObject({ statusCode: 400, fieldErrors: { departAt: expect.stringContaining("15 phút") } });
-    await expect(userVehicleService.create(user, { ...request, departAt: "2026-11-25T08:15", expectedEndAt: "2026-11-25T09:00" })).resolves.toBeDefined();
+    await expect(userVehicleService.create(user, { ...request, departAt: "2026-11-25T08:15" })).resolves.toBeDefined();
   });
 
   it.each([
     [{ purpose: "guest", passengerCount: null }, "passengerCount"],
-    [{ purpose: "delivery", senderName: "", senderPhone: "0901234567", receiverName: "Kho B", receiverPhone: "0907654321", goodsDescription: "Hàng mẫu" }, "senderName"],
-    [{ purpose: "delivery", senderName: "Kho A", senderPhone: "", receiverName: "Kho B", receiverPhone: "0907654321", goodsDescription: "Hàng mẫu" }, "senderPhone"],
-    [{ purpose: "delivery", senderName: "Kho A", senderPhone: "0901234567", receiverName: "", receiverPhone: "0907654321", goodsDescription: "Hàng mẫu" }, "receiverName"],
-    [{ purpose: "delivery", senderName: "Kho A", senderPhone: "0901234567", receiverName: "Kho B", receiverPhone: "", goodsDescription: "Hàng mẫu" }, "receiverPhone"],
-    [{ purpose: "delivery", senderName: "Kho A", senderPhone: "0901234567", receiverName: "Kho B", receiverPhone: "0907654321", goodsDescription: "" }, "goodsDescription"],
+    [{ purpose: "delivery", senderName: "", senderPhone: "0901234567", receiverName: "Kho B", receiverPhone: "0907654321", goodsDescription: "Hàng mẫu", goodsQuantity: "15 thùng" }, "senderName"],
+    [{ purpose: "delivery", senderName: "Kho A", senderPhone: "", receiverName: "Kho B", receiverPhone: "0907654321", goodsDescription: "Hàng mẫu", goodsQuantity: "15 thùng" }, "senderPhone"],
+    [{ purpose: "delivery", senderName: "Kho A", senderPhone: "0901234567", receiverName: "", receiverPhone: "0907654321", goodsDescription: "Hàng mẫu", goodsQuantity: "15 thùng" }, "receiverName"],
+    [{ purpose: "delivery", senderName: "Kho A", senderPhone: "0901234567", receiverName: "Kho B", receiverPhone: "", goodsDescription: "Hàng mẫu", goodsQuantity: "15 thùng" }, "receiverPhone"],
+    [{ purpose: "delivery", senderName: "Kho A", senderPhone: "0901234567", receiverName: "Kho B", receiverPhone: "0907654321", goodsDescription: "", goodsQuantity: "15 thùng" }, "goodsDescription"],
+    [{ purpose: "delivery", senderName: "Kho A", senderPhone: "0901234567", receiverName: "Kho B", receiverPhone: "0907654321", goodsDescription: "Hàng mẫu", goodsQuantity: " " }, "goodsQuantity"],
+    [{ forOther: true, forOtherName: "", forOtherPhone: "0901234567" }, "forOtherName"],
+    [{ forOther: true, forOtherName: "Chị Lan", forOtherPhone: "" }, "forOtherPhone"],
     [{ purpose: "guest", customerName: "" }, "customerName"],
     [{ roundTrip: true, returnAt: null }, "returnAt"],
     [{ roundTrip: true, returnAt: "2026-11-25T09:00" }, "returnAt"],
-    [{ roundTrip: true, returnAt: "2026-11-25T13:00" }, "expectedEndAt"],
-    [{ expectedEndAt: "2026-11-25T09:00" }, "expectedEndAt"],
   ])("rejects %o (%s)", async (change, field) => {
     await expect(userVehicleService.create(user, { ...request, ...change } as VehicleRequestInput)).rejects.toMatchObject({ fieldErrors: { [field]: expect.any(String) } });
   });
 
+  it("rejects bad phones and names, the same pickup and destination, and out-of-range times", async () => {
+    const phoneOf = (value: string) => vehicleRequestSchema.validate({ ...request, customerPhone: value });
+    // Valid Vietnamese numbers are stored in one plain form.
+    for (const [input, stored] of [["0901234567", "0901234567"], ["0901 234 567", "0901234567"], ["090.123.4567", "0901234567"], ["+84 901 234 567", "0901234567"],
+      ["84901234567", "0901234567"], ["+84 (0) 901 234 567", "0901234567"], ["0326-123-456", "0326123456"], ["0559 123 456", "0559123456"], ["028 3812 3456", "02838123456"], ["(0274) 381 2345", "02743812345"]]) {
+      expect(phoneOf(input).error).toBeUndefined();
+      expect(phoneOf(input).value.customerPhone).toBe(stored);
+    }
+    // Every wrong number gets the same message.
+    for (const bad of ["--------", "0901abc567", "090123456", "09012345678", "0951234567", "0121698370", "0111234567", "0401234567", "901234567", "+1 202 555 0123", "028 3812 345"]) {
+      expect(phoneOf(bad).error?.message).toBe("Số điện thoại không hợp lệ.");
+    }
+    await expect(userVehicleService.create(user, { ...request, purpose: "delivery", customerName: "", passengerCount: null, senderName: "Kho A", senderPhone: "0901234567", receiverName: "Kho B", receiverPhone: "0901234567", goodsDescription: "Hàng", goodsQuantity: "1 thùng" }))
+      .rejects.toMatchObject({ fieldErrors: { receiverPhone: expect.stringContaining("khác người gửi") } });
+    for (const bad of ["1", "12345", "!!!"]) expect(vehicleRequestSchema.validate({ ...request, customerName: bad }).error?.message).toContain("chữ cái");
+    expect(vehicleRequestSchema.validate({ ...request, customerName: "Công ty 3M" }).error).toBeUndefined();
+    expect(vehicleRequestSchema.validate({ ...request, goodsQuantity: "vài thùng" }).error?.message).toContain("con số");
+    expect(vehicleRequestSchema.validate({ ...request, pickup: "A" }).error?.message).toContain("ít nhất 3");
+    await expect(userVehicleService.create(user, { ...request, pickup: "Văn  phòng", destination: "văn phòng" })).rejects.toMatchObject({ fieldErrors: { destination: expect.stringContaining("khác điểm đón") } });
+    await expect(userVehicleService.create(user, { ...request, departAt: "2027-03-01T08:00" })).rejects.toMatchObject({ fieldErrors: { departAt: expect.stringContaining("90 ngày") } });
+    await expect(userVehicleService.create(user, { ...request, roundTrip: true, returnAt: "2026-12-30T08:00" })).rejects.toMatchObject({ fieldErrors: { returnAt: expect.stringContaining("30 ngày") } });
+  });
+
+  it("accepts an address or coordinates as the typed pickup", async () => {
+    await userVehicleService.create(user, { ...request, pickup: "10.8839, 106.7599" });
+    expect(repo.create).toHaveBeenLastCalledWith(expect.objectContaining({ pickup: "10.8839, 106.7599" }));
+  });
+
+  it("keeps the pickup position from the device and rejects impossible coordinates", async () => {
+    await userVehicleService.create(user, { ...request, pickupLocation: { lat: 10.9, lng: 106.77, accuracy: 25 } });
+    expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ pickupLocation: { lat: 10.9, lng: 106.77, accuracy: 25 } }));
+    expect(vehicleRequestSchema.validate({ ...request, pickupLocation: { lat: 120, lng: 106 } }).error).toBeDefined();
+    expect(vehicleRequestSchema.validate({ ...request, pickupLocation: null }).error).toBeUndefined();
+  });
+
   it("a delivery stores both sides and shows them as the customer", async () => {
-    await userVehicleService.create(user, { ...request, purpose: "delivery", customerName: "", passengerCount: null, senderName: "Kho Á Châu", senderPhone: "0901234567", receiverName: "Cửa hàng Q1", receiverPhone: "0907654321", goodsDescription: "10 thùng nước" });
+    await userVehicleService.create(user, { ...request, purpose: "delivery", customerName: "", passengerCount: null, senderName: "Kho Á Châu", senderPhone: "0901234567", receiverName: "Cửa hàng Q1", receiverPhone: "0907654321", goodsDescription: "Nước đóng chai", goodsQuantity: "10 thùng, 200 kg" });
     expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({
-      customerName: "Kho Á Châu → Cửa hàng Q1", senderPhone: "0901234567", receiverPhone: "0907654321", passengerCount: null, customerPhone: "",
+      customerName: "Kho Á Châu → Cửa hàng Q1", senderPhone: "0901234567", receiverPhone: "0907654321", passengerCount: null, customerPhone: "", goodsQuantity: "10 thùng, 200 kg",
     }));
+  });
+
+  it("booking for someone else keeps their name and phone; for oneself clears them", async () => {
+    await userVehicleService.create(user, { ...request, forOther: true, forOtherName: "Chị Lan", forOtherPhone: "0901234567" });
+    expect(repo.create).toHaveBeenLastCalledWith(expect.objectContaining({ forOther: true, forOtherName: "Chị Lan", forOtherPhone: "0901234567" }));
+    await userVehicleService.create(user, { ...request, forOther: false, forOtherName: "Chị Lan", forOtherPhone: "0901234567" });
+    expect(repo.create).toHaveBeenLastCalledWith(expect.objectContaining({ forOther: false, forOtherName: "", forOtherPhone: "" }));
+    expect(vehicleRequestSchema.validate({ ...request, forOther: true, forOtherPhone: "abc" }).error?.message).toContain("Số điện thoại");
   });
 
   it("can edit or cancel only while HR has not arranged a car, and only their own trip", async () => {
@@ -106,13 +150,58 @@ describe("requester", () => {
 });
 
 describe("HR", () => {
+  it("HR sets the expected end when arranging; the requester cannot", async () => {
+    expect(vehicleRequestSchema.validate({ ...request, expectedEndAt: "2026-11-25T12:00" }).value).not.toHaveProperty("expectedEndAt");
+    repo.findById.mockResolvedValue(stored({ expectedEndAt: null }) as never);
+    await expect(hrVehicleService.arrange(hr, String(new Types.ObjectId()), { vehicleType: "company" })).rejects.toMatchObject({ fieldErrors: { expectedEndAt: expect.any(String) } });
+    await expect(hrVehicleService.arrange(hr, String(new Types.ObjectId()), { vehicleType: "company", expectedEndAt: "2026-11-25T09:00" })).rejects.toMatchObject({ fieldErrors: { expectedEndAt: expect.stringContaining("sau giờ đi") } });
+    repo.findById.mockResolvedValue(stored({ expectedEndAt: null, roundTrip: true, returnAt: new Date("2026-11-25T06:00:00Z") }) as never);
+    await expect(hrVehicleService.arrange(hr, String(new Types.ObjectId()), { vehicleType: "company", expectedEndAt: "2026-11-25T12:00" })).rejects.toMatchObject({ fieldErrors: { expectedEndAt: expect.stringContaining("giờ về") } });
+    repo.findById.mockResolvedValue(stored({ expectedEndAt: null }) as never);
+    await hrVehicleService.arrange(hr, String(new Types.ObjectId()), { vehicleType: "company", expectedEndAt: "2026-11-25T12:00" });
+    expect(repo.updateIfStatus).toHaveBeenLastCalledWith(expect.any(String), ["pending"], { $set: expect.objectContaining({ status: "arranged", expectedEndAt: new Date("2026-11-25T05:00:00Z") }) });
+  });
+
   it("choosing a car arranges the trip; an external car needs an estimated price", async () => {
     repo.findById.mockResolvedValue(stored() as never);
     await expect(hrVehicleService.arrange(hr, String(new Types.ObjectId()), { vehicleType: "external" })).rejects.toMatchObject({ fieldErrors: { estimatedCost: expect.any(String) } });
     const trip = await hrVehicleService.arrange(hr, String(new Types.ObjectId()), { vehicleType: "external", estimatedCost: 150000 });
     expect(repo.updateIfStatus).toHaveBeenLastCalledWith(expect.any(String), ["pending"], { $set: expect.objectContaining({ status: "arranged", vehicleType: "external", estimatedCost: 150000 }) });
     expect(trip.status).toBe("arranged");
-    expect(vehicleNotifier.toRequester).toHaveBeenLastCalledWith(expect.anything(), "vehicle-arranged");
+    expect(vehicleNotifier.toRequester).toHaveBeenLastCalledWith(expect.anything(), "vehicle-arranged", null);
+  });
+
+  it("changing the requested time or route needs a reason, which is sent to the requester", async () => {
+    repo.findById.mockResolvedValue(stored() as never);
+    const arrange = (input: object) => hrVehicleService.arrange(hr, String(new Types.ObjectId()), { vehicleType: "company", ...input });
+    // Same time and place as requested: no reason needed, no change recorded.
+    await arrange({ departAt: "2026-11-25T10:00", pickup: "Văn phòng" });
+    expect(repo.updateIfStatus).toHaveBeenLastCalledWith(expect.any(String), ["pending"], { $set: expect.any(Object) });
+    expect(vehicleNotifier.emailRequesterChange).not.toHaveBeenCalled();
+    // A later car (15:00 → 15:30 style) without a reason is refused.
+    await expect(arrange({ departAt: "2026-11-25T10:30" })).rejects.toMatchObject({ fieldErrors: { changeReason: expect.stringContaining("lý do") } });
+    await expect(arrange({ departAt: "2026-11-25T10:30", changeReason: "  " })).rejects.toMatchObject({ fieldErrors: { changeReason: expect.any(String) } });
+    // With a reason: stored, shown in the web notification and emailed.
+    await arrange({ departAt: "2026-11-25T10:30", destination: "Sân bay Long Thành", changeReason: "Xe công ty 10:30 mới rảnh" });
+    const change = {
+      at: expect.any(Date), by: expect.objectContaining({ name: "Chị HR" }), reason: "Xe công ty 10:30 mới rảnh",
+      items: [
+        { label: "Giờ đi", from: "2026-11-25T03:00:00.000Z", to: "2026-11-25T03:30:00.000Z" },
+        { label: "Điểm đến", from: "Sân bay Tân Sơn Nhất", to: "Sân bay Long Thành" },
+      ],
+    };
+    expect(repo.updateIfStatus).toHaveBeenLastCalledWith(expect.any(String), ["pending"], { $set: expect.objectContaining({ departAt: new Date("2026-11-25T03:30:00Z") }), $push: { changes: change } });
+    expect(vehicleNotifier.toRequester).toHaveBeenLastCalledWith(expect.anything(), "vehicle-arranged", change);
+    expect(vehicleNotifier.emailRequesterChange).toHaveBeenLastCalledWith(expect.anything(), change);
+    // A message typed without changing anything is still kept and sent (as a note from HR).
+    await arrange({ changeReason: "Tài xế sẽ gọi trước 10 phút" });
+    const note = { at: expect.any(Date), by: expect.objectContaining({ name: "Chị HR" }), reason: "Tài xế sẽ gọi trước 10 phút", items: [] };
+    expect(repo.updateIfStatus).toHaveBeenLastCalledWith(expect.any(String), ["pending"], { $set: expect.any(Object), $push: { changes: note } });
+    expect(vehicleNotifier.emailRequesterChange).toHaveBeenLastCalledWith(expect.anything(), note);
+    await expect(arrange({ changeReason: "ok" })).rejects.toMatchObject({ fieldErrors: { changeReason: expect.stringContaining("ít nhất 3") } });
+    // HR cannot rewrite the requester's own note.
+    await arrange({ note: "HR ghi đè" });
+    expect(repo.updateIfStatus).toHaveBeenLastCalledWith(expect.any(String), ["pending"], { $set: expect.not.objectContaining({ note: "HR ghi đè" }) });
   });
 
   it("company car with driver details needs no price", async () => {
@@ -122,11 +211,30 @@ describe("HR", () => {
   });
 
   it("closing an external trip needs the real price; HR may close at any time after arranging", async () => {
+    // 13:00 Vietnam time, after the 10:00 departure.
+    jest.setSystemTime(new Date("2026-11-25T06:00:00Z"));
+    const end = "2026-11-25T12:30";
     repo.findById.mockResolvedValue(stored({ status: "arranged", vehicleType: "external", estimatedCost: 150000 }) as never);
-    await expect(hrVehicleService.complete(hr, String(new Types.ObjectId()), null, [])).rejects.toMatchObject({ fieldErrors: { actualCost: expect.any(String) } });
-    await expect(hrVehicleService.complete(hr, String(new Types.ObjectId()), 172000, [])).resolves.toMatchObject({ status: "completed", actualCost: 172000 });
+    await expect(hrVehicleService.complete(hr, String(new Types.ObjectId()), { actualCost: null, actualEndAt: end }, [])).rejects.toMatchObject({ fieldErrors: { actualCost: expect.any(String) } });
+    await expect(hrVehicleService.complete(hr, String(new Types.ObjectId()), { actualCost: 172000, actualEndAt: end }, [])).resolves.toMatchObject({ status: "completed", actualCost: 172000 });
     repo.findById.mockResolvedValue(stored({ status: "pending" }) as never);
-    await expect(hrVehicleService.complete(hr, String(new Types.ObjectId()), null, [])).rejects.toMatchObject({ statusCode: 409 });
+    await expect(hrVehicleService.complete(hr, String(new Types.ObjectId()), { actualCost: null, actualEndAt: end }, [])).rejects.toMatchObject({ statusCode: 409 });
+  });
+
+  it("closing a trip records when it really ended: after departure and not in the future", async () => {
+    jest.setSystemTime(new Date("2026-11-25T06:00:00Z"));
+    repo.findById.mockResolvedValue(stored({ status: "arranged", vehicleType: "company" }) as never);
+    const close = (actualEndAt: string) => hrVehicleService.complete(hr, String(new Types.ObjectId()), { actualEndAt }, []);
+    await expect(close("")).rejects.toMatchObject({ fieldErrors: { actualEndAt: expect.stringContaining("Vui lòng chọn") } });
+    await expect(close("2026-11-25T10:00")).rejects.toMatchObject({ fieldErrors: { actualEndAt: expect.stringContaining("sau giờ đi") } });
+    // While VEHICLE_ALLOW_FUTURE_END is on (temporary, for testing) a future end is accepted.
+    if (VEHICLE_ALLOW_FUTURE_END) await expect(close("2026-11-25T14:00")).resolves.toMatchObject({ status: "completed" });
+    else await expect(close("2026-11-25T14:00")).rejects.toMatchObject({ fieldErrors: { actualEndAt: expect.stringContaining("tương lai") } });
+    await close("2026-11-25T12:30");
+    expect(repo.updateIfStatus).toHaveBeenLastCalledWith(expect.any(String), ["arranged"], expect.objectContaining({
+      $set: expect.objectContaining({ status: "completed", actualEndAt: new Date("2026-11-25T05:30:00Z"), actualCost: null }),
+    }));
+    expect(vehicleCompleteSchema.validate({}).error?.message).toContain("hoàn thành thật");
   });
 
   it("only cancelled trips can be deleted", async () => {

@@ -211,7 +211,7 @@ export default function DepartmentDiagramPage({ department, employeeDepartments 
           )}
         </div>
 
-        <Link href="/diagram" className="mx-auto mt-8 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-white px-5 py-2.5 text-sm font-bold text-[#16883b] transition-colors hover:bg-emerald-50">
+        <Link href="/user/diagram" className="mx-auto mt-8 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-white px-5 py-2.5 text-sm font-bold text-[#16883b] transition-colors hover:bg-emerald-50">
           <ChevronLeft size={16} /> Quay lại sơ đồ tổ chức
         </Link>
       </section>

@@ -9,7 +9,7 @@ export async function getMedia(
   next: NextFunction,
 ): Promise<void> {
   try {
-    const result = await userMediaService.getMedia(request.query, Boolean(request.user));
+    const result = await userMediaService.getMedia(request.query);
     response.status(200).json({ success: true, data: result });
   } catch (error) {
     next(error);
@@ -22,7 +22,7 @@ export async function getMediaById(
   next: NextFunction,
 ): Promise<void> {
   try {
-    const post = await userMediaService.getMediaById(request.params.id, Boolean(request.user));
+    const post = await userMediaService.getMediaById(request.params.id);
     response.status(200).json({ success: true, data: post });
   } catch (error) {
     next(error);

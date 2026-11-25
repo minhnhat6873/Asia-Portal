@@ -9,7 +9,7 @@ import { ApiError } from "@/services/api";
 import { softDeleteAdminMedia, updateAdminMedia, type AdminMediaListParams } from "@/services/admin-media.service";
 import MediaExpiryBadge from "@/components/ui/MediaExpiryBadge";
 import type { MediaCategory, MediaPost } from "../types";
-import { MEDIA_FILTER_CATEGORIES, MEDIA_FILTER_VISIBILITIES, MediaScopeFilter, selectionFilter, type MediaVisibility } from "./MediaScopeFilter";
+import { MEDIA_FILTER_CATEGORIES, MediaScopeFilter, selectionFilter } from "./MediaScopeFilter";
 import { AdminSelect } from "./AdminSelect";
 import { useAdminPermissions } from "@/lib/adminPermissions";
 import { ArticleReaderModal } from "./ArticleReaderModal";
@@ -42,7 +42,6 @@ export function MediaManagement({ mediaPosts, total, page, pageSize, isLoading, 
   const [search, setSearch] = useState("");
   // Every box starts checked (= all posts).
   const [categories, setCategories] = useState<MediaCategory[]>(MEDIA_FILTER_CATEGORIES);
-  const [visibilities, setVisibilities] = useState<MediaVisibility[]>(MEDIA_FILTER_VISIBILITIES);
   // "" = every post, "featured" = highlighted only, "normal" = the others.
   const [featured, setFeatured] = useState("");
   const { can } = useAdminPermissions();
@@ -65,15 +64,14 @@ export function MediaManagement({ mediaPosts, total, page, pageSize, isLoading, 
     const timer = window.setTimeout(() => onFiltersChange({
       search: search.trim() || undefined,
       categories: selectionFilter(categories, MEDIA_FILTER_CATEGORIES),
-      visibilities: selectionFilter(visibilities, MEDIA_FILTER_VISIBILITIES),
       featured: featured ? featured === "featured" : undefined,
       status: status ? status as MediaPost["status"] : undefined,
       sort: "latest",
     }), 300);
     return () => window.clearTimeout(timer);
-  }, [search, categories, visibilities, featured, status, onFiltersChange]);
+  }, [search, categories, featured, status, onFiltersChange]);
 
-  const reset = () => { setSearch(""); setCategories(MEDIA_FILTER_CATEGORIES); setVisibilities(MEDIA_FILTER_VISIBILITIES); setFeatured(""); setStatus(""); };
+  const reset = () => { setSearch(""); setCategories(MEDIA_FILTER_CATEGORIES); setFeatured(""); setStatus(""); };
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const goToPage = (nextPage: number) => {
     onPageChange(nextPage);
@@ -128,7 +126,7 @@ export function MediaManagement({ mediaPosts, total, page, pageSize, isLoading, 
     <div className={`${mediaFont.className} space-y-4 text-[#172B24]`}>
       <div className="flex flex-wrap items-center gap-2.5 rounded-2xl border border-slate-100 bg-white p-[15px] shadow-[0_2px_7px_rgba(15,23,42,0.08)]">
         <div className="relative min-w-0 basis-full xl:basis-[500px] xl:flex-none"><Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Tìm theo tiêu đề hoặc Sapo..." className="h-12 w-full rounded-xl border border-slate-200 bg-[#f8fafc] pl-10 pr-3 text-[14px] font-medium text-[#172B24] outline-none placeholder:text-slate-500 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/10" /></div>
-        <MediaScopeFilter categories={categories} visibilities={visibilities} onCategoriesChange={setCategories} onVisibilitiesChange={setVisibilities} />
+        <MediaScopeFilter categories={categories} onCategoriesChange={setCategories} />
         <AdminSelect value={featured} onChange={setFeatured} options={[{ value: "", label: "Tất cả tin" }, { value: "featured", label: "Tin nổi bật" }, { value: "normal", label: "Tin thường" }]} icon={<Star className="h-4 w-4 text-amber-500" />} className="[&>div>div]:[scrollbar-width:none] [&>div>div::-webkit-scrollbar]:hidden w-full shrink-0 sm:w-[180px] [&>button]:h-12 [&>button]:gap-1.5 [&>button>span]:gap-2 [&>button]:rounded-xl [&>button]:px-3 [&>button]:py-0 [&>button]:text-[14px] [&>button]:font-bold [&>button]:text-[#172B24]" searchable={false} showSelectionCheck={false} />
         <AdminSelect value={status} onChange={setStatus} options={[{ value: "", label: "Tất cả trạng thái" }, { value: "published", label: "Đăng tin" }, { value: "draft", label: "Ẩn Tin" }]} icon={<Filter className="h-4 w-4 text-[#00852f]" />} className="[&>div>div]:[scrollbar-width:none] [&>div>div::-webkit-scrollbar]:hidden w-full shrink-0 sm:w-[205px] [&>button]:h-12 [&>button]:gap-1.5 [&>button>span]:gap-2 [&>button]:rounded-xl [&>button]:px-3 [&>button]:py-0 [&>button]:text-[14px] [&>button]:font-bold [&>button]:text-[#172B24]" searchable={false} showSelectionCheck={false} />
         <button type="button" onClick={reset} className="inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-slate-200 px-3 py-2.5 text-[14px] font-semibold text-slate-600"><RotateCcw className="h-4 w-4" />Đặt lại</button>

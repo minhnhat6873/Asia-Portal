@@ -40,5 +40,20 @@ không lưu token hoặc mật khẩu trong localStorage. Navbar kiểm tra `/me
 `/refresh` khi nhận 401; lỗi mạng hoặc database không tự xóa phiên đã biết.
 Các mutation có header chống CSRF, thời gian chờ hữu hạn và không tự gửi lại.
 
-Nội dung công khai chưa bị khóa theo đăng nhập; các tính năng yêu cầu user đăng
-nhập sau này phải kiểm tra token và trạng thái tài khoản ở backend.
+## Quy ước đường dẫn
+
+Cả cổng là nội bộ: ai truy cập cũng phải đăng nhập.
+
+- `/user/*`: trang cần đăng nhập (trang chủ `/user`, `/user/news`, `/user/employees`,
+  `/user/diagram`, `/user/meeting`, `/user/vehicles`, `/user/faq`, `/user/about-asia`,
+  `/user/account/*`, `/user/downloads/*`).
+- `/admin/*`: trang quản trị, đăng nhập riêng.
+- Đường dẫn không có `/user` hay `/admin` là trang công khai: `/login`, `/register`,
+  `/forgot-password`, `/otp`, `/reset-password`.
+
+`frontend/src/proxy.ts` chuyển `/` sang `/user` (có cookie phiên user) hoặc `/login`, và đưa
+người chưa có cookie từ `/user/*` về `/login?next=...`. `app/(page)/user/layout.tsx`
+(`UserRouteGuard`) còn chặn phiên hết hạn hoặc bị thu hồi. Sau đăng nhập chỉ quay lại
+đường dẫn `/user...` (`afterLoginPath` trong `lib/safeRedirect.ts`). Backend vẫn tự kiểm tra
+token và trạng thái tài khoản ở mọi API `/user/*` trừ `/user/auth/*` và `/user/site-settings`.
+Thêm trang nội bộ mới thì đặt dưới `app/(page)/user/`; trang công khai đặt ngoài thư mục đó.

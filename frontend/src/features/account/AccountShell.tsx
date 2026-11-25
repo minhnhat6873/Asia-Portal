@@ -9,15 +9,15 @@ import Footer from "@/components/layout/Footer";
 import { useUnreadNotificationCount } from "@/lib/notificationCount";
 
 const ITEMS = [
-  { href: "/account/profile", label: "Thông tin cá nhân", icon: UserRound },
-  { href: "/account/meetings", label: "Lịch họp của tôi", icon: CalendarDays },
-  { href: "/account/trips", label: "Chuyến xe của tôi", icon: CarFront },
-  { href: "/account/notifications", label: "Thông báo", icon: Bell },
-  { href: "/account/settings", label: "Cài đặt tài khoản", icon: Settings },
+  { href: "/user/account/profile", label: "Thông tin cá nhân", icon: UserRound },
+  { href: "/user/account/meetings", label: "Lịch họp của tôi", icon: CalendarDays },
+  { href: "/user/account/trips", label: "Chuyến xe của tôi", icon: CarFront },
+  { href: "/user/account/notifications", label: "Thông báo", icon: Bell },
+  { href: "/user/account/settings", label: "Cài đặt tài khoản", icon: Settings },
 ];
 
-/** Shared frame for the signed-in account pages (wrapped in LoginRequired by each route). */
-export default function AccountShell({ title, description, children }: { title: string; description?: string; children: ReactNode }) {
+/** Shared frame for the signed-in account pages (the /user layout requires a signed-in account). */
+export default function AccountShell({ title, description, action, children }: { title: string; description?: string; /** Shown beside the title (e.g. a main button). */ action?: ReactNode; children: ReactNode }) {
   const pathname = usePathname();
   const unread = useUnreadNotificationCount();
 
@@ -26,7 +26,7 @@ export default function AccountShell({ title, description, children }: { title: 
       <Navbar />
       <div className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6 lg:py-10">
         <nav aria-label="Breadcrumb" className="mb-6 flex items-center gap-2 text-sm text-slate-500">
-          <Link href="/" className="hover:text-emerald-700">Trang chủ</Link>
+          <Link href="/user" className="hover:text-emerald-700">Trang chủ</Link>
           <ChevronRight aria-hidden="true" size={15} />
           <span className="font-semibold text-slate-800">{title}</span>
         </nav>
@@ -44,7 +44,7 @@ export default function AccountShell({ title, description, children }: { title: 
                   >
                     <Icon aria-hidden="true" size={18} />
                     {label}
-                    {href === "/account/notifications" && unread > 0 && (
+                    {href === "/user/account/notifications" && unread > 0 && (
                       <span className="ml-auto rounded-full bg-rose-600 px-2 py-0.5 text-xs font-bold text-white">{unread > 99 ? "99+" : unread}</span>
                     )}
                   </Link>
@@ -53,9 +53,12 @@ export default function AccountShell({ title, description, children }: { title: 
             </nav>
           </aside>
           <section className="min-w-0">
-            <header className="mb-5">
-              <h1 className="text-2xl font-extrabold tracking-tight text-[#0d5c0d]">{title}</h1>
-              {description && <p className="mt-1 text-sm text-slate-500">{description}</p>}
+            <header className="mb-5 flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h1 className="text-2xl font-extrabold tracking-tight text-[#0d5c0d]">{title}</h1>
+                {description && <p className="mt-1 text-sm text-slate-500">{description}</p>}
+              </div>
+              {action && <div className="shrink-0">{action}</div>}
             </header>
             {children}
           </section>

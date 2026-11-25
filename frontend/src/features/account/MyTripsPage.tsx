@@ -10,6 +10,7 @@ import {
   formatTripTime,
   formatVnd,
   getMyTrips,
+  mapLink,
   markTripArrived,
   VEHICLE_PURPOSE_LABELS,
   VEHICLE_STATUS_LABELS,
@@ -76,8 +77,10 @@ function ArrivedDialog({ trip, onClose, onDone }: { trip: VehicleTrip; onClose: 
 function TripCard({ trip, onCancel, onArrived }: { trip: VehicleTrip; onCancel: (trip: VehicleTrip) => void; onArrived: (trip: VehicleTrip) => void }) {
   return (
     <li className="border-b border-slate-100 py-4 last:border-0">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
+      {/* Buttons always sit at the top right of each trip; long text is cut instead of
+          pushing them below (on phones they go under the text). */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <TripStatusBadge status={trip.status} />
             <span className="text-xs font-semibold text-slate-500">{VEHICLE_PURPOSE_LABELS[trip.purpose]}</span>
@@ -85,12 +88,12 @@ function TripCard({ trip, onCancel, onArrived }: { trip: VehicleTrip; onCancel: 
           <p className="mt-2 truncate text-base font-bold text-slate-900" title={trip.customerName}>{trip.customerName}</p>
           <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-600">
             <span className="inline-flex items-center gap-1.5"><CalendarClock aria-hidden="true" size={15} />{formatTripTime(trip.departAt)}{trip.roundTrip && trip.returnAt ? ` · về ${formatTripTime(trip.returnAt)}` : ""}</span>
-            <span className="inline-flex min-w-0 items-center gap-1.5"><MapPin aria-hidden="true" size={15} className="shrink-0" /><span className="truncate">{trip.pickup} → {trip.destination}</span></span>
+            <span className="inline-flex min-w-0 items-center gap-1.5"><MapPin aria-hidden="true" size={15} className="shrink-0" /><span className="truncate">{trip.pickup} → {trip.destination}</span>{trip.pickupLocation && <a href={mapLink(trip.pickupLocation)} target="_blank" rel="noopener noreferrer" className="shrink-0 text-xs font-semibold text-emerald-700 underline">Bản đồ</a>}</span>
           </div>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex shrink-0 flex-wrap gap-2 empty:hidden">
           {trip.status === "pending" && <>
-            <Link href={`/vehicles?edit=${encodeURIComponent(trip.id)}`} className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"><Pencil aria-hidden="true" size={15} />Sửa</Link>
+            <Link href={`/user/vehicles?edit=${encodeURIComponent(trip.id)}`} className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"><Pencil aria-hidden="true" size={15} />Sửa</Link>
             <button type="button" onClick={() => onCancel(trip)} className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-600 hover:bg-rose-100">Hủy</button>
           </>}
           {trip.status === "arranged" && (
@@ -98,8 +101,11 @@ function TripCard({ trip, onCancel, onArrived }: { trip: VehicleTrip; onCancel: 
           )}
         </div>
       </div>
+      {trip.forOther && (
+        <p className="mt-2 text-sm text-slate-600">Đặt giúp: <strong className="text-slate-800">{trip.forOtherName}</strong> · {trip.forOtherPhone}</p>
+      )}
       {trip.purpose === "delivery" && (trip.senderName || trip.receiverName) && (
-        <p className="mt-2 text-sm text-slate-600">Gửi: <strong className="text-slate-800">{trip.senderName}</strong> · {trip.senderPhone} — Nhận: <strong className="text-slate-800">{trip.receiverName}</strong> · {trip.receiverPhone}</p>
+        <p className="mt-2 text-sm text-slate-600">Gửi: <strong className="text-slate-800">{trip.senderName}</strong> · {trip.senderPhone} — Nhận: <strong className="text-slate-800">{trip.receiverName}</strong> · {trip.receiverPhone}{trip.goodsQuantity && <> — Hàng: <strong className="text-slate-800">{trip.goodsQuantity}</strong></>}</p>
       )}
       {trip.vehicleType && (
         <div className="mt-3 rounded-xl bg-slate-50 px-3.5 py-2.5 text-sm text-slate-700">
@@ -107,9 +113,23 @@ function TripCard({ trip, onCancel, onArrived }: { trip: VehicleTrip; onCancel: 
           {(trip.driverName || trip.driverPlate || trip.driverPhone) && (
             <span className="ml-2 text-slate-600">· {[trip.driverName, trip.driverPlate].filter(Boolean).join(" · ")}{trip.driverPhone && <> · <a href={`tel:${trip.driverPhone.replace(/\s/g, "")}`} className="inline-flex items-center gap-1 font-semibold text-emerald-700"><Phone aria-hidden="true" size={13} />{trip.driverPhone}</a></>}</span>
           )}
+          {trip.status === "completed" && trip.actualEndAt && <span className="ml-2 text-slate-600">· Hoàn thành lúc <strong>{formatTripTime(trip.actualEndAt)}</strong></span>}
           {trip.status === "completed" && trip.vehicleType === "external" && <span className="ml-2 text-slate-600">· Chi phí: <strong>{formatVnd(trip.actualCost)}</strong></span>}
         </div>
       )}
+      {(trip.changes ?? []).length > 0 && (() => {
+        // The latest change HR made to the requested time or route (and why), or a note from HR.
+        const change = trip.changes[trip.changes.length - 1];
+        return (
+          <div className="mt-3 rounded-xl bg-amber-50 px-3.5 py-2.5 text-sm text-amber-950 ring-1 ring-amber-100">
+            {change.items.length ? <>
+              <p className="font-semibold">HR đã thay đổi so với yêu cầu của bạn:</p>
+              {change.items.map((item) => <p key={item.label}>{item.label}: <span className="text-amber-800 line-through">{item.from}</span> → <strong>{item.to}</strong></p>)}
+              <p className="mt-1">Lý do: {change.reason}</p>
+            </> : <p><span className="font-semibold">Lời nhắn của HR:</span> {change.reason}</p>}
+          </div>
+        );
+      })()}
       {trip.cancel && <p className="mt-2 text-sm text-slate-500">{trip.cancel.byRequester ? "Bạn đã hủy" : `${trip.cancel.byName || "HR"} đã hủy`}: {trip.cancel.reason}</p>}
     </li>
   );
@@ -149,7 +169,11 @@ export default function MyTripsPage() {
   const past = trips?.filter((trip) => ["completed", "cancelled"].includes(trip.status)) ?? [];
 
   return (
-    <AccountShell title="Chuyến xe của tôi" description="Các yêu cầu đặt xe bạn đã gửi. Bạn được nhắc trước giờ đi 15 phút.">
+    <AccountShell
+      title="Chuyến xe của tôi"
+      description="Các yêu cầu đặt xe bạn đã gửi. Bạn được nhắc trước giờ đi 15 phút."
+      action={<Link href="/user/vehicles" className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-emerald-800"><Plus aria-hidden="true" size={16} />Đặt xe</Link>}
+    >
       <ConfirmDialog open={Boolean(cancelling)} title="Hủy yêu cầu đặt xe?" description="HR sẽ không sắp xếp xe cho chuyến này nữa." cancelLabel="Giữ yêu cầu" confirmLabel="Hủy yêu cầu" onCancel={() => setCancelling(null)} onConfirm={() => void confirmCancel()} />
       {arriving && <ArrivedDialog trip={arriving} onClose={() => setArriving(null)} onDone={(trip) => { replace(trip); setArriving(null); }} />}
       {error ? <Card><p role="alert" className="text-sm text-rose-600">{error}</p></Card>
@@ -157,10 +181,7 @@ export default function MyTripsPage() {
           : (
             <div className="space-y-5">
               <Card>
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <h2 className="text-base font-bold text-slate-900">Đang xử lý <span className="font-medium text-slate-400">({active.length})</span></h2>
-                  <Link href="/vehicles" className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-800"><Plus aria-hidden="true" size={16} />Đặt xe</Link>
-                </div>
+                <h2 className="text-base font-bold text-slate-900">Đang xử lý <span className="font-medium text-slate-400">({active.length})</span></h2>
                 {active.length ? <ul className="mt-2">{active.map((trip) => <TripCard key={trip.id} trip={trip} onCancel={setCancelling} onArrived={setArriving} />)}</ul>
                   : <p className="mt-4 text-sm text-slate-500">Bạn chưa có chuyến xe nào đang xử lý.</p>}
               </Card>

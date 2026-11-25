@@ -21,26 +21,37 @@ export const VEHICLE_STATUS_TONES: Record<VehicleStatus, string> = {
   cancelled: "bg-slate-100 text-slate-500 ring-slate-200",
 };
 /** Requests must be sent at least this long before departure (same as the server). */
-export const VEHICLE_MIN_LEAD_MINUTES = 15;
+export { VEHICLE_MIN_LEAD_MINUTES } from "@/lib/vehicleValidation";
+
+/** Pickup position from the requester's device (GPS); accuracy in metres. */
+export interface VehicleLocation { lat: number; lng: number; accuracy: number | null }
+export const mapLink = (location: VehicleLocation) => `https://www.google.com/maps?q=${location.lat},${location.lng}`;
 
 export interface VehicleTrip {
   id: string;
   requester: { accountId: string; name: string; email: string; department: string };
+  /** Booked for someone else (name and phone of that person). */
+  forOther: boolean;
+  forOtherName: string;
+  forOtherPhone: string;
   purpose: VehiclePurpose;
   customerName: string;
   customerPhone: string;
   passengerCount: number | null;
   goodsDescription: string;
+  goodsQuantity: string;
   senderName: string;
   senderPhone: string;
   receiverName: string;
   receiverPhone: string;
   pickup: string;
+  pickupLocation: VehicleLocation | null;
   destination: string;
   departAt: string;
   roundTrip: boolean;
   returnAt: string | null;
-  expectedEndAt: string;
+  /** Set by HR when arranging the car. */
+  expectedEndAt: string | null;
   note: string;
   status: VehicleStatus;
   vehicleType: VehicleType | null;
@@ -50,36 +61,51 @@ export interface VehicleTrip {
   estimatedCost: number | null;
   actualCost: number | null;
   receipts: { url: string; uploadedBy: "requester" | "hr"; at: string }[];
+  /** Times or places HR changed from the request, with the reason sent to the requester. */
+  changes: VehicleChange[];
   arrangedBy: { name: string } | null;
   arrivedAt: string | null;
+  /** When the trip really ended (entered by HR when closing it). */
+  actualEndAt: string | null;
   completedAt: string | null;
   completedBy: { name: string } | null;
   cancel: { byName: string; byRequester: boolean; reason: string; at: string } | null;
   createdAt?: string;
 }
 
-/** Form values; times are Vietnam local "YYYY-MM-DDTHH:mm" (what datetime-local gives). */
+/** Form values; times are Vietnam local "YYYY-MM-DDTHH:mm". */
 export interface VehicleRequestInput {
+  /** false: for the signed-in account itself; true: name and phone below are required. */
+  forOther: boolean;
+  forOtherName: string;
+  forOtherPhone: string;
   purpose: VehiclePurpose;
   customerName: string;
   customerPhone: string;
   passengerCount: number | null;
   goodsDescription: string;
+  /** Deliveries: amount or weight, free text ("15 thùng", "500 kg"). */
+  goodsQuantity: string;
   /** Deliveries: both sides with a phone number (required). */
   senderName: string;
   senderPhone: string;
   receiverName: string;
   receiverPhone: string;
   pickup: string;
+  pickupLocation: VehicleLocation | null;
   destination: string;
   departAt: string;
   roundTrip: boolean;
   returnAt: string | null;
-  expectedEndAt: string;
   note: string;
 }
 
+export interface VehicleChange { at: string; byName: string; reason: string; items: { label: string; from: string; to: string }[] }
+
 export interface VehicleArrangeInput extends Partial<VehicleRequestInput> {
+  /** Required when the time or route differs from the request. */
+  changeReason?: string;
+  expectedEndAt?: string;
   vehicleType?: VehicleType;
   driverName?: string;
   driverPlate?: string;
@@ -99,7 +125,7 @@ const VN_TIME = new Intl.DateTimeFormat("vi-VN", { timeZone: "Asia/Ho_Chi_Minh",
 export const formatTripTime = (value?: string | null) => (value ? VN_TIME.format(new Date(value)) : "—");
 export const formatVnd = (value?: number | null) => (value == null ? "—" : `${value.toLocaleString("vi-VN")} đ`);
 
-/** ISO time -> "YYYY-MM-DDTHH:mm" in Vietnam time, for datetime-local inputs. */
+/** ISO time -> "YYYY-MM-DDTHH:mm" in Vietnam time (form values). */
 export function toLocalInput(value?: string | null): string {
   if (!value) return "";
   const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Ho_Chi_Minh", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" })
@@ -131,8 +157,12 @@ export function listVehicleTrips(params: VehicleListParams, signal?: AbortSignal
 }
 export const getVehicleTrip = (id: string, signal?: AbortSignal) => apiGet<VehicleTrip>(`/admin/vehicles/${encodeURIComponent(id)}`, signal);
 export const arrangeVehicleTrip = (id: string, input: VehicleArrangeInput) => apiPatch<VehicleTrip>(`/admin/vehicles/${encodeURIComponent(id)}`, input);
-export const completeVehicleTrip = (id: string, actualCost: number | null, files: File[]) =>
-  apiPostFormData<VehicleTrip>(`/admin/vehicles/${encodeURIComponent(id)}/complete`, receiptsForm(files, actualCost ? { actualCost: String(actualCost) } : {}));
+/** actualEndAt: Vietnam local "YYYY-MM-DDTHH:mm". */
+export const completeVehicleTrip = (id: string, result: { actualCost: number | null; actualEndAt: string }, files: File[]) =>
+  apiPostFormData<VehicleTrip>(`/admin/vehicles/${encodeURIComponent(id)}/complete`, receiptsForm(files, {
+    actualEndAt: result.actualEndAt,
+    ...(result.actualCost ? { actualCost: String(result.actualCost) } : {}),
+  }));
 export const cancelVehicleTrip = (id: string, reason: string) => apiPost<VehicleTrip>(`/admin/vehicles/${encodeURIComponent(id)}/cancel`, { reason });
 export const deleteVehicleTrip = (id: string) => apiDelete<{ id: string }>(`/admin/vehicles/${encodeURIComponent(id)}`);
 export const getVehicleReport = (month: string, signal?: AbortSignal) => apiGet<VehicleReport>(`/admin/vehicles/report?month=${encodeURIComponent(month)}`, signal);

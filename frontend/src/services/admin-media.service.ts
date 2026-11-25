@@ -14,7 +14,6 @@ export interface AdminMediaInput {
   featured?: boolean;
   featuredSlot?: number | null;
   status?: MediaPost["status"];
-  visibility?: NonNullable<MediaPost["visibility"]>;
 }
 
 interface ApiMedia extends Omit<MediaPost, "id" | "publishDate" | "expiryDate"> {
@@ -27,12 +26,10 @@ interface ApiMedia extends Omit<MediaPost, "id" | "publishDate" | "expiryDate"> 
 export interface AdminMediaListParams {
   search?: string;
   categories?: string;
-  visibilities?: string;
   /** true: only featured posts; false: only non-featured. */
   featured?: boolean;
   category?: MediaPost["category"];
   status?: MediaPost["status"];
-  visibility?: NonNullable<MediaPost["visibility"]>;
   page?: number;
   limit?: number;
   sort?: "latest" | "oldest";

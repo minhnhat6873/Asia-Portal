@@ -10,7 +10,7 @@ export interface UserNotification {
   type: NotificationType;
   title: string;
   message: string;
-  /** Site-relative link, e.g. "/news/<id>". */
+  /** Site-relative link, e.g. "/user/news/<id>". */
   link: string;
   read: boolean;
   createdAt: string;
@@ -36,7 +36,7 @@ export function markAllNotificationsRead(): Promise<void> {
 
 /** Only links inside this site are followed (never another website). */
 export function safeNotificationLink(link: string): string {
-  return safeSitePath(link, "/account/notifications");
+  return safeSitePath(link, "/user/account/notifications");
 }
 
 export function formatNotificationTime(value: string, now = Date.now()): string {

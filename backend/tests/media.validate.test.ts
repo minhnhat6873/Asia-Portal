@@ -1,15 +1,14 @@
 import { createMediaSchema, mediaListQuerySchema, updateMediaSchema } from "../src/validates/admin/media.validate";
 
 describe("media multi-select query", () => {
-  it("accepts several categories combined with a visibility", () => {
-    expect(mediaListQuerySchema.validate({ categories: "Thông báo,Sự kiện", visibilities: "internal", page: 2 }).error).toBeUndefined();
+  it("accepts several categories", () => {
+    expect(mediaListQuerySchema.validate({ categories: "Thông báo,Sự kiện", page: 2 }).error).toBeUndefined();
   });
   it.each([
     { categories: "Thông báo,not-a-category" },
     { categories: "Thông báo,Thông báo" },
     { categories: { $ne: "" } },
-    { visibilities: "private" },
-    { visibilities: ["public", "internal"] },
+    { visibilities: "internal" },
     { categories: "" },
   ])("rejects invalid filter values: %p", (query) => {
     expect(mediaListQuerySchema.validate(query).error).toBeDefined();

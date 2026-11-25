@@ -31,7 +31,7 @@ export const markMyTripArrived = handle((request) => userVehicleService.markArri
 export const listVehicleBookings = handle((request) => hrVehicleService.list(request.query as VehicleListQuery));
 export const getVehicleBooking = handle((request) => hrVehicleService.get(id(request)));
 export const arrangeVehicleBooking = handle((request) => hrVehicleService.arrange(request.admin!, id(request), request.body), "Đã lưu chuyến xe.");
-export const completeVehicleBooking = handle((request) => hrVehicleService.complete(request.admin!, id(request), request.body.actualCost === "" ? null : request.body.actualCost, uploadedReceipts(request)), "Đã chốt chuyến xe.");
+export const completeVehicleBooking = handle((request) => hrVehicleService.complete(request.admin!, id(request), { actualCost: request.body.actualCost === "" ? null : request.body.actualCost, actualEndAt: request.body.actualEndAt }, uploadedReceipts(request)), "Đã chốt chuyến xe.");
 export const cancelVehicleBooking = handle((request) => hrVehicleService.cancel(request.admin!, id(request), request.body.reason), "Đã hủy chuyến xe.");
 export const deleteVehicleBooking = handle((request) => hrVehicleService.remove(id(request)), "Đã xóa chuyến xe.");
 export const getVehicleReport = handle((request) => hrVehicleService.report(String(request.query.month)));

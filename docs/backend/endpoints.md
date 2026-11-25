@@ -10,8 +10,8 @@ Tất cả endpoint đi qua middleware toàn cục tại `backend/index.ts`: Hel
 | GET | `/user/employees` | USER GATE, validate query | user `getEmployees` | `userEmployeeService.getEmployees` | danh sách nhân viên + pagination; khách nhận 401 |
 | GET | `/user/employees/departments` | USER GATE | user `getDepartments` | `userEmployeeService.getDepartments` | `string[]` mã phòng có nhân viên active, chưa xóa; không phân trang |
 | GET | `/user/employees/:id` | USER GATE | user `getEmployeeById` | `userEmployeeService.getEmployeeById` | nhân viên |
-| GET | `/user/media` | `attachUser`, validate query | user `getMedia` | `userMediaService.getMedia` | bài published + pagination; khách chỉ nhận bài `visibility: "public"` |
-| GET | `/user/media/:id` | `attachUser` | user `getMediaById` | `userMediaService.getMediaById` | bài published; khách mở bài nội bộ (hoặc bài cũ chưa đặt phạm vi) nhận 401 |
+| GET | `/user/media` | USER GATE, validate query | user `getMedia` | `userMediaService.getMedia` | bài published + pagination; khách nhận 401 |
+| GET | `/user/media/:id` | USER GATE | user `getMediaById` | `userMediaService.getMediaById` | bài published; khách nhận 401 |
 | GET | `/user/meetings` | USER GATE | `getBookings` | `meetingService.getBookings` | `{ items, pagination }`, email được che, `isMine` cho lịch của người đang xem |
 | GET | `/user/meetings/mine` | USER GATE | `getMyBookings` | `userMeetingBookingService.mine` | `{ upcoming, past }` (15 ngày gần nhất), email đầy đủ của chính mình |
 | POST | `/user/meetings/bookings` | USER GATE, limiter theo account, validate body | `bookMeeting` | `userMeetingBookingService.book` | 201; booking mới. Tên/email lấy từ tài khoản, bỏ qua giá trị gửi lên; không còn OTP |
@@ -56,7 +56,7 @@ Tất cả endpoint đi qua middleware toàn cục tại `backend/index.ts`: Hel
 | POST | `/admin/employees/:id/restore` | ADMIN GATE, `employees:trash` | `restoreEmployee` | `adminEmployeeService.restoreEmployee` + audit | nhân viên |
 | DELETE | `/admin/employees/:id/permanent` | ADMIN GATE, `employees:trash` | `permanentlyDeleteEmployee` | `adminEmployeeService.permanentlyDeleteEmployee` + audit | nhân viên |
 | DELETE | `/admin/employees/:id` | ADMIN GATE, `employees:delete` | `softDeleteEmployee` | `adminEmployeeService.softDeleteEmployee` + audit | nhân viên |
-| GET | `/admin/media` | ADMIN GATE, `media:view`, validate query | `getMedia` | `adminMediaService.getMedia` | bài viết + pagination; `categories` và `visibilities` nhận danh sách cách nhau bằng dấu phẩy |
+| GET | `/admin/media` | ADMIN GATE, `media:view`, validate query | `getMedia` | `adminMediaService.getMedia` | bài viết + pagination; `categories` nhận danh sách cách nhau bằng dấu phẩy |
 | GET | `/admin/media/:id` | ADMIN GATE, `media:view` | `getMediaById` | `adminMediaService.getMediaById` | bài viết |
 | POST | `/admin/media` | ADMIN GATE, `media:create`, Cloudinary, multipart cover, validate upload | `createMedia` | `adminMediaService.createMedia` + audit | bài viết (201) |
 | PATCH | `/admin/media/:id` | ADMIN GATE, Cloudinary, multipart cover, validate upload, quyền update/publish | `updateMedia` | `adminMediaService.updateMedia` + audit | bài viết |
@@ -119,7 +119,7 @@ Tin truyền thông nổi bật: `GET /user/media?featured=true&limit=5`; xem [m
 
 ## Phạm vi bài truyền thông
 
-`media.visibility`: `public` (ai cũng xem) hoặc `internal` (chỉ tài khoản đã đăng nhập). Bài mới mặc định `internal`; bài cũ chưa có trường này được coi là nội bộ. Trang quản trị lọc được bằng `?visibility=public|internal`.
+Bài truyền thông không còn phạm vi Công khai/Nội bộ: cả cổng là nội bộ nên mọi bài chỉ dành cho tài khoản đã đăng nhập. Trường `visibility` còn sót trên bài cũ bị bỏ qua.
 
 ## Ảnh đại diện tài khoản
 
@@ -131,6 +131,10 @@ Nhân viên gửi yêu cầu (đón/đưa khách hoặc giao/nhận hàng); HR (
 
 Trạng thái: `pending` (chờ xử lý) → `arranged` (đã sắp xếp xe) → `arrived` (người đặt báo đã đi xong, tùy chọn) → `completed` (HR chốt; xe ngoài bắt buộc `actualCost`) hoặc `cancelled` (có lý do; HR hủy bắt buộc ghi lý do). Thời gian gửi lên là giờ Việt Nam dạng `YYYY-MM-DDTHH:mm`; phải đặt trước giờ đi ít nhất 15 phút.
 
+Người đặt chọn `forOther`: `false` là đặt cho bản thân (lấy tên, email, phòng ban từ tài khoản); `true` là đặt giúp người khác, bắt buộc `forOtherName` và `forOtherPhone`. Giao/nhận hàng bắt buộc tên và SĐT người gửi, người nhận, `goodsDescription` và `goodsQuantity` (số lượng/khối lượng, ghi tự do nhưng phải có con số, ví dụ "15 thùng, 500 kg").
+
+Kiểm tra dữ liệu (frontend `src/lib/vehicleValidation.ts` và backend dùng cùng quy tắc): số điện thoại phải là số Việt Nam (`backend/src/utils/text/vietnamPhone.ts`): di động 10 số với đầu số nhà mạng đang dùng, máy bàn 11 số bắt đầu `02`; nhận `+84`/`84`, dấu cách, chấm, gạch, ngoặc; lưu dạng `0901234567`. SĐT người gửi và người nhận không được trùng; tên người/công ty ít nhất 2 ký tự và có chữ cái; điểm đón, điểm đến ít nhất 3 ký tự và không trùng nhau; giờ đi từ 15 phút đến 90 ngày tính từ lúc đặt; khứ hồi thì giờ về sau giờ đi và không quá 30 ngày.
+
 | Method | Path | Middleware | Ghi chú |
 | --- | --- | --- | --- |
 | GET | `/user/vehicles/mine` | USER GATE | chuyến của mình (60 ngày gần nhất và mọi chuyến chưa xong) |
@@ -140,8 +144,8 @@ Trạng thái: `pending` (chờ xử lý) → `arranged` (đã sắp xếp xe) �
 | POST | `/user/vehicles/:id/arrived` | USER GATE, limiter, multipart `receipts` ≤ 3 ảnh | "Đã đi xong" khi `arranged`; báo HR |
 | GET | `/admin/vehicles` | ADMIN GATE, `vehicles:manage` | lọc `status`, `vehicleType`, `purpose`, `month`, `search`; trả `waiting` |
 | GET | `/admin/vehicles/:id` | như trên | |
-| PATCH | `/admin/vehicles/:id` | như trên, validate | chọn xe/sửa chuyến; xe ngoài cần `estimatedCost`; báo người đặt |
-| POST | `/admin/vehicles/:id/complete` | như trên, multipart `receipts` | chốt; xe ngoài cần `actualCost` |
+| PATCH | `/admin/vehicles/:id` | như trên, validate | chọn xe/sửa chuyến; bắt buộc `expectedEndAt` (HR quyết định, người đặt không nhập); xe ngoài cần `estimatedCost`; báo người đặt. Đổi giờ đi/giờ về/điểm đón/điểm đến so với yêu cầu thì bắt buộc `changeReason` (≥ 3 ký tự): lưu vào `changes[]` và gửi người đặt qua thông báo web + email. Không đổi gì mà vẫn gửi `changeReason` thì lưu thành lời nhắn của HR (`items` rỗng) và cũng gửi người đặt. HR không sửa được `note` của người đặt |
+| POST | `/admin/vehicles/:id/complete` | như trên, multipart `receipts` | chốt; bắt buộc `actualEndAt` (giờ hoàn thành thật, giờ Việt Nam, sau giờ đi và không ở tương lai); xe ngoài cần thêm `actualCost` |
 | POST | `/admin/vehicles/:id/cancel` | như trên | `reason` bắt buộc |
 | DELETE | `/admin/vehicles/:id` | thêm `vehicles:delete` | chỉ chuyến `cancelled`; xóa luôn ảnh |
 | GET | `/admin/vehicles/report?month=YYYY-MM` | `vehicles:manage` | tổng tiền xe ngoài theo giá thật (chỉ chuyến `completed`), theo phòng ban, theo mục đích |

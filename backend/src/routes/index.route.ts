@@ -47,8 +47,8 @@ const authenticatedAdminLimiter = rateLimit({
 
 router.use("/health", healthRouter);
 router.use("/user/auth", userAuthRouter);
-// Signed-in user portal only (requireUserAuth inside each router): account, notifications,
-// staff directory, meetings and feedback. Media is open but guests only get public posts.
+// The whole portal is internal: every /user router except auth and site-settings (read by
+// the login screen) requires a signed-in account (requireUserAuth inside each router).
 router.use("/user/account", userAccountRouter);
 router.use("/user/notifications", userNotificationRouter);
 router.use("/user/vehicles", userVehicleRouter);

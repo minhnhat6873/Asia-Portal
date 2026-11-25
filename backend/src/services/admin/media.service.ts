@@ -61,15 +61,8 @@ export const adminMediaService = {
     if (query.category) filter.category = query.category;
     if (query.categories) filter.category = { $in: query.categories.split(",") as MediaCategory[] };
     if (!deleted && query.status) filter.status = query.status;
-    // Older posts have no visibility and count as internal.
-    if (query.visibility) filter.visibility = query.visibility === "public" ? "public" : { $ne: "public" };
     // featured=true: only highlighted posts; featured=false: only the others.
     if (query.featured !== undefined) filter.featured = String(query.featured) === "true" ? true : { $ne: true };
-    if (query.visibilities) {
-      const visibilities = query.visibilities.split(",");
-      if (visibilities.length === 2) delete filter.visibility;
-      else filter.visibility = visibilities[0] === "public" ? "public" : { $ne: "public" };
-    }
 
     const sort = { [deleted ? "deletedAt" : "publishDate"]: query.sort === "oldest" ? 1 as const : -1 as const };
     const normalizedSearch = normalizeSearchText(query.search);

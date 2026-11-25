@@ -34,7 +34,7 @@ Tra cứu mã từ thư mục gốc của repo:
 
 Frontend dùng Next.js App Router. Bắt đầu từ `frontend/src/app` để tìm trang, theo import sang `features` để xem giao diện và sang `services` để xem lời gọi API. Alias `@/` trỏ tới `frontend/src/`. Kiểu dữ liệu dùng chung nằm trong `types`, còn thành phần giao diện dùng chung nằm trong `components`.
 
-Để nối hai đầu HTTP, lấy đường dẫn trong frontend service rồi đối chiếu với `backend/src/routes/index.route.ts` và router con. Ví dụ trang `/employees` dùng `EmployeesPage` → `getPublicEmployees` → `apiGet`. Trình duyệt gửi `GET /backend-api/user/employees`; rewrite trong `frontend/next.config.ts` chuyển thành `GET /user/employees` ở Express. Theo `routes/user/employee.route.ts` đến controller, service và repository cùng tên miền nghiệp vụ trong `backend/src`; frontend service đổi `_id` thành `id` cho giao diện.
+Để nối hai đầu HTTP, lấy đường dẫn trong frontend service rồi đối chiếu với `backend/src/routes/index.route.ts` và router con. Ví dụ trang `/user/employees` dùng `EmployeesPage` → `getPublicEmployees` → `apiGet`. Trình duyệt gửi `GET /backend-api/user/employees`; rewrite trong `frontend/next.config.ts` chuyển thành `GET /user/employees` ở Express. Theo `routes/user/employee.route.ts` đến controller, service và repository cùng tên miền nghiệp vụ trong `backend/src`; frontend service đổi `_id` thành `id` cho giao diện.
 
 Khi sửa luồng quản trị, bắt đầu từ `frontend/src/proxy.ts` cho chuyển hướng trang và `frontend/src/services/api.ts` cho gửi cookie, xử lý lỗi và làm mới phiên. Kiểm tra middleware xác thực và quyền ở router Express tương ứng.
 

@@ -511,3 +511,9 @@ body {
 .rich-content blockquote { margin: 1rem 0; border-left: 4px solid #10b981; padding-left: 1rem; color: #475569; }
 .rich-content pre, .rich-content code { border-radius: 0.375rem; background: #f1f5f9; font-family: monospace; }
 .rich-content pre { overflow-x: auto; padding: 0.75rem; }
+
+/* Ant Design time picker popup (DateTimeInput): two equal columns, the portal's green, no default footer. */
+.asia-time-popup .ant-picker-panel-container { border-radius: 16px; box-shadow: 0 18px 44px rgba(15, 23, 42, 0.18); }
+.asia-time-popup .ant-picker-footer { display: none; }
+
+.asia-time-options { scrollbar-width: thin; scrollbar-color: #a3a3a3 transparent; }

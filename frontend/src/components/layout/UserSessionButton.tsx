@@ -12,11 +12,11 @@ import styles from "./Navbar.module.css";
 import UserAvatar from "@/components/ui/UserAvatar";
 
 const PAGES: Record<string, string> = {
-  profile: "/account/profile",
-  meetings: "/account/meetings",
-  trips: "/account/trips",
-  settings: "/account/settings",
-  notifications: "/account/notifications",
+  profile: "/user/account/profile",
+  meetings: "/user/account/meetings",
+  trips: "/user/account/trips",
+  settings: "/user/account/settings",
+  notifications: "/user/account/notifications",
 };
 
 export default function UserSessionButton() {
@@ -43,7 +43,7 @@ export default function UserSessionButton() {
       // A full reload (not router.push) clears internal data (directory, meetings,
       // internal posts) that this tab still holds in memory.
       // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-      window.location.href = "/";
+      window.location.href = "/login";
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Không thể đăng xuất. Vui lòng thử lại.");
       setBusy(false);

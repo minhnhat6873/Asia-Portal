@@ -91,7 +91,7 @@ function TripsTable({ onOpen, refreshKey }: { onOpen: (trip: VehicleTrip) => voi
                       {data.items.map((trip) => (
                         <tr key={trip.id} className="align-top hover:bg-slate-50">
                           <td className="whitespace-nowrap px-4 py-3 font-semibold text-slate-800">{formatTripTime(trip.departAt)}{trip.roundTrip && <span className="block text-xs font-normal text-slate-500">Khứ hồi</span>}</td>
-                          <td className="px-4 py-3"><span className="font-semibold text-slate-800">{trip.requester.name}</span><span className="block text-xs text-slate-500">{trip.requester.department || "—"}</span></td>
+                          <td className="px-4 py-3"><span className="font-semibold text-slate-800">{trip.requester.name}</span><span className="block text-xs text-slate-500">{trip.requester.department || "—"}</span>{trip.forOther && <span className="mt-0.5 block text-xs font-semibold text-sky-700">Đặt giúp: {trip.forOtherName}</span>}</td>
                           <td className="max-w-52 px-4 py-3"><span className="text-xs font-semibold text-slate-500">{VEHICLE_PURPOSE_LABELS[trip.purpose]}</span><span className="block truncate font-semibold text-slate-800" title={trip.customerName}>{trip.customerName}</span></td>
                           <td className="max-w-64 px-4 py-3 text-slate-600"><span className="line-clamp-2">{trip.pickup} → {trip.destination}</span></td>
                           <td className="whitespace-nowrap px-4 py-3 text-slate-700">{trip.vehicleType ? VEHICLE_TYPE_LABELS[trip.vehicleType] : <span className="text-amber-700">Chưa chọn</span>}</td>
