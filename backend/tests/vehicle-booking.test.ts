@@ -1,11 +1,11 @@
 jest.mock("../src/repositories/vehicle-booking.repository", () => ({ vehicleBookingRepository: {
   create: jest.fn(), findById: jest.fn(), findMine: jest.fn(), list: jest.fn(), count: jest.fn(), findForReport: jest.fn(),
   updateIfStatus: jest.fn(), deleteCancelled: jest.fn(), findDepartReminders: jest.fn(), findOverdueForHr: jest.fn(),
-  findOverdueEmailDue: jest.fn(), claimFlag: jest.fn(), managerAccounts: jest.fn(),
+  findOverdueEmailDue: jest.fn(), findPendingOverdue: jest.fn(), claimFlag: jest.fn(), managerAccounts: jest.fn(),
 } }));
 jest.mock("../src/services/vehicle/vehicle-notifier", () => ({
   formatVietnamTime: (value: Date | null) => (value ? value.toISOString() : ""),
-  vehicleNotifier: { toRequester: jest.fn(), toHr: jest.fn(), emailRequesterReminder: jest.fn(), emailHrOverdue: jest.fn(), emailRequesterChange: jest.fn() },
+  vehicleNotifier: { toRequester: jest.fn(), toHr: jest.fn(), emailRequesterReminder: jest.fn(), emailHrOverdue: jest.fn(), emailRequesterChange: jest.fn(), emailHrNew: jest.fn(), emailHrPendingOverdue: jest.fn() },
 }));
 jest.mock("../src/utils/vehicle/receipts", () => ({ removeVehicleReceiptFiles: jest.fn() }));
 jest.mock("../src/repositories/admin/employee.repository", () => ({ adminEmployeeRepository: { findByEmail: jest.fn().mockResolvedValue({ department: "Sales" }) } }));
@@ -53,6 +53,7 @@ describe("requester", () => {
     }));
     expect(trip.status).toBe("pending");
     expect(vehicleNotifier.toHr).toHaveBeenCalledWith(expect.anything(), "vehicle-new");
+    expect(vehicleNotifier.emailHrNew).toHaveBeenCalledWith(expect.objectContaining({ status: "pending" }));
   });
 
   it("needs at least 15 minutes before departure", async () => {
@@ -278,6 +279,7 @@ describe("reminders", () => {
     repo.findDepartReminders.mockResolvedValue([trip] as never);
     repo.findOverdueForHr.mockResolvedValue([trip] as never);
     repo.findOverdueEmailDue.mockResolvedValue([trip] as never);
+    repo.findPendingOverdue.mockResolvedValue([] as never);
     repo.claimFlag.mockResolvedValueOnce(true).mockResolvedValueOnce(true).mockResolvedValueOnce(true);
     await runVehicleReminders(NOW);
     expect(vehicleNotifier.toRequester).toHaveBeenCalledWith(trip, "vehicle-reminder");
@@ -290,8 +292,30 @@ describe("reminders", () => {
     repo.findDepartReminders.mockResolvedValue([trip] as never);
     repo.findOverdueForHr.mockResolvedValue([] as never);
     repo.findOverdueEmailDue.mockResolvedValue([] as never);
+    repo.findPendingOverdue.mockResolvedValue([] as never);
     repo.claimFlag.mockResolvedValue(false);
     await runVehicleReminders(NOW);
     expect(vehicleNotifier.toRequester).not.toHaveBeenCalled();
+  });
+
+  it("a request still waiting 5 minutes after its departure: web to both sides and email to HR, once", async () => {
+    const trip = stored({ status: "pending" });
+    repo.findDepartReminders.mockResolvedValue([] as never);
+    repo.findOverdueForHr.mockResolvedValue([] as never);
+    repo.findOverdueEmailDue.mockResolvedValue([] as never);
+    repo.findPendingOverdue.mockResolvedValue([trip] as never);
+    repo.claimFlag.mockResolvedValueOnce(true);
+    await runVehicleReminders(NOW);
+    expect(repo.findPendingOverdue).toHaveBeenCalledWith(new Date(NOW.getTime() - 5 * 60_000));
+    expect(repo.claimFlag).toHaveBeenCalledWith(trip._id, "pendingOverdueNotifiedAt");
+    expect(vehicleNotifier.toHr).toHaveBeenCalledWith(trip, "vehicle-pending-overdue");
+    expect(vehicleNotifier.toRequester).toHaveBeenCalledWith(trip, "vehicle-pending-overdue");
+    expect(vehicleNotifier.emailHrPendingOverdue).toHaveBeenCalledWith(trip);
+
+    jest.clearAllMocks();
+    repo.findPendingOverdue.mockResolvedValue([trip] as never);
+    repo.claimFlag.mockResolvedValue(false);
+    await runVehicleReminders(NOW);
+    expect(vehicleNotifier.emailHrPendingOverdue).not.toHaveBeenCalled();
   });
 });

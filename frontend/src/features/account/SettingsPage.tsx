@@ -7,6 +7,7 @@ import { userAuthService } from "@/services/user-auth.service";
 import { showToast } from "@/features/admin/auth/notify";
 import { getPasswordValidationError, PASSWORD_MAX_LENGTH, PASSWORD_REQUIREMENTS } from "@/lib/password-validation";
 import AccountShell, { Card } from "./AccountShell";
+import NotificationSettingsCard from "./NotificationSettingsCard";
 
 type Field = "currentPassword" | "password" | "confirmPassword";
 const EMPTY: Record<Field, string> = { currentPassword: "", password: "", confirmPassword: "" };
@@ -96,7 +97,7 @@ export default function SettingsPage() {
   };
 
   return (
-    <AccountShell title="Cài đặt tài khoản" description="Đổi mật khẩu và quản lý phiên đăng nhập.">
+    <AccountShell title="Cài đặt tài khoản" description="Đổi mật khẩu, quản lý phiên đăng nhập và thông báo.">
       <div className="space-y-5">
         <Card>
           <div className="flex items-center gap-3">
@@ -131,6 +132,8 @@ export default function SettingsPage() {
             </button>
           </div>
         </Card>
+
+        <NotificationSettingsCard />
       </div>
     </AccountShell>
   );

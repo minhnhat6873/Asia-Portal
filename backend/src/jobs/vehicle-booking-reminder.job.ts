@@ -8,6 +8,8 @@ import { vehicleNotifier } from "../services/vehicle/vehicle-notifier";
 export const VEHICLE_DEPART_REMINDER_MS = 15 * 60_000;
 /** HR: email when a trip is still not closed this long after the website reminder. */
 export const VEHICLE_HR_EMAIL_AFTER_MS = 30 * 60_000;
+/** Everyone: a request still waiting for HR this long after its departure time. */
+export const VEHICLE_PENDING_OVERDUE_MS = 5 * 60_000;
 const POLL_INTERVAL_MS = 60_000;
 
 let interval: NodeJS.Timeout | undefined;
@@ -29,6 +31,13 @@ export async function runVehicleReminders(now = new Date()): Promise<void> {
   for (const trip of await vehicleBookingRepository.findOverdueEmailDue(new Date(now.getTime() - VEHICLE_HR_EMAIL_AFTER_MS)) as StoredVehicleBooking[]) {
     if (!(await vehicleBookingRepository.claimFlag(trip._id, "hrOverdueEmailedAt"))) continue;
     await vehicleNotifier.emailHrOverdue(trip);
+  }
+  // 4. Nobody handled the request and the departure time passed 5 minutes ago.
+  for (const trip of await vehicleBookingRepository.findPendingOverdue(new Date(now.getTime() - VEHICLE_PENDING_OVERDUE_MS)) as StoredVehicleBooking[]) {
+    if (!(await vehicleBookingRepository.claimFlag(trip._id, "pendingOverdueNotifiedAt"))) continue;
+    await vehicleNotifier.toHr(trip, "vehicle-pending-overdue");
+    await vehicleNotifier.toRequester(trip, "vehicle-pending-overdue");
+    await vehicleNotifier.emailHrPendingOverdue(trip);
   }
 }
 

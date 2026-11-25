@@ -8,6 +8,9 @@ import { apiGet, apiPost } from "@/services/api";
 import { safeSitePath } from "@/lib/safeRedirect";
 import { NotificationRow } from "@/components/layout/NotificationBell";
 import type { NotificationPage, UserNotification } from "@/services/notification.service";
+import NotificationAlerts from "@/components/layout/NotificationAlerts";
+
+const loadAdminNotifications = () => apiGet<NotificationPage>("/admin/notifications");
 
 /** Bell in the admin portal (e.g. HR: new vehicle requests, trips waiting to be closed). */
 export default function AdminNotificationBell() {
@@ -48,6 +51,9 @@ export default function AdminNotificationBell() {
   };
 
   return (
+    <>
+    {/* Chime (and desktop pop-up when the tab is hidden) for new admin notifications. */}
+    <NotificationAlerts scope="admin" streamUrl="/backend-api/admin/notifications/stream" load={loadAdminNotifications} fallbackLink="/admin" onFresh={refreshCount} />
     <DialogTrigger isOpen={isOpen} onOpenChange={(next) => { setIsOpen(next); if (next) load(); }}>
       <Button aria-label={unread ? `Thông báo, ${unread} chưa đọc` : "Thông báo"} className="relative inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-slate-600 outline-none hover:bg-slate-100 hover:text-emerald-700 focus-visible:ring-2 focus-visible:ring-emerald-500">
         <Bell aria-hidden="true" size={21} />
@@ -68,5 +74,6 @@ export default function AdminNotificationBell() {
         </Dialog>
       </Popover>
     </DialogTrigger>
+    </>
   );
 }

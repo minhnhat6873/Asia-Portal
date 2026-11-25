@@ -96,6 +96,41 @@ sudo ufw allow from 192.168.16.0/23 to any port 80 proto tcp
 
 Không bật/tắt firewall hoặc thay đổi toàn bộ rule khi chưa biết quyền truy cập SSH/RDP và dịch vụ đang dùng. Không tạo port forwarding/DMZ/tunnel public; kiểm tra cả firewall/router, VPN và IPv6 theo chính sách công ty. Docker published ports có thể bypass UFW, vì vậy các cổng ứng dụng được bind loopback thay vì tất cả interface.
 
+### Luồng thông báo trực tiếp (SSE)
+
+Trang mở một kết nối giữ lâu `/backend-api/(user|admin)/notifications/stream` để nhận tín hiệu thông báo mới ngay lập tức (âm thanh kể cả khi tab ẩn). Cả hai file Nginx trong `deploy/nginx/` đã có `location` riêng cho đường này: không đệm (`proxy_buffering off`), giữ mở 15 phút. Mỗi trình duyệt chỉ giữ 1 kết nối cho mọi tab (frontend `src/lib/notificationStream.ts`).
+
+Mỗi kết nối qua Nginx dùng 2 connection (trình duyệt và backend). Ubuntu mặc định `worker_connections 768` cho mỗi worker, đủ khoảng 380 trình duyệt mở cùng lúc trên mỗi nhân CPU. Nếu nhiều hơn, tăng trong `/etc/nginx/nginx.conf` (khối `events`), ví dụ `worker_connections 4096;`, rồi `sudo nginx -t && sudo systemctl reload nginx`.
+
+Tín hiệu nằm trong bộ nhớ backend, nên chỉ đúng khi backend chạy **một** container (như `compose.yaml` hiện tại).
+
+### HTTPS và HTTP/2
+
+Khi đã có chứng chỉ cho tên miền (ví dụ `asiafnb.vn`):
+
+1. Chép chứng chỉ vào `/etc/ssl/asia-portal/fullchain.pem` và `privkey.pem` (`chmod 600` cho `privkey.pem`), hoặc sửa đường dẫn trong file cấu hình.
+2. Dùng `deploy/nginx/asia-portal-https.conf` thay cho `asia-portal.conf`. Sửa `server_name` và các dòng `allow` cho đúng mạng thật (giữ đúng dải đang cho phép trên server). Cần nginx 1.25.1 trở lên cho `http2 on;` (`nginx -v`); bản cũ hơn thì dùng `listen 443 ssl http2;`.
+   ```bash
+   sudo cp deploy/nginx/asia-portal-https.conf /etc/nginx/sites-available/asia-portal
+   sudo nginx -t && sudo systemctl reload nginx
+   ```
+3. Đổi `backend/.env` sang địa chỉ https và bật cookie bảo mật, rồi khởi động lại backend:
+   ```dotenv
+   CORS_ALLOWED_ORIGINS=https://asiafnb.vn
+   DOMAIN_FRONTEND=https://asiafnb.vn
+   AUTH_COOKIE_SECURE=true
+   ```
+   ```bash
+   sudo docker compose --env-file frontend/.env up -d --force-recreate backend
+   ```
+4. Mở cổng 443 nếu UFW đang bật (`sudo ufw allow from <dải mạng> to any port 443 proto tcp`).
+5. Kiểm tra HTTP/2 (phải in ra `2`):
+   ```bash
+   curl -sI --http2 https://asiafnb.vn -o /dev/null -w '%{http_version}\n'
+   ```
+
+Khi đã có HTTPS: hiện được thông báo ở góc màn hình (người dùng bật trong Cài đặt tài khoản), tính năng "Lấy vị trí hiện tại" khi đặt xe hoạt động, và HTTP/2 bỏ giới hạn 6 kết nối mỗi trang của trình duyệt.
+
 ## 5. Cập nhật
 
 ```bash

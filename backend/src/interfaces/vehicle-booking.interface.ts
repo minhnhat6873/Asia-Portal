@@ -75,6 +75,7 @@ export interface VehicleBooking {
   departReminderSentAt?: Date | null;
   hrOverdueNotifiedAt?: Date | null;
   hrOverdueEmailedAt?: Date | null;
+  pendingOverdueNotifiedAt?: Date | null;
   createdAt?: Date;
   updatedAt?: Date;
 }

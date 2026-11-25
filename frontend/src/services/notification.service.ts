@@ -3,7 +3,7 @@ import { safeSitePath } from "@/lib/safeRedirect";
 
 export type NotificationType = "news" | "meeting-booked" | "meeting-reminder"
   | "vehicle-arranged" | "vehicle-updated" | "vehicle-completed" | "vehicle-cancelled" | "vehicle-reminder"
-  | "vehicle-new" | "vehicle-arrived" | "vehicle-overdue";
+  | "vehicle-new" | "vehicle-arrived" | "vehicle-overdue" | "vehicle-pending-overdue";
 
 export interface UserNotification {
   id: string;

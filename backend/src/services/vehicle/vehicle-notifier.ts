@@ -3,6 +3,7 @@ import type { NotificationType } from "../../interfaces/notification.interface";
 import { notificationRepository } from "../../repositories/user/notification.repository";
 import { vehicleBookingRepository } from "../../repositories/vehicle-booking.repository";
 import { emailService } from "../notification/email.service";
+import { notificationPresence } from "../../utils/notification/notificationEvents";
 
 const PURPOSE_LABEL = { guest: "Đón/đưa khách", delivery: "Giao/nhận hàng" } as const;
 const TYPE_LABEL = { company: "Xe công ty", external: "Xe ngoài (Grab)" } as const;
@@ -28,9 +29,33 @@ const changeText = (change: VehicleChange) => (change.items.length
   : `Lời nhắn của HR: ${change.reason}`);
 const hrLink = (trip: StoredVehicleBooking) => `/admin/vehicles?id=${String(trip._id)}`;
 
+/** The request as HR needs it in an email. */
+const hrRequestRows = (trip: StoredVehicleBooking): [string, string][] => [
+  ["Người đặt", `${trip.requester.name} (${trip.requester.department || "—"})`],
+  ...(trip.forOther ? [["Đặt giúp cho", `${trip.forOtherName} · ${trip.forOtherPhone}`]] as [string, string][] : []),
+  ["Mục đích", PURPOSE_LABEL[trip.purpose]],
+  ...(trip.purpose === "delivery"
+    ? [["Người gửi", `${trip.senderName} · ${trip.senderPhone}`], ["Người nhận", `${trip.receiverName} · ${trip.receiverPhone}`], ["Hàng hóa", trip.goodsDescription ?? ""], ["Số lượng / khối lượng", trip.goodsQuantity ?? ""]] as [string, string][]
+    : [["Khách hàng", trip.customerName], ["Số người", String(trip.passengerCount ?? "")]] as [string, string][]),
+  ["Giờ đi", formatVietnamTime(trip.departAt)],
+  ["Điểm đón", trip.pickup],
+  ["Điểm đến", trip.destination],
+];
+
+/** One email per manager; a failed address does not stop the others. */
+async function emailManagers(accounts: { email: string; name: string }[], notice: { subject: string; heading: string; rows: [string, string][]; footer: string }) {
+  for (const account of accounts) {
+    try {
+      await emailService.sendNotice(account.email, { ...notice, greeting: `Xin chào ${account.name},` });
+    } catch (error) {
+      console.error(`Không gửi được email đặt xe tới ${account.email}.`, error);
+    }
+  }
+}
+
 export const vehicleNotifier = {
   /** change: HR changed the time or route; the message then says what and why. */
-  toRequester(trip: StoredVehicleBooking, type: Extract<NotificationType, "vehicle-arranged" | "vehicle-updated" | "vehicle-completed" | "vehicle-cancelled" | "vehicle-reminder">, change: VehicleChange | null = null) {
+  toRequester(trip: StoredVehicleBooking, type: Extract<NotificationType, "vehicle-arranged" | "vehicle-updated" | "vehicle-completed" | "vehicle-cancelled" | "vehicle-reminder" | "vehicle-pending-overdue">, change: VehicleChange | null = null) {
     return safely(type, async () => {
       const titles = {
         "vehicle-arranged": `Đã sắp xếp xe: ${trip.vehicleType ? TYPE_LABEL[trip.vehicleType] : ""}${change?.items.length ? " (có thay đổi giờ/lộ trình)" : change ? " (có lời nhắn của HR)" : ""}`,
@@ -38,8 +63,10 @@ export const vehicleNotifier = {
         "vehicle-completed": "Chuyến xe đã hoàn thành",
         "vehicle-cancelled": "Chuyến xe đã bị hủy",
         "vehicle-reminder": "Chuyến xe khởi hành sau 15 phút",
+        "vehicle-pending-overdue": "Yêu cầu đặt xe của bạn chưa được HR xử lý",
       } as const;
-      const message = change ? shorten(`${changeText(change)} · ${summary(trip)}`, 480)
+      const message = type === "vehicle-pending-overdue" ? shorten(`Đã quá giờ đi mà HR chưa xử lý, vui lòng liên hệ HR. · ${summary(trip)}`, 480)
+        : change ? shorten(`${changeText(change)} · ${summary(trip)}`, 480)
         : type === "vehicle-cancelled" && trip.cancel?.reason ? shorten(`Lý do: ${trip.cancel.reason} · ${summary(trip)}`, 480) : summary(trip);
       const data = { type, refId: String(trip._id), link: REQUESTER_LINK, title: titles[type], message };
       // Updates replace the previous one so the latest change shows as unread.
@@ -48,16 +75,46 @@ export const vehicleNotifier = {
     });
   },
 
-  toHr(trip: StoredVehicleBooking, type: Extract<NotificationType, "vehicle-new" | "vehicle-arrived" | "vehicle-overdue">) {
+  toHr(trip: StoredVehicleBooking, type: Extract<NotificationType, "vehicle-new" | "vehicle-arrived" | "vehicle-overdue" | "vehicle-pending-overdue">) {
     return safely(type, async () => {
       const titles = {
         "vehicle-new": `Yêu cầu đặt xe mới từ ${trip.requester.name}`,
         "vehicle-arrived": `${trip.requester.name} báo đã đi xong, cần chốt chuyến`,
         "vehicle-overdue": "Chuyến xe quá giờ hoàn thành, chưa chốt",
+        "vehicle-pending-overdue": "Yêu cầu đặt xe đã quá giờ đi mà chưa được xử lý",
       } as const;
       const accounts = await vehicleBookingRepository.managerAccounts();
       await notificationRepository.insertForAccounts(accounts.map((account) => account.id), {
         type, refId: String(trip._id), link: hrLink(trip), title: titles[type], message: summary(trip),
+      });
+    });
+  },
+
+  /**
+   * Email for a new request, only when no vehicle manager has the admin site open
+   * (whoever has it open already got the bell and the chime).
+   */
+  emailHrNew(trip: StoredVehicleBooking) {
+    return safely("email yêu cầu mới", async () => {
+      const accounts = await vehicleBookingRepository.managerAccounts();
+      if (accounts.some((account) => notificationPresence.isOnline(account.id, "admin"))) return;
+      await emailManagers(accounts, {
+        subject: `Yêu cầu đặt xe mới - ${trip.requester.name} (${formatVietnamTime(trip.departAt)})`,
+        heading: "Có yêu cầu đặt xe mới",
+        rows: hrRequestRows(trip),
+        footer: "Vui lòng vào trang quản trị > Quản lý đặt xe để sắp xếp xe.",
+      });
+    });
+  },
+
+  /** Email to every vehicle manager (online or not) when a request is still waiting after its departure time. */
+  emailHrPendingOverdue(trip: StoredVehicleBooking) {
+    return safely("email yêu cầu quá giờ chưa xử lý", async () => {
+      await emailManagers(await vehicleBookingRepository.managerAccounts(), {
+        subject: `[Quá giờ] Yêu cầu đặt xe chưa được xử lý - ${trip.requester.name}`,
+        heading: "Yêu cầu đặt xe đã quá giờ đi 5 phút mà chưa được xử lý",
+        rows: hrRequestRows(trip),
+        footer: "Vui lòng xử lý ngay (sắp xếp xe hoặc hủy kèm lý do) và liên hệ người đặt.",
       });
     });
   },
@@ -111,23 +168,19 @@ export const vehicleNotifier = {
   /** Email to every vehicle manager when a trip stays unclosed 30 minutes after the first reminder. */
   emailHrOverdue(trip: StoredVehicleBooking) {
     return safely("email nhắc HR", async () => {
-      const accounts = await vehicleBookingRepository.managerAccounts();
-      for (const account of accounts) {
-        await emailService.sendNotice(account.email, {
-          subject: `Chuyến xe chưa được chốt - ${trip.customerName}`,
-          heading: "Chuyến xe cần chốt",
-          greeting: `Xin chào ${account.name},`,
-          rows: [
-            ["Người đặt", `${trip.requester.name} (${trip.requester.department || "—"})`],
-            ["Mục đích", PURPOSE_LABEL[trip.purpose]],
-            ["Khách hàng", trip.customerName],
-            ["Giờ đi", formatVietnamTime(trip.departAt)],
-            ["Hoàn thành dự kiến", formatVietnamTime(trip.expectedEndAt)],
-            ["Xe", trip.vehicleType ? TYPE_LABEL[trip.vehicleType] : "—"],
-          ],
-          footer: "Vui lòng vào trang quản trị > Quản lý đặt xe để chốt chuyến (xe ngoài cần nhập giá thật).",
-        });
-      }
+      await emailManagers(await vehicleBookingRepository.managerAccounts(), {
+        subject: `Chuyến xe chưa được chốt - ${trip.customerName}`,
+        heading: "Chuyến xe cần chốt",
+        rows: [
+          ["Người đặt", `${trip.requester.name} (${trip.requester.department || "—"})`],
+          ["Mục đích", PURPOSE_LABEL[trip.purpose]],
+          ["Khách hàng", trip.customerName],
+          ["Giờ đi", formatVietnamTime(trip.departAt)],
+          ["Hoàn thành dự kiến", formatVietnamTime(trip.expectedEndAt)],
+          ["Xe", trip.vehicleType ? TYPE_LABEL[trip.vehicleType] : "—"],
+        ],
+        footer: "Vui lòng vào trang quản trị > Quản lý đặt xe để chốt chuyến (xe ngoài cần nhập giá thật).",
+      });
     });
   },
 };

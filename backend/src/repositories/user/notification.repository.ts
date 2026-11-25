@@ -4,6 +4,7 @@ import type { NotificationInput, NotificationType } from "../../interfaces/notif
 import AccountModel from "../../models/account.model";
 import MediaModel from "../../models/media.model";
 import NotificationModel from "../../models/notification.model";
+import { notificationEvents } from "../../utils/notification/notificationEvents";
 
 function isDuplicateKeyError(error: unknown): boolean {
   const value = error as { code?: number; writeErrors?: { code?: number }[] } | null;
@@ -19,6 +20,8 @@ export const notificationRepository = {
     } catch (error) {
       if (!isDuplicateKeyError(error)) throw error;
     }
+    // Open pages of these accounts reload their list and play the chime.
+    notificationEvents.publish(accountIds);
   },
 
   /** Marks a published post as announced; false when it was announced already. */

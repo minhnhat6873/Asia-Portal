@@ -22,6 +22,7 @@ export const NOTIFICATION_ICONS: Record<NotificationType, typeof Bell> = {
   "meeting-reminder": CalendarClock,
   "vehicle-arranged": CarFront, "vehicle-updated": CarFront, "vehicle-completed": CarFront, "vehicle-cancelled": CarFront,
   "vehicle-reminder": CarFront, "vehicle-new": CarFront, "vehicle-arrived": CarFront, "vehicle-overdue": CarFront,
+  "vehicle-pending-overdue": CarFront,
 };
 
 export function NotificationRow({ item, onOpen }: { item: UserNotification; onOpen: (item: UserNotification) => void }) {

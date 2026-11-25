@@ -24,6 +24,7 @@ Tất cả endpoint đi qua middleware toàn cục tại `backend/index.ts`: Hel
 | DELETE | `/user/account/avatar` | USER GATE, limiter theo account | `removeAvatar` | `accountAvatarService.clear` | `{ avatar, customAvatar: false }`: quay về ảnh hồ sơ nhân sự cùng email (hoặc rỗng) |
 | GET | `/user/notifications` | USER GATE, validate query (`before`) | `listNotifications` | `notificationService.list` | `{ items, unread, hasMore }`, 20 mục mỗi trang |
 | GET | `/user/notifications/unread-count` | USER GATE | `unreadNotifications` | `notificationService.unreadCount` | `{ unread }` |
+| GET | `/user/notifications/stream` (và `/admin/notifications/stream`) | USER GATE / ADMIN GATE | `openNotificationStream` | `notificationEvents` | Server-Sent Events: gửi `event: notification` (không kèm dữ liệu) ngay khi tài khoản có thông báo mới, trang tự tải lại danh sách và phát âm thanh; `: ping` mỗi 25 giây; đóng sau 10 phút để trình duyệt kết nối lại và kiểm tra phiên. Tín hiệu nằm trong bộ nhớ, chỉ đúng khi backend chạy 1 tiến trình. Nginx không đệm nhờ header `X-Accel-Buffering: no` |
 | POST | `/user/notifications/read-all` | USER GATE | `markAllNotificationsRead` | `notificationService.markAllRead` | — |
 | POST | `/user/notifications/:id/read` | USER GATE | `markNotificationRead` | `notificationService.markRead` | 404 nếu không phải thông báo của mình |
 | POST | `/admin/auth/login` | login limiter, body login | `login` | `adminAuthService.login` | admin; set cookie |
@@ -153,3 +154,9 @@ Kiểm tra dữ liệu (frontend `src/lib/vehicleValidation.ts` và backend dùn
 | GET/POST | `/admin/notifications`, `/unread-count`, `/read-all`, `/:id/read` | ADMIN GATE | chuông thông báo trong trang quản trị |
 
 Nhắc tự động (job `vehicle-booking-reminder`, mỗi phút): người đặt được nhắc trên web và email trước giờ đi 15 phút. HR được báo trên web khi có yêu cầu mới, khi người đặt bấm "Đã đi xong", hoặc khi quá giờ hoàn thành dự kiến mà chưa chốt. 30 phút sau lần báo đó mà vẫn chưa chốt thì gửi email cho mọi tài khoản có quyền `vehicles:manage`.
+
+Người nhận thông báo đặt xe ("HR") là Admin gốc và các tài khoản `manager` có nhóm quyền (đang bật) chứa `vehicles:manage`.
+
+- Yêu cầu mới: nếu còn ít nhất một HR đang mở trang `/admin` (đang giữ luồng `GET /admin/notifications/stream`, hoặc vừa ngắt dưới 60 giây) thì chỉ báo trên web. Không còn ai mở thì gửi email cho tất cả HR. Hệ thống chỉ biết trang đang mở, không biết người có ngồi trước máy hay không.
+- Yêu cầu vẫn `pending` sau giờ đi 5 phút: báo trên web cho HR và người đặt, gửi email cho tất cả HR (kể cả người đang mở web). Mỗi yêu cầu chỉ gửi một lần (cờ `pendingOverdueNotifiedAt`), bỏ qua yêu cầu có giờ đi cũ hơn 24 giờ.
+- Gửi email cho từng HR riêng; một địa chỉ lỗi không chặn các địa chỉ khác.

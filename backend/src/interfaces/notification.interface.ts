@@ -4,6 +4,8 @@ export const NOTIFICATION_TYPES = [
   "vehicle-arranged", "vehicle-updated", "vehicle-completed", "vehicle-cancelled", "vehicle-reminder",
   // Vehicle requests: to HR (accounts with "vehicles:manage")
   "vehicle-new", "vehicle-arrived", "vehicle-overdue",
+  // Both sides: still waiting for HR 5 minutes after the departure time
+  "vehicle-pending-overdue",
 ] as const;
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 

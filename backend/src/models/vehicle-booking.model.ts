@@ -69,6 +69,7 @@ const vehicleBookingSchema = new Schema<VehicleBooking>(
     departReminderSentAt: { type: Date, default: null },
     hrOverdueNotifiedAt: { type: Date, default: null },
     hrOverdueEmailedAt: { type: Date, default: null },
+    pendingOverdueNotifiedAt: { type: Date, default: null },
   },
   { timestamps: true, versionKey: false, collection: "vehicle_bookings" },
 );

@@ -5,7 +5,9 @@ import AccountModel from "../models/account.model";
 import PermissionGroupModel from "../models/permission-group.model";
 import VehicleBookingModel from "../models/vehicle-booking.model";
 
-const internalFields = "-departReminderSentAt -hrOverdueNotifiedAt -hrOverdueEmailedAt";
+const internalFields = "-departReminderSentAt -hrOverdueNotifiedAt -hrOverdueEmailedAt -pendingOverdueNotifiedAt";
+/** Older pending requests are not chased any more (e.g. test data when this check went live). */
+const PENDING_OVERDUE_LOOKBACK_MS = 24 * 60 * 60_000;
 
 export const vehicleBookingRepository = {
   create(data: Partial<VehicleBooking>) {
@@ -62,8 +64,15 @@ export const vehicleBookingRepository = {
       status: { $in: ["arranged", "arrived"] }, hrOverdueEmailedAt: null, hrOverdueNotifiedAt: { $ne: null, $lte: before },
     }).limit(200).lean();
   },
+  /** Requests still waiting for HR although their departure time passed before `before`. */
+  findPendingOverdue(before: Date) {
+    return VehicleBookingModel.find({
+      status: "pending", pendingOverdueNotifiedAt: null,
+      departAt: { $gt: new Date(before.getTime() - PENDING_OVERDUE_LOOKBACK_MS), $lte: before },
+    }).limit(200).lean();
+  },
   /** Claims a reminder flag once (several servers or overlapping runs send it only once). */
-  claimFlag(id: unknown, field: "departReminderSentAt" | "hrOverdueNotifiedAt" | "hrOverdueEmailedAt") {
+  claimFlag(id: unknown, field: "departReminderSentAt" | "hrOverdueNotifiedAt" | "hrOverdueEmailedAt" | "pendingOverdueNotifiedAt") {
     return VehicleBookingModel.updateOne({ _id: id, [field]: null }, { $set: { [field]: new Date() } }, { timestamps: false })
       .then((result) => result.modifiedCount > 0);
   },

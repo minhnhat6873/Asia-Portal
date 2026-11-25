@@ -201,6 +201,8 @@ export const userVehicleService = {
       requester: { ...person(account), department: employee?.department ?? "" },
     }) as StoredVehicleBooking;
     await vehicleNotifier.toHr(created, "vehicle-new");
+    // Not awaited: the requester does not wait for the mail server.
+    void vehicleNotifier.emailHrNew(created);
     return toResponse(created);
   },
 
