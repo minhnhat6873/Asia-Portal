@@ -16,7 +16,7 @@ import { Types } from "mongoose";
 import { vehicleBookingRepository } from "../src/repositories/vehicle-booking.repository";
 import { vehicleNotifier } from "../src/services/vehicle/vehicle-notifier";
 import { removeVehicleReceiptFiles } from "../src/utils/vehicle/receipts";
-import { hrVehicleService, monthRange, userVehicleService, VEHICLE_ALLOW_FUTURE_END } from "../src/services/vehicle/vehicle-booking.service";
+import { hrVehicleService, monthRange, userVehicleService } from "../src/services/vehicle/vehicle-booking.service";
 import { runVehicleReminders } from "../src/jobs/vehicle-booking-reminder.job";
 import { vehicleArrangeSchema, vehicleCompleteSchema, vehicleHrCancelSchema, vehicleListQuerySchema, vehicleRequestSchema } from "../src/validates/vehicle-booking.validate";
 import type { AuthenticatedAccount } from "../src/interfaces/account.interface";
@@ -337,9 +337,7 @@ describe("HR", () => {
     const close = (actualEndAt: string) => hrVehicleService.complete(hr, String(new Types.ObjectId()), { actualEndAt }, []);
     await expect(close("")).rejects.toMatchObject({ fieldErrors: { actualEndAt: expect.stringContaining("Vui lòng chọn") } });
     await expect(close("2026-11-25T10:00")).rejects.toMatchObject({ fieldErrors: { actualEndAt: expect.stringContaining("sau giờ đi") } });
-    // While VEHICLE_ALLOW_FUTURE_END is on (temporary, for testing) a future end is accepted.
-    if (VEHICLE_ALLOW_FUTURE_END) await expect(close("2026-11-25T14:00")).resolves.toMatchObject({ status: "completed" });
-    else await expect(close("2026-11-25T14:00")).rejects.toMatchObject({ fieldErrors: { actualEndAt: expect.stringContaining("tương lai") } });
+    await expect(close("2026-11-25T14:00")).rejects.toMatchObject({ fieldErrors: { actualEndAt: expect.stringContaining("tương lai") } });
     await close("2026-11-25T12:30");
     expect(repo.updateIfStatus).toHaveBeenLastCalledWith(expect.any(String), ["arranged"], expect.objectContaining({
       $set: expect.objectContaining({ status: "completed", actualEndAt: new Date("2026-11-25T05:30:00Z"), actualCost: null }),

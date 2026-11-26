@@ -35,11 +35,8 @@ const INPUT = "w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text
 const MAX_FILES = 3;
 /** "YYYY-MM-DDTHH:mm" (Vietnam time) shown as "HH:mm DD/MM/YYYY". */
 const formatLocal = (value: string) => `${value.slice(11, 16)} ${value.slice(8, 10)}/${value.slice(5, 7)}/${value.slice(0, 4)}`;
-/**
- * TẠM ĐỂ TEST: true cho phép chốt chuyến với giờ hoàn thành thật ở tương lai.
- * Test xong đổi về false (cùng VEHICLE_ALLOW_FUTURE_END trong backend vehicle-booking.service.ts).
- */
-const VEHICLE_ALLOW_FUTURE_END = true;
+/** Production: actual completion must not be in the future (also enforced by the backend). */
+const VEHICLE_ALLOW_FUTURE_END = false;
 const errorText = (reason: unknown, fallback: string) =>
   reason instanceof ApiError ? Object.values(reason.fieldErrors)[0] ?? reason.message : reason instanceof Error ? reason.message : fallback;
 const money = (value: string) => (value.trim() ? Number(value.replace(/[^\d]/g, "")) : null);

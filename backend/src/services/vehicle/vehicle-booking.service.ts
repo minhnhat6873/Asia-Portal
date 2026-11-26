@@ -32,11 +32,8 @@ export const VEHICLE_MAX_DAYS_AHEAD = 90;
 export const VEHICLE_MAX_TRIP_DAYS = 30;
 /** Expected end (set by HR) must be after departure and at most this many days later. */
 export const VEHICLE_MAX_EXPECTED_END_DAYS = 90;
-/**
- * TẠM ĐỂ TEST: true cho phép chốt chuyến với giờ hoàn thành thật ở tương lai.
- * Test xong đổi về false (và VEHICLE_ALLOW_FUTURE_END trong VehicleTripDialog.tsx).
- */
-export const VEHICLE_ALLOW_FUTURE_END = true;
+/** Production: actual completion must not be in the future (also checked in VehicleTripDialog). */
+export const VEHICLE_ALLOW_FUTURE_END = false;
 const DAY_MS = 24 * 60 * 60_000;
 const placeKey = (text: string) => text.normalize("NFC").toLocaleLowerCase("vi").replace(/\s+/g, " ").trim();
 const MAX_RECEIPTS = 6;
