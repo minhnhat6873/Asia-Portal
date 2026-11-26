@@ -2171,10 +2171,10 @@ express-mongo-sanitize@^2.2.0:
   resolved "https://registry.yarnpkg.com/express-mongo-sanitize/-/express-mongo-sanitize-2.2.0.tgz#c8c2d45e137f213950f70bf586704e0db5cfe356"
   integrity sha512-PZBs5nwhD6ek9ZuP+W2xmpvcrHwXZxD5GdieX2dsjPbAbH4azOkrHbycBud2QRU+YQF1CT+pki/lZGedHgo/dQ==
 
-express-rate-limit@8.7.4:
-  version "8.7.4"
-  resolved "https://registry.yarnpkg.com/express-rate-limit/-/express-rate-limit-8.7.4.tgz#51513ecb8f069bf9ddce69fc25ec45f707ca3f53"
-  integrity sha512-LKBXzX700wz3zAGNNmVnjRI5mEbYkLv7UbMI4+9Xa+JPcg2UZh6AgY/2CZh9RrJjFM5ttC/N1lD+KzyFoZITCw==
+express-rate-limit@8.7.5:
+  version "8.7.5"
+  resolved "https://registry.yarnpkg.com/express-rate-limit/-/express-rate-limit-8.7.5.tgz#5064479b76eccea1813995888aca757a2dd6f135"
+  integrity sha512-wi+v38cx2EqD0JnhE/e74o5tFqKWUOAPFJIgyEiqJ8v2MNpoOAA3kI2hXYOI+YM+HE5yqbdAlVxm2GqOIeYOgA==
   dependencies:
     debug "^4.4.3"
     ip-address "^10.2.0"
@@ -3654,10 +3654,10 @@ mongoose-slug-updater@^3.3.0:
     shortid "^2.2.16"
     speakingurl "^14.0.1"
 
-mongoose@^9.12.1:
-  version "9.12.1"
-  resolved "https://registry.yarnpkg.com/mongoose/-/mongoose-9.12.1.tgz#981a019b94410190f66f633dd67a27421e248fd6"
-  integrity sha512-wPw1NKurTDShT+kr/JJvhdwPKIJkxFJv5GEbv++QahN8snPR9Fp/BFg6nQbbCyUHBB8DexwwlCQW6SfBD99QCg==
+mongoose@^9.12.2:
+  version "9.12.2"
+  resolved "https://registry.yarnpkg.com/mongoose/-/mongoose-9.12.2.tgz#3c943d08214de797d63e3cb5772cb24755dbe27d"
+  integrity sha512-SoWBAJGaC7UJ8SCmsVd34kDmiq/lvyeENVTHTjR1ez+vyfY/cu/K5/uCgIoXA6pYV5yMAHM72sWVe6XuYYEqeA==
   dependencies:
     "@standard-schema/spec" "^1.1.0"
     kareem "3.4.1"
@@ -3743,10 +3743,10 @@ node-releases@^2.0.55:
   resolved "https://registry.yarnpkg.com/node-releases/-/node-releases-2.0.56.tgz#fff6a4093fe05d994a2a5e415eee5fcef874e6dc"
   integrity sha512-x0InOIyzgdk+eyaWaRJFH5snEtiImgBgblZ2CyPrLmqqcuMQkEvcDPHbzqbD8eDsSeJbVOjn+crzyzHaM4D+/A==
 
-nodemailer@10.5.0:
-  version "10.5.0"
-  resolved "https://registry.yarnpkg.com/nodemailer/-/nodemailer-10.5.0.tgz#5e18ac741f90ec321ad355a413faa442e32fbd7b"
-  integrity sha512-L/w/HH5MqpzMDuZD7fQdt/+KqymuvrpaApaIjAH2XA3ILePwlcvXCVVvP75xVrXCEt2ggK2marrrHHFB5Qu0kA==
+nodemailer@10.6.1:
+  version "10.6.1"
+  resolved "https://registry.yarnpkg.com/nodemailer/-/nodemailer-10.6.1.tgz#cdcfbfde7f10e113a52c79abfe1d6b53bc017ded"
+  integrity sha512-d7kfFfS/tR4Aca+SBvRaQ+MXKNv7d2JiRe5TxaRcFT/kYMh4GGPnW9aKksTIEvyEbA7d/7HYWE4YPDEHxzJj/g==
 
 nodemon@^3.1.14:
   version "3.1.14"
