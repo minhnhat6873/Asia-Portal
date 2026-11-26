@@ -9,6 +9,7 @@ import type {
 } from "../../interfaces/employee.interface";
 import { adminEmployeeService } from "../../services/admin/employee.service";
 import { auditLogService } from "../../services/admin/audit-log.service";
+import { employeeAccountLinkService, type LinkedAccountChange } from "../../services/admin/employee-account-link.service";
 import { AppError } from "../../utils/errors/AppError";
 import { presentEmployee } from "../../utils/employee/presentEmployee";
 import { deleteEmployeeAvatarUploads, employeeAvatarAssetIds, getEmployeeAvatarUploads } from "../../utils/employee/avatarUploads";
@@ -52,6 +53,46 @@ async function recordEmployeeAudit(
     description: `${employee.name} (${employee.employeeCode})`,
     metadata,
   });
+}
+
+// What happened to the login linked to the employee, returned as data.linkedAccount so the
+// admin UI can tell the user. "admin-skipped" wins: an Admin gốc account needs a manual check.
+export type LinkedAccountOutcome = LinkedAccountChange["action"];
+const OUTCOME_PRIORITY: Record<LinkedAccountOutcome, number> = { none: 0, locked: 1, trashed: 1, "admin-skipped": 2 };
+
+// "left": status set to inactive; "deleted": moved to the employee trash; "purged": deleted for good.
+type EmployeeExit = "left" | "deleted" | "purged";
+
+// Lock or trash the login that shares the employee's email, then audit what happened.
+// The employee change is already saved, so a failure here must be reported explicitly.
+async function syncLinkedAccount(admin: Request["admin"], exit: EmployeeExit, emails: unknown[]): Promise<LinkedAccountOutcome> {
+  let outcome: LinkedAccountOutcome = "none";
+  const unique = new Set(emails.filter((value): value is string => typeof value === "string").map((value) => value.trim().toLowerCase()).filter(Boolean));
+  const actor = admin ? { accountId: admin.id, name: admin.name, email: admin.email } : undefined;
+  for (const email of unique) {
+    let change: LinkedAccountChange;
+    try {
+      change = exit === "purged"
+        ? await employeeAccountLinkService.trashForEmployee(email, actor)
+        : await employeeAccountLinkService.lockForEmployee(email, exit === "left" ? "employee-left" : "employee-deleted");
+    } catch (error) {
+      console.error("Không thể cập nhật tài khoản liên kết với nhân viên", error);
+      throw new AppError(500, exit === "purged"
+        ? "Đã xóa nhân viên nhưng chưa chuyển được tài khoản đăng nhập vào thùng rác. Vui lòng xóa tài khoản tại Phân quyền quản lý."
+        : "Đã lưu thay đổi nhân viên nhưng chưa khóa được tài khoản đăng nhập. Vui lòng khóa tài khoản tại Phân quyền quản lý.");
+    }
+    if (change.action === "none") continue;
+    if (OUTCOME_PRIORITY[change.action] > OUTCOME_PRIORITY[outcome]) outcome = change.action;
+    if (actor && change.action !== "admin-skipped") {
+      await auditLogService.record({
+        actor,
+        action: change.action === "locked" ? "account.auto_locked" : "account.auto_trashed",
+        entityType: "account", entityId: change.accountId,
+        description: `${change.action === "locked" ? "Tự khóa" : "Tự chuyển vào thùng rác"} tài khoản ${change.name} (${change.email}) theo hồ sơ nhân viên`,
+      });
+    }
+  }
+  return outcome;
 }
 
 export async function getEmployees(
@@ -137,7 +178,8 @@ export async function updateEmployee(
   let uploadPersisted = false;
 
   try {
-    const previousEmployee = uploadedFile || removingAvatar
+    const settingInactive = request.body.status === "inactive";
+    const previousEmployee = uploadedFile || removingAvatar || settingInactive
       ? await adminEmployeeService.getEmployeeById(request.params.id)
       : undefined;
     const changes: UpdateEmployeeInput = { ...request.body };
@@ -179,10 +221,15 @@ export async function updateEmployee(
       changedFields: Object.keys(request.body),
       avatarChanged: Boolean(uploadedFile) || removingAvatar,
     });
+    // Only when the employee newly leaves; re-saving an inactive record must not re-lock
+    // an account that an administrator deliberately reopened.
+    const linkedAccount = settingInactive && previousEmployee?.status !== "inactive"
+      ? await syncLinkedAccount(request.admin, "left", [previousEmployee?.email ?? "", employee.email])
+      : "none";
     response.status(200).json({
       success: true,
       message: "C\u1eadp nh\u1eadt nh\u00e2n vi\u00ean th\u00e0nh c\u00f4ng",
-      data: presentEmployee(employee, request.admin?.permissions),
+      data: { ...presentEmployee(employee, request.admin?.permissions), linkedAccount },
     });
   } catch (error) {
     if (!uploadPersisted) await deleteEmployeeAvatarUploads(request);
@@ -246,10 +293,11 @@ export async function softDeleteEmployee(
         : undefined,
     );
     await recordEmployeeAudit(request.admin, "employee.soft_deleted", employee);
+    const linkedAccount = await syncLinkedAccount(request.admin, "deleted", [employee.email]);
     response.status(200).json({
       success: true,
       message: "Đã chuyển nhân viên vào thùng rác",
-      data: presentEmployee(employee, request.admin?.permissions),
+      data: { ...presentEmployee(employee, request.admin?.permissions), linkedAccount },
     });
   } catch (error) {
     next(error);
@@ -290,10 +338,11 @@ export async function permanentlyDeleteEmployee(
       }
     }
     await recordEmployeeAudit(request.admin, "employee.permanently_deleted", employee);
+    const linkedAccount = await syncLinkedAccount(request.admin, "purged", [employee.email]);
     response.status(200).json({
       success: true,
       message: "Đã xóa vĩnh viễn nhân viên",
-      data: presentEmployee(employee, request.admin?.permissions),
+      data: { ...presentEmployee(employee, request.admin?.permissions), linkedAccount },
     });
   } catch (error) {
     next(error);

@@ -1,9 +1,11 @@
+jest.mock("../src/services/vehicle/vehicle-account-closed", () => ({ vehicleAccountClosedService: { cancelOpenTrips: jest.fn().mockResolvedValue(0) } }));
 import type { NextFunction, Request, Response } from "express";
 
 jest.mock("../src/services/admin/employee.service", () => ({ adminEmployeeService: {
   createEmployee: jest.fn(), updateEmployee: jest.fn(), getEmployeeById: jest.fn(), permanentlyDeleteEmployee: jest.fn(),
 } }));
 jest.mock("../src/services/admin/audit-log.service", () => ({ auditLogService: { record: jest.fn() } }));
+jest.mock("../src/services/admin/employee-account-link.service", () => ({ employeeAccountLinkService: { lockForEmployee: jest.fn().mockResolvedValue({ action: "none" }), trashForEmployee: jest.fn().mockResolvedValue({ action: "none" }) } }));
 jest.mock("../src/helpers/multerCloudinary.helper", () => ({
   ...jest.requireActual("../src/helpers/multerCloudinary.helper"), deleteCloudinaryAsset: jest.fn(),
 }));

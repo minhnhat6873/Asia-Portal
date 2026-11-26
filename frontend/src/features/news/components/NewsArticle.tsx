@@ -64,7 +64,7 @@ export default function NewsArticle({ item, related }: Props) {
 
       <div className="mx-auto max-w-4xl px-4 pt-8 sm:px-6 sm:pt-10">
         <Link
-          href="/news"
+          href="/user/news"
           className="inline-flex items-center gap-2 text-sm font-semibold text-[#1a7a1a] transition-colors hover:underline"
         >
           <ArrowLeft size={15} /> Về trang Tin tức
@@ -90,7 +90,7 @@ export default function NewsArticle({ item, related }: Props) {
               {related.map((entry) => (
                 <Link
                   key={entry.id}
-                  href={`/news/${entry.id}`}
+                  href={`/user/news/${entry.id}`}
                   className="group overflow-hidden rounded-2xl border-slate-100 shadow-sm transition-all hover:-translate-y-1 hover:shadow-lg"
                 >
                   <div className="relative h-32">
@@ -121,7 +121,7 @@ export default function NewsArticle({ item, related }: Props) {
             </div>
 
             <Link
-              href="/news"
+              href="/user/news"
               className="mt-8 inline-flex items-center gap-2 rounded-full bg-[#056a57] px-6 py-3 text-sm font-semibold text-[#d7ee46] transition-colors hover:bg-[#045847]"
             >
               Xem tất cả tin tức <ArrowRight size={15} />

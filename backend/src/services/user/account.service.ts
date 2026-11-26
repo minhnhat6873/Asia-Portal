@@ -23,11 +23,13 @@ export const userAccountService = {
     return {
       id: String(created._id),
       name: created.name,
+      username: created.username,
       email: created.email,
       phone: created.phone,
       role: created.role,
       status: created.status,
       permissionGroupIds: [],
+      lock: null,
       createdAt: created.createdAt,
       updatedAt: created.updatedAt,
     };

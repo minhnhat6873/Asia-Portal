@@ -25,6 +25,9 @@ interface ApiMedia extends Omit<MediaPost, "id" | "publishDate" | "expiryDate"> 
 
 export interface AdminMediaListParams {
   search?: string;
+  categories?: string;
+  /** true: only featured posts; false: only non-featured. */
+  featured?: boolean;
   category?: MediaPost["category"];
   status?: MediaPost["status"];
   page?: number;

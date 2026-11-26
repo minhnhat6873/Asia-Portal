@@ -1,3 +1,6 @@
+jest.mock("../src/services/user/notification.service", () => ({
+  notificationService: { announceMedia: jest.fn().mockResolvedValue(undefined), withdrawMedia: jest.fn().mockResolvedValue(undefined) },
+}));
 jest.mock("../src/repositories/admin/media.repository", () => ({
   adminMediaRepository: {
     hideExpiredPosts: jest.fn().mockResolvedValue({ modifiedCount: 0 }),
@@ -31,6 +34,27 @@ import { mediaAssetService } from "../src/services/admin/media-asset.service";
 
 const mediaId = "507f1f77bcf86cd799439011";
 const post = { _id: mediaId, title: "Bài viết", summary: "<p>Tóm tắt</p>" };
+
+describe("admin media category and scope filtering", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.mocked(adminMediaRepository.findAll).mockResolvedValue([]);
+    jest.mocked(adminMediaRepository.count).mockResolvedValue(13);
+  });
+  it("combines categories and status for rows and pagination", async () => {
+    const result = await adminMediaService.getMedia({ categories: "Thông báo,Sự kiện", page: "2", limit: "10", status: "published" });
+    const filter = { isDeleted: { $ne: true }, category: { $in: ["Thông báo", "Sự kiện"] }, status: "published" };
+    expect(adminMediaRepository.findAll).toHaveBeenCalledWith(expect.objectContaining({ filter, skip: 10, limit: 10 }));
+    expect(adminMediaRepository.count).toHaveBeenCalledWith(filter);
+    expect(result.pagination).toMatchObject({ total: 13, page: 2, totalPages: 2 });
+  });
+  it("applies the same category restrictions when searching", async () => {
+    jest.mocked(adminMediaRepository.findAllForSearch).mockResolvedValue([post] as never);
+    const result = await adminMediaService.getMedia({ search: "bai viet", categories: "Thông báo" });
+    expect(adminMediaRepository.findAllForSearch).toHaveBeenCalledWith({ isDeleted: { $ne: true }, category: { $in: ["Thông báo"] } }, expect.anything());
+    expect(result.pagination.total).toBe(1);
+  });
+});
 
 describe("admin media delete flow", () => {
   beforeEach(() => jest.clearAllMocks());
@@ -295,5 +319,24 @@ describe("admin media normalized search", () => {
       jest.mocked(adminMediaRepository.findAll).mock.invocationCallOrder[0]!,
     );
     expect(adminMediaRepository.findAll).toHaveBeenCalledWith(expect.objectContaining({ filter: { isDeleted: { $ne: true }, status: "published" } }));
+  });
+});
+
+describe("admin media featured filter", () => {
+  it.each([
+    ["true", true],
+    ["false", { $ne: true }],
+  ])("featured=%s lọc tin nổi bật / tin thường", async (featured, expected) => {
+    jest.mocked(adminMediaRepository.findAll).mockResolvedValue([] as never);
+    jest.mocked(adminMediaRepository.count).mockResolvedValue(0 as never);
+    await adminMediaService.getMedia({ featured } as never);
+    expect(adminMediaRepository.findAll).toHaveBeenLastCalledWith(expect.objectContaining({ filter: expect.objectContaining({ featured: expected }) }));
+  });
+
+  it("không gửi featured thì lấy tất cả tin", async () => {
+    jest.mocked(adminMediaRepository.findAll).mockResolvedValue([] as never);
+    jest.mocked(adminMediaRepository.count).mockResolvedValue(0 as never);
+    await adminMediaService.getMedia({});
+    expect(jest.mocked(adminMediaRepository.findAll).mock.lastCall?.[0].filter).not.toHaveProperty("featured");
   });
 });

@@ -1,0 +1,5 @@
+# Static assets, spreadsheet exports and generated frontend declarations
+frontend/public/
+exports/
+frontend/next-env.d.ts
+*.tsbuildinfo

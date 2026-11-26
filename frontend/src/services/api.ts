@@ -39,6 +39,16 @@ export function refreshApiSession<T>(signal?: AbortSignal): Promise<T> {
 
 async function fetchWithSession(path: string, options: RequestInit): Promise<Response> {
   const response = await fetch(`${API_URL}${path}`, options);
+  // User-portal access tokens last 15 minutes: refresh once, then retry.
+  if (response.status === 401 && path.startsWith("/user/") && !path.startsWith("/user/auth/")) {
+    try {
+      const { getUserSession } = await import("./user-auth.service");
+      await getUserSession();
+    } catch {
+      return response;
+    }
+    return fetch(`${API_URL}${path}`, options);
+  }
   const publicAuth = ["/admin/auth/login", "/admin/auth/logout", "/admin/auth/refresh", "/admin/auth/me"];
   if (response.status !== 401 || !path.startsWith("/admin/") || publicAuth.includes(path)
     || path.startsWith("/admin/auth/register") || path.startsWith("/admin/auth/forgot-password")) return response;

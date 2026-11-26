@@ -1,11 +1,12 @@
 import mongoose from "mongoose";
 
-import { MEETING_ROOMS } from "../config/meeting.config";
+import { MEETING_REMINDER_LEAD_MINUTES, MEETING_ROOMS } from "../config/meeting.config";
 import MeetingBookingModel from "../models/meeting-booking.model";
 import { emailService } from "../services/notification/email.service";
+import { notificationService } from "../services/user/notification.service";
 import { getVietnamDateTimeAsUtc, getVietnamNow } from "../utils/time/vietnamTime";
 
-const REMINDER_LEAD_TIME_MS = 30 * 60_000;
+const REMINDER_LEAD_TIME_MS = MEETING_REMINDER_LEAD_MINUTES * 60_000;
 const REMINDER_POLL_INTERVAL_MS = 30_000;
 const REMINDER_LOCK_MS = 5 * 60_000;
 const REMINDER_BATCH_SIZE = 200;
@@ -101,6 +102,8 @@ async function sendReminderForBooking(id: unknown, now = new Date()): Promise<vo
       department: latest.department,
       attendees: latest.attendees,
     });
+    // Website notification as well as the email (logged, never fails the job).
+    await notificationService.meetingReminder({ ...latest, _id: latest._id });
 
     await MeetingBookingModel.updateOne(
       { _id: latest._id, reminderLockUntil: lockUntil, reminderSentAt: { $exists: false } },
@@ -113,7 +116,7 @@ async function sendReminderForBooking(id: unknown, now = new Date()): Promise<vo
   }
 }
 
-/** Immediately sends a reminder for a newly created booking if it starts within 30 minutes. */
+/** Immediately sends a reminder for a newly created booking if it starts within the lead time. */
 export async function remindMeetingBookingIfDue(bookingId: string): Promise<void> {
   try {
     await sendReminderForBooking(bookingId);

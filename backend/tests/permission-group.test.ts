@@ -1,3 +1,4 @@
+jest.mock("../src/services/vehicle/vehicle-account-closed", () => ({ vehicleAccountClosedService: { cancelOpenTrips: jest.fn().mockResolvedValue(0) } }));
 import type { Request, Response } from "express";
 import { permissionGroupService } from "../src/services/admin/permission-group.service";
 import { permissionGroupRepository } from "../src/repositories/admin/permission-group.repository";
@@ -57,7 +58,7 @@ describe("permission group deletion", () => {
   });
   it.each(["active", "inactive"])("deletes a %s group and removes assignments without deleting accounts", async (status) => {
     jest.mocked(permissionGroupRepository.deleteById).mockResolvedValue({ ...stored, status } as never);
-    const deleteAccount = jest.spyOn(adminAccountRepository, "deleteById");
+    const deleteAccount = jest.spyOn(adminAccountRepository, "softDelete");
     expect(await permissionGroupService.deleteGroup(id)).toMatchObject({ id, name: stored.name });
     expect(adminAccountRepository.removePermissionGroup).toHaveBeenCalledWith(id);
     expect(deleteAccount).not.toHaveBeenCalled();

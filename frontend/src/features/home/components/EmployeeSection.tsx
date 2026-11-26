@@ -34,7 +34,7 @@ export default function EmployeeSection() {
     const params = new URLSearchParams();
     if (search.trim()) params.set("search", search.trim());
     if (department !== ALL_DEPARTMENTS) params.set("department", department);
-    router.push(params.size ? `/employees?${params}` : "/employees");
+    router.push(params.size ? `/user/employees?${params}` : "/user/employees");
   };
 
   return (
@@ -48,7 +48,7 @@ export default function EmployeeSection() {
               <div className="my-6 h-1 w-10 rounded-full bg-[#1a7a1a]" />
               <p className="text-sm leading-relaxed text-gray-500">Mỗi cá nhân là một mảnh ghép quan trọng tạo nên hành trình phát triển của Á Châu.</p>
             </div>
-            <Link href="/employees" className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#0d5c0d] px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#1a7a1a] sm:mt-7 sm:w-fit">Xem tất cả nhân viên <ArrowRight size={16} /></Link>
+            <Link href="/user/employees" className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#0d5c0d] px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#1a7a1a] sm:mt-7 sm:w-fit">Xem tất cả nhân viên <ArrowRight size={16} /></Link>
           </div>
 
           <div className="min-w-0 flex-1">
@@ -92,7 +92,7 @@ export default function EmployeeSection() {
 function EmployeeCard({ employee }: { employee: Employee }) {
   const avatar = employee.avatar?.trim();
   return (
-    <Link href={`/employees?search=${encodeURIComponent(employee.name)}`} className="group overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm transition-all hover:-translate-y-1 hover:shadow-lg">
+    <Link href={`/user/employees?search=${encodeURIComponent(employee.name)}`} className="group overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm transition-all hover:-translate-y-1 hover:shadow-lg">
       <div className="relative aspect-[4/3] overflow-hidden bg-green-50 sm:aspect-square">
         {avatar ? <Image src={avatar} alt={`Chân dung ${employee.name}`} fill sizes="(min-width: 1280px) 220px, (min-width: 640px) 45vw, 100vw" className="object-cover object-center transition-transform duration-500 group-hover:scale-105" /> : (
           <div className="flex h-full items-center justify-center text-sm text-gray-400">Chưa có ảnh đại diện</div>

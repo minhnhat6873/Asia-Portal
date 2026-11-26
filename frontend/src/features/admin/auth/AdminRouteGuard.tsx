@@ -16,7 +16,7 @@ import {
 import { ApiError } from "@/services/api";
 import { createSessionVerifier, SessionVerificationTimeoutError } from "./session-verification";
 
-const PUBLIC_ADMIN_PATHS = new Set(["/admin/login", "/admin/forgot-password", "/admin/register"]);
+const PUBLIC_ADMIN_PATHS = new Set(["/admin/login", "/admin/forgot-password", "/admin/otp", "/admin/reset-password", "/admin/register"]);
 
 function storeSession(admin: AuthenticatedAdmin): AdminUser {
   return setAdminSession({
@@ -27,6 +27,7 @@ function storeSession(admin: AuthenticatedAdmin): AdminUser {
     status: admin.status,
     role: getAdminRoleLabel(admin.role),
     permissions: admin.permissions,
+    avatar: admin.avatar,
   });
 }
 

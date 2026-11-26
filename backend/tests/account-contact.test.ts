@@ -16,6 +16,7 @@ describe("account contact checks", () => {
   beforeEach(() => {
     jest.spyOn(adminAccountRepository, "findByEmail").mockResolvedValue(null);
     jest.spyOn(adminAccountRepository, "findByPhone").mockResolvedValue(null);
+    jest.spyOn(adminAccountRepository, "findByUsername").mockResolvedValue(null);
     jest.spyOn(adminAccountRepository, "create").mockResolvedValue({ toObject: () => existing } as never);
   });
   it.each(["active", "pending", "inactive"])("rejects duplicate email for a %s account before writing", async (status) => {

@@ -141,3 +141,6 @@ export const meetingBookingListQuerySchema = Joi.object({
     "number.max": "Số bản ghi mỗi trang tối đa là 500.",
   }),
 });
+
+// Signed-in booking: name and email come from the account, never from the form.
+export const bookMeetingSchema = createMeetingBookingSchema.fork(["organizer", "email"], (schema) => schema.optional().strip());

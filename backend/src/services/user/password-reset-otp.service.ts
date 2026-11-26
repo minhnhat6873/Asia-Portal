@@ -88,7 +88,7 @@ export const passwordResetOtpService = {
     if (!pending) throw new AppError(409, "Không thể tạo yêu cầu OTP. Vui lòng thử lại.");
 
     try {
-      await emailService.sendPasswordResetOtp(email, code);
+      await emailService.sendPasswordResetOtp(email, code, account.username);
     } catch (error) {
       await passwordResetOtpRepository.deleteRequest({ email, requestId, otpHash });
       throw error;
@@ -114,6 +114,8 @@ export const passwordResetOtpService = {
       if (!account) throw new AppError(404, "Không tìm thấy tài khoản cần đặt lại mật khẩu.");
       const updated = await adminAccountRepository.resetPassword(String(account._id), passwordHash, session, account.email);
       if (!updated) throw new AppError(409, "Tài khoản đã thay đổi. Vui lòng yêu cầu mã mới.");
+      // An Admin gốc locked by wrong passwords: proving the mailbox lifts the lock (nobody else could).
+      await adminAccountRepository.unlockLoginFailed(account._id, session);
     });
   },
 
@@ -140,7 +142,7 @@ export const passwordResetOtpService = {
       resendAvailableAt: new Date(now.getTime() + OTP_RESEND_COOLDOWN_MS),
     }, now);
     if (!updated) throw new AppError(409, "Yêu cầu OTP đã thay đổi. Vui lòng thử lại.");
-    try { await emailService.sendPasswordResetOtp(email, code); }
+    try { await emailService.sendPasswordResetOtp(email, code, (await adminAccountRepository.findByEmail(email))?.username); }
     catch (error) {
       await passwordResetOtpRepository.restoreAfterSendFailure({ email, requestId, otpHash }, pending);
       throw error;

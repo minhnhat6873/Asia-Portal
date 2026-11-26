@@ -71,7 +71,7 @@ export const adminEmployeeService = {
     const normalizedSearch = normalizeSearchText(query.search);
     if (normalizedSearch) {
       const matchingItems = (await adminEmployeeRepository.findAllForSearch(filter, sort)).filter((employee) =>
-        normalizeSearchText(`${employee.employeeCode} ${employee.name}`).includes(normalizedSearch),
+        normalizeSearchText(`${employee.employeeCode} ${employee.name} ${employee.email ?? ""}`).includes(normalizedSearch),
       );
       const total = matchingItems.length;
       const items = matchingItems.slice((page - 1) * limit, page * limit);
@@ -178,7 +178,7 @@ export const adminEmployeeService = {
     const normalizedSearch = normalizeSearchText(query.search);
     if (normalizedSearch) {
       const matchingItems = (await adminEmployeeRepository.findAllForSearch(filter, sort)).filter((employee) =>
-        normalizeSearchText(`${employee.employeeCode} ${employee.name}`).includes(normalizedSearch),
+        normalizeSearchText(`${employee.employeeCode} ${employee.name} ${employee.email ?? ""}`).includes(normalizedSearch),
       );
       const total = matchingItems.length;
       const items = matchingItems.slice((page - 1) * limit, page * limit);

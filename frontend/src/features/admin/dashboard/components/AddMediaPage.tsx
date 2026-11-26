@@ -53,6 +53,9 @@ function toDisplayDate(value: string): string {
   return day && month && year ? `${day}/${month}/${year}` : value;
 }
 
+/** The home page shows at most 3 highlighted posts (same limit as the server). */
+const FEATURED_SLOT_NUMBERS = [1, 2, 3];
+
 function initialForm(post?: MediaPost) {
   return {
     title: post?.title ?? "",
@@ -106,6 +109,8 @@ export function AddMediaPage({ mode = "create", initialPost, onBack, onSave }: A
   const minimumExpiryDate = formData.publishDate ? parseDate(formData.publishDate).add({ days: 1 }).toString() : undefined;
   const invalidExpiryDate = Boolean(!formData.publishIndefinitely && formData.expiryDate && formData.publishDate && formData.expiryDate <= formData.publishDate);
   const currentSlot = formData.featured ? formData.featuredSlot || String(featuredSlots.find((slot) => slot.id === initialPost?.id)?.slot ?? "") : "";
+  // Every slot is taken by other posts: this post cannot become the 4th highlight.
+  const featuredFull = slotsLoaded && !currentSlot && FEATURED_SLOT_NUMBERS.every((number) => featuredSlots.some((slot) => slot.slot === number && slot.id !== initialPost?.id));
 
   const previewUrl = useMemo(() => coverFile ? URL.createObjectURL(coverFile) : "", [coverFile]);
   useEffect(() => () => { if (previewUrl) URL.revokeObjectURL(previewUrl); }, [previewUrl]);
@@ -118,35 +123,27 @@ export function AddMediaPage({ mode = "create", initialPost, onBack, onSave }: A
     setUploaderKey((value) => value + 1);
   };
 
+  // The form uses noValidate, so every rule is checked here and the message is scrolled into view.
+  const fail = (message: string): false => {
+    setErrorMsg(message);
+    requestAnimationFrame(() => document.getElementById("media-form-error")?.scrollIntoView({ behavior: "smooth", block: "center" }));
+    return false;
+  };
+
   const submit = async (event?: React.FormEvent): Promise<boolean> => {
     event?.preventDefault();
     if (savingRef.current) return false;
-    if (formData.featured && (!slotsLoaded || !currentSlot)) {
-      setErrorMsg("Vui lòng tải và chọn vị trí nổi bật trước khi lưu.");
-      return false;
-    }
+    const title = formData.title.trim();
+    if (!title) return fail("Vui lòng nhập Tiêu đề bài viết.");
+    if (title.length < 5 || title.length > 200) return fail("Tiêu đề bài viết phải từ 5 đến 200 ký tự.");
+    if (formData.featured && (!slotsLoaded || !currentSlot)) return fail("Vui lòng tải và chọn vị trí nổi bật trước khi lưu.");
     const occupied = featuredSlots.find((slot) => slot.slot === Number(currentSlot) && slot.id !== initialPost?.id);
     if (formData.featured && occupied) { setSlotConflict(occupied); return false; }
-    if (!AUTHOR_DEPARTMENTS.includes(formData.authorDepartment)) {
-      setErrorMsg("Vui lòng chọn phòng Thiết kế, Marketing & Truyền thông hoặc Nhân sự & Hành chính.");
-      return false;
-    }
-    if (!formData.publishDate) {
-      setErrorMsg("Vui lòng chọn ngày đăng.");
-      return false;
-    }
-    if (invalidExpiryDate) {
-      setErrorMsg("Ngày hết hạn phải sau ngày đăng ít nhất 1 ngày.");
-      return false;
-    }
-    if (!formData.publishIndefinitely && !formData.expiryDate) {
-      setErrorMsg("Vui lòng chọn ngày hết hạn.");
-      return false;
-    }
-    if (!formData.title.trim() || !hasRichTextContent(formData.summary)) {
-      setErrorMsg("Vui lòng nhập Tiêu đề bài viết và Tóm tắt ngắn.");
-      return false;
-    }
+    if (!AUTHOR_DEPARTMENTS.includes(formData.authorDepartment)) return fail("Vui lòng chọn phòng Thiết kế, Marketing & Truyền thông hoặc Nhân sự & Hành chính.");
+    if (!formData.publishDate) return fail("Vui lòng chọn ngày đăng.");
+    if (invalidExpiryDate) return fail("Ngày hết hạn phải sau ngày đăng ít nhất 1 ngày.");
+    if (!formData.publishIndefinitely && !formData.expiryDate) return fail("Vui lòng chọn ngày hết hạn.");
+    if (!hasRichTextContent(formData.summary)) return fail("Vui lòng nhập Tóm tắt ngắn.");
 
     savingRef.current = true;
     setIsSaving(true);
@@ -209,19 +206,19 @@ export function AddMediaPage({ mode = "create", initialPost, onBack, onSave }: A
         </div>
       </div>
 
-      {errorMsg && <div role="alert" className="flex items-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700"><AlertCircle className="h-4 w-4" />{errorMsg}</div>}
+      {errorMsg && <div id="media-form-error" role="alert" className="flex items-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700"><AlertCircle className="h-4 w-4" />{errorMsg}</div>}
 
       <div className="grid items-start gap-6 min-[1440px]:grid-cols-12">
-        <form onSubmit={submit} className="space-y-5 rounded-3xl border border-slate-200 bg-white p-4 sm:p-6 min-w-0 min-[1440px]:col-span-7">
+        <form noValidate onSubmit={submit} className="space-y-5 rounded-3xl border border-slate-200 bg-white p-4 sm:p-6 min-w-0 min-[1440px]:col-span-7">
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="text-sm font-bold text-slate-700">Tiêu đề bài viết *<input required minLength={5} maxLength={200} value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 font-medium outline-none focus:border-sky-500" /></label>
             <div><label className="text-sm font-bold text-slate-700">Chuyên mục *</label><AdminSelect value={formData.category} onChange={(value) => setFormData({ ...formData, category: value as MediaCategory })} options={CATEGORIES.map((value) => ({ value, label: value }))} className="mt-1.5 w-full" searchable={false} showSelectionCheck={false} /></div>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
-            <div><label className="mb-1.5 block text-sm font-bold text-slate-700">Ngày đăng</label><DatePicker value={formData.publishDate} onChange={(publishDate) => setFormData({ ...formData, publishDate })} ariaLabel="Ngày đăng bài" /></div>
+            <div><label className="mb-1.5 block text-sm font-bold text-slate-700">Ngày đăng</label><DatePicker applyMonthAndYear value={formData.publishDate} onChange={(publishDate) => setFormData((current) => ({ ...current, publishDate }))} ariaLabel="Ngày đăng bài" /></div>
             <div className={formData.publishIndefinitely ? "opacity-50" : ""}>
               <label className="mb-1.5 block text-sm font-bold text-slate-700">Ngày hết hạn {!formData.publishIndefinitely && <span className="text-rose-500">*</span>}</label>
-              <DatePicker value={formData.expiryDate} minValue={minimumExpiryDate} disabled={formData.publishIndefinitely} onChange={(expiryDate) => setFormData({ ...formData, expiryDate })} ariaLabel={formData.publishIndefinitely ? "Ngày hết hạn không áp dụng cho tin vĩnh viễn" : "Ngày hết hạn bài (bắt buộc)"} />
+              <DatePicker applyMonthAndYear value={formData.expiryDate} minValue={minimumExpiryDate} disabled={formData.publishIndefinitely} onChange={(expiryDate) => setFormData((current) => ({ ...current, expiryDate }))} ariaLabel={formData.publishIndefinitely ? "Ngày hết hạn không áp dụng cho tin vĩnh viễn" : "Ngày hết hạn bài (bắt buộc)"} />
               {invalidExpiryDate && <p role="alert" className="mt-1.5 text-sm text-rose-600">Ngày hết hạn phải sau ngày đăng ít nhất 1 ngày.</p>}
               <p className="mt-1.5 text-xs text-slate-500">{formData.publishIndefinitely ? "Tin vĩnh viễn không có ngày hết hạn." : "Bắt buộc chọn ngày hết hạn nếu không đăng vĩnh viễn."}</p>
             </div>
@@ -233,14 +230,15 @@ export function AddMediaPage({ mode = "create", initialPost, onBack, onSave }: A
               <div className="mb-1.5 flex items-center gap-1 text-sm font-bold text-slate-700"><span id="featured-slot-label">Vị trí bài nổi bật</span>
               <div ref={featuredHelpRef} className="relative shrink-0">
                 <button type="button" aria-label="Hướng dẫn bài đăng nổi bật" aria-expanded={featuredHelpOpen} aria-controls="featured-help" onClick={() => setFeaturedHelpOpen((open) => !open)} className="grid h-8 w-8 place-items-center rounded-full text-slate-400 hover:bg-emerald-50 hover:text-emerald-700 focus-visible:outline-2 focus-visible:outline-emerald-600"><AlertCircle aria-hidden="true" className="h-5 w-5" /></button>
-                {featuredHelpOpen && <div id="featured-help" role="note" className="absolute left-0 top-full z-30 mt-2 w-72 max-w-[calc(100vw-3rem)] rounded-xl border border-emerald-100 bg-white p-4 text-sm font-normal leading-6 text-slate-700 shadow-lg">Chọn một vị trí trống từ 1 đến 5 cho bài đang hiển thị. Nếu vị trí đã có bài, hãy mở bài đó và tắt nổi bật trước. Bài bị ẩn hoặc tự hết hạn sẽ tự giải phóng vị trí.</div>}
+                {featuredHelpOpen && <div id="featured-help" role="note" className="absolute left-0 top-full z-30 mt-2 w-72 max-w-[calc(100vw-3rem)] rounded-xl border border-emerald-100 bg-white p-4 text-sm font-normal leading-6 text-slate-700 shadow-lg">Trang chủ hiện tối đa 3 tin nổi bật. Chọn một vị trí trống từ 1 đến 3 cho bài đang hiển thị. Khi đã đủ 3 tin, hãy mở một bài đang nổi bật và tắt nổi bật trước. Nếu chưa chọn đủ 3 tin, trang chủ tự lấy tin mới nhất bù vào. Bài bị ẩn hoặc tự hết hạn sẽ tự giải phóng vị trí.</div>}
               </div>
               </div>
-              <select aria-labelledby="featured-slot-label" disabled={mode === "create" || initialPost?.status !== "published" || !slotsLoaded} value={currentSlot} onChange={(event) => { const value = event.target.value; const occupied = featuredSlots.find((slot) => slot.slot === Number(value) && slot.id !== initialPost?.id); if (occupied) { setSlotConflict(occupied); return; } setSlotConflict(null); setFormData((current) => ({ ...current, featured: Boolean(value), featuredSlot: value })); }} className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 disabled:cursor-not-allowed disabled:bg-slate-50">
+              <select aria-labelledby="featured-slot-label" disabled={mode === "create" || initialPost?.status !== "published" || !slotsLoaded || featuredFull} value={currentSlot} onChange={(event) => { const value = event.target.value; const occupied = featuredSlots.find((slot) => slot.slot === Number(value) && slot.id !== initialPost?.id); if (occupied) { setSlotConflict(occupied); return; } setSlotConflict(null); setFormData((current) => ({ ...current, featured: Boolean(value), featuredSlot: value })); }} className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 disabled:cursor-not-allowed disabled:bg-slate-50">
                 <option value="">Không nổi bật</option>
-                {[1, 2, 3, 4, 5].map((number) => { const owner = featuredSlots.find((slot) => slot.slot === number && slot.id !== initialPost?.id); return <option key={number} value={number}>Vị trí {number}{owner ? " — Đã có bài" : ""}</option>; })}
+                {FEATURED_SLOT_NUMBERS.map((number) => { const owner = featuredSlots.find((slot) => slot.slot === number && slot.id !== initialPost?.id); return <option key={number} value={number} disabled={Boolean(owner)}>Vị trí {number}{owner ? ` — Đã có bài: ${owner.title}` : ""}</option>; })}
               </select>
               {(mode === "create" || initialPost?.status !== "published") && <p className="mt-1 text-xs text-slate-500">Đăng bài trước để chọn vị trí nổi bật.</p>}
+              {featuredFull && <p role="status" className="mt-1 text-xs font-medium text-amber-700">Đã đủ {FEATURED_SLOT_NUMBERS.length} tin nổi bật. Hãy tắt nổi bật ở một bài khác trước khi chọn bài này.</p>}
               {slotsError && <p role="alert" className="mt-1 text-xs text-rose-600">{slotsError} <button type="button" onClick={() => setSlotRefresh((value) => value + 1)} className="underline">Thử lại</button></p>}
               {slotConflict && <div role="alert" className="mt-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">Vị trí {slotConflict.slot} đang được dùng bởi “{slotConflict.title}”. Hãy tắt nổi bật ở bài đó trước. <a href={`/admin/media/${encodeURIComponent(slotConflict.id)}/edit`} target="_blank" rel="noopener noreferrer" className="mt-2 block font-bold underline">Mở bài viết để chỉnh sửa ↗</a></div>}
             </div>

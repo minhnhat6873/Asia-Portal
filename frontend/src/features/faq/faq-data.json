@@ -1,0 +1,128 @@
+[
+  {
+    "title": "Ngày đầu tiên & hòa nhập",
+    "questions": [
+      {
+        "question": "Ngày đầu tiên em có phải bắt tay vào công việc ngay không?",
+        "answer": "Ngày đầu tiên chủ yếu để hoàn tất thủ tục nhận việc, làm quen đồng nghiệp, môi trường và quy trình. Quản lý trực tiếp sẽ trao đổi kế hoạch hội nhập và phân công những đầu việc phù hợp; em không cần tự bắt đầu công việc khi chưa được hướng dẫn"
+      },
+      {
+        "question": "Ngày đầu tiên đi làm em cần chuẩn bị những gì?",
+        "answer": "Em chuẩn bị giấy tờ nhân sự theo thư mời nhận việc, thông tin tài khoản ngân hàng nhận lương, điện thoại cá nhân và các vật dụng cần thiết. Nên đến đúng giờ, trang phục lịch sự và mang theo câu hỏi cần trao đổi. Nếu chưa rõ hồ sơ, hãy liên hệ HR."
+      },
+      {
+        "question": "Khi đến công ty vào ngày đầu tiên, em cần gặp ai?",
+        "answer": "Em liên hệ bộ phận Nhân sự (HR). HR sẽ hỗ trợ thủ tục ban đầu và giới thiệu em với quản lý trực tiếp."
+      },
+      {
+        "question": "Nếu em chưa hiểu công việc hoặc chưa biết phải làm gì thì sao?",
+        "answer": "Em hãy chủ động hỏi quản lý trực tiếp hoặc người được phân công hướng dẫn."
+      },
+      {
+        "question": "Ai sẽ hướng dẫn em thời gian đồng nhận việc.",
+        "answer": "Quản lý trực tiếp là người chịu trách nhiệm chính về hướng dẫn công việc; đồng nghiệp được phân công kèm cặp sẽ hỗ trợ trong quá trình thực hiện. HR hỗ trợ những nội dung liên quan đến hội nhập và chính sách nhân sự."
+      }
+    ]
+  },
+  {
+    "title": "Đi lại & sinh hoạt tại công ty",
+    "questions": [
+      {
+        "question": "Công ty mình gửi xe ở đâu ạ?",
+        "answer": "Khu vực gửi xe dành cho nhân viên, sẽ có đội ngũ bảo vệ hu"
+      },
+      {
+        "question": "Đi làm có bắt buộc mặc đồng phục không ạ?",
+        "answer": "Em thực hiện theo quy định trang phục của công ty và yêu cầu của vị trí. Nếu chưa được cấp đồng phục hoặc chưa có quy định riêng, em nên mặc trang phục lịch sự, phù hợp môi trường làm việc."
+      }
+    ]
+  },
+  {
+    "title": "Thời gian làm việc & chấm công",
+    "questions": [
+      {
+        "question": "Nhân viên mới có cần chấm công ngay từ ngày đầu tiên không?",
+        "answer": "Em cần thực hiện chấm công từ ngày làm việc đầu tiên theo hướng dẫn của HR, trừ trường hợp HR thông báo cách ghi nhận tạm thời trong thời gian chưa có tài khoản/thẻ chấm công."
+      },
+      {
+        "question": "Nếu em quên chấm công thì phải làm sao?",
+        "answer": "Công ty đang chấm công qua app base, e sẽ được hướng dẫn cụ thể về quy trình chấm công khi vào nhận việc ngày đầu tiên nhé."
+      },
+      {
+        "question": "Nếu em bị ốm hoặc có việc gấp không thể đi làm thì phải làm gì?",
+        "answer": "Gởi đề xuất tới quản lý trực tiếp và HR sớm nhất có thể, nêu thời gian dự kiến vắng mặt và bàn giao việc gấp nếu có. Bổ sung giấy tờ cần thiết (nếu cần) thực hiện theo hướng dẫn của HR."
+      },
+      {
+        "question": "Trong thời gian thử việc em có được nghỉ phép không?",
+        "answer": "Trong thời gian thử việc, việc xin nghỉ cần được trao đổi và chấp thuận theo quy định của công ty. Chế độ trả lương khi nghỉ và quyền lợi ngày phép được xác định theo hợp đồng, quy định nội bộ và pháp luật áp dụng; không mặc định mọi ngày nghỉ thử việc đều là nghỉ phép hưởng lương."
+      }
+    ]
+  },
+  {
+    "title": "Thử việc, lương & phúc lợi",
+    "questions": [
+      {
+        "question": "Em có được hưởng các chế độ phúc lợi trong thời gian thử việc không?",
+        "answer": "Các chế độ áp dụng trong thời gian thử việc căn cứ vào luật lao động hiện hành và chính sách của công ty.."
+      },
+      {
+        "question": "Khi nào em được nhận lương ạ?",
+        "answer": "Khi vào nhận việc bạn sẽ nhận được hợp đồng thử việc, trong hợp đồng sẽ thể hiện rõ các chế độ quyền lợi nếu có của người lao động nhé."
+      },
+      {
+        "question": "Nếu em muốn thay đổi tài khoản ngân hàng nhận lương thì làm sao?",
+        "answer": "Em liên hệ với P.Hr để yêu cầu được cập nhật lại thông tin cá nhân (nếu có)."
+      },
+      {
+        "question": "Sau thời gian thử việc, em sẽ được đánh giá như thế nào?",
+        "answer": "Trước khi kết thúc thử việc, Hr sẽ gởi phiếu tự đánh giá về bản thân qua nhiều tiêu chí khác nhau sau đó chuyển qua quản lý trực tiếp sẽ đánh giá kết quả công việc, mức độ đáp ứng yêu cầu vị trí, sự phối hợp và thái độ làm việc. HR phối hợp thông báo kết quả và các bước tiếp theo theo thỏa thuận và quy định áp dụng."
+      }
+    ]
+  },
+  {
+    "title": "Máy tính, tài khoản & hỗ trợ it",
+    "questions": [
+      {
+        "question": "Ngày đầu tiên em chưa có máy tính hoặc tài khoản làm việc thì phải làm sao?",
+        "answer": "Ngày đầu tiên đi làm công ty sẽ trang bị đầy đủ những thiết bị cần thiết cho người mới phù hợp với công việc được phân công."
+      },
+      {
+        "question": "Em có được sử dụng laptop cá nhân để làm việc không?",
+        "answer": "Em chỉ nên dùng laptop cá nhân khi được quản lý và bộ phận phụ trách IT/ATTT chấp thuận. Nếu được phép, cần tuân thủ yêu cầu bảo mật, phần mềm, lưu trữ dữ liệu và quyền truy cập theo hướng dẫn của công ty."
+      },
+      {
+        "question": "Nếu em quên mật khẩu máy tính hoặc tài khoản công ty thì phải làm sao?",
+        "answer": "Em liên hệ IT hoặc đầu mối hỗ trợ hệ thống để được xác minh và đặt lại mật khẩu. Không chia sẻ mật khẩu/OTP, không sử dụng tài khoản của đồng nghiệp và nên đổi mật khẩu ngay khi được cấp lại."
+      },
+      {
+        "question": "Nếu máy tính bị lỗi, không có mạng hoặc không mở được phần mềm thì sao?",
+        "answer": "Em ghi nhận thông báo lỗi, thử các bước cơ bản được IT cho phép (kiểm tra kết nối, khởi động lại thiết bị) và báo IT hoặc đầu mối hỗ trợ. Nếu lỗi ảnh hưởng tiến độ, hãy báo thêm quản lý trực tiếp để điều phối công việc."
+      },
+      {
+        "question": "Em có được tự cài đặt phần mềm trên máy tính công ty không?",
+        "answer": "Không tự ý cài phần mềm, tiện ích hay cấp quyền truy cập không rõ nguồn gốc trên máy công ty. Em gửi yêu cầu cho IT và chờ phê duyệt/cài đặt theo quy định nhằm bảo đảm bản quyền và an toàn dữ liệu."
+      },
+      {
+        "question": "Nếu em lỡ gửi nhầm tài liệu hoặc nghi ngờ bị lộ thông tin công ty thì sao?",
+        "answer": "Em thông báo NGAY cho quản lý trực tiếp và IT/đầu mối phụ trách an toàn thông tin; cung cấp thời điểm, tài liệu, người nhận và diễn biến liên quan. Không tự xóa bằng chứng, che giấu sự cố hoặc tiếp tục chuyển tiếp dữ liệu. Thực hiện các bước khắc phục theo hướng dẫn."
+      }
+    ]
+  },
+  {
+    "title": "Khi cần hỗ trợ",
+    "questions": [
+      {
+        "question": "Nếu có thắc mắc về nội quy, hợp đồng hoặc quyền lợi thì em hỏi ai?",
+        "answer": "Em liên hệ HR để được giải đáp về nội quy, hợp đồng lao động, thời gian làm việc, tiền lương và phúc lợi. Các vấn đề chuyên môn hoặc phân công công việc, em trao đổi với quản lý trực tiếp."
+      },
+      {
+        "question": "Nếu gặp khó khăn trong công việc hoặc chưa hòa nhập được với mọi người thì sao?",
+        "answer": "Em có thể trao đổi thẳng thắn với quản lý trực tiếp hoặc người hướng dẫn về khó khăn và hỗ trợ mong muốn. Nếu vấn đề liên quan đến ứng xử, phối hợp hoặc môi trường làm việc mà em chưa thoải mái trao đổi trực tiếp, HR là kênh hỗ trợ phù hợp."
+      },
+      {
+        "question": "Em có thể đóng góp ý kiến để cải thiện môi trường làm việc không?",
+        "answer": "Có. Em được khuyến khích góp ý mang tính xây dựng thông qua quản lý trực tiếp, HR hoặc kênh góp ý chính thức của công ty (nếu có). Nên nêu rõ vấn đề, tác động và đề xuất giải pháp để công ty dễ xem xét."
+      }
+    ]
+  }
+]

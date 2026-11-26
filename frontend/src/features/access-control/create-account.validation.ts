@@ -1,14 +1,26 @@
 import { getPasswordValidationError } from "@/lib/password-validation";
 
+// Same wording as the backend: a manager account needs at least one permission group.
+export const MANAGER_NEEDS_GROUP = "Vui lòng chọn ít nhất một nhóm quyền cho tài khoản Quản lý.";
+
 export interface CreateAccountFormValues {
   name: string;
   email: string;
+  /** Filled from the email until typed by hand. */
+  username: string;
   password: string;
   confirmPassword: string;
   phone: string;
 }
 
 export type CreateAccountFormErrors = Partial<Record<keyof CreateAccountFormValues, string>>;
+
+/** Same rule as the backend: letters without accents, digits and . _ - @ +, 3-100 characters, any case. */
+export function validateUsername(value: string): string {
+  const username = value.trim().toLowerCase();
+  if (!username) return "Vui lòng nhập tên đăng nhập.";
+  return /^[a-z0-9._@+-]{3,100}$/.test(username) ? "" : "Tên đăng nhập từ 3 đến 100 ký tự, chỉ gồm chữ không dấu, số và . _ - @ +";
+}
 
 const NAME_PATTERN = /^[\p{L}][\p{L}\p{M}'’.-]*(?:\s+[\p{L}][\p{L}\p{M}'’.-]*)*$/u;
 const COMPANY_EMAIL_PATTERN = /^[A-Z0-9_%+-]+(?:\.[A-Z0-9_%+-]+)*@asiafnb\.com$/i;
@@ -47,5 +59,6 @@ export function validateAccountPassword(password: string, confirmPassword: strin
 }
 
 export function validateCreateAccount(values: CreateAccountFormValues): CreateAccountFormErrors {
-  return { ...validateAccountIdentity(values), ...validateAccountPassword(values.password, values.confirmPassword) };
+  const username = validateUsername(values.username);
+  return { ...validateAccountIdentity(values), ...(username ? { username } : {}), ...validateAccountPassword(values.password, values.confirmPassword) };
 }

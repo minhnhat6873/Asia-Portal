@@ -49,7 +49,7 @@ export default function NewsDetailPage() {
   return (
     <main className="min-h-screen bg-white">
       <Navbar />
-      {isLoading ? <div className="mx-auto max-w-4xl px-4 py-24"><div className="h-72 animate-pulse rounded-3xl bg-slate-100" /></div> : item ? <NewsArticle item={item} related={related} /> : <div className="mx-auto max-w-4xl px-4 py-24 text-center"><h1 className="text-2xl font-black text-slate-900">{error}</h1><Link href="/news" className="mt-5 inline-block rounded-full bg-emerald-700 px-5 py-3 font-bold text-white">Về trang tin tức</Link></div>}
+      {isLoading ? <div className="mx-auto max-w-4xl px-4 py-24"><div className="h-72 animate-pulse rounded-3xl bg-slate-100" /></div> : item ? <NewsArticle item={item} related={related} /> : <div className="mx-auto max-w-4xl px-4 py-24 text-center"><h1 className="text-2xl font-black text-slate-900">{error}</h1><Link href="/user/news" className="mt-5 inline-block rounded-full bg-emerald-700 px-5 py-3 font-bold text-white">Về trang tin tức</Link></div>}
       <Footer />
     </main>
   );

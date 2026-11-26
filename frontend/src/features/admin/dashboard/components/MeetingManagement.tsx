@@ -462,7 +462,7 @@ function MeetingFormModal({ meeting, saving, onClose, onSave }: {
   const validDuration = durationOptions.includes(durationMinutes);
 
   useEffect(() => {
-    if (formError) errorRef.current?.scrollIntoView({ block: "nearest" });
+    if (formError) errorRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
   }, [formError]);
 
   useEffect(() => {
@@ -506,8 +506,12 @@ function MeetingFormModal({ meeting, saving, onClose, onSave }: {
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setFormError("");
+    // The form uses noValidate: empty required fields get these messages instead of the browser's.
+    if (!title.trim()) return setFormError("Vui lòng nhập tiêu đề cuộc họp.");
     if (title.trim().length < 3 || title.trim().length > 200) return setFormError("Tiêu đề phải từ 3 đến 200 ký tự.");
+    if (!organizer.trim()) return setFormError("Vui lòng nhập người đặt / chủ trì.");
     if (organizer.trim().length < 2 || organizer.trim().length > 100) return setFormError("Nhập tên người chủ trì hợp lệ.");
+    if (!email.trim()) return setFormError("Vui lòng nhập email.");
     if (!/^[^\s@]+@asiafnb\.com$/i.test(email.trim())) return setFormError("Email phải thuộc miền @asiafnb.com.");
     if (department.trim().length < 2) return setFormError("Vui lòng chọn phòng ban.");
     if (!readOnlyBooking && !getFutureMeetingTimes(date).includes(start)) return setFormError("Hãy chọn ngày và giờ bắt đầu trong tương lai theo giờ Việt Nam.");
@@ -526,7 +530,7 @@ function MeetingFormModal({ meeting, saving, onClose, onSave }: {
   return createPortal(<div className="fixed inset-0 z-[130] flex items-center justify-center bg-slate-950/55 p-3 backdrop-blur-sm" onMouseDown={(event) => { if (event.target === event.currentTarget && !saving) onClose(); }}>
     <section role="dialog" aria-modal="true" aria-labelledby="meeting-form-title" className="flex max-h-[94dvh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
       <header className="flex shrink-0 items-center justify-between border-b border-slate-100 bg-white px-5 py-4"><div><p className="text-sm font-bold uppercase tracking-widest text-emerald-700">Quản lý đặt phòng họp</p><h2 id="meeting-form-title" className="mt-1 text-lg font-extrabold text-slate-900">{meeting ? "Cập nhật lịch họp" : "Thêm lịch họp"}</h2></div><button type="button" onClick={onClose} disabled={saving} aria-label="Đóng" className="grid h-9 w-9 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-50"><X size={18} /></button></header>
-      <form onSubmit={(event) => void submit(event)} className="flex min-h-0 flex-1 flex-col">
+      <form noValidate onSubmit={(event) => void submit(event)} className="flex min-h-0 flex-1 flex-col">
         <div className="meeting-form-scroll min-h-0 space-y-4 overflow-y-auto p-5">
         {formError ? <div ref={errorRef} role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-3 text-sm text-rose-700">{formError}</div> : null}
         {readOnlyBooking ? <p className="rounded-xl bg-amber-50 px-3.5 py-3 text-sm leading-5 text-amber-800">Cuộc họp đang diễn ra. Backend chỉ cho phép sửa tiêu đề, người chủ trì, email và phòng ban.</p> : null}

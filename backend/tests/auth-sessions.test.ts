@@ -1,3 +1,9 @@
+// Account pictures come from the employee table; keep these auth tests off the database.
+jest.mock("../src/utils/account/accountAvatar", () => ({
+  resolveAccountAvatar: jest.fn(async (account: { avatar?: string }) => account.avatar ?? ""),
+  resolveAccountAvatars: jest.fn(async () => new Map()),
+  removeAccountAvatarFile: jest.fn(async () => undefined),
+}));
 import express from "express";
 import cookieParser from "cookie-parser";
 import type { Server } from "node:http";
@@ -42,7 +48,7 @@ beforeAll(async () => {
 });
 beforeEach(() => {
   account.authVersion = 0; account.status = "active"; sessions.clear();
-  jest.spyOn(adminAccountRepository, "findByEmailWithPassword").mockResolvedValue(account as never);
+  jest.spyOn(adminAccountRepository, "findByUsernameWithPassword").mockResolvedValue(account as never);
   jest.spyOn(adminAccountRepository, "findActiveById").mockImplementation(() => Promise.resolve(account.status === "active" ? account : null) as never);
   jest.spyOn(permissionGroupRepository, "findActiveByIds").mockResolvedValue([]);
   jest.spyOn(authSessionRepository, "create").mockImplementation((data) => { sessions.set(data.sessionId, { ...data }); return Promise.resolve(data) as never; });
@@ -71,7 +77,7 @@ const call = (path: string, method = "GET", cookie = "", body?: object, headers:
 });
 const accessCookie = (token: string) => `${AUTH_COOKIE_NAME}=${token}`;
 const refreshCookie = (token: string) => `${AUTH_REFRESH_COOKIE_NAME}=${token}`;
-const signIn = (rememberMe = true) => adminAuthService.login({ email: account.email, password, rememberMe });
+const signIn = (rememberMe = true) => adminAuthService.login({ username: account.email, password, rememberMe });
 
 it("stores only hashed refresh credentials, issues 15-minute access tokens, and excludes secrets from me", async () => {
   const session = await signIn();
@@ -123,8 +129,8 @@ it("does not clear cookies when logout cannot revoke the session", async () => {
   expect((await call("/me", "GET", accessCookie(session.token))).status).toBe(401);
 });
 it("returns 503 for login database failures without issuing credentials", async () => {
-  jest.mocked(adminAccountRepository.findByEmailWithPassword).mockRejectedValueOnce(new mongoose.mongo.MongoNetworkError("unavailable"));
-  const failed = await call("/login", "POST", "", { email: account.email, password });
+  jest.mocked(adminAccountRepository.findByUsernameWithPassword).mockRejectedValueOnce(new mongoose.mongo.MongoNetworkError("unavailable"));
+  const failed = await call("/login", "POST", "", { username: account.email, password });
   expect(failed.status).toBe(503);
   expect(failed.headers.getSetCookie()).toEqual([]);
   expect(authSessionRepository.create).not.toHaveBeenCalled();
@@ -247,7 +253,7 @@ it("enforces absolute session expiry independently of TTL cleanup and checks acc
   expect((await call("/me", "GET", accessCookie(active.token))).status).toBe(401);
 });
 it.each([true, false])("sets correct persistent/session cookies when rememberMe=%s and rotates both cookies", async (rememberMe) => {
-  const response = await call("/login", "POST", "", { email: account.email, password, rememberMe });
+  const response = await call("/login", "POST", "", { username: account.email, password, rememberMe });
   expect(response.status).toBe(200);
   const cookies = response.headers.getSetCookie(); expect(cookies).toHaveLength(2);
   for (const cookie of cookies) {

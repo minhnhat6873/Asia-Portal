@@ -6,6 +6,16 @@ import {
   ACCOUNT_STATUSES,
 } from "../../interfaces/account.interface";
 
+/** Letters without accents, digits and . _ - @ + (so it can equal an email). Not case sensitive. */
+export const USERNAME_PATTERN = /^[a-z0-9._@+-]{3,100}$/;
+export const usernameSchema = Joi.string().trim().lowercase().max(100).pattern(USERNAME_PATTERN)
+  .messages({
+    "any.required": "Vui lòng nhập tên đăng nhập.",
+    "string.empty": "Vui lòng nhập tên đăng nhập.",
+    "string.max": "Tên đăng nhập từ 3 đến 100 ký tự.",
+    "string.pattern.base": "Tên đăng nhập từ 3 đến 100 ký tự, chỉ gồm chữ không dấu, số và . _ - @ +",
+  });
+
 const accountFields = {
   name: Joi.string().trim().min(2).max(100)
     .pattern(/^[\p{L}][\p{L}\p{M}'’.-]*(?:\s+[\p{L}][\p{L}\p{M}'’.-]*)*$/u)
@@ -40,8 +50,12 @@ const accountFields = {
     .unique(),
 };
 
+export const MANAGER_NEEDS_GROUP = "Vui lòng chọn ít nhất một nhóm quyền cho tài khoản Quản lý.";
+
 export const createAccountSchema = Joi.object({
   name: accountFields.name.required(),
+  // Empty: the email is used.
+  username: usernameSchema.allow(""),
   email: accountFields.email.required(),
   phone: accountFields.phone.required(),
   password: accountFields.password.required(),
@@ -50,17 +64,31 @@ export const createAccountSchema = Joi.object({
     "string.empty": "Vui lòng xác nhận mật khẩu.",
     "any.required": "Vui lòng xác nhận mật khẩu.",
   }),
-  role: Joi.string().valid("admin", "manager").default("manager"),
-  permissionGroupIds: accountFields.permissionGroupIds,
+  role: Joi.string().valid(...ACCOUNT_ROLES).default("manager"),
+  // A manager without any group could sign in to the admin area but do nothing there.
+  permissionGroupIds: accountFields.permissionGroupIds.when("role", {
+    is: "manager",
+    then: Joi.array().min(1).required(),
+  }).messages({ "array.min": MANAGER_NEEDS_GROUP, "any.required": MANAGER_NEEDS_GROUP }),
+});
+
+export const lockAccountSchema = Joi.object({
+  reason: Joi.string().trim().max(200).allow("").default("").messages({ "string.max": "Lý do khóa tối đa 200 ký tự." }),
+});
+
+export const employeeLookupSchema = Joi.object({
+  q: Joi.string().trim().max(100).allow("").default(""),
 });
 
 export const checkAccountContactsSchema = Joi.object({
+  username: usernameSchema,
   email: accountFields.email,
   phone: accountFields.phone,
 }).min(1);
 
 export const updateAccountSchema = Joi.object({
   name: accountFields.name,
+  username: usernameSchema,
   email: accountFields.email,
   phone: accountFields.phone,
   notes: Joi.string().trim().max(1000).allow(""),

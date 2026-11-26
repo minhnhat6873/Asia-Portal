@@ -1,6 +1,6 @@
 # Chọn khung giờ đặt phòng public
 
-Trang `/meeting` dùng lịch đã xác nhận để tính lựa chọn theo đúng phòng và ngày. Yêu cầu OTP đang chờ không giữ chỗ.
+Trang `/user/meeting` dùng lịch đã xác nhận để tính lựa chọn theo đúng phòng và ngày. Yêu cầu OTP đang chờ không giữ chỗ.
 
 - Giờ bắt đầu đã qua không xuất hiện. Giờ tương lai đã kín lịch vẫn hiển thị nhưng bị vô hiệu hóa, kèm “Đã có lịch”. Giờ 11:45 không đủ 30 phút trước nghỉ trưa nên có nhãn “Giờ nghỉ trưa”.
 - Thời lượng chỉ có các lựa chọn từ 30 phút, tăng từng 15 phút, không trùng giờ nghỉ 12:00–13:00 hoặc vượt 17:00, và chừa ít nhất 15 phút trước/sau lịch khác.

@@ -6,7 +6,7 @@ import bcrypt from "bcryptjs";
 const name = "Nguyễn Văn An", email = "an@asiafnb.com", phone = "0901234567";
 const contexts = [
   { label: "register", schema: registerAccountSchema, data: { name, email, phone, termsAccepted: true }, field: "password", confirm: true },
-  { label: "admin create", schema: createAccountSchema, data: { name, email, phone }, field: "password", confirm: true },
+  { label: "admin create", schema: createAccountSchema, data: { name, email, phone, role: "user" }, field: "password", confirm: true },
   { label: "admin reset", schema: resetPasswordSchema, data: {}, field: "password", confirm: true },
   { label: "forgot password", schema: resetPasswordWithOtpSchema, data: { email, code: "123456" }, field: "password", confirm: true },
   { label: "self change", schema: requestPasswordChangeOtpSchema, data: { currentPassword: "Old Password123!" }, field: "newPassword", confirm: false },
@@ -28,20 +28,21 @@ it("does not trim a forbidden space into an accepted password", () => {
   expect(newPasswordSchema.validate(" Aa1!bbbb").error?.message).toContain("khoảng trắng");
 });
 it.each(["Aa1!", "Old Password123!", "A".repeat(40)])("preserves existing credentials during login and self-change verification: %j", (password) => {
-  const login = loginSchema.validate({ email, password });
+  const login = loginSchema.validate({ username: email, password });
   expect(login.error).toBeUndefined(); expect(login.value.password).toBe(password);
   const change = requestPasswordChangeOtpSchema.validate({ currentPassword: password, newPassword: "Aa1!bbbb" });
   expect(change.error).toBeUndefined(); expect(change.value.currentPassword).toBe(password);
 });
-it("checks the 72-byte bcrypt boundary rather than only character count", async () => {
-  const prefix = "Aa1!" + "漢".repeat(22);
-  for (const suffix of ["a", "ab"]) {
-    const password = prefix + suffix;
-    expect(Buffer.byteLength(password, "utf8")).toBeLessThanOrEqual(72);
+it.each(["Mậtkhẩu1!", "Aa1!bbbé", "Aa1!" + "漢".repeat(4), "Aa1!bbb😀"])("rejects accents and other non-ASCII characters in new passwords: %j", (password) => {
+  expect(newPasswordSchema.validate(password).error?.message).toBe("Mật khẩu chỉ được dùng ký tự không dấu.");
+});
+it("still accepts every printable ASCII symbol, and never reaches bcrypt's 72-byte limit", () => {
+  expect(newPasswordSchema.validate("Aa1!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~").error?.message).toBe("Mật khẩu không được vượt quá 32 ký tự.");
+  for (const password of ["Aa1!@#$%^&*()_+-=[]{}|;:,.<>?/~`", "Aa1!" + "b".repeat(28)]) {
     expect(newPasswordSchema.validate(password).error).toBeUndefined();
     expect(bcrypt.truncates(password)).toBe(false);
   }
-  expect(newPasswordSchema.validate(prefix + "abc").error?.message).toContain("Unicode");
-  const hash = await bcrypt.hash(prefix + "ab", 4);
-  expect(await bcrypt.compare(prefix + "ac", hash)).toBe(false);
+});
+it("keeps accepting existing accented passwords at sign-in", () => {
+  expect(loginSchema.validate({ username: email, password: "Mậtkhẩu cũ1!" }).error).toBeUndefined();
 });

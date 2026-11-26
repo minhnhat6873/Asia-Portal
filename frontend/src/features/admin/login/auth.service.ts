@@ -8,10 +8,12 @@ export interface AuthenticatedAdmin {
   status?: "pending" | "active" | "inactive";
   role: "admin" | "manager";
   permissions: string[];
+  /** Own picture, else the HR photo, else "". */
+  avatar?: string;
 }
 
 export interface LoginPayload {
-  email: string;
+  username: string;
   password: string;
   rememberMe: boolean;
 }

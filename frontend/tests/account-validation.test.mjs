@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { loadValidation } from "./load-validation.mjs";
-const { normalizeAccountPhone, validateAccountIdentity, validateAccountPassword, validateCreateAccount } = await loadValidation(new URL("../src/features/access-control/create-account.validation.ts", import.meta.url));
+const { normalizeAccountPhone, validateAccountIdentity, validateAccountPassword, validateCreateAccount, validateUsername } = await loadValidation(new URL("../src/features/access-control/create-account.validation.ts", import.meta.url));
 
 const identity = { name: "Nguyễn Văn An", email: "an@asiafnb.com", phone: "0901234567" };
 
@@ -41,7 +41,13 @@ test("confirmation is required, case sensitive and updated when password changes
 });
 
 test("create account still combines identity and password validation", () => {
-  assert.deepEqual(validateCreateAccount({ ...identity, password: "Password123!", confirmPassword: "Password123!" }), {});
-  const errors = validateCreateAccount({ name: "", email: "", phone: "", password: "", confirmPassword: "" });
-  assert.deepEqual(Object.keys(errors).sort(), ["confirmPassword", "email", "name", "password", "phone"]);
+  assert.deepEqual(validateCreateAccount({ ...identity, username: "an@asiafnb.com", password: "Password123!", confirmPassword: "Password123!" }), {});
+  const errors = validateCreateAccount({ name: "", email: "", username: "", phone: "", password: "", confirmPassword: "" });
+  assert.deepEqual(Object.keys(errors).sort(), ["confirmPassword", "email", "name", "password", "phone", "username"]);
+});
+
+test("username: letters without accents, digits and . _ - @ +, 3 to 100 characters, any case", () => {
+  for (const ok of ["an@asiafnb.com", "Kun@4890", "nguyen.van_an-1"]) assert.equal(validateUsername(ok), "", ok);
+  assert.equal(validateUsername("  "), "Vui lòng nhập tên đăng nhập.");
+  for (const bad of ["ab", "có dấu", "a b c", "x".repeat(101), "abc#1"]) assert.ok(validateUsername(bad), bad);
 });

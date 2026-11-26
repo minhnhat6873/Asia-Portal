@@ -19,6 +19,9 @@ import { startMeetingBookingArchiveJob } from "./src/jobs/meeting-booking-archiv
 import { startMeetingBookingReminderJob } from "./src/jobs/meeting-booking-reminder.job";
 import { startTinyMceImageCleanupJob } from "./src/jobs/tinyMceImageCleanup.job";
 import { startMediaExpiryJob } from "./src/jobs/media-expiry.job";
+import { startVehicleBookingReminderJob } from "./src/jobs/vehicle-booking-reminder.job";
+import { adminAccountRepository } from "./src/repositories/admin/account.repository";
+import { lockOnFirstFailForTesting } from "./src/services/admin/login-guard.service";
 
 const app = express();
 const port = Number(process.env.PORT) || 4000;
@@ -86,10 +89,15 @@ app.use(globalErrorHandler);
 
 async function startServer(): Promise<void> {
   await connectDatabase();
+  // Accounts made before usernames existed sign in with their email (no-op afterwards).
+  const filled = await adminAccountRepository.fillMissingUsernames();
+  if (filled.modifiedCount) console.log(`Đã gán tên đăng nhập = email cho ${filled.modifiedCount} tài khoản.`);
+  if (lockOnFirstFailForTesting()) console.warn("⚠ LOGIN_TEST_LOCK_ON_FIRST_FAIL=true: nhập sai mật khẩu 1 lần là khóa tài khoản (chỉ để test, tắt trước khi deploy).");
   startMeetingBookingArchiveJob();
   startMeetingBookingReminderJob();
   startTinyMceImageCleanupJob();
   startMediaExpiryJob();
+  startVehicleBookingReminderJob();
 
   app.listen(port, () => {
     console.log(`Asia API đang chạy tại http://localhost:${port}`);

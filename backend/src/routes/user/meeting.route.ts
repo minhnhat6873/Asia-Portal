@@ -1,54 +1,30 @@
 import { Router } from "express";
 import rateLimit from "express-rate-limit";
 
-import {
-  getBookings,
-  resendBookingRequestOtp,
-  resendCancellationRequestOtp,
-  startBookingRequest,
-  startCancellationRequest,
-  verifyBookingRequest,
-  verifyCancellationRequest,
-} from "../../controllers/user/meeting.controller";
+import { bookMeeting, cancelMyBooking, getBookings, getMyBookings } from "../../controllers/user/meeting.controller";
 import { securityConfig } from "../../config/security.config";
+import { requireCsrfProtection } from "../../middlewares/csrf.middleware";
+import { requireUserAuth } from "../../middlewares/user-auth.middleware";
 import { validateBody, validateQuery } from "../../middlewares/validate.middleware";
-import {
-  createMeetingBookingSchema,
-  meetingBookingListQuerySchema,
-  resendMeetingBookingOtpSchema,
-  resendMeetingCancellationOtpSchema,
-  startMeetingCancellationSchema,
-  verifyMeetingBookingOtpSchema,
-  verifyMeetingCancellationOtpSchema,
-} from "../../validates/user/meeting.validate";
+import { bookMeetingSchema, meetingBookingListQuerySchema } from "../../validates/user/meeting.validate";
 
 const router = Router();
-const meetingRateLimitWindowMs = 15 * 60 * 1000;
 
-const meetingOtpLimiter = rateLimit({
-  windowMs: meetingRateLimitWindowMs,
+// Meeting schedules are internal: only signed-in accounts can see or book rooms.
+router.use(requireUserAuth, requireCsrfProtection, (_request, response, next) => { response.setHeader("Cache-Control", "private, no-store"); next(); });
+
+const bookingLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
   limit: securityConfig.meetingOtpRateLimitMax,
   standardHeaders: "draft-8",
   legacyHeaders: false,
-  message: { success: false, message: "Yêu cầu gửi OTP quá nhiều lần, vui lòng thử lại sau." },
+  keyGenerator: (request) => `account:${request.user!.id}`,
+  message: { success: false, message: "Bạn đã gửi quá nhiều yêu cầu đặt phòng, vui lòng thử lại sau." },
 });
-
-const meetingVerifyLimiter = rateLimit({
-  windowMs: meetingRateLimitWindowMs,
-  limit: securityConfig.meetingVerifyRateLimitMax,
-  standardHeaders: "draft-8",
-  legacyHeaders: false,
-  message: { success: false, message: "Yêu cầu xác thực OTP quá nhiều lần, vui lòng thử lại sau." },
-});
-
-router.post("/booking-requests", meetingOtpLimiter, validateBody(createMeetingBookingSchema), startBookingRequest);
-router.post("/booking-requests/verify-otp", meetingVerifyLimiter, validateBody(verifyMeetingBookingOtpSchema), verifyBookingRequest);
-router.post("/booking-requests/resend-otp", meetingOtpLimiter, validateBody(resendMeetingBookingOtpSchema), resendBookingRequestOtp);
-
-router.post("/cancel-requests", meetingOtpLimiter, validateBody(startMeetingCancellationSchema), startCancellationRequest);
-router.post("/cancel-requests/verify-otp", meetingVerifyLimiter, validateBody(verifyMeetingCancellationOtpSchema), verifyCancellationRequest);
-router.post("/cancel-requests/resend-otp", meetingOtpLimiter, validateBody(resendMeetingCancellationOtpSchema), resendCancellationRequestOtp);
 
 router.get("/", validateQuery(meetingBookingListQuerySchema), getBookings);
+router.get("/mine", getMyBookings);
+router.post("/bookings", bookingLimiter, validateBody(bookMeetingSchema), bookMeeting);
+router.post("/bookings/:id/cancel", bookingLimiter, cancelMyBooking);
 
 export default router;

@@ -4,7 +4,7 @@ import { validateBody } from "../src/middlewares/validate.middleware";
 
 const valid = {
   name: "Nguyễn Hoàng Minh Nhật", email: "nhat@asiafnb.com", phone: "0901234567",
-  password: "Password123!", confirmPassword: "Password123!", role: "manager",
+  password: "Password123!", confirmPassword: "Password123!", role: "manager", permissionGroupIds: ["507f1f77bcf86cd7994390aa"],
 };
 
 describe("admin account creation validation", () => {
@@ -53,5 +53,17 @@ describe("admin account creation validation", () => {
     expect(next).toHaveBeenCalledTimes(1);
     expect(request.body).not.toHaveProperty("confirmPassword");
     expect(request.body).not.toHaveProperty("isAdmin");
+  });
+});
+
+describe("manager accounts need a permission group", () => {
+  const { permissionGroupIds: _groups, ...noGroups } = valid;
+  it.each([undefined, []])("rejects a manager with groups %j, including when the role defaults to manager", (permissionGroupIds) => {
+    for (const body of [{ ...noGroups, permissionGroupIds }, { ...noGroups, role: undefined, permissionGroupIds }]) {
+      expect(createAccountSchema.validate(body).error?.message).toBe("Vui lòng chọn ít nhất một nhóm quyền cho tài khoản Quản lý.");
+    }
+  });
+  it.each(["user", "admin"])("does not need groups for %s accounts", (role) => {
+    expect(createAccountSchema.validate({ ...noGroups, role }).error).toBeUndefined();
   });
 });

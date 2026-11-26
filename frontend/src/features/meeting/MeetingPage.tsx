@@ -10,15 +10,10 @@ import Footer from "@/components/layout/Footer";
 import { getAvailableMeetingDurations, getFutureMeetingTimes, getMeetingStartOptions, getNextMeetingSlot, getVietnamBookingNow } from "@/lib/meetingSchedule";
 import { ApiError } from "@/services/api";
 import MeetingDepartmentSelect from "@/components/ui/MeetingDepartmentSelect";
-import {
-  getMeetingBookings,
-  resendMeetingBookingOtp,
-  resendMeetingCancellationOtp,
-  startMeetingBooking,
-  startMeetingCancellation,
-  verifyMeetingBooking,
-  verifyMeetingCancellation,
-} from "@/services/meeting.service";
+import { bookMeeting, cancelMyBooking, getMeetingBookings } from "@/services/meeting.service";
+import { useUserSession } from "@/lib/userSession";
+import { showToast } from "@/features/admin/auth/notify";
+import { MEETING_DEPARTMENTS } from "@/config/meetingDepartments";
 import type { MeetingBooking, MeetingRoomId } from "@/services/meeting.service";
 
 type RoomId = MeetingRoomId;
@@ -27,8 +22,6 @@ type Booking = MeetingBooking & {
   displayRoom?: string;
 };
 
-const ASIA_FNB_EMAIL_PATTERN = /^[A-Z0-9._%+-]+@asiafnb\.com$/i;
-const NAME_PATTERN = /^[\p{L}\p{M}\s]+$/u;
 const rooms = [
   { id: "room-01" as const, name: "Phòng 1", floor: "Tầng 1", capacity: 12, image: "/assets/images/Phonghop1.jpg" },
   { id: "room-02" as const, name: "Phòng 2", floor: "Tầng 1", capacity: 6, image: "/assets/images/phonghop2.jpg" },
@@ -245,20 +238,12 @@ export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: b
   const [formOpen, setFormOpen] = useState(false);
   const [closePromptOpen, setClosePromptOpen] = useState(false);
   const [bookingFormBaseline, setBookingFormBaseline] = useState("");
-  const [formStep, setFormStep] = useState<"details" | "otp">("details");
-  const [otpAction, setOtpAction] = useState<"create" | "cancel">("create");
-  const [bookingToCancel, setBookingToCancel] = useState<Booking | null>(null);
   const [pendingCancellation, setPendingCancellation] = useState<Booking | null>(null);
   const [cancellationError, setCancellationError] = useState("");
-  const sendingCancellationOtp = useRef(false);
+  const cancellingBooking = useRef(false);
   const [formError, setFormError] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [otpReady, setOtpReady] = useState(false);
-  const [otpEmail, setOtpEmail] = useState("");
-  const [bookingRequestId, setBookingRequestId] = useState("");
-  const [resendSeconds, setResendSeconds] = useState(0);
-  const [otp, setOtp] = useState<string[]>(Array(6).fill(""));
   const [title, setTitle] = useState("");
   const [roomId, setRoomId] = useState<RoomId>("room-01");
   const [date, setDate] = useState(todayLocal);
@@ -267,13 +252,14 @@ export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: b
   const [durationMinutes, setDurationMinutes] = useState(30);
   const [bookingNow, setBookingNow] = useState(() => new Date());
   const [attendees, setAttendees] = useState(1);
-  const [organizer, setOrganizer] = useState("");
-  const [email, setEmail] = useState("");
+  // Bookings are made as the signed-in account: name and email are not typed in.
+  const session = useUserSession();
+  const organizer = session.account?.name ?? "";
+  const email = session.account?.email ?? "";
   const [department, setDepartment] = useState("");
   const scheduleRef = useRef<HTMLDivElement>(null);
-  const otpInputRefs = useRef<Array<HTMLInputElement | null>>([]);
-  const bookingDraft = JSON.stringify([title, organizer, email, department, roomId, date, start, durationMinutes, attendees]);
-  const hasPendingBooking = formOpen && otpAction === "create" && (formStep === "otp" || bookingDraft !== bookingFormBaseline);
+  const bookingDraft = JSON.stringify([title, department, roomId, date, start, durationMinutes, attendees]);
+  const hasPendingBooking = formOpen && bookingDraft !== bookingFormBaseline;
 
   useEffect(() => {
     if (!hasPendingBooking) return;
@@ -317,12 +303,6 @@ export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: b
   const minimumBookingDate = getNextMeetingSlot(bookingNow).date;
   const todayCount = bookings.filter((booking) => booking.date === currentDate).length;
   const selectedRoom = rooms.find((room) => room.id === roomId)!;
-  const otpBooking = otpAction === "cancel" ? bookingToCancel : null;
-  const otpRoom = otpBooking ? rooms.find((room) => room.id === otpBooking.roomId)! : selectedRoom;
-  const otpEmailDisplay = otpAction === "cancel" ? otpEmail || otpBooking?.email || "" : otpEmail || email;
-  const otpDate = otpBooking?.date ?? date;
-  const otpStart = otpBooking?.start ?? start;
-  const otpEnd = otpBooking?.end ?? end;
   const overlapsLunchBreak = start < "13:00" && end > "12:00";
   const overlapsExistingBooking = bookings.some((booking) => booking.roomId === roomId && booking.date === date && start < addMinutes(booking.end, 15) && end > addMinutes(booking.start, -15));
   const validDuration = Number.isInteger(durationMinutes) && durationMinutes >= 30 && (durationMinutes - 30) % 15 === 0;
@@ -352,7 +332,7 @@ export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: b
       window.requestAnimationFrame(() => scheduleRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
       return;
     }
-    router.push("/meeting/schedule");
+    router.push("/user/meeting/schedule");
   };
 
   useEffect(() => {
@@ -404,39 +384,16 @@ export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: b
   };
 
   const recoverBookingConflict = async (message: string) => {
-    setFormStep("details");
-    setOtpReady(false);
-    setBookingRequestId("");
-    setOtp(Array(6).fill(""));
-    setResendSeconds(0);
     setFormError(message);
     await refreshAvailability();
   };
-
-  useEffect(() => {
-    if (formStep === "otp") window.setTimeout(() => otpInputRefs.current[0]?.focus(), 0);
-  }, [formStep]);
-
-  useEffect(() => {
-    if (resendSeconds <= 0) return;
-    const timer = window.setTimeout(() => setResendSeconds((seconds) => Math.max(0, seconds - 1)), 1000);
-    return () => window.clearTimeout(timer);
-  }, [resendSeconds]);
 
   const closeBookingForm = () => {
     setClosePromptOpen(false);
     setBookingFormBaseline("");
     setFormOpen(false);
-    setFormStep("details");
-    setOtpAction("create");
-    setBookingToCancel(null);
     setFormError("");
     setFieldErrors({});
-    setOtp(Array(6).fill(""));
-    setOtpReady(false);
-    setOtpEmail("");
-    setBookingRequestId("");
-    setResendSeconds(0);
   };
 
   const requestCloseBookingForm = () => {
@@ -447,8 +404,6 @@ export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: b
 
   const discardBookingForm = () => {
     setTitle("");
-    setOrganizer("");
-    setEmail("");
     setDepartment("");
     setAttendees(1);
     closeBookingForm();
@@ -459,9 +414,6 @@ export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: b
     if (isSubmitting) return;
     const nextFieldErrors: Record<string, string> = {};
     if (title.trim().length < 3 || title.trim().length > 200) nextFieldErrors.title = "Tiêu đề phải từ 3 đến 200 ký tự.";
-    if (organizer.trim().length < 2 || organizer.trim().length > 100) nextFieldErrors.organizer = "Tên người đặt phải từ 2 đến 100 ký tự.";
-    else if (!NAME_PATTERN.test(organizer.trim())) nextFieldErrors.organizer = "Tên chỉ được chứa chữ cái và khoảng trắng.";
-    if (!ASIA_FNB_EMAIL_PATTERN.test(email.trim()) || email.trim().length > 150) nextFieldErrors.email = "Email liên hệ phải có dạng ten@asiafnb.com.";
     if (department.trim().length < 2 || department.trim().length > 100) nextFieldErrors.department = "Phòng ban phải từ 2 đến 100 ký tự.";
     if (!Number.isInteger(attendees) || attendees < 1 || attendees > selectedRoom.capacity) nextFieldErrors.attendees = `Phòng này nhận từ 1 đến ${selectedRoom.capacity} người.`;
     setFieldErrors(nextFieldErrors);
@@ -469,22 +421,14 @@ export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: b
       setFormError("");
       return;
     }
-    if (!title.trim() || !organizer.trim() || !department.trim() || !email.trim()) {
+    if (!title.trim() || !department.trim()) {
       if (!title.trim()) setFieldErrors((errors) => ({ ...errors, title: "Vui lòng nhập tiêu đề cuộc họp." }));
-      if (!organizer.trim()) setFieldErrors((errors) => ({ ...errors, organizer: "Vui lòng nhập tên người đặt." }));
       if (!department.trim()) setFieldErrors((errors) => ({ ...errors, department: "Vui lòng chọn hoặc nhập phòng ban." }));
-      if (!email.trim()) setFieldErrors((errors) => ({ ...errors, email: "Vui lòng nhập email liên hệ." }));
       setFormError("Vui lòng điền đầy đủ thông tin cuộc họp.");
       return;
     }
-    if (!NAME_PATTERN.test(organizer.trim())) {
-      setFieldErrors({ organizer: "Tên chỉ được chứa chữ cái và khoảng trắng." });
-      setFormError("Tên người chủ trì chỉ được chứa chữ cái và khoảng trắng.");
-      return;
-    }
-    if (!ASIA_FNB_EMAIL_PATTERN.test(email.trim())) {
-      setFieldErrors({ email: "Email liên hệ phải có dạng ten@asiafnb.com." });
-      setFormError("Email liên hệ phải có dạng ten@asiafnb.com.");
+    if (session.status !== "user") {
+      setFormError("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại để đặt phòng.");
       return;
     }
     if (!validDuration) {
@@ -518,103 +462,55 @@ export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: b
 
     setFormError("");
     setFieldErrors({});
-    setOtp(Array(6).fill(""));
-    setOtpAction("create");
     setIsSubmitting(true);
     try {
-      const result = await startMeetingBooking({
+      const createdBooking = await bookMeeting({
         title: title.trim(),
         roomId,
         date,
         start,
         durationMinutes,
         attendees,
-        organizer: organizer.trim().normalize("NFC"),
-        email: email.trim().toLowerCase(),
         department: department.trim(),
       });
-      setBookingRequestId(result.requestId);
-      setOtpEmail(result.email);
-      setResendSeconds(result.resendAfterSeconds);
-      setOtpReady(true);
-      setFormStep("otp");
-    } catch (error) {
-      if (error instanceof ApiError && error.status === 409) await recoverBookingConflict(error.message);
-      else setFormError(error instanceof Error ? error.message : "Không thể gửi mã OTP. Vui lòng thử lại sau.");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const confirmOtp = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (isSubmitting) return;
-    if (otp.join("").length !== 6) {
-      setFormError("Vui lòng nhập đầy đủ mã OTP gồm 6 chữ số.");
-      return;
-    }
-    if (!otpReady) {
-      setFormError("Chưa gửi được mã OTP. Vui lòng thử lại.");
-      return;
-    }
-    setFormError("");
-    setIsSubmitting(true);
-    try {
-      if (otpAction === "cancel" && bookingToCancel) {
-        await verifyMeetingCancellation(bookingToCancel.id, otp.join(""));
-        setBookings((current) => current.filter((item) => item.id !== bookingToCancel.id));
-        closeBookingForm();
-        return;
-      }
-
-      if (!bookingRequestId) {
-        setFormError("Yêu cầu đặt phòng đã hết hiệu lực. Vui lòng bắt đầu lại.");
-        return;
-      }
-
-      const createdBooking = await verifyMeetingBooking(bookingRequestId, otp.join(""));
-      setBookings((current) => sortBookingsByStart([...current, createdBooking]));
+      setBookings((current) => sortBookingsByStart([...current.filter((item) => item.id !== createdBooking.id), { ...createdBooking, isMine: true }]));
       closeBookingForm();
       setTitle("");
-      setEmail("");
       setAttendees(1);
+      window.dispatchEvent(new Event("asia-notifications-changed"));
+      showToast("Đặt phòng họp thành công", `${createdBooking.title} · ${createdBooking.start}–${createdBooking.end}, ${formatDate(createdBooking.date)}. Hệ thống sẽ nhắc bạn trước 15 phút.`, "success");
       openSchedule();
     } catch (error) {
-      if (otpAction === "create" && error instanceof ApiError && error.status === 409) await recoverBookingConflict(error.message);
-      else setFormError(error instanceof Error ? error.message : "Không thể xác thực OTP. Vui lòng thử lại.");
+      if (error instanceof ApiError && error.status === 409) await recoverBookingConflict(error.message);
+      else if (error instanceof ApiError && error.status === 401) setFormError("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại để đặt phòng.");
+      else setFormError(error instanceof Error ? error.message : "Không thể đặt phòng họp. Vui lòng thử lại sau.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const cancelBooking = (booking: Booking) => {
-    if (isSubmitting || sendingCancellationOtp.current) return;
+    if (isSubmitting || cancellingBooking.current || !booking.isMine) return;
     setPendingCancellation(booking);
     setCancellationError("");
   };
 
-  const sendCancellationOtp = async () => {
-    if (!pendingCancellation || sendingCancellationOtp.current) return;
+  const confirmCancellation = async () => {
+    if (!pendingCancellation || cancellingBooking.current) return;
     const booking = pendingCancellation;
-    sendingCancellationOtp.current = true;
+    cancellingBooking.current = true;
     setCancellationError("");
     setIsSubmitting(true);
     try {
-      const result = await startMeetingCancellation(booking.id);
-      setBookingToCancel(booking);
-      setOtpAction("cancel");
-      setOtp(Array(6).fill(""));
-      setFormError("");
-      setFormStep("otp");
-      setOtpEmail(result.email);
-      setResendSeconds(result.resendAfterSeconds);
-      setOtpReady(true);
+      await cancelMyBooking(booking.id);
+      setBookings((current) => current.filter((item) => item.id !== booking.id));
       setPendingCancellation(null);
-      setFormOpen(true);
+      window.dispatchEvent(new Event("asia-notifications-changed"));
+      showToast("Đã hủy lịch họp", `${booking.title} · ${booking.start}–${booking.end}, ${formatDate(booking.date)}`, "success");
     } catch (error) {
-      setCancellationError(error instanceof Error ? error.message : "Không thể gửi mã OTP hủy lịch. Vui lòng thử lại.");
+      setCancellationError(error instanceof Error ? error.message : "Không thể hủy lịch họp. Vui lòng thử lại.");
     } finally {
-      sendingCancellationOtp.current = false;
+      cancellingBooking.current = false;
       setIsSubmitting(false);
     }
   };
@@ -625,7 +521,11 @@ export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: b
     const suggestedStart = getMeetingStartOptions(suggested.date, nextRoomId, bookings, now).find((option) => !option.disabled)?.value ?? "";
     const duration = 30;
     const availableEnd = suggestedStart ? addMinutes(suggestedStart, duration) : "";
-    setBookingFormBaseline(JSON.stringify([title, organizer, email, department, nextRoomId, suggested.date, suggestedStart, duration, 1]));
+    // Start from the department on the employee record when it is one of the meeting departments.
+    const accountDepartment = session.account?.department ?? "";
+    const nextDepartment = department || ((MEETING_DEPARTMENTS as readonly string[]).includes(accountDepartment) ? accountDepartment : "");
+    setDepartment(nextDepartment);
+    setBookingFormBaseline(JSON.stringify([title, nextDepartment, nextRoomId, suggested.date, suggestedStart, duration, 1]));
     setClosePromptOpen(false);
     setAttendees(1);
     setRoomId(nextRoomId);
@@ -634,56 +534,10 @@ export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: b
     setStart(suggestedStart);
     setEnd(availableEnd);
     setDurationMinutes(duration);
-    setFormStep("details");
-    setOtpAction("create");
-    setBookingToCancel(null);
     setFormError("");
     setFieldErrors({});
-    setOtp(Array(6).fill(""));
-    setOtpReady(false);
-    setOtpEmail("");
-    setBookingRequestId("");
-    setResendSeconds(0);
     setFormOpen(true);
     void refreshAvailability();
-  };
-
-  const updateOtp = (index: number, value: string) => {
-    const digits = value.replace(/\D/g, "");
-    if (!digits) {
-      setOtp((current) => current.map((digit, position) => position === index ? "" : digit));
-      return;
-    }
-    setOtp((current) => {
-      const next = [...current];
-      digits.slice(0, 6 - index).split("").forEach((digit, offset) => { next[index + offset] = digit; });
-      return next;
-    });
-    otpInputRefs.current[Math.min(index + digits.length, 5)]?.focus();
-  };
-
-  const resendOtp = async () => {
-    if (!otpReady || resendSeconds > 0 || isSubmitting) return;
-    setFormError("");
-    setIsSubmitting(true);
-    try {
-      const result = otpAction === "cancel" && bookingToCancel
-        ? await resendMeetingCancellationOtp(bookingToCancel.id)
-        : bookingRequestId
-          ? await resendMeetingBookingOtp(bookingRequestId)
-          : null;
-      if (!result) {
-        setFormError("Yêu cầu OTP đã hết hiệu lực. Vui lòng bắt đầu lại.");
-        return;
-      }
-      setOtp(Array(6).fill(""));
-      setResendSeconds(result.resendAfterSeconds);
-      otpInputRefs.current[0]?.focus();
-    } catch (error) {
-      setFormError(error instanceof Error ? error.message : "Không thể gửi lại mã OTP.");
-    } finally {
-      setIsSubmitting(false);
-    }
   };
 
   return (
@@ -706,7 +560,7 @@ export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: b
         {!scheduleOnly ? (
           <>
             <nav aria-label="Breadcrumb" className="mb-7 flex items-center gap-2 text-sm text-slate-500">
-              <Link href="/" className="hover:text-[#1a7a1a]">Trang chủ</Link><ChevronRight size={15} />
+              <Link href="/user" className="hover:text-[#1a7a1a]">Trang chủ</Link><ChevronRight size={15} />
               <span className="font-semibold text-slate-800">Đặt phòng họp</span>
             </nav>
 
@@ -717,7 +571,7 @@ export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: b
 
         <div className={scheduleOnly ? "" : "hidden"}>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <Link href="/meeting" className="group relative flex min-h-[116px] flex-col items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-[#08723d] to-[#159447] px-4 py-3 text-center text-white shadow-[0_8px_18px_rgba(8,114,61,0.2)] transition-transform hover:-translate-y-0.5"><span aria-hidden="true" className="absolute -right-5 -top-7 h-20 w-20 rounded-full bg-lime-300/20" /><span className="relative text-[10px] font-bold uppercase tracking-[0.12em] text-emerald-100">Đặt phòng mới</span><span className="relative mt-1 inline-flex items-center gap-2 text-sm font-extrabold"><span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/15 transition-transform group-hover:-translate-x-0.5"><ArrowLeft size={16} /></span>Quay về đặt phòng</span><span className="relative mt-1 text-[11px] text-emerald-100">Chọn phòng và khung giờ phù hợp</span></Link>
+          <Link href="/user/meeting" className="group relative flex min-h-[116px] flex-col items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-[#08723d] to-[#159447] px-4 py-3 text-center text-white shadow-[0_8px_18px_rgba(8,114,61,0.2)] transition-transform hover:-translate-y-0.5"><span aria-hidden="true" className="absolute -right-5 -top-7 h-20 w-20 rounded-full bg-lime-300/20" /><span className="relative text-[10px] font-bold uppercase tracking-[0.12em] text-emerald-100">Đặt phòng mới</span><span className="relative mt-1 inline-flex items-center gap-2 text-sm font-extrabold"><span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/15 transition-transform group-hover:-translate-x-0.5"><ArrowLeft size={16} /></span>Quay về đặt phòng</span><span className="relative mt-1 text-[11px] text-emerald-100">Chọn phòng và khung giờ phù hợp</span></Link>
           <StatCard label="Tổng lịch đã đặt" value={bookings.length} unit="cuộc họp" description="Tất cả lịch đã xác nhận" />
           <StatCard label="Lịch họp hôm nay" value={todayCount} unit="cuộc họp" description="Lịch diễn ra trong ngày" green />
           <button type="button" onClick={openSchedule} className="group relative flex min-h-[116px] flex-col items-center justify-center overflow-hidden rounded-xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white px-4 py-3 text-center shadow-sm transition-all hover:-translate-y-0.5 hover:border-[#159447] hover:shadow-[0_8px_18px_rgba(8,114,61,0.12)]"><span aria-hidden="true" className="absolute -right-5 -bottom-8 h-20 w-20 rounded-full bg-[#f5c800]/20" /><span className="relative text-[10px] font-bold uppercase tracking-[0.12em] text-emerald-700">Lịch họp hôm nay</span><span className="relative mt-1 inline-flex items-center gap-2 text-sm font-extrabold text-[#08723d]"><span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#159447] text-white shadow-sm transition-transform group-hover:scale-105"><Printer size={15} /></span>In lịch đặt phòng</span><span className="relative mt-1 text-[11px] text-slate-500">Mở trang lịch để xem trước bản in</span></button>
@@ -748,7 +602,7 @@ export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: b
                         <div className="min-w-0 xl:border-l xl:border-slate-200 xl:px-7"><span className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-600"><UserRound size={23} /></span><p className="mt-3 text-xs font-extrabold uppercase tracking-wide text-slate-500">Người đặt</p><p className="mt-1 truncate text-base font-extrabold text-slate-950" title={booking.organizer}>{booking.organizer}</p></div>
                         <div className="min-w-0 xl:border-l xl:border-slate-200 xl:px-7"><span className="flex h-12 w-12 items-center justify-center rounded-full bg-sky-50 text-sky-600"><Mail size={23} /></span><p className="mt-3 text-xs font-extrabold uppercase tracking-wide text-slate-500">Email đã đặt</p><p className="mt-1 truncate text-base font-extrabold text-slate-950" title={booking.email || "Email chưa được lưu"}>{booking.email || "Email chưa được lưu"}</p></div>
                       </section>
-                      <div className="xl:border-l xl:border-slate-200 xl:pl-8"><button type="button" disabled={isSubmitting} onClick={() => cancelBooking(booking)} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-rose-300 bg-rose-50 px-5 py-3 text-base font-extrabold text-rose-600 transition-colors hover:bg-rose-100 hover:text-rose-700 disabled:cursor-wait disabled:opacity-60"><Trash2 size={20} />Hủy lịch</button></div>
+                      {booking.isMine ? <div className="xl:border-l xl:border-slate-200 xl:pl-8"><button type="button" disabled={isSubmitting} onClick={() => cancelBooking(booking)} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-rose-300 bg-rose-50 px-5 py-3 text-base font-extrabold text-rose-600 transition-colors hover:bg-rose-100 hover:text-rose-700 disabled:cursor-wait disabled:opacity-60"><Trash2 size={20} />Hủy lịch</button></div> : null}
                     </div>
                   </article>;
                 })}
@@ -760,7 +614,6 @@ export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: b
       </>}
 
       {closePromptOpen ? <DiscardBookingDialog
-        awaitingOtp={formStep === "otp"}
         onContinue={() => setClosePromptOpen(false)}
         onDiscard={discardBookingForm}
       /> : null}
@@ -769,37 +622,24 @@ export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: b
         booking={pendingCancellation}
         isSubmitting={isSubmitting}
         error={cancellationError}
-        onCancel={() => { if (!sendingCancellationOtp.current) { setPendingCancellation(null); setCancellationError(""); } }}
-        onConfirm={sendCancellationOtp}
+        onCancel={() => { if (!cancellingBooking.current) { setPendingCancellation(null); setCancellationError(""); } }}
+        onConfirm={confirmCancellation}
       /> : null}
 
-      {formOpen && scheduleOnly && formStep === "otp" && otpAction === "cancel" ? <CancelOtpModal
-        otp={otp}
-        email={otpEmailDisplay}
-        error={formError}
-        resendSeconds={resendSeconds}
-        isSubmitting={isSubmitting}
-        otpReady={otpReady}
-        otpInputRefs={otpInputRefs}
-        onClose={requestCloseBookingForm}
-        onSubmit={confirmOtp}
-        onUpdateOtp={updateOtp}
-        onResend={resendOtp}
-      /> : null}
-
-      {formOpen && !(scheduleOnly && formStep === "otp" && otpAction === "cancel") ? <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/55 p-3 backdrop-blur-[2px] sm:p-5" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) requestCloseBookingForm(); }} onKeyDown={(event) => { if (event.key === "Escape" && !event.defaultPrevented && !closePromptOpen) { event.preventDefault(); requestCloseBookingForm(); } }}>
-        <section role="dialog" aria-modal="true" aria-labelledby="meeting-form-title" className={`flex max-h-[94dvh] w-full ${formStep === "details" ? "max-w-2xl" : "max-w-4xl"} flex-col overflow-hidden rounded-2xl bg-white shadow-2xl`}>
+      {formOpen ? <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/55 p-3 backdrop-blur-[2px] sm:p-5" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) requestCloseBookingForm(); }} onKeyDown={(event) => { if (event.key === "Escape" && !event.defaultPrevented && !closePromptOpen) { event.preventDefault(); requestCloseBookingForm(); } }}>
+        <section role="dialog" aria-modal="true" aria-labelledby="meeting-form-title" className={`flex max-h-[94dvh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl`}>
           <div className="flex shrink-0 items-center justify-between gap-4 border-b border-slate-100 bg-white px-5 py-4">
-            <div><p className="text-sm font-bold uppercase tracking-widest text-emerald-700">{formStep === "details" ? "Quản lý đặt phòng họp" : otpAction === "cancel" ? "Xác nhận hủy phòng" : "Xác nhận mã OTP"}</p><h2 id="meeting-form-title" className="mt-1 text-lg font-extrabold text-slate-900">{formStep === "details" ? "Đặt phòng họp mới" : otpAction === "cancel" ? "Xác nhận hủy phòng" : "Xác nhận mã OTP"}</h2></div>
+            <div><p className="text-sm font-bold uppercase tracking-widest text-emerald-700">Quản lý đặt phòng họp</p><h2 id="meeting-form-title" className="mt-1 text-lg font-extrabold text-slate-900">Đặt phòng họp mới</h2></div>
             <button type="button" onClick={requestCloseBookingForm} disabled={isSubmitting} aria-label="Đóng" className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-50"><X size={18} /></button>
           </div>
-          {formStep === "details" ? <form noValidate onSubmit={createBooking} className="flex min-h-0 flex-1 flex-col">
+          <form noValidate onSubmit={createBooking} className="flex min-h-0 flex-1 flex-col">
           <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <Field label="Tiêu đề cuộc họp" error={fieldErrors.title}><input required minLength={3} maxLength={200} value={title} onChange={(event) => { setTitle(event.target.value); setFieldErrors((errors) => ({ ...errors, title: "" })); setFormError(""); }} className={`form-input ${fieldErrors.title ? "!border-rose-500 !ring-1 !ring-rose-200" : ""}`} /></Field>
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Người đặt / chủ trì" error={fieldErrors.organizer}><input required minLength={2} maxLength={100} autoComplete="name" value={organizer} onChange={(event) => { setOrganizer(event.target.value); setFieldErrors((errors) => ({ ...errors, organizer: "" })); setFormError(""); }} className={`form-input ${fieldErrors.organizer ? "!border-rose-500 !ring-1 !ring-rose-200" : ""}`} /></Field>
-              <Field label="Email @asiafnb.com" error={fieldErrors.email}><input required type="email" maxLength={150} autoComplete="email" value={email} onChange={(event) => { setEmail(event.target.value); setFieldErrors((errors) => ({ ...errors, email: "" })); setFormError(""); }} className={`form-input ${fieldErrors.email ? "!border-rose-500 !ring-1 !ring-rose-200" : ""}`} /></Field>
+              <div className="text-sm font-bold text-slate-700">Người đặt / chủ trì<div className="mt-1.5 flex h-10 items-center truncate rounded-xl bg-slate-50 px-3 text-sm font-normal text-slate-700" title={organizer}>{organizer}</div></div>
+              <div className="text-sm font-bold text-slate-700">Email<div className="mt-1.5 flex h-10 items-center truncate rounded-xl bg-slate-50 px-3 text-sm font-normal text-slate-700" title={email}>{email}</div></div>
             </div>
+            <p className="-mt-2 text-xs text-slate-500">Tên và email lấy từ tài khoản đang đăng nhập.</p>
             <Field label="Phòng ban" error={fieldErrors.department}><MeetingDepartmentSelect value={department} triggerClassName="h-10 py-0" onChange={(value) => { setDepartment(value); setFieldErrors((errors) => ({ ...errors, department: "" })); setFormError(""); }} /></Field>
 
             <div className="grid gap-4 sm:grid-cols-2">
@@ -814,33 +654,14 @@ export default function MeetingPage({ scheduleOnly = false }: { scheduleOnly?: b
             <Field label="Số người tham gia" error={fieldErrors.attendees}><input required type="number" min={1} max={selectedRoom.capacity} step={1} value={attendees} onChange={(event) => { setAttendees(Math.min(selectedRoom.capacity, Math.max(1, Number(event.target.value) || 1))); setFieldErrors((errors) => ({ ...errors, attendees: "" })); setFormError(""); }} className="form-input" /></Field>
             <section className="space-y-3 rounded-xl border border-slate-100 bg-white py-1">
               <p className="mt-2 text-[11px] text-slate-500">Thời lượng tối thiểu 30 phút, bắt đầu muộn nhất 16:30 và kết thúc trước hoặc đúng 17:00. Các cuộc họp cùng phòng cần cách nhau ít nhất 15 phút.</p>
-              <p className="text-[11px] text-slate-500">Giờ mờ đã có lịch hoặc không đủ thời gian phù hợp. Lịch chỉ được xác nhận sau khi nhập đúng OTP.</p>
+              <p className="text-[11px] text-slate-500">Giờ mờ đã có lịch hoặc không đủ thời gian phù hợp. Lịch được xác nhận ngay khi đặt, và bạn sẽ được nhắc (email và thông báo) trước 15 phút.</p>
               <p role="status" className={`mt-3 rounded-xl border px-3 py-2 text-xs ${selectedTimeAvailable ? "border-emerald-200 bg-emerald-50 text-[#08723d]" : "border-rose-200 bg-rose-50 text-rose-700"}`}>{scheduleWarning}</p>
             </section>
 
             {formError ? <p role="alert" className="rounded-xl border border-rose-100 bg-rose-50 px-3 py-2.5 text-sm text-rose-700">{formError}</p> : null}
           </div>
-            <div className="flex shrink-0 justify-end gap-2 border-t border-slate-100 bg-white px-5 py-4"><button type="button" onClick={requestCloseBookingForm} disabled={isSubmitting} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50">Hủy</button><button type="submit" disabled={isSubmitting || !loaded || !selectedTimeAvailable} className="rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50">{isSubmitting ? "Đang gửi OTP..." : !loaded ? "Đang tải lịch..." : "Xác nhận đặt phòng"}</button></div>
+            <div className="flex shrink-0 justify-end gap-2 border-t border-slate-100 bg-white px-5 py-4"><button type="button" onClick={requestCloseBookingForm} disabled={isSubmitting} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50">Hủy</button><button type="submit" disabled={isSubmitting || !loaded || !selectedTimeAvailable} className="rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50">{isSubmitting ? "Đang đặt phòng..." : !loaded ? "Đang tải lịch..." : "Xác nhận đặt phòng"}</button></div>
           </form>
-          : <form onSubmit={confirmOtp} className="flex min-h-0 flex-1 flex-col">
-            <div className="min-h-0 flex-1 space-y-5 overflow-y-auto bg-gradient-to-br from-emerald-50 via-white to-amber-50/70 px-5 py-5 [scrollbar-width:none] sm:px-7 sm:py-6 [&::-webkit-scrollbar]:hidden">
-              <div className="mx-auto flex w-full max-w-md flex-col items-center px-4 py-4 text-center sm:px-5 sm:py-5">
-                <span className="flex h-14 w-14 items-center justify-center rounded-full bg-[#159447] text-white shadow-[0_10px_22px_rgba(21,148,71,0.3)]"><Mail size={29} strokeWidth={2.2} /></span>
-                <p className="mt-3 text-sm leading-6 text-slate-600">{isSubmitting ? "Đang gửi mã xác nhận đến" : otpReady ? "Mã xác nhận đã được gửi đến" : "Chưa gửi được mã xác nhận"}</p>
-                <p className="mt-1 break-all text-lg font-extrabold tracking-tight text-slate-900 sm:text-xl">{otpEmailDisplay || "Email chưa được lưu"}</p>
-                <div className="mt-5 grid w-full gap-4 text-left sm:grid-cols-2 sm:gap-5">
-                  <div className="flex items-start gap-2.5"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-sm"><MapPin size={19} /></span><div><p className="text-[10px] font-bold uppercase tracking-[0.12em] text-emerald-700">Phòng họp</p><p className="mt-0.5 text-base font-extrabold text-[#08723d]">{otpRoom.name}</p></div></div>
-                  <div className="flex items-start gap-2.5"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-400 text-amber-950 shadow-sm"><CalendarDays size={19} /></span><div><p className="text-[10px] font-bold uppercase tracking-[0.12em] text-amber-700">Ngày &amp; giờ đặt phòng</p><p className="mt-0.5 text-base font-extrabold leading-snug text-slate-800">{formatDate(otpDate)} {otpStart} – {otpEnd}</p></div></div>
-                </div>
-              </div>
-              <div className="mx-auto flex max-w-md justify-center gap-2 sm:gap-2.5" aria-label="Mã OTP gồm 6 chữ số">
-                {otp.map((digit, index) => <input key={index} ref={(element) => { otpInputRefs.current[index] = element; }} value={digit} onChange={(event) => updateOtp(index, event.target.value)} onKeyDown={(event) => { if (event.key === "Backspace" && !otp[index] && index > 0) otpInputRefs.current[index - 1]?.focus(); }} onPaste={(event) => { event.preventDefault(); updateOtp(index, event.clipboardData.getData("text")); }} inputMode="numeric" autoComplete={index === 0 ? "one-time-code" : "off"} maxLength={6} aria-label={`Chữ số OTP ${index + 1}`} className="h-12 w-10 rounded-xl border border-slate-200 bg-white text-center text-lg font-bold text-slate-800 shadow-sm outline-none transition focus:-translate-y-0.5 focus:border-[#159447] focus:ring-4 focus:ring-emerald-100 sm:h-14 sm:w-12 sm:text-xl" />)}
-              </div>
-              {formError ? <p role="alert" className="mx-auto max-w-md rounded-xl border border-rose-100 bg-rose-50 px-3 py-2.5 text-center text-sm text-rose-700">{formError}</p> : null}
-              <p className="text-center text-base text-slate-600">Không nhận được mã? <button type="button" disabled={!otpReady || resendSeconds > 0 || isSubmitting} onClick={resendOtp} className="font-extrabold text-[#159447] underline decoration-emerald-300 decoration-2 underline-offset-4 hover:text-[#0d5c0d] disabled:cursor-not-allowed disabled:opacity-50">{isSubmitting ? "Đang gửi..." : resendSeconds > 0 ? `Gửi lại sau ${resendSeconds} giây` : "Gửi lại mã"}</button></p>
-            </div>
-            <div className="flex shrink-0 items-center justify-between gap-4 border-t border-slate-100 bg-white px-5 py-4 sm:px-7"><button type="button" onClick={() => { if (otpAction === "cancel") closeBookingForm(); else { setFormStep("details"); setOtpReady(false); setBookingRequestId(""); setFormError(""); } }} className="rounded-xl bg-slate-50 px-5 py-3 text-sm font-bold text-slate-600 transition-colors hover:bg-emerald-50 hover:text-[#08723d]">Quay lại</button><button type="submit" disabled={otp.join("").length !== 6 || !otpReady || isSubmitting} className="inline-flex items-center gap-2 rounded-xl bg-[#159447] px-6 py-3 text-sm font-bold text-white shadow-[0_8px_18px_rgba(21,148,71,0.24)] transition-colors hover:bg-[#0d5c0d] disabled:cursor-not-allowed disabled:bg-emerald-200"><CheckCircle2 size={18} />{isSubmitting ? "Đang xác thực..." : otpAction === "cancel" ? "Xác nhận hủy phòng" : "Xác nhận mã OTP"}</button></div>
-          </form>}
         </section>
       </div> : null}
     </main>
@@ -917,8 +738,8 @@ function BookedScheduleDashboard({
   return <div className="meeting-booked-schedule min-h-screen bg-[#f7faf8] text-slate-800">
     <div className="mx-auto max-w-[1220px] px-5 py-4 pb-7">
       <nav aria-label="Breadcrumb" className="mb-4 flex flex-wrap items-center gap-2 text-sm text-slate-500">
-        <Link href="/" className="transition hover:text-[#1a7a1a]">Trang chủ</Link><ChevronRight size={16} />
-        <Link href="/meeting" className="font-semibold text-slate-700 transition hover:text-[#1a7a1a]">Đặt phòng họp</Link><ChevronRight size={16} />
+        <Link href="/user" className="transition hover:text-[#1a7a1a]">Trang chủ</Link><ChevronRight size={16} />
+        <Link href="/user/meeting" className="font-semibold text-slate-700 transition hover:text-[#1a7a1a]">Đặt phòng họp</Link><ChevronRight size={16} />
         <span className="font-bold text-[#0d5c0d]">Xem lịch phòng họp</span>
       </nav>
       <section className="flex flex-wrap items-center justify-between gap-3">
@@ -950,7 +771,7 @@ function BookedScheduleDashboard({
             <DashboardFilter label="Phòng ban"><select aria-label="Phòng ban" value={departmentFilter} onChange={(event) => onDepartmentFilterChange(event.target.value)} className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"><option value="all">Tất cả phòng ban</option>{departments.map((department) => <option key={department} value={department}>{department}</option>)}</select></DashboardFilter>
             <button type="button" title="Đặt lại bộ lọc" aria-label="Đặt lại bộ lọc" onClick={() => { onSearchChange(""); onRoomFilterChange("all"); onDepartmentFilterChange("all"); }} className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 text-[#08723d] hover:bg-emerald-50 focus-visible:outline-2 focus-visible:outline-emerald-500"><RotateCcw size={16} /></button>
           </div>
-        </div><div className="overflow-x-auto"><table className="w-full min-w-[920px] border-collapse text-center text-sm"><thead className="bg-[#f3f7fc] text-[#3d527a]"><tr>{["Tiêu đề", "Người đặt", "Phòng ban", "Ngày & giờ", "Email", "Phòng họp", "Số người", "Trạng thái", ...(tableScope === "active" ? ["Thao tác"] : [])].map((heading) => <th key={heading} className="border border-[#e0e9f4] px-4 py-3 font-bold">{heading}</th>)}</tr></thead><tbody>{tableBookings.length ? tableBookings.map((booking) => { const status = statusFor(booking); return <tr key={booking.id} className="text-[#36517c]"><td className="border border-[#e8eef6] px-4 py-3 font-bold text-[#253d67]">{booking.title}</td><td className="border border-[#e8eef6] px-4 py-3">{booking.organizer}</td><td className="border border-[#e8eef6] px-4 py-3">{booking.department}</td><td className="border border-[#e8eef6] px-4 py-3 leading-5">{formatDate(booking.date)}<br />{booking.start} - {booking.end}</td><td className="border border-[#e8eef6] px-4 py-3">{booking.email}</td><td className="border border-[#e8eef6] px-4 py-3">{booking.displayRoom ?? rooms.find((room) => room.id === booking.roomId)?.name}</td><td className="border border-[#e8eef6] px-4 py-3">{booking.attendees}</td><td className="border border-[#e8eef6] px-4 py-3"><span className={`inline-flex rounded px-2.5 py-1 font-bold ${statusStyle(status)}`}>{status}</span></td>{tableScope === "active" ? <td className="border border-[#e8eef6] px-4 py-3"><button type="button" onClick={() => onCancel(booking)} className="rounded border border-[#ff8490] px-3 py-1.5 text-xs font-bold text-[#f04754] hover:bg-rose-50">Hủy lịch</button></td> : null}</tr>; }) : <tr><td colSpan={tableScope === "active" ? 9 : 8} className="border border-[#e8eef6] px-4 py-12 text-center text-base text-[#7a8ba6]">{tableScope === "history" ? "Chưa có lịch sử cuộc họp." : "Không có lịch họp đang hoạt động."}</td></tr>}</tbody></table></div></section> : null}
+        </div><div className="overflow-x-auto"><table className="w-full min-w-[920px] border-collapse text-center text-sm"><thead className="bg-[#f3f7fc] text-[#3d527a]"><tr>{["Tiêu đề", "Người đặt", "Phòng ban", "Ngày & giờ", "Email", "Phòng họp", "Số người", "Trạng thái", ...(tableScope === "active" ? ["Thao tác"] : [])].map((heading) => <th key={heading} className="border border-[#e0e9f4] px-4 py-3 font-bold">{heading}</th>)}</tr></thead><tbody>{tableBookings.length ? tableBookings.map((booking) => { const status = statusFor(booking); return <tr key={booking.id} className="text-[#36517c]"><td className="border border-[#e8eef6] px-4 py-3 font-bold text-[#253d67]">{booking.title}</td><td className="border border-[#e8eef6] px-4 py-3">{booking.organizer}</td><td className="border border-[#e8eef6] px-4 py-3">{booking.department}</td><td className="border border-[#e8eef6] px-4 py-3 leading-5">{formatDate(booking.date)}<br />{booking.start} - {booking.end}</td><td className="border border-[#e8eef6] px-4 py-3">{booking.email}</td><td className="border border-[#e8eef6] px-4 py-3">{booking.displayRoom ?? rooms.find((room) => room.id === booking.roomId)?.name}</td><td className="border border-[#e8eef6] px-4 py-3">{booking.attendees}</td><td className="border border-[#e8eef6] px-4 py-3"><span className={`inline-flex rounded px-2.5 py-1 font-bold ${statusStyle(status)}`}>{status}</span></td>{tableScope === "active" ? <td className="border border-[#e8eef6] px-4 py-3">{booking.isMine ? <button type="button" onClick={() => onCancel(booking)} className="rounded border border-[#ff8490] px-3 py-1.5 text-xs font-bold text-[#f04754] hover:bg-rose-50">Hủy lịch</button> : <span className="text-xs text-[#9aa9bf]">—</span>}</td> : null}</tr>; }) : <tr><td colSpan={tableScope === "active" ? 9 : 8} className="border border-[#e8eef6] px-4 py-12 text-center text-base text-[#7a8ba6]">{tableScope === "history" ? "Chưa có lịch sử cuộc họp." : "Không có lịch họp đang hoạt động."}</td></tr>}</tbody></table></div></section> : null}
     </div>
     {printPreviewOpen ? <PrintPreviewModal bookings={printBookings} scope={printScope} orientation={printOrientation} onScopeChange={setPrintScope} onOrientationChange={setPrintOrientation} onClose={() => setPrintPreviewOpen(false)} onPrint={() => printBookingTable(printBookings, printScope, printOrientation)} /> : null}
   </div>;
@@ -1133,7 +954,7 @@ function Metric({ icon, label, value }: { icon: React.ReactNode; label: string; 
   return <div className="flex h-[72px] min-w-[240px] items-center gap-3 rounded-2xl border border-emerald-100 bg-white px-4 text-left shadow-[0_8px_22px_rgba(15,118,65,0.07)]"><span className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-50 text-[#159447]">{icon}</span><span><span className="block text-xs font-semibold text-[#08723d]">{label}</span><span className="block text-[28px] font-extrabold leading-7 text-[#0d5c0d]">{value}</span></span></div>;
 }
 
-function DiscardBookingDialog({ awaitingOtp, onContinue, onDiscard }: { awaitingOtp: boolean; onContinue: () => void; onDiscard: () => void }) {
+function DiscardBookingDialog({ onContinue, onDiscard }: { onContinue: () => void; onDiscard: () => void }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -1143,9 +964,9 @@ function DiscardBookingDialog({ awaitingOtp, onContinue, onDiscard }: { awaiting
 
   return <dialog ref={dialogRef} aria-labelledby="discard-booking-title" aria-describedby="discard-booking-description" onCancel={(event) => { event.preventDefault(); onContinue(); }} className="fixed inset-0 m-auto w-[calc(100%-2rem)] max-w-lg rounded-2xl border border-slate-200 bg-white p-6 text-slate-800 shadow-2xl backdrop:bg-slate-950/50 backdrop:backdrop-blur-sm">
     <h2 id="discard-booking-title" className="text-lg font-bold text-slate-900">Bạn muốn dừng đặt phòng?</h2>
-    <p id="discard-booking-description" className="mt-2 text-sm leading-6 text-slate-600">{awaitingOtp ? "Bạn chưa hoàn tất xác nhận OTP qua email. Nếu đóng bây giờ, lịch đặt này sẽ chưa được tạo. Bạn muốn tiếp tục xác nhận hay bỏ thông tin đang nhập?" : "Thông tin đặt phòng đang nhập chưa được xác nhận. Nếu đóng, phần thông tin này sẽ bị bỏ. Bạn muốn tiếp tục nhập hay đóng form?"}</p>
+    <p id="discard-booking-description" className="mt-2 text-sm leading-6 text-slate-600">Thông tin đặt phòng đang nhập chưa được lưu. Nếu đóng, phần thông tin này sẽ bị bỏ. Bạn muốn tiếp tục nhập hay đóng form?</p>
     <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
-      <button type="button" autoFocus onClick={onContinue} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">{awaitingOtp ? "Tiếp tục xác nhận OTP" : "Tiếp tục nhập"}</button>
+      <button type="button" autoFocus onClick={onContinue} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Tiếp tục nhập</button>
       <button type="button" onClick={onDiscard} className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-700 hover:bg-rose-100">Bỏ thông tin và đóng</button>
     </div>
   </dialog>;
@@ -1161,10 +982,10 @@ function CancelBookingConfirmation({ booking, isSubmitting, error, onCancel, onC
 
   return <dialog ref={dialogRef} aria-labelledby="cancel-owner-title" aria-describedby="cancel-owner-description" onCancel={(event) => { event.preventDefault(); if (!isSubmitting) onCancel(); }} className="fixed inset-0 m-auto max-h-[90dvh] w-[calc(100%-2rem)] max-w-md overflow-y-auto rounded-2xl border border-emerald-100 bg-white p-0 text-slate-700 shadow-2xl backdrop:bg-slate-950/40 backdrop:backdrop-blur-[2px]">
     <div className="border-b border-slate-100 px-5 py-4">
-      <h2 id="cancel-owner-title" className="text-lg font-extrabold text-[#0d5c0d]">Xác nhận người đặt lịch</h2>
+      <h2 id="cancel-owner-title" className="text-lg font-extrabold text-[#0d5c0d]">Hủy lịch họp?</h2>
     </div>
     <div className="space-y-4 px-5 py-5">
-      <p id="cancel-owner-description" className="text-sm leading-6">Bạn có phải là người đặt lịch này và có quyền truy cập email dưới đây không?</p>
+      <p id="cancel-owner-description" className="text-sm leading-6">Lịch họp dưới đây sẽ bị hủy và phòng được trả lại cho người khác đặt.</p>
       <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-2 rounded-xl bg-emerald-50/60 p-4 text-sm leading-5">
         <dt className="text-slate-500">Cuộc họp</dt><dd className="break-words font-semibold text-slate-800">{booking.title}</dd>
         <dt className="text-slate-500">Người đặt</dt><dd className="break-words">{booking.organizer}</dd>
@@ -1172,36 +993,14 @@ function CancelBookingConfirmation({ booking, isSubmitting, error, onCancel, onC
         <dt className="text-slate-500">Phòng họp</dt><dd>{bookingRoomLabel(booking)}</dd>
         <dt className="text-slate-500">Email</dt><dd className="break-all font-medium text-[#08723d]">{booking.email || "Email đã dùng khi đặt lịch"}</dd>
       </dl>
-      <p className="text-xs leading-5 text-slate-500">Nếu đúng, chọn “Gửi mã OTP” để nhận mã xác nhận qua email đã đặt lịch. Lịch chỉ bị hủy sau khi bạn nhập đúng mã. Nếu đây không phải lịch của bạn, vui lòng chọn “Hủy”.</p>
+      <p className="text-xs leading-5 text-slate-500">Thao tác này không thể hoàn tác. Chọn “Giữ lịch” nếu bạn muốn giữ cuộc họp.</p>
       {error ? <p role="alert" className="rounded-lg border border-rose-100 bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p> : null}
     </div>
     <div className="flex justify-end gap-3 border-t border-slate-100 px-5 py-4">
-      <button type="button" autoFocus disabled={isSubmitting} onClick={onCancel} className="min-h-10 rounded-xl border border-slate-200 px-5 py-2 text-sm font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50">Hủy</button>
-      <button type="button" disabled={isSubmitting} onClick={onConfirm} className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-[#159447] px-5 py-2 text-sm font-bold text-white hover:bg-[#0d6d27] disabled:cursor-wait disabled:opacity-60"><Mail size={16} />{isSubmitting ? "Đang gửi mã…" : "Gửi mã OTP"}</button>
+      <button type="button" autoFocus disabled={isSubmitting} onClick={onCancel} className="min-h-10 rounded-xl border border-slate-200 px-5 py-2 text-sm font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50">Giữ lịch</button>
+      <button type="button" disabled={isSubmitting} onClick={onConfirm} className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-rose-600 px-5 py-2 text-sm font-bold text-white hover:bg-rose-700 disabled:cursor-wait disabled:opacity-60"><Trash2 size={16} />{isSubmitting ? "Đang hủy…" : "Hủy lịch"}</button>
     </div>
   </dialog>;
-}
-
-function CancelOtpModal({ otp, email, error, resendSeconds, isSubmitting, otpReady, otpInputRefs, onClose, onSubmit, onUpdateOtp, onResend }: { otp: string[]; email: string; error: string; resendSeconds: number; isSubmitting: boolean; otpReady: boolean; otpInputRefs: { current: Array<HTMLInputElement | null> }; onClose: () => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void; onUpdateOtp: (index: number, value: string) => void; onResend: () => void }) {
-  return <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/20 p-4 backdrop-blur-[2px]" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-    <section role="dialog" aria-modal="true" aria-labelledby="cancel-title" className="w-full max-w-[340px] overflow-hidden rounded-2xl border border-emerald-100 bg-white shadow-[0_24px_60px_rgba(13,92,13,0.2)]">
-      <div className="flex items-center justify-between border-b border-emerald-100 bg-gradient-to-r from-emerald-50 to-white px-5 py-4">
-        <div className="flex items-center gap-2.5"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-rose-50"><Trash2 size={18} className="text-rose-500" /></span><h2 id="cancel-title" className="text-lg font-extrabold text-[#0d5c0d]">Xác nhận hủy lịch</h2></div>
-        <button type="button" onClick={onClose} aria-label="Đóng" className="flex h-8 w-8 items-center justify-center rounded-full text-slate-500 transition hover:bg-emerald-50 hover:text-[#0d5c0d]"><X size={18} /></button>
-      </div>
-      <form onSubmit={onSubmit}>
-        <div className="bg-gradient-to-br from-white via-emerald-50/40 to-amber-50/40 px-5 pb-5 pt-6 text-center">
-          <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-[#159447] shadow-sm"><Inbox size={30} /></span>
-          <p className="mx-auto mt-4 max-w-[255px] break-all text-sm font-medium leading-5 text-slate-600">{isSubmitting ? "Đang gửi mã OTP..." : otpReady ? `Mã OTP đã được gửi đến ${email}` : "Chưa gửi được mã OTP."}</p>
-          <p className="mt-5 text-left text-xs font-bold text-slate-700">Nhập mã OTP</p>
-          <div className="mt-2 flex justify-center gap-2">{otp.map((digit, index) => <input key={index} ref={(element) => { otpInputRefs.current[index] = element; }} value={digit} onChange={(event) => onUpdateOtp(index, event.target.value)} onKeyDown={(event) => { if (event.key === "Backspace" && !otp[index] && index > 0) otpInputRefs.current[index - 1]?.focus(); }} onPaste={(event) => { event.preventDefault(); onUpdateOtp(index, event.clipboardData.getData("text")); }} inputMode="numeric" autoComplete={index === 0 ? "one-time-code" : "off"} maxLength={6} aria-label={`Chữ số OTP ${index + 1}`} className="h-11 w-10 rounded-lg border border-emerald-200 bg-white text-center text-base font-bold text-[#173f24] outline-none transition focus:border-[#159447] focus:ring-4 focus:ring-emerald-100" />)}</div>
-          {error ? <p role="alert" className="mt-3 rounded-lg bg-rose-50 px-2.5 py-2 text-xs text-rose-700">{error}</p> : null}
-          <p className="mt-4 text-xs text-slate-400">Không nhận được mã? <button type="button" disabled={!otpReady || resendSeconds > 0 || isSubmitting} onClick={onResend} className="font-bold text-[#159447] hover:text-[#0d5c0d] disabled:cursor-not-allowed disabled:opacity-50">{isSubmitting ? "Đang gửi..." : resendSeconds > 0 ? `Gửi lại sau ${resendSeconds} giây` : "Gửi lại mã"}</button></p>
-        </div>
-        <div className="flex gap-3 border-t border-emerald-100 bg-white px-5 py-4"><button type="button" onClick={onClose} className="h-10 flex-1 rounded-xl border border-slate-200 bg-slate-50 text-sm font-bold text-slate-600 transition hover:bg-emerald-50 hover:text-[#08723d]">Đóng</button><button type="submit" disabled={otp.join("").length !== 6 || !otpReady || isSubmitting} className="h-10 flex-1 rounded-xl bg-[#159447] text-sm font-bold text-white shadow-[0_8px_18px_rgba(21,148,71,0.22)] transition hover:bg-[#0d5c0d] disabled:cursor-not-allowed disabled:bg-emerald-200 disabled:shadow-none">{isSubmitting ? "Đang xác thực..." : "Xác nhận hủy"}</button></div>
-      </form>
-    </section>
-  </div>;
 }
 
 function StatCard({ label, value, unit, description, green = false }: { label: string; value: number; unit: string; description: string; green?: boolean }) {
@@ -1237,7 +1036,7 @@ function RoomBookingCards({ bookings, loaded, loadError, onBook }: { bookings: B
             <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-emerald-200">Á Châu Asia F&amp;B</p>
             <h2 className="mt-2 text-2xl font-extrabold leading-tight tracking-tight sm:text-[28px]">Không gian họp dành cho <span className="text-[#8de29d]">mọi ý tưởng</span></h2>
             <p className="mt-2 max-w-[500px] text-xs leading-5 text-emerald-50">“Nơi tầm nhìn được chia sẻ, trí tuệ được kết nối, khác biệt được tôn trọng và những quyết định lớn được chuyển hóa thành hành động.”</p>
-            <Link href="/meeting/schedule" className="mt-4 inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-emerald-500/60 bg-[#08694f] px-4 py-2 text-xs font-bold text-white shadow-sm transition-colors hover:border-emerald-400/70 hover:bg-[#07966b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300"><CalendarDays size={15} />Xem lịch phòng trống<ArrowRight size={15} /></Link>
+            <Link href="/user/meeting/schedule" className="mt-4 inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-emerald-500/60 bg-[#08694f] px-4 py-2 text-xs font-bold text-white shadow-sm transition-colors hover:border-emerald-400/70 hover:bg-[#07966b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300"><CalendarDays size={15} />Xem lịch phòng trống<ArrowRight size={15} /></Link>
           </div>
         </div>
       </section>
