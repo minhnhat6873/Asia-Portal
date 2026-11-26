@@ -1,9 +1,11 @@
 # Bài đăng nổi bật
 
-Chỉ bài đang hiển thị công khai mới được bật `featured`. Có năm vị trí cố định `featuredSlot` từ 1 đến 5; một vị trí chỉ thuộc một bài. Chọn vị trí đã sử dụng trả 409, không thay đổi bài hiện tại: người dùng phải tự mở bài đang chiếm vị trí và tắt nổi bật. Ẩn bài, tự ẩn do hết hạn hoặc chuyển vào thùng rác giải phóng vị trí; đăng lại hoặc khôi phục không tự bật lại. Form tạo lưu bài dưới dạng ẩn, nên cần đăng bài trước rồi vào sửa để bật nổi bật.
+Trang chủ hiện **tối đa 3** tin nổi bật (`MEDIA_FEATURED_LIMIT` trong `backend/src/interfaces/media.interface.ts`). Có ba vị trí cố định `featuredSlot` từ 1 đến 3; một vị trí chỉ thuộc một bài. Khi cả ba vị trí đã có bài, không bật thêm được bài thứ tư: chọn vị trí đã dùng trả 409 và form quản trị khóa ô chọn, người dùng phải mở một bài đang nổi bật và tắt trước.
 
-Các thao tác bật và đổi vị trí dùng giao dịch MongoDB và khóa ghi chung để chặn hai yêu cầu đồng thời chiếm một vị trí. MongoDB cần replica set hoặc sharded cluster hỗ trợ transaction; nếu không, yêu cầu bật bị từ chối với HTTP 503. Các thao tác không bật nổi bật vẫn dùng luồng thông thường. Các bài nổi bật cũ chưa có vị trí được ánh xạ tạm ổn định theo thời điểm bật và được lưu vị trí khi có thao tác chọn vị trí thành công.
+Chỉ bài đang hiển thị mới được bật `featured`. Ẩn bài, tự ẩn do hết hạn hoặc chuyển vào thùng rác giải phóng vị trí; đăng lại hoặc khôi phục không tự bật lại. Form tạo lưu bài dưới dạng ẩn, nên cần đăng bài trước rồi vào sửa để bật nổi bật.
 
-`GET /admin/media/featured-slots` yêu cầu quyền xem truyền thông và trả danh sách vị trí cùng ID, tiêu đề bài đang dùng. `GET /user/media?featured=true&limit=5` chỉ trả bài nổi bật được phép hiển thị công khai, sắp theo vị trí tăng dần. Trang chủ cho chuyển giữa tối đa năm bài và hiển thị tối đa ba bài cùng lúc; trang truyền thông lấy bài có vị trí nhỏ nhất. Bài hết hạn đã được đăng lại công khai có thể được bật nổi bật lại, nhưng vẫn mang nhãn hết hạn.
+Các thao tác bật và đổi vị trí dùng giao dịch MongoDB và khóa ghi chung để chặn hai yêu cầu đồng thời chiếm một vị trí. MongoDB cần replica set hoặc sharded cluster hỗ trợ transaction; nếu không, yêu cầu bật bị từ chối với HTTP 503. Bài nổi bật cũ chưa có vị trí được gán tạm vị trí trống theo thời điểm bật. Bài còn giữ vị trí 4 hoặc 5 từ trước được tắt nổi bật khi hệ thống dọn bài hết hạn (mỗi lần mở danh sách quản trị hoặc chạy job).
 
-Khi chưa có hoặc chưa đủ bài được đánh dấu, hệ thống không tự chọn thêm bài mới nhất làm nổi bật.
+`GET /admin/media/featured-slots` yêu cầu quyền xem truyền thông và trả các vị trí 1–3 đang dùng cùng ID, tiêu đề bài.
+
+`GET /user/media?featured=true&limit=3` trả tối đa 3 bài: trước hết là bài được chọn nổi bật theo thứ tự vị trí; **nếu chưa chọn đủ hoặc không chọn bài nào, hệ thống lấy các bài mới nhất (theo ngày đăng) bù vào**, không trùng bài đã chọn. Khách chưa đăng nhập chỉ nhận bài công khai, kể cả bài bù. Trang truyền thông lấy bài đầu tiên của danh sách này.

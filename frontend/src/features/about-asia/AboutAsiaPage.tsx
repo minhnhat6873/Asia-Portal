@@ -5,7 +5,7 @@ import Footer from "@/components/layout/Footer";
 import ProductHeroSlider from "./components/ProductHeroSlider";
 import { ArrowRight, Gem, Globe, Leaf, Play, Target, Trophy, Users } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 
 /* ── DATA ── */
@@ -174,7 +174,22 @@ function AboutJourneyHero() {
 export default function VeWanaPage() {
   const [activeMilestone, setActiveMilestone] = useState(0);
   const [isCompanyVideoPlaying, setIsCompanyVideoPlaying] = useState(false);
+  const companyVideoRef = useRef<HTMLDivElement>(null);
   const selectedMilestone = milestones[activeMilestone];
+
+  useEffect(() => {
+    const element = companyVideoRef.current;
+    if (!element) return;
+
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) {
+        setIsCompanyVideoPlaying(true);
+        observer.disconnect();
+      }
+    }, { rootMargin: "800px 0px", threshold: 0 });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
 
   return (
     <main className="min-h-screen bg-white">
@@ -218,10 +233,10 @@ export default function VeWanaPage() {
               </div>
 
               <div>
-                <div id="company-intro-video" className="relative min-h-[245px] overflow-hidden rounded-[20px] shadow-[0_14px_30px_rgba(26,55,32,0.12)] sm:min-h-[300px] xl:min-h-[340px]">
+                <div ref={companyVideoRef} id="company-intro-video" className="relative min-h-[245px] overflow-hidden rounded-[20px] shadow-[0_14px_30px_rgba(26,55,32,0.12)] sm:min-h-[300px] xl:min-h-[340px]">
                   {isCompanyVideoPlaying ? (
                     <iframe
-                      src="https://www.youtube-nocookie.com/embed/WhKFjee7F5A?autoplay=1&rel=0"
+                      src="https://www.youtube-nocookie.com/embed/WhKFjee7F5A?autoplay=1&mute=1&loop=1&playlist=WhKFjee7F5A&playsinline=1&rel=0"
                       title="Giới thiệu Asia Food & Beverage co.ltd"
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                       allowFullScreen

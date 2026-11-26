@@ -4,6 +4,7 @@ import { useDelayedLoading } from "@/lib/useDelayedLoading";
 import { ArrowLeft, ChevronLeft, ChevronRight, LoaderCircle, RotateCcw, Search, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
+import { toastEmployeeChange } from "../linked-account-toast";
 import { getEmployeeDepartmentLabel } from "@/components/ui/employee-department-options";
 import { getEmployeeRankLabel } from "@/components/ui/employee-rank-options";
 import {
@@ -99,9 +100,9 @@ export function EmployeeTrashPage({ onBack, onRestored }: EmployeeTrashPageProps
     if (!deleteTarget || deletingId || restoringId) return;
     setDeletingId(deleteTarget._id);
     try {
-      await permanentlyDeleteAdminEmployee(deleteTarget._id);
+      const { linkedAccount } = await permanentlyDeleteAdminEmployee(deleteTarget._id);
       removeEmployeeFromPage(deleteTarget._id);
-      toast.success(`Đã xóa vĩnh viễn nhân viên ${deleteTarget.name}.`);
+      toastEmployeeChange(`Đã xóa vĩnh viễn nhân viên ${deleteTarget.name}.`, linkedAccount, "purged");
       setDeleteTarget(null);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Không thể xóa vĩnh viễn nhân viên.");
@@ -124,7 +125,7 @@ export function EmployeeTrashPage({ onBack, onRestored }: EmployeeTrashPageProps
         </div>
         <div className="relative w-full sm:w-80">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <input value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} placeholder="Tìm theo tên hoặc mã nhân viên..." className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-[15px] outline-none focus:border-emerald-500" />
+          <input value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} placeholder="Tìm theo tên, mã nhân viên hoặc email..." className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-[15px] outline-none focus:border-emerald-500" />
         </div>
       </div>
 
@@ -204,7 +205,7 @@ export function EmployeeTrashPage({ onBack, onRestored }: EmployeeTrashPageProps
             </div>
             <h2 id="employee-permanent-delete-title" className="mt-4 text-[21px] font-bold text-slate-900">Xóa vĩnh viễn nhân viên?</h2>
             <p className="mt-2 text-[17px] leading-6 text-slate-600">
-              Bạn sắp xóa vĩnh viễn <strong className="font-semibold text-slate-900">{deleteTarget.name}</strong> ({deleteTarget.employeeCode}). Dữ liệu này sẽ không thể khôi phục.
+              Bạn sắp xóa vĩnh viễn <strong className="font-semibold text-slate-900">{deleteTarget.name}</strong> ({deleteTarget.employeeCode}). Dữ liệu này sẽ không thể khôi phục, và tài khoản đăng nhập của nhân viên này (nếu có) cũng bị xóa.
             </p>
             <div className="mt-6 flex justify-end gap-3">
               <button type="button" disabled={deletingId !== null} onClick={() => setDeleteTarget(null)} className="rounded-xl border border-slate-200 px-4 py-2.5 text-[17px] font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50">

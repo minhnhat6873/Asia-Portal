@@ -21,8 +21,11 @@ export function useAdminPermissions() {
 
 export function canAccessAdminPath(account: AdminUser | null, pathname: string): boolean {
   if (!account) return false;
-  if (pathname.startsWith("/admin/access-control") || pathname.startsWith("/admin/settings") || pathname.startsWith("/admin/feedback")) return account.role === "Toàn quyền Admin";
   const can = (permission: PermissionAction) => hasAdminPermission(account, permission);
+  // Managers granted "accounts:manage-users" may open the account pages (user accounts only).
+  if (pathname === "/admin/access-control/accounts/trash") return can("accounts:manage-users") && can("accounts:trash");
+  if (pathname.startsWith("/admin/access-control/accounts")) return can("accounts:manage-users");
+  if (pathname.startsWith("/admin/access-control") || pathname.startsWith("/admin/settings") || pathname.startsWith("/admin/feedback")) return account.role === "Toàn quyền Admin";
   if (pathname === "/admin/employees/trash") return can("employees:trash");
   if (pathname === "/admin/employees/new") return can("employees:create");
   if (/^\/admin\/employees\/[^/]+\/edit$/.test(pathname)) return can("employees:view") && can("employees:update");
@@ -32,10 +35,11 @@ export function canAccessAdminPath(account: AdminUser | null, pathname: string):
   if (/^\/admin\/media\/[^/]+\/edit$/.test(pathname)) return can("media:view") && can("media:update");
   if (pathname.startsWith("/admin/media")) return can("media:view");
   if (pathname.startsWith("/admin/meetings")) return can("meetings:view");
+  if (pathname.startsWith("/admin/vehicles")) return can("vehicles:manage");
   if (pathname === "/admin" || pathname === "/admin/dashboard") return can("dashboard:view");
   return true;
 }
 
 export function getAdminLandingPath(account: AdminUser | null): string {
-  return ["/admin/dashboard", "/admin/employees", "/admin/employees/trash", "/admin/media", "/admin/media/trash", "/admin/meetings", "/admin/employees/new", "/admin/media/new", "/admin/account"].find((path) => canAccessAdminPath(account, path)) ?? "/admin/account";
+  return ["/admin/dashboard", "/admin/employees", "/admin/employees/trash", "/admin/media", "/admin/media/trash", "/admin/meetings", "/admin/vehicles", "/admin/employees/new", "/admin/media/new", "/admin/account"].find((path) => canAccessAdminPath(account, path)) ?? "/admin/account";
 }

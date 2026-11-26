@@ -1,11 +1,13 @@
 export const PASSWORD_MAX_LENGTH = 32;
-export const PASSWORD_REQUIREMENTS = "Mật khẩu từ 8 đến 32 ký tự, có chữ hoa, chữ thường, số và ký tự đặc biệt; không chứa khoảng trắng.";
+export const PASSWORD_REQUIREMENTS = "Mật khẩu từ 8 đến 32 ký tự, có chữ hoa, chữ thường, số và ký tự đặc biệt; không dấu, không chứa khoảng trắng.";
 
 export function getPasswordValidationError(password: string): string | undefined {
   if (!password) return "Vui lòng nhập mật khẩu.";
   if (password.length < 8) return "Mật khẩu phải có ít nhất 8 ký tự.";
   if (password.length > PASSWORD_MAX_LENGTH) return "Mật khẩu không được vượt quá 32 ký tự.";
   if (/\s/u.test(password)) return "Mật khẩu không được chứa khoảng trắng.";
+  // Same rule as the backend: no accents, they are easy to mistype on another keyboard.
+  if (/[^\x21-\x7E]/.test(password)) return "Mật khẩu chỉ được dùng ký tự không dấu.";
   if (new TextEncoder().encode(password).length > 72) return "Mật khẩu chứa ký tự Unicode vượt giới hạn an toàn. Vui lòng rút ngắn hoặc dùng ít ký tự có dấu/biểu tượng hơn.";
   const missing: string[] = [];
   if (!/[a-z]/.test(password)) missing.push("chữ thường");

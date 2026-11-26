@@ -13,17 +13,30 @@ export type PermissionAction =
   | "employees:delete"
   | "employees:trash"
   | "media:view" | "media:create" | "media:update" | "media:publish" | "media:delete" | "media:trash"
-  | "meetings:view" | "meetings:create" | "meetings:update" | "meetings:delete";
+  | "meetings:view" | "meetings:create" | "meetings:update" | "meetings:delete"
+  | "accounts:manage-users" | "accounts:trash"
+  | "vehicles:manage" | "vehicles:delete";
+
+// Why a locked account is locked. "restored" = came back from the trash, still locked.
+export type AccountLockKind = "manual" | "employee-left" | "employee-deleted" | "restored" | "login-failed";
+export interface AccountLock { kind: AccountLockKind; note?: string; byName?: string; at: string }
 
 export interface ApiAccount {
   id: string;
   name: string;
+  /** Signs in with this; new accounts start with their email. */
+  username: string;
   email: string;
   phone?: string;
   notes?: string;
   role: ApiAccountRole;
   status: ApiAccountStatus;
   permissionGroupIds: string[];
+  lock?: AccountLock | null;
+  /** Own picture, else the linked employee photo, else "". */
+  avatar?: string;
+  deletedAt?: string;
+  deletedBy?: { name: string };
   createdAt?: string;
   updatedAt?: string;
 }
@@ -42,15 +55,25 @@ export interface ApiPermissionGroup {
 
 export const getAccounts = (): Promise<ApiAccount[]> => apiGet<ApiAccount[]>("/admin/accounts");
 
-export function checkAccountContacts(input: { email?: string; phone?: string }): Promise<{ emailAvailable?: boolean; phoneAvailable?: boolean }> {
+export function checkAccountContacts(input: { username?: string; email?: string; phone?: string }): Promise<{ usernameAvailable?: boolean; emailAvailable?: boolean; phoneAvailable?: boolean }> {
   return apiPost("/admin/accounts/check-contacts", input);
 }
 
-export function createAccount(input: { name: string; email: string; password: string; confirmPassword: string; phone: string; role: "admin" | "manager"; permissionGroupIds?: string[] }): Promise<ApiAccount> {
+export function createAccount(input: { name: string; username?: string; email: string; password: string; confirmPassword: string; phone: string; role: ApiAccountRole; permissionGroupIds?: string[] }): Promise<ApiAccount> {
   return apiPost<ApiAccount>("/admin/accounts", input);
 }
 
-export function updateAccount(id: string, input: Partial<Pick<ApiAccount, "name" | "email" | "phone" | "notes" | "role" | "status" | "permissionGroupIds">>): Promise<ApiAccount> {
+// Employee records that a new account can be linked to (matched by email).
+export interface EmployeeLookupResult {
+  id: string; employeeCode: string; name: string; email: string; phone: string;
+  department: string; position: string; status: string;
+  account: { id: string; role: ApiAccountRole; status: ApiAccountStatus; inTrash?: boolean } | null;
+}
+export function lookupEmployeesForAccount(query: string, signal?: AbortSignal): Promise<EmployeeLookupResult[]> {
+  return apiGet<EmployeeLookupResult[]>(`/admin/accounts/employee-lookup?q=${encodeURIComponent(query)}`, signal);
+}
+
+export function updateAccount(id: string, input: Partial<Pick<ApiAccount, "name" | "username" | "email" | "phone" | "notes" | "role" | "status" | "permissionGroupIds">>): Promise<ApiAccount> {
   return apiPatch<ApiAccount>(`/admin/accounts/${encodeURIComponent(id)}`, input);
 }
 
@@ -58,8 +81,24 @@ export function resetAccountPassword(id: string, input: { password: string; conf
   return apiPatch(`/admin/accounts/${encodeURIComponent(id)}/password`, input);
 }
 
+// Soft delete: moves the account to the account trash.
 export function deleteAccount(id: string): Promise<{ id: string }> {
   return apiDelete<{ id: string }>(`/admin/accounts/${encodeURIComponent(id)}`);
+}
+
+export function lockAccount(id: string, reason: string): Promise<ApiAccount> {
+  return apiPost<ApiAccount>(`/admin/accounts/${encodeURIComponent(id)}/lock`, { reason });
+}
+export function unlockAccount(id: string): Promise<ApiAccount> {
+  return apiPost<ApiAccount>(`/admin/accounts/${encodeURIComponent(id)}/unlock`, {});
+}
+
+export const getDeletedAccounts = (): Promise<ApiAccount[]> => apiGet<ApiAccount[]>("/admin/accounts/trash");
+export function restoreAccount(id: string): Promise<ApiAccount> {
+  return apiPatch<ApiAccount>(`/admin/accounts/${encodeURIComponent(id)}/restore`, {});
+}
+export function permanentlyDeleteAccount(id: string): Promise<ApiAccount> {
+  return apiDelete<ApiAccount>(`/admin/accounts/${encodeURIComponent(id)}/permanent`);
 }
 
 export const getPermissionGroups = (): Promise<ApiPermissionGroup[]> => apiGet<ApiPermissionGroup[]>("/admin/permission-groups");

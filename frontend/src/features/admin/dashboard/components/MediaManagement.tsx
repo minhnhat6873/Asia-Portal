@@ -2,17 +2,20 @@
 
 import { useDelayedLoading } from "@/lib/useDelayedLoading";
 import { useEffect, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Eye, EyeOff, LayoutGrid, List, Plus, RotateCcw, Search, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Eye, EyeOff, Filter, LayoutGrid, List, Plus, RotateCcw, Search, Star, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { ApiError } from "@/services/api";
 import { softDeleteAdminMedia, updateAdminMedia, type AdminMediaListParams } from "@/services/admin-media.service";
 import MediaExpiryBadge from "@/components/ui/MediaExpiryBadge";
 import type { MediaCategory, MediaPost } from "../types";
+import { MEDIA_FILTER_CATEGORIES, MediaScopeFilter, selectionFilter } from "./MediaScopeFilter";
 import { AdminSelect } from "./AdminSelect";
 import { useAdminPermissions } from "@/lib/adminPermissions";
 import { ArticleReaderModal } from "./ArticleReaderModal";
 import MediaManagementTable, { mediaPublicationLabel } from "./MediaManagementTable";
+
+import { mediaFont } from "../media-font";
 
 interface Props {
   mediaPosts: MediaPost[];
@@ -33,12 +36,14 @@ interface Props {
   onNavigateToTrash: () => void;
 }
 
-const CATEGORIES: MediaCategory[] = ["Sự kiện", "Tin tức", "Nhân sự", "Thông báo", "Đào Tạo"];
 
 export function MediaManagement({ mediaPosts, total, page, pageSize, isLoading, loadError, onFiltersChange, onPageChange, onReload, onUpdated, onDeleted, previewPost, onSelectPreview, onNavigateToAdd, onNavigateToEdit, onNavigateToTrash }: Props) {
   const showLoading = useDelayedLoading(isLoading);
   const [search, setSearch] = useState("");
-  const [category, setCategory] = useState<string>("");
+  // Every box starts checked (= all posts).
+  const [categories, setCategories] = useState<MediaCategory[]>(MEDIA_FILTER_CATEGORIES);
+  // "" = every post, "featured" = highlighted only, "normal" = the others.
+  const [featured, setFeatured] = useState("");
   const { can } = useAdminPermissions();
   const [status, setStatus] = useState<string>("");
   const [viewMode, setViewMode] = useState<"grid" | "table">("table");
@@ -58,14 +63,15 @@ export function MediaManagement({ mediaPosts, total, page, pageSize, isLoading, 
   useEffect(() => {
     const timer = window.setTimeout(() => onFiltersChange({
       search: search.trim() || undefined,
-      category: category ? category as MediaCategory : undefined,
+      categories: selectionFilter(categories, MEDIA_FILTER_CATEGORIES),
+      featured: featured ? featured === "featured" : undefined,
       status: status ? status as MediaPost["status"] : undefined,
       sort: "latest",
     }), 300);
     return () => window.clearTimeout(timer);
-  }, [search, category, status, onFiltersChange]);
+  }, [search, categories, featured, status, onFiltersChange]);
 
-  const reset = () => { setSearch(""); setCategory(""); setStatus(""); };
+  const reset = () => { setSearch(""); setCategories(MEDIA_FILTER_CATEGORIES); setFeatured(""); setStatus(""); };
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const goToPage = (nextPage: number) => {
     onPageChange(nextPage);
@@ -117,15 +123,16 @@ export function MediaManagement({ mediaPosts, total, page, pageSize, isLoading, 
   };
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-        <div className="relative min-w-0 basis-full xl:basis-64 xl:flex-1"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Tìm theo tiêu đề hoặc Sapo..." className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-sm outline-none focus:border-sky-500" /></div>
-        <AdminSelect value={category} onChange={setCategory} options={[{ value: "", label: "Tất cả chuyên mục" }, ...CATEGORIES.map((value) => ({ value, label: value }))]} className="w-full min-w-0 sm:w-48" searchable={false} showSelectionCheck={false} />
-        <AdminSelect value={status} onChange={setStatus} options={[{ value: "", label: "Tất cả trạng thái" }, { value: "published", label: "Đăng tin" }, { value: "draft", label: "Ẩn Tin" }]} className="w-full min-w-0 sm:w-44" searchable={false} showSelectionCheck={false} />
-        <button type="button" onClick={reset} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 py-2.5 text-xs font-semibold text-slate-600"><RotateCcw className="h-4 w-4" />Đặt lại</button>
-        <div className="flex rounded-xl border border-slate-200 bg-slate-100 p-1"><button type="button" onClick={() => setViewMode("grid")} className={`rounded-lg p-2 ${viewMode === "grid" ? "bg-white shadow-sm" : "text-slate-500"}`}><LayoutGrid className="h-4 w-4" /></button><button type="button" onClick={() => setViewMode("table")} className={`rounded-lg p-2 ${viewMode === "table" ? "bg-white shadow-sm" : "text-slate-500"}`}><List className="h-4 w-4" /></button></div>
-        <button type="button" hidden={!can("media:trash")} onClick={onNavigateToTrash} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs font-semibold text-slate-600 hover:bg-rose-50 hover:text-rose-600"><Trash2 className="h-4 w-4" />Thùng rác</button>
-        <button type="button" hidden={!can("media:create")} onClick={onNavigateToAdd} className="inline-flex items-center justify-center gap-2 rounded-xl bg-sky-600 px-4 py-2.5 text-xs font-bold text-white"><Plus className="h-4 w-4" />Đăng bài mới</button>
+    <div className={`${mediaFont.className} space-y-4 text-[#172B24]`}>
+      <div className="flex flex-wrap items-center gap-2.5 rounded-2xl border border-slate-100 bg-white p-[15px] shadow-[0_2px_7px_rgba(15,23,42,0.08)]">
+        <div className="relative min-w-0 basis-full xl:basis-[500px] xl:flex-none"><Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Tìm theo tiêu đề hoặc Sapo..." className="h-12 w-full rounded-xl border border-slate-200 bg-[#f8fafc] pl-10 pr-3 text-[14px] font-medium text-[#172B24] outline-none placeholder:text-slate-500 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/10" /></div>
+        <MediaScopeFilter categories={categories} onCategoriesChange={setCategories} />
+        <AdminSelect value={featured} onChange={setFeatured} options={[{ value: "", label: "Tất cả tin" }, { value: "featured", label: "Tin nổi bật" }, { value: "normal", label: "Tin thường" }]} icon={<Star className="h-4 w-4 text-amber-500" />} className="[&>div>div]:[scrollbar-width:none] [&>div>div::-webkit-scrollbar]:hidden w-full shrink-0 sm:w-[180px] [&>button]:h-12 [&>button]:gap-1.5 [&>button>span]:gap-2 [&>button]:rounded-xl [&>button]:px-3 [&>button]:py-0 [&>button]:text-[14px] [&>button]:font-bold [&>button]:text-[#172B24]" searchable={false} showSelectionCheck={false} />
+        <AdminSelect value={status} onChange={setStatus} options={[{ value: "", label: "Tất cả trạng thái" }, { value: "published", label: "Đăng tin" }, { value: "draft", label: "Ẩn Tin" }]} icon={<Filter className="h-4 w-4 text-[#00852f]" />} className="[&>div>div]:[scrollbar-width:none] [&>div>div::-webkit-scrollbar]:hidden w-full shrink-0 sm:w-[205px] [&>button]:h-12 [&>button]:gap-1.5 [&>button>span]:gap-2 [&>button]:rounded-xl [&>button]:px-3 [&>button]:py-0 [&>button]:text-[14px] [&>button]:font-bold [&>button]:text-[#172B24]" searchable={false} showSelectionCheck={false} />
+        <button type="button" onClick={reset} className="inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-slate-200 px-3 py-2.5 text-[14px] font-semibold text-slate-600"><RotateCcw className="h-4 w-4" />Đặt lại</button>
+        <div className="flex h-12 shrink-0 items-center rounded-xl border border-slate-200 bg-slate-50 p-1"><button type="button" aria-label="Hiển thị dạng thẻ" aria-pressed={viewMode === "grid"} onClick={() => setViewMode("grid")} className={`cursor-pointer rounded-lg p-1.5 ${viewMode === "grid" ? "bg-white text-emerald-700 shadow-sm ring-1 ring-emerald-200" : "text-slate-500"}`}><LayoutGrid className="h-4 w-4" /></button><button type="button" aria-label="Hiển thị dạng bảng" aria-pressed={viewMode === "table"} onClick={() => setViewMode("table")} className={`cursor-pointer rounded-lg p-1.5 ${viewMode === "table" ? "bg-white text-emerald-700 shadow-sm ring-1 ring-emerald-200" : "text-slate-500"}`}><List className="h-4 w-4" /></button></div>
+        <button type="button" hidden={!can("media:trash")} onClick={onNavigateToTrash} className="inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[14px] font-semibold text-slate-600 transition-colors hover:bg-slate-100"><Trash2 className="h-4 w-4" />Thùng rác</button>
+        <button type="button" hidden={!can("media:create")} onClick={onNavigateToAdd} className="inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-[#008bd2] px-4 py-2.5 text-[14px] font-semibold transition-colors hover:bg-[#007bbd] text-white"><Plus className="h-4 w-4" />Đăng bài mới</button>
       </div>
 
       <section id="admin-media-results" className="scroll-mt-6 overflow-hidden rounded-2xl border border-[#edf1f4] bg-white shadow-[0_1px_3px_rgba(15,23,42,0.025)]">
@@ -141,7 +148,7 @@ export function MediaManagement({ mediaPosts, total, page, pageSize, isLoading, 
           <button type="button" aria-label="Trang trước" disabled={page <= 1 || isLoading} onClick={() => goToPage(page - 1)} className="grid h-9 w-9 place-items-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:border-sky-300 hover:text-sky-700 disabled:cursor-not-allowed disabled:opacity-40"><ChevronLeft className="h-4 w-4" /></button>
           {paginationItems.map((item, index) => item === "ellipsis"
             ? <span key={`ellipsis-${index}`} aria-hidden="true" className="min-w-5 text-center text-sm text-slate-400">…</span>
-            : <button key={item} type="button" aria-current={page === item ? "page" : undefined} disabled={isLoading} onClick={() => goToPage(item)} className={`grid h-9 min-w-9 place-items-center rounded-full border px-2 text-sm font-semibold shadow-sm transition disabled:cursor-not-allowed ${page === item ? "border-sky-600 bg-sky-600 text-white" : "border-slate-200 bg-white text-slate-700 hover:border-sky-300 hover:bg-sky-50"}`}>{item}</button>)}
+            : <button key={item} type="button" aria-current={page === item ? "page" : undefined} disabled={isLoading} onClick={() => goToPage(item)} className={`grid h-9 min-w-9 place-items-center rounded-full border px-2 text-sm font-semibold shadow-sm transition disabled:cursor-not-allowed ${page === item ? "border-emerald-700 bg-emerald-700 text-white" : "border-slate-200 bg-white text-slate-700 hover:border-sky-300 hover:bg-sky-50"}`}>{item}</button>)}
           <button type="button" aria-label="Trang sau" disabled={page >= totalPages || isLoading} onClick={() => goToPage(page + 1)} className="grid h-9 w-9 place-items-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:border-sky-300 hover:text-sky-700 disabled:cursor-not-allowed disabled:opacity-40"><ChevronRight className="h-4 w-4" /></button>
         </nav>
       </div>}
@@ -152,7 +159,7 @@ export function MediaManagement({ mediaPosts, total, page, pageSize, isLoading, 
       {statusChangeTarget && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/60 p-4">
           <div role="alertdialog" aria-modal="true" aria-labelledby="media-status-title" aria-describedby="media-status-description" className="w-full max-w-sm rounded-3xl bg-white p-6 text-center shadow-2xl">
-            <div className={`mx-auto flex h-12 w-12 items-center justify-center rounded-full ${statusChangeTarget.nextStatus === "published" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>
+            <div className={`mx-auto flex h-10 w-12 items-center justify-center rounded-full ${statusChangeTarget.nextStatus === "published" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>
               {statusChangeTarget.nextStatus === "published" ? <Eye className="h-6 w-6" /> : <EyeOff className="h-6 w-6" />}
             </div>
             <h3 id="media-status-title" className="mt-4 text-lg font-bold text-slate-900">{statusChangeTarget.nextStatus === "published" ? statusChangeTarget.post.isExpired ? "Đăng tin đã hết hạn?" : "Đăng tin?" : "Ẩn tin?"}</h3>

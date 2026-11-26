@@ -63,11 +63,16 @@ function FeaturedEvent({ item, onSelect }: { item: NewsItem; onSelect: () => voi
           {item.category}
         </span>
         <h3 className="mb-3 text-3xl font-black leading-tight text-[#16241a] md:text-4xl">{item.title}</h3>
-        <MediaExpiryBadge isExpired={item.isExpired} />
+        {item.isExpired && (
+          <div className="mb-4">
+            <MediaExpiryBadge isExpired />
+          </div>
+        )}
         <RichText html={item.excerpt} className="mb-4 line-clamp-3 text-sm leading-relaxed text-gray-500 [&_p]:my-0" />
-        <div className="flex items-center gap-4 text-xs text-gray-400">
-          <span className="flex items-center gap-1"><Calendar size={12} /> {item.date}</span>
-          <span className="flex items-center gap-1"><User size={12} /> {item.author}</span>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm font-medium text-slate-500">
+          <span className="inline-flex shrink-0 items-center gap-2"><Calendar size={16} aria-hidden="true" />{item.date}</span>
+          <span aria-hidden="true" className="hidden h-4 w-px bg-slate-300 sm:block" />
+          <span className="inline-flex items-center gap-2"><User size={16} className="shrink-0" aria-hidden="true" />{item.author}</span>
         </div>
       </div>
     </button>
@@ -117,9 +122,11 @@ function HomeNewsPreview({ items, onSelect }: { items: NewsItem[]; onSelect: (it
         <button type="button" onClick={() => onSelect(featured)} aria-label={`Xem chi tiết ${featured.title}`} className="absolute inset-0 z-10 w-full focus-visible:outline-2 focus-visible:outline-offset-[-4px] focus-visible:outline-white" />
         <span className={`absolute left-5 top-5 rounded-full px-3 py-1.5 text-sm font-semibold ${categoryBadgeClass[featured.category] ?? "badge-news"}`}>{featured.category}</span>
         <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 p-5 text-white sm:p-7">
-          <p className="flex items-center gap-2 text-sm text-white/85"><Calendar aria-hidden="true" className="h-4 w-4" />{featured.date}</p>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            <p className="flex items-center gap-2 text-sm text-white/85"><Calendar aria-hidden="true" className="h-4 w-4" />{featured.date}</p>
+            <MediaExpiryBadge isExpired={featured.isExpired} />
+          </div>
           <h3 className="mt-2 text-xl font-bold leading-snug sm:text-2xl">{featured.title}</h3>
-          <MediaExpiryBadge isExpired={featured.isExpired} />
           <div className="mt-5 flex flex-wrap items-center justify-between gap-4">
             <button type="button" onClick={() => onSelect(featured)} className="pointer-events-auto inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-bold text-emerald-800 hover:bg-emerald-50">Xem chi tiết <ArrowRight aria-hidden="true" className="h-4 w-4" /></button>
             {items.length > 1 && <div className="pointer-events-auto flex items-center gap-2">
@@ -173,7 +180,8 @@ export default function NewsSection({ preview = false, articleId = null }: Props
     try {
       const [result, featuredResult] = await Promise.all([
         getPublicMedia({ limit: 100, sort: "latest" }, signal),
-        getPublicMedia({ limit: 5, featured: true }, signal),
+        // Up to 3 highlights; the server fills missing places with the newest posts.
+        getPublicMedia({ limit: 3, featured: true }, signal),
       ]);
       setNews(result.items);
       setFeaturedNews(featuredResult.items);
@@ -282,7 +290,7 @@ export default function NewsSection({ preview = false, articleId = null }: Props
           </div>
           {preview && (
             <Link
-              href="/news"
+              href="/user/news"
               className="inline-flex shrink-0 items-center gap-2 text-sm font-bold sm:mb-1 sm:gap-3 sm:text-base text-[#0c5743] transition-colors hover:text-[#16894a] md:text-lg"
             >
               Xem tất cả <ArrowRight size={22} strokeWidth={2.5} />
@@ -380,7 +388,7 @@ export default function NewsSection({ preview = false, articleId = null }: Props
               >
                 {preview && (
                   <Link
-                    href={`/news?article=${encodeURIComponent(String(item.id))}`}
+                    href={`/user/news?article=${encodeURIComponent(String(item.id))}`}
                     scroll={false}
                     aria-label={item.title}
                     className="absolute inset-0 z-10 rounded-2xl focus-visible:outline-2 focus-visible:outline-offset-[-4px] focus-visible:outline-[#f5c800]"

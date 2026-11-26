@@ -8,15 +8,19 @@ import { EditAccountPage } from "./components/EditAccountPage";
 import { SystemSettingsView } from "./components/SystemSettingsView";
 import { PermissionGroupForm } from "./components/PermissionGroupForm";
 import { CreateAccountPage } from "./components/CreateAccountPage";
+import { AccountTrashPage } from "./components/AccountTrashPage";
 import type { ModuleCategory, Role, SystemPermission, User } from "./types";
 import {
   createAccount, deleteAccount, createPermissionGroup, deletePermissionGroup, getAccounts, getPermissionCatalog, getPermissionGroups,
+  lockAccount, unlockAccount,
   updateAccount, updatePermissionGroup, type ApiAccount, type ApiPermissionGroup, type PermissionAction,
 } from "@/services/access-control.service";
 import { getAdminSession } from "@/lib/adminSession";
+import { hasAdminPermission } from "@/lib/adminPermissions";
+import { accountFont } from "./account-font";
 
 type AccessControlTab = "permissions" | "system-settings";
-export type AccessControlPage = "overview" | "accounts" | "new-account" | "edit-account" | "roles" | "new-role" | "edit-role";
+export type AccessControlPage = "overview" | "accounts" | "accounts-trash" | "new-account" | "edit-account" | "roles" | "new-role" | "edit-role";
 interface AccessControlTabsProps {
   page: AccessControlPage;
   onNavigateToPage: (page: Exclude<AccessControlPage, "edit-role" | "edit-account">) => void;
@@ -36,12 +40,14 @@ function toRole(group: ApiPermissionGroup): Role {
 
 function toUser(account: ApiAccount): User {
   return {
-    id: account.id, name: account.name, email: account.email, phone: account.phone ?? "",
+    id: account.id, name: account.name, username: account.username ?? account.email, email: account.email, phone: account.phone ?? "",
     accountRole: account.role, roleIds: account.permissionGroupIds,
     status: account.status === "inactive" ? "suspended" : account.status,
-    createdAt: account.createdAt ? new Date(account.createdAt).toLocaleDateString("vi-VN") : "",
+    createdAt: account.createdAt ? new Date(account.createdAt).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" }) : "",
     updatedAt: account.updatedAt ? new Date(account.updatedAt).toLocaleString("vi-VN") : "",
     notes: account.notes ?? "",
+    lock: account.lock ?? null,
+    avatar: account.avatar ?? "",
   };
 }
 
@@ -55,12 +61,19 @@ export function AccessControlTabs({ activeTab, page, editingRoleId, editingAccou
   const [loadError, setLoadError] = useState("");
   const [saving, setSaving] = useState(false);
 
+  // Admin gốc manages every account and the permission groups. A manager with
+  // "accounts:manage-users" only gets user accounts and never loads permission groups.
+  const isRootAdmin = getAdminSession()?.role === "Toàn quyền Admin";
   const reload = useCallback(async () => {
-    const [accounts, groups, catalog] = await Promise.all([getAccounts(), getPermissionGroups(), getPermissionCatalog()]);
+    const [accounts, groups, catalog] = await Promise.all([
+      getAccounts(),
+      isRootAdmin ? getPermissionGroups() : Promise.resolve([]),
+      isRootAdmin ? getPermissionCatalog() : Promise.resolve({ modules: [], permissions: [] }),
+    ]);
     setUsers(accounts.map(toUser)); setRoles(groups.map(toRole));
     setModules(catalog.modules); setPermissions(catalog.permissions); setLoadError("");
     onAccountsChanged?.(accounts.filter((account) => account.status === "pending").length);
-  }, [onAccountsChanged]);
+  }, [onAccountsChanged, isRootAdmin]);
 
   useEffect(() => {
     let active = true;
@@ -71,12 +84,16 @@ export function AccessControlTabs({ activeTab, page, editingRoleId, editingAccou
 
   const mutate = async (action: () => Promise<unknown>, success: string, propagateError = false): Promise<boolean> => {
     if (saving) return false;
+    const toastOptions = page === "accounts" ? {
+      style: { fontFamily: accountFont.style.fontFamily, fontSize: "14px" },
+      classNames: { title: "font-medium!" },
+    } : undefined;
     setSaving(true);
     try {
-      await action(); await reload(); toast.success(success); return true;
+      await action(); await reload(); toast.success(success, toastOptions); return true;
     } catch (error) {
       if (propagateError) throw error;
-      toast.error(error instanceof Error ? error.message : "Không thể lưu thay đổi."); return false;
+      toast.error(error instanceof Error ? error.message : "Không thể lưu thay đổi.", toastOptions); return false;
     } finally { setSaving(false); }
   };
 
@@ -85,26 +102,34 @@ export function AccessControlTabs({ activeTab, page, editingRoleId, editingAccou
 
   if (page === "new-account") return <CreateAccountPage
     roles={roles.filter((role) => role.status === "active")}
+    isRootAdmin={isRootAdmin}
     onCancel={() => onNavigateToPage("accounts")}
     onSave={(user) => mutate(() => createAccount({
-      name: user.name, email: user.email, password: user.password, confirmPassword: user.confirmPassword, phone: user.phone,
-      role: user.accountRole, permissionGroupIds: user.accountRole === "admin" ? [] : user.roleIds,
+      name: user.name, username: user.username, email: user.email, password: user.password, confirmPassword: user.confirmPassword, phone: user.phone,
+      role: user.accountRole, permissionGroupIds: user.accountRole === "manager" ? user.roleIds : [],
     }), "Đã tạo tài khoản.", true)}
   />;
 
   if (page === "edit-account") {
     const user = users.find((item) => item.id === editingAccountId);
     if (!user) return <div role="alert" className="rounded-2xl border border-slate-200 bg-white p-6 text-sm"><p>Không tìm thấy tài khoản.</p><button type="button" onClick={() => onNavigateToPage("accounts")} className="mt-3 font-bold text-emerald-700">Quay lại quản lý tài khoản</button></div>;
-    return <EditAccountPage key={user.id} user={user} roles={roles} currentUserId={getAdminSession()?.id ?? ""} onBack={() => onNavigateToPage("accounts")} onSaved={reload} />;
+    return <EditAccountPage key={user.id} user={user} roles={roles} isRootAdmin={isRootAdmin} currentUserId={getAdminSession()?.id ?? ""} onBack={() => onNavigateToPage("accounts")} onSaved={reload} />;
   }
 
   if (activeTab === "permissions" && page === "accounts") return <UserManagementView
     users={users} roles={roles}
     currentUserId={getAdminSession()?.id ?? ""} saving={saving}
-    canManageAccountTypes={getAdminSession()?.role === "Toàn quyền Admin"}
-    onDeleteUser={(userId) => mutate(() => deleteAccount(userId), "Đã xóa tài khoản.")}
+    // The backend only returns accounts this person may manage.
+    canManageAccountTypes={hasAdminPermission(getAdminSession(), "accounts:manage-users")}
+    isRootAdmin={isRootAdmin}
+    canUseTrash={hasAdminPermission(getAdminSession(), "accounts:trash")}
+    onDeleteUser={(userId) => mutate(() => deleteAccount(userId), "Đã chuyển tài khoản vào thùng rác.")}
     onRejectUser={(userId) => void mutate(() => updateAccount(userId, { status: "inactive", permissionGroupIds: [] }), "Đã từ chối tài khoản.")}
+    onLockUser={(userId, reason) => mutate(() => lockAccount(userId, reason), "Đã khóa tài khoản. Người dùng đã bị đăng xuất khỏi mọi thiết bị.")}
+    onUnlockUser={(userId) => mutate(() => unlockAccount(userId), "Đã mở khóa tài khoản.")}
   />;
+
+  if (activeTab === "permissions" && page === "accounts-trash") return <AccountTrashPage onChanged={() => { void reload(); }} />;
 
   if (page === "edit-role") {
     const role = roles.find((item) => item.id === editingRoleId);

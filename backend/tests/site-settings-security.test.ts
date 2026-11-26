@@ -57,10 +57,10 @@ describe("site navigation settings authorization and persistence", () => {
     const response = await call("/user/site-settings", "GET", undefined, false);
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store");
-    expect((await response.json()).data).toEqual({ internalSystemsEnabled: false });
+    expect((await response.json()).data).toEqual({ internalSystemsEnabled: false, userRegistrationEnabled: false });
     expect(siteSettingsRepository.setInternalSystemsEnabled).not.toHaveBeenCalled();
     jest.mocked(siteSettingsRepository.get).mockResolvedValue({ internalSystemsEnabled: true, updatedBy: "private", email: "private@example.com" } as never);
-    expect((await (await call("/user/site-settings", "GET", undefined, false)).json()).data).toEqual({ internalSystemsEnabled: true });
+    expect((await (await call("/user/site-settings", "GET", undefined, false)).json()).data).toEqual({ internalSystemsEnabled: true, userRegistrationEnabled: false });
   });
   it("requires login and the current database role rather than a forged token role", async () => {
     expect((await call(undefined, "PATCH", { internalSystemsEnabled: true }, false)).status).toBe(401);
@@ -80,7 +80,7 @@ describe("site navigation settings authorization and persistence", () => {
       const updated = await call(undefined, "PATCH", { internalSystemsEnabled: value });
       expect(updated.status).toBe(200);
       expect((await updated.json()).data).toEqual({ internalSystemsEnabled: value });
-      expect((await (await call("/user/site-settings", "GET", undefined, false)).json()).data).toEqual({ internalSystemsEnabled: value });
+      expect((await (await call("/user/site-settings", "GET", undefined, false)).json()).data).toEqual({ internalSystemsEnabled: value, userRegistrationEnabled: false });
     }
     expect(auditLogService.record).toHaveBeenCalledWith(expect.objectContaining({ action: "site_settings.updated", actor: { accountId: id, name: "QA Admin", email: "qa@asiafnb.com" }, metadata: { after: { internalSystemsEnabled: false } } }));
   });

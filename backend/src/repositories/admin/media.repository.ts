@@ -1,6 +1,6 @@
 import mongoose, { type ClientSession, type QueryFilter, type SortOrder } from "mongoose";
 
-import type { CreateMediaInput, Media, MediaActor, UpdateMediaInput } from "../../interfaces/media.interface";
+import { MEDIA_FEATURED_LIMIT, type CreateMediaInput, type Media, type MediaActor, type UpdateMediaInput } from "../../interfaces/media.interface";
 import MediaModel from "../../models/media.model";
 import { getMediaExpiryCutoff } from "../../utils/media/validateMediaDates";
 import { AppError } from "../../utils/errors/AppError";
@@ -28,17 +28,20 @@ async function withFeaturedLock<T>(action: (session: ClientSession, activatedAt:
 
 const featuredVisibleFilter = () => ({ featured: true, status: "published", isDeleted: { $ne: true }, $or: [{ expiryDate: null }, { expiryDate: { $gte: getMediaExpiryCutoff() } }, { publishIndefinitely: true }, { showAfterExpiry: true }] });
 
+const FEATURED_SLOT_NUMBERS = Array.from({ length: MEDIA_FEATURED_LIMIT }, (_, index) => index + 1);
+
+/** Older featured posts without a slot get a free one; any beyond the limit get 0 (not shown). */
 function assignSlots<T extends { _id: unknown; title: string; featuredSlot?: number | null }>(posts: T[]) {
   const used = new Set<number>();
   const assigned = posts.map((post) => {
     const slot = post.featuredSlot;
-    if (slot && slot >= 1 && slot <= 5 && !used.has(slot)) { used.add(slot); return { post, slot }; }
+    if (slot && slot >= 1 && slot <= MEDIA_FEATURED_LIMIT && !used.has(slot)) { used.add(slot); return { post, slot }; }
     return { post, slot: 0 };
   });
   for (const entry of assigned) {
     if (entry.slot) continue;
-    const free = [1, 2, 3, 4, 5].find((slot) => !used.has(slot));
-    if (!free) throw new AppError(409, "Dữ liệu nổi bật vượt quá 5 vị trí. Vui lòng tắt bớt bài nổi bật.");
+    const free = FEATURED_SLOT_NUMBERS.find((slot) => !used.has(slot));
+    if (!free) continue;
     entry.slot = free; used.add(free);
   }
   return assigned;
@@ -47,10 +50,11 @@ function assignSlots<T extends { _id: unknown; title: string; featuredSlot?: num
 async function ensureAvailableSlot(session: ClientSession, slot: number, currentId?: string) {
   const posts = await MediaModel.find(featuredVisibleFilter()).sort({ featuredAt: -1, _id: -1 }).select({ title: 1, featuredSlot: 1 }).session(session).lean();
   const assigned = assignSlots(posts);
+  if (!Number.isInteger(slot) || slot < 1 || slot > MEDIA_FEATURED_LIMIT) throw new AppError(400, `Vui lòng chọn vị trí nổi bật từ 1 đến ${MEDIA_FEATURED_LIMIT}.`);
   const occupant = assigned.find((entry) => entry.slot === slot && String(entry.post._id) !== currentId);
   if (occupant) throw new AppError(409, `Vị trí ${slot} đã được sử dụng. Vui lòng tắt bài đang chiếm vị trí này.`, { featuredSlot: `Vị trí ${slot} đã được sử dụng.` });
   for (const entry of assigned) {
-    if (entry.post.featuredSlot !== entry.slot && String(entry.post._id) !== currentId) {
+    if (entry.slot && entry.post.featuredSlot !== entry.slot && String(entry.post._id) !== currentId) {
       await MediaModel.updateOne({ _id: entry.post._id }, { $set: { featuredSlot: entry.slot } }, { session });
     }
   }
@@ -73,12 +77,14 @@ export const adminMediaRepository = {
       expiryDate: { $lt: getMediaExpiryCutoff() },
     }, { $set: { status: "draft", hiddenReason: "expired", featured: false, featuredAt: null, featuredSlot: null } });
     await MediaModel.updateMany({ status: "draft", featured: true }, { $set: { featured: false, featuredAt: null, featuredSlot: null } });
+    // Slots above the limit (left from when there were 5) are released.
+    await MediaModel.updateMany({ featured: true, featuredSlot: { $gt: MEDIA_FEATURED_LIMIT } }, { $set: { featured: false, featuredAt: null, featuredSlot: null } });
     return result;
   },
 
   async create(data: CreateMediaInput & Pick<Media, "contentAssetPublicIds" | "hiddenReason">) {
     if (data.featured) return withFeaturedLock(async (session, activatedAt) => {
-      if (!data.featuredSlot) throw new AppError(400, "Vui lòng chọn vị trí nổi bật từ 1 đến 5.");
+      if (!data.featuredSlot) throw new AppError(400, `Vui lòng chọn vị trí nổi bật từ 1 đến ${MEDIA_FEATURED_LIMIT}.`);
       await ensureAvailableSlot(session, data.featuredSlot);
       const [media] = await MediaModel.create([{ ...data, featuredAt: activatedAt }], { session });
       return media.toObject();
@@ -105,12 +111,12 @@ export const adminMediaRepository = {
 
   async getFeaturedSlots() {
     const posts = await MediaModel.find(featuredVisibleFilter()).sort({ featuredAt: -1, _id: -1 }).select({ title: 1, featuredSlot: 1 }).lean();
-    return assignSlots(posts).map(({ post, slot }) => ({ id: String(post._id), title: post.title, slot }));
+    return assignSlots(posts).filter(({ slot }) => slot > 0).map(({ post, slot }) => ({ id: String(post._id), title: post.title, slot }));
   },
 
   activateFeaturedById(id: string, data: UpdateMediaInput & Pick<Media, "contentAssetPublicIds" | "showAfterExpiry" | "hiddenReason" | "featuredAt">, expectedUpdatedAt?: Date) {
     return withFeaturedLock(async (session, activatedAt) => {
-      if (!data.featuredSlot) throw new AppError(400, "Vui lòng chọn vị trí nổi bật từ 1 đến 5.");
+      if (!data.featuredSlot) throw new AppError(400, `Vui lòng chọn vị trí nổi bật từ 1 đến ${MEDIA_FEATURED_LIMIT}.`);
       await ensureAvailableSlot(session, data.featuredSlot, id);
       const post = await MediaModel.findOneAndUpdate(
         { _id: id, isDeleted: { $ne: true }, ...(expectedUpdatedAt ? { updatedAt: expectedUpdatedAt } : {}) },

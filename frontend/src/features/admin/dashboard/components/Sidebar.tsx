@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import {
   LayoutDashboard,
   CalendarDays,
+  CarFront,
   User,
   Users,
   Newspaper,
@@ -31,6 +32,7 @@ interface SidebarProps {
   /** Registrations awaiting approval — drives the badge on "Phân quyền quản lý". */
   pendingUsersCount?: number;
   canViewMeetings?: boolean;
+  canManageVehicles?: boolean;
   compact?: boolean;
   onClose?: () => void;
 }
@@ -42,6 +44,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   mediaCount,
   pendingUsersCount = 0,
   canViewMeetings = false,
+  canManageVehicles = false,
   compact = false,
   onClose,
 }) => {
@@ -117,6 +120,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
       badge: null,
       isPendingBadge: false,
     }] : []),
+    ...(canManageVehicles ? [{
+      id: 'vehicles' as ActiveTab,
+      label: 'Quản lý đặt xe',
+      icon: CarFront,
+      badge: null,
+      isPendingBadge: false,
+    }] : []),
     {
       id: 'permissions' as ActiveTab,
       label: 'Phân quyền quản lý',
@@ -167,7 +177,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* Navigation */}
       <nav className="flex-1 p-3 space-y-1.5 overflow-y-auto">
 {navItems.filter((item) => {
-  if (item.id === 'permissions' || item.id === 'feedback') return account?.role === 'Toàn quyền Admin';
+  // Managers granted "accounts:manage-users" reach the account list from this item (user accounts only).
+  if (item.id === 'permissions') return hasAdminPermission(account, 'accounts:manage-users');
+  if (item.id === 'feedback') return account?.role === 'Toàn quyền Admin';
+  if (item.id === 'vehicles') return hasAdminPermission(account, 'vehicles:manage');
   if (item.id === 'media') return hasAdminPermission(account, 'media:view') || hasAdminPermission(account, 'media:trash');
   return hasAdminPermission(account, ({overview:'dashboard:view',employees:'employees:view',meetings:'meetings:view'} as const)[item.id as 'overview'|'employees'|'meetings']);
 }).map((item) => {

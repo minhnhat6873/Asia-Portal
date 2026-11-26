@@ -26,6 +26,18 @@ Backend TypeScript/Express/MongoDB cho cổng thông tin Asia: danh bạ nhân v
 
 ## Bảng điều hướng
 
+Tra cứu mã từ thư mục gốc của repo:
+
+- Để xem hàm nào gọi nhau, dùng tên hàm cụ thể, ví dụ `graphify query "getPublicEmployees" --context call`. `.graphifyrc` mặc định tra một bước với ngân sách 500 token. Nếu thiếu kết quả, bỏ `--context call` để xem các liên kết khác hoặc dùng `rg` theo tên hàm. Chỉ tăng `--depth` khi cần lần thêm bước.
+- Khi đã biết chuỗi HTTP, dùng `rg -n -F` trong frontend service và backend route. Express có thể ghép tiền tố trong `index.route.ts` với đường dẫn ở router con. Mở đoạn mã liên quan để xác minh.
+- Chạy `graphify update .` khi chưa có chỉ mục hoặc phần mã đang tra đã đổi. Với các lần tra thông thường, dùng chỉ mục hiện có trong `graphify-out/`.
+
+Frontend dùng Next.js App Router. Bắt đầu từ `frontend/src/app` để tìm trang, theo import sang `features` để xem giao diện và sang `services` để xem lời gọi API. Alias `@/` trỏ tới `frontend/src/`. Kiểu dữ liệu dùng chung nằm trong `types`, còn thành phần giao diện dùng chung nằm trong `components`.
+
+Để nối hai đầu HTTP, lấy đường dẫn trong frontend service rồi đối chiếu với `backend/src/routes/index.route.ts` và router con. Ví dụ trang `/user/employees` dùng `EmployeesPage` → `getPublicEmployees` → `apiGet`. Trình duyệt gửi `GET /backend-api/user/employees`; rewrite trong `frontend/next.config.ts` chuyển thành `GET /user/employees` ở Express. Theo `routes/user/employee.route.ts` đến controller, service và repository cùng tên miền nghiệp vụ trong `backend/src`; frontend service đổi `_id` thành `id` cho giao diện.
+
+Khi sửa luồng quản trị, bắt đầu từ `frontend/src/proxy.ts` cho chuyển hướng trang và `frontend/src/services/api.ts` cho gửi cookie, xử lý lỗi và làm mới phiên. Kiểm tra middleware xác thực và quyền ở router Express tương ứng.
+
 | Khi làm việc gì | Đọc trước |
 | --- | --- |
 | Hiểu luồng/lớp/cấu trúc | `ARCHITECTURE.md`, `docs/backend/structure.md` |

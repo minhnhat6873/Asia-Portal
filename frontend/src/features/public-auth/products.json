@@ -1,0 +1,152 @@
+[
+  {
+    "tint": "#f3ced0",
+    "layers": {
+      "word": [],
+      "shadow": [],
+      "bottle": [
+        {
+          "src": "/assets/auth/sea-moss.webp",
+          "alt": "Lon Wana Sea Moss, Karkade Ginger Lime · 320 ml"
+        }
+      ],
+      "fruit": [
+        {
+          "src": "/assets/auth/sea-fruit-1.webp",
+          "alt": "",
+          "style": "left:11%;top:28%;width:13%;--rot:-16deg;--dur:3.4s;--delay:-0.0s"
+        },
+        {
+          "src": "/assets/auth/sea-fruit-2.webp",
+          "alt": "",
+          "style": "left:81%;top:33%;width:11%;--rot:14deg;--dur:3.6399999999999997s;--delay:-0.73s"
+        },
+        {
+          "src": "/assets/auth/sea-fruit-1.webp",
+          "alt": "",
+          "style": "left:20%;top:67%;width:13%;--rot:-5deg;--dur:3.88s;--delay:-1.46s"
+        },
+        {
+          "src": "/assets/auth/sea-fruit-2.webp",
+          "alt": "",
+          "style": "left:76%;top:68%;width:14%;--rot:23deg;--dur:4.12s;--delay:-2.19s"
+        }
+      ],
+      "corner": [
+        {
+          "src": "/assets/auth/sea-fruit-1.webp",
+          "alt": "",
+          "style": "left:-11%;top:55%;width:22%;--rot:17deg;--dur:4.359999999999999s;--delay:-2.92s"
+        },
+        {
+          "src": "/assets/auth/sea-fruit-2.webp",
+          "alt": "",
+          "style": "left:91%;top:4%;width:20%;--rot:-12deg;--dur:4.6s;--delay:-3.65s"
+        }
+      ]
+    },
+    "word": "Sea Moss",
+    "title": "Sea Moss",
+    "description": "Karkade Ginger Lime · 320 ml"
+  },
+  {
+    "tint": "#d7cbe6",
+    "layers": {
+      "word": [],
+      "shadow": [],
+      "bottle": [
+        {
+          "src": "/assets/auth/berries.webp",
+          "alt": "Lon Wana Mixed Berries, Prebiotic Soda · 250 ml"
+        }
+      ],
+      "fruit": [
+        {
+          "src": "/assets/auth/berry-1.webp",
+          "alt": "",
+          "style": "left:11%;top:28%;width:13%;--rot:-16deg;--dur:3.4s;--delay:-0.0s"
+        },
+        {
+          "src": "/assets/auth/berry-2.webp",
+          "alt": "",
+          "style": "left:81%;top:33%;width:11%;--rot:14deg;--dur:3.6399999999999997s;--delay:-0.73s"
+        },
+        {
+          "src": "/assets/auth/berry-3.webp",
+          "alt": "",
+          "style": "left:20%;top:67%;width:13%;--rot:-5deg;--dur:3.88s;--delay:-1.46s"
+        },
+        {
+          "src": "/assets/auth/berry-1.webp",
+          "alt": "",
+          "style": "left:76%;top:68%;width:14%;--rot:23deg;--dur:4.12s;--delay:-2.19s"
+        }
+      ],
+      "corner": [
+        {
+          "src": "/assets/auth/berry-2.webp",
+          "alt": "",
+          "style": "left:-11%;top:55%;width:22%;--rot:17deg;--dur:4.359999999999999s;--delay:-2.92s"
+        },
+        {
+          "src": "/assets/auth/berry-3.webp",
+          "alt": "",
+          "style": "left:91%;top:4%;width:20%;--rot:-12deg;--dur:4.6s;--delay:-3.65s"
+        }
+      ]
+    },
+    "word": "Mixed Berries",
+    "title": "Mixed Berries",
+    "description": "Prebiotic Soda · 250 ml"
+  },
+  {
+    "tint": "#f6dfa1",
+    "layers": {
+      "word": [],
+      "shadow": [],
+      "bottle": [
+        {
+          "src": "/assets/auth/boba.webp",
+          "alt": "Lon Wana Boba Bubble, Popping Boba · 250 ml"
+        }
+      ],
+      "fruit": [
+        {
+          "src": "/assets/auth/boba-fruit-1.webp",
+          "alt": "",
+          "style": "left:11%;top:28%;width:13%;--rot:-16deg;--dur:3.4s;--delay:-0.0s"
+        },
+        {
+          "src": "/assets/auth/boba-fruit-2.webp",
+          "alt": "",
+          "style": "left:81%;top:33%;width:11%;--rot:14deg;--dur:3.6399999999999997s;--delay:-0.73s"
+        },
+        {
+          "src": "/assets/auth/boba-fruit-1.webp",
+          "alt": "",
+          "style": "left:20%;top:67%;width:13%;--rot:-5deg;--dur:3.88s;--delay:-1.46s"
+        },
+        {
+          "src": "/assets/auth/boba-fruit-2.webp",
+          "alt": "",
+          "style": "left:76%;top:68%;width:14%;--rot:23deg;--dur:4.12s;--delay:-2.19s"
+        }
+      ],
+      "corner": [
+        {
+          "src": "/assets/auth/boba-fruit-1.webp",
+          "alt": "",
+          "style": "left:-11%;top:55%;width:22%;--rot:17deg;--dur:4.359999999999999s;--delay:-2.92s"
+        },
+        {
+          "src": "/assets/auth/boba-fruit-2.webp",
+          "alt": "",
+          "style": "left:91%;top:4%;width:20%;--rot:-12deg;--dur:4.6s;--delay:-3.65s"
+        }
+      ]
+    },
+    "word": "Boba Bubble",
+    "title": "Boba Bubble",
+    "description": "Popping Boba · 250 ml"
+  }
+]

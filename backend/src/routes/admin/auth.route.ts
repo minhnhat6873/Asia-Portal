@@ -37,9 +37,10 @@ import {
 
 const router = Router();
 
+// Per machine; each account also has its own wrong-password rule (login-guard.service.ts).
 const loginLimiter = rateLimit({
   windowMs: securityConfig.rateLimitWindowMs,
-  limit: securityConfig.authRateLimitMax,
+  limit: securityConfig.loginRateLimitMax,
   standardHeaders: "draft-8",
   legacyHeaders: false,
   skipSuccessfulRequests: true,

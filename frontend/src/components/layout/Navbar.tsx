@@ -3,18 +3,21 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronRight, Menu, X } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import InternalSystemsMenu from "./InternalSystemsMenu";
 import { getPublicSiteSettings } from "@/services/site-settings.service";
+import UserSessionButton from "./UserSessionButton";
+import NotificationBell from "./NotificationBell";
+import NotificationSound from "./NotificationSound";
 
 const navLinks = [
-  { href: "/", label: "Trang chủ" },
-  { href: "/employees", label: "Nhân viên" },
-  { href: "/news", label: "Truyền thông" },
-  { href: "/diagram", label: "Sơ đồ tổ chức" },
+  { href: "/user", label: "Trang chủ" },
+  { href: "/user/employees", label: "Nhân viên" },
+  { href: "/user/news", label: "Truyền thông" },
+  { href: "/user/diagram", label: "Sơ đồ tổ chức" },
 
-  { href: "/about-asia", label: "Về Á Châu" },
+  { href: "/user/about-asia", label: "Về Á Châu" },
 ];
 
 export default function Navbar() {
@@ -63,28 +66,25 @@ export default function Navbar() {
   return (
     <header className="sticky top-0 z-50 border-b border-gray-100 bg-white shadow-sm">
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
-        <div className="relative flex h-16 items-center sm:h-20">
-          <Link href="/" className="flex shrink-0 items-center gap-2" onClick={closeMobileMenu}>
+        <div className={`relative flex h-[88px] items-center gap-4 ${internalSystemsEnabled ? "" : "xl:grid xl:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]"}`}>
+          <Link href="/user" className="flex w-fit shrink-0 items-center" onClick={closeMobileMenu}>
             <Image
               src="/assets/images/asia-logo.png"
               alt="Asia Food & Beverage co.ltd"
-              width={56}
-              height={56}
-              className="h-11 w-11 object-contain sm:h-14 sm:w-14"
+              width={64}
+              height={64}
+              className="h-16 w-16 object-contain"
               priority
             />
-            <span className="hidden sm:block font-bold text-xl text-wana-green-dark tracking-tight">
-              
-            </span>
           </Link>
 
-          <div className="absolute left-1/2 hidden w-max -translate-x-1/2 items-center gap-1 xl:flex">
-            <nav className="flex shrink-0 items-center gap-1">
+          <div className="hidden min-w-0 flex-1 items-center justify-center gap-4 xl:flex xl:-translate-x-6">
+            <nav className="flex shrink-0 items-center gap-6 min-[1440px]:gap-9">
               {navLinks.map((link) => (
                 <Link
                   key={link.href}
                   href={link.href}
-                  className={`relative whitespace-nowrap px-4 py-2 text-base font-medium transition-all ${
+                  className={`relative whitespace-nowrap py-2 text-[17px] font-medium transition-colors ${
                     isActive(link.href) ? "font-semibold text-wana-green" : "text-gray-600 hover:text-wana-green"
                   }`}
                 >
@@ -96,7 +96,10 @@ export default function Navbar() {
             {internalSystemsEnabled ? <InternalSystemsMenu /> : null}
           </div>
 
-          <div className="ml-auto flex items-center gap-2">
+          <div className={`ml-auto flex min-w-0 items-center justify-end gap-2 ${internalSystemsEnabled ? "" : "xl:w-full"}`}>
+            <NotificationBell />
+            <NotificationSound />
+            <UserSessionButton />
             <button
               type="button"
               aria-label="Mở menu"
@@ -144,7 +147,6 @@ export default function Navbar() {
                     }`}
                   >
                     {link.label}
-                    {!isActive(link.href) && <ChevronRight aria-hidden="true" className="h-5 w-5 shrink-0" />}
                   </Link>
                 ))}
                 {internalSystemsEnabled ? <InternalSystemsMenu mobile /> : null}

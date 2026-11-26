@@ -9,6 +9,7 @@ interface Props {
   pageCount: number;
   onChange: (page: number) => void;
   ariaLabel?: string;
+  menuClassName?: string;
 }
 
 interface MenuPosition { left: number; top: number; width: number; height: number; }
@@ -25,7 +26,7 @@ function measureMenu(trigger: HTMLButtonElement | null, count: number): MenuPosi
   return { width, height, left: Math.max(12, Math.min(rect.left, window.innerWidth - width - 12)), top: upward ? rect.top - height - 8 : rect.bottom + 8 };
 }
 
-export function PageSelect({ page, pageCount, onChange, ariaLabel = "Chọn trang" }: Props) {
+export function PageSelect({ page, pageCount, onChange, ariaLabel = "Chọn trang", menuClassName = "" }: Props) {
   const [open, setOpen] = useState(false);
   const [highlighted, setHighlighted] = useState(page);
   const [position, setPosition] = useState<MenuPosition | null>(null);
@@ -106,7 +107,7 @@ export function PageSelect({ page, pageCount, onChange, ariaLabel = "Chọn tran
       <span>Trang {page}</span><span className="flex h-7 w-7 items-center justify-center rounded-full group-focus-visible:bg-emerald-50"><ChevronDown className={`h-5 w-5 transition-transform ${open ? "rotate-180 text-emerald-800" : ""}`} /></span>
     </button>
     {open && position && createPortal(
-      <div ref={menuRef} className="fixed z-[100] rounded-xl border border-slate-200 bg-white p-2 text-sm shadow-[0_12px_35px_rgba(15,23,42,0.15)]" style={{ left: position.left, top: position.top, width: position.width }}>
+      <div ref={menuRef} className={`fixed z-[100] rounded-xl border border-slate-200 bg-white p-2 text-sm shadow-[0_12px_35px_rgba(15,23,42,0.15)] ${menuClassName}`} style={{ left: position.left, top: position.top, width: position.width }}>
         <div id={id} role="listbox" aria-label={ariaLabel} className="overflow-y-auto overscroll-contain [scrollbar-color:#cbd5e1_#f8fafc] [scrollbar-width:thin]" style={{ maxHeight: position.height - 18 }}>
           {Array.from({ length: count }, (_, index) => index + 1).map((number) => <button key={number} id={`${id}-${number}`} data-page={number} type="button" role="option" tabIndex={-1} aria-selected={number === page} onMouseDown={(event) => event.preventDefault()} onClick={() => choose(number)} onMouseEnter={() => setHighlighted(number)} className={`flex h-10 w-full items-center justify-between gap-3 rounded-lg px-3 text-left transition-colors ${number === page ? "bg-emerald-50 font-semibold text-emerald-700" : number === activePage ? "bg-emerald-50/70 text-slate-800" : "text-slate-800 hover:bg-emerald-50/70"}`}><span>Trang {number}</span>{number === page && <Check className="h-4 w-4 shrink-0 text-emerald-600" />}</button>)}
         </div>

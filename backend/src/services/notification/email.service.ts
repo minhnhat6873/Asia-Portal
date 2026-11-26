@@ -3,6 +3,7 @@ import path from "path";
 import nodemailer from "nodemailer";
 
 import { OTP_EXPIRY_MS } from "../../config/otp.config";
+import { MEETING_REMINDER_LEAD_MINUTES } from "../../config/meeting.config";
 import { AppError } from "../../utils/errors/AppError";
 import { escapeHtml } from "../../utils/html/escapeHtml";
 
@@ -164,7 +165,7 @@ function getMeetingReminderEmailHtml(details: MeetingReminderEmailDetails): stri
         <tr><td style="padding:28px 32px 18px;background:#08744d;color:#ffffff;">
           <div style="font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#d5f5df;">Asia Food &amp; Beverage co.ltd</div>
           <h1 style="margin:8px 0 0;font-size:23px;line-height:30px;">Nhắc lịch họp</h1>
-          <p style="margin:5px 0 0;font-size:14px;color:#e5f5ea;">Cuộc họp của bạn sẽ bắt đầu sau khoảng 30 phút.</p>
+          <p style="margin:5px 0 0;font-size:14px;color:#e5f5ea;">Cuộc họp của bạn sẽ bắt đầu sau khoảng ${MEETING_REMINDER_LEAD_MINUTES} phút.</p>
         </td></tr>
         <tr><td style="padding:24px 32px 10px;font-size:14px;line-height:22px;color:#2f4540;">
           <p style="margin:0 0 14px;font-weight:700;">Xin chào ${safe.organizer},</p>
@@ -185,7 +186,7 @@ async function deliverMeetingReminder(email: string, details: MeetingReminderEma
   const transporter = nodemailer.createTransport({ host, port, secure, auth: { user, pass } });
   const text = [
     `Xin chào ${details.organizer},`,
-    "Cuộc họp của bạn sẽ bắt đầu sau khoảng 30 phút.",
+    `Cuộc họp của bạn sẽ bắt đầu sau khoảng ${MEETING_REMINDER_LEAD_MINUTES} phút.`,
     `Cuộc họp: ${details.title}.`,
     `Phòng: ${details.roomName} - ${details.floor}.`,
     `Thời gian: ${details.date.split("-").reverse().join("/")}, ${details.start}-${details.end}.`,
@@ -196,7 +197,7 @@ async function deliverMeetingReminder(email: string, details: MeetingReminderEma
   const info = await transporter.sendMail({
     from,
     to: email,
-    subject: `Nhắc lịch họp còn 30 phút - ${details.title}`,
+    subject: `Nhắc lịch họp còn ${MEETING_REMINDER_LEAD_MINUTES} phút - ${details.title}`,
     text,
     attachments: getLogoAttachment(),
     html: getMeetingReminderEmailHtml(details),
@@ -222,7 +223,45 @@ function getMailConfig() {
   return { host, port, secure, user, pass, from };
 }
 
+export interface NoticeEmail {
+  subject: string;
+  heading: string;
+  greeting: string;
+  /** Label/value rows (escaped). */
+  rows: [string, string][];
+  footer: string;
+}
+
+/** Simple branded notice (vehicle reminders and similar). All values are escaped. */
+async function deliverNotice(email: string, notice: NoticeEmail): Promise<void> {
+  const { host, port, secure, user, pass, from } = getMailConfig();
+  const transporter = nodemailer.createTransport({ host, port, secure, auth: { user, pass } });
+  const rows = notice.rows.map(([label, value]) => `<p style="margin:4px 0 0;"><strong>${escapeHtml(label)}:</strong> ${escapeHtml(value)}</p>`).join("");
+  const html = `
+    <div style="margin:0;padding:24px 12px;background:#f4faf6;font-family:Arial,Helvetica,sans-serif;color:#173b35;">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:16px;border:1px solid #e4efe9;overflow:hidden;">
+        <tr><td style="padding:28px 32px 18px;background:#08744d;color:#ffffff;">
+          <div style="font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#d5f5df;">Asia Food &amp; Beverage co.ltd</div>
+          <h1 style="margin:8px 0 0;font-size:22px;line-height:30px;">${escapeHtml(notice.heading)}</h1>
+        </td></tr>
+        <tr><td style="padding:24px 32px 10px;font-size:14px;line-height:22px;color:#2f4540;">
+          <p style="margin:0 0 12px;font-weight:700;">${escapeHtml(notice.greeting)}</p>${rows}
+        </td></tr>
+        <tr><td style="padding:18px 32px 26px;font-size:12px;line-height:18px;color:#71817d;">${escapeHtml(notice.footer)}</td></tr>
+      </table>
+    </div>`;
+  const text = [notice.greeting, ...notice.rows.map(([label, value]) => `${label}: ${value}.`), notice.footer].join(" ");
+  const info = await transporter.sendMail({ from, to: email, subject: notice.subject, text, html });
+  if (!info.accepted.some((address) => String(address).toLowerCase() === email.toLowerCase()) || info.rejected.length > 0) {
+    throw new Error("SMTP did not accept the notice recipient.");
+  }
+}
+
 export const emailService = {
+  async sendNotice(email: string, notice: NoticeEmail): Promise<void> {
+    await deliverNotice(email, notice);
+  },
+
   async sendManagedPasswordResetNotice(email: string, name: string): Promise<void> {
     const { host, port, secure, user, pass, from } = getMailConfig();
     const transporter = nodemailer.createTransport({ host, port, secure, auth: { user, pass } });
@@ -310,7 +349,8 @@ export const emailService = {
     }
   },
 
-  async sendPasswordResetOtp(email: string, code: string): Promise<void> {
+  /** username: shown too, so someone who forgot it can sign in again. */
+  async sendPasswordResetOtp(email: string, code: string, username?: string): Promise<void> {
     const { host, port, secure, user, pass, from } = getMailConfig();
     const transporter = nodemailer.createTransport({
       host,
@@ -332,7 +372,7 @@ export const emailService = {
         from,
         to: email,
         subject: "Mã xác thực (OTP) đặt lại mật khẩu Asia F&B",
-        text: `Mã OTP đặt lại mật khẩu của bạn là ${code}. Mã có hiệu lực trong ${OTP_EXPIRY_MINUTES} phút. Không chia sẻ mã này với bất kỳ ai.`,
+        text: `Mã OTP đặt lại mật khẩu của bạn là ${code}. Mã có hiệu lực trong ${OTP_EXPIRY_MINUTES} phút. Không chia sẻ mã này với bất kỳ ai.${username ? ` Tên đăng nhập của bạn: ${username}.` : ""}`,
         attachments: logoAttachment,
         html: `
           <div style="margin:0;padding:24px 12px;background:#ffffff;font-family:Arial,Helvetica,sans-serif;color:#173b35;">
@@ -354,6 +394,7 @@ export const emailService = {
                 <td style="padding:14px 34px 8px;font-size:14px;line-height:21px;color:#2f4540;">
                   <p style="margin:0 0 10px;font-weight:700;">Xin chào,</p>
                   <p style="margin:0 0 7px;">Chúng tôi đã nhận được yêu cầu đặt lại mật khẩu cho tài khoản của bạn tại <strong>Asia Food &amp; Beverage</strong>.</p>
+                  ${username ? `<p style="margin:0 0 7px;">Tên đăng nhập của bạn: <strong style="color:#08744d;">${escapeHtml(username)}</strong></p>` : ""}
                   <p style="margin:0;">Vui lòng sử dụng mã xác thực bên dưới để tiếp tục:</p>
                 </td>
               </tr>

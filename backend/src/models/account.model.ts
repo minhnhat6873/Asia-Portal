@@ -3,6 +3,7 @@ import { model, models, Schema } from "mongoose";
 import { normalizeAccountPhone } from "../utils/account/normalizeContact";
 
 import {
+  ACCOUNT_LOCK_KINDS,
   ACCOUNT_ROLES,
   ACCOUNT_STATUSES,
   type Account,
@@ -11,6 +12,8 @@ import {
 const accountSchema = new Schema<Account>(
   {
     name: { type: String, required: true, trim: true },
+    // Filled from the email when empty (see the hook below); unique index further down.
+    username: { type: String, lowercase: true, trim: true },
     email: {
       type: String,
       required: true,
@@ -49,6 +52,32 @@ const accountSchema = new Schema<Account>(
       ref: "PermissionGroup",
       default: [],
     },
+    lock: {
+      type: new Schema({
+        kind: { type: String, enum: ACCOUNT_LOCK_KINDS, required: true },
+        note: { type: String, trim: true, maxlength: 200 },
+        byName: { type: String, trim: true },
+        at: { type: Date, required: true },
+      }, { _id: false }),
+      default: null,
+    },
+    loginGuard: {
+      type: new Schema({
+        count: { type: Number, default: 0 },
+        level: { type: Number, default: 0 },
+        lastFailedAt: Date,
+        waitUntil: { type: Date, default: null },
+      }, { _id: false }),
+      default: null,
+      select: false,
+    },
+    avatar: { type: String, trim: true, default: "" },
+    avatarPublicId: { type: String, trim: true, select: false },
+    isDeleted: { type: Boolean, default: false, index: true },
+    deletedAt: { type: Date },
+    deletedBy: {
+      type: new Schema({ accountId: String, name: String, email: String }, { _id: false }),
+    },
   },
   {
     timestamps: true,
@@ -59,6 +88,10 @@ const accountSchema = new Schema<Account>(
 // Existing accounts may already share a phone. Keep them intact and enforce
 // uniqueness for new/changed phones without a destructive data migration.
 accountSchema.index({ phoneKey: 1 }, { unique: true, partialFilterExpression: { phoneKey: { $type: "string" } } });
+accountSchema.index({ username: 1 }, { unique: true, partialFilterExpression: { username: { $type: "string" } } });
+accountSchema.pre("validate", function defaultUsername() {
+  if (!this.username && this.email) this.username = this.email.trim().toLowerCase();
+});
 accountSchema.pre("validate", function normalizePhone() {
   if (!this.isModified("phone")) return;
   const phone = this.phone ? normalizeAccountPhone(this.phone) : undefined;

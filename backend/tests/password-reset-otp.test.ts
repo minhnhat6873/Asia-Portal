@@ -67,6 +67,7 @@ beforeEach(() => {
     return Promise.resolve({ modifiedCount: 1 }) as never;
   });
   jest.spyOn(adminAccountRepository, "findByEmail").mockImplementation(() => Promise.resolve({ ...account }) as never);
+  jest.spyOn(adminAccountRepository, "unlockLoginFailed").mockResolvedValue({} as never);
   jest.spyOn(adminAccountRepository, "resetPassword").mockImplementation((_id, hash, tx, expectedEmail) => {
     expect(tx).toBe(session); expect(expectedEmail).toBe(email);
     account.password = hash; account.authVersion++; return Promise.resolve({ ...account }) as never;
@@ -188,4 +189,8 @@ it("fails closed if the transaction cannot start", async () => {
   jest.mocked(repository.transaction).mockRejectedValue(new Error("transaction unavailable"));
   await expect(service.reset({ email, code, password })).rejects.toThrow("transaction unavailable");
   expect(pending).not.toBeNull(); expect(adminAccountRepository.resetPassword).not.toHaveBeenCalled();
+});
+it("admin portal: a new password asks to lift a wrong-password lock (the repository allows it for Admin gốc only)", async () => {
+  await service.reset({ email, code, password });
+  expect(adminAccountRepository.unlockLoginFailed).toHaveBeenCalledTimes(1);
 });

@@ -14,16 +14,20 @@
     "test:meeting": "node --experimental-strip-types --test tests/meeting-availability.test.mjs"
   },
   "dependencies": {
+    "@ant-design/nextjs-registry": "1.3.0",
     "@internationalized/date": "^3.12.4",
     "@tinymce/tinymce-react": "^6.3.1",
+    "antd": "6.7.2",
+    "dayjs": "^1.11.23",
     "dompurify": "3.4.17",
     "filepond": "^5.0.0-beta.77",
-    "lucide-react": "^1.66.0",
-    "next": "16.4.3",
+    "howler": "^2.2.4",
+    "lucide-react": "^1.72.0",
+    "next": "16.4.6",
     "react": "19.3.1",
     "react-aria-components": "^1.22.1",
     "react-dom": "19.3.1",
-    "react-easy-crop": "^6.2.4",
+    "react-easy-crop": "^6.2.5",
     "sonner": "^2.0.8"
   },
   "engines": {
@@ -31,11 +35,12 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/howler": "^2.2.13",
     "@types/node": "26.6.6",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.4.3",
+    "eslint-config-next": "16.4.6",
     "tailwindcss": "^4",
     "typescript": "^6"
   }

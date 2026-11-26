@@ -18,6 +18,8 @@ export interface CreateAdminEmployeeInput {
 }
 
 export interface AdminEmployeeResult {
+  /** On update/delete: what happened to the login account linked by email. */
+  linkedAccount?: "none" | "locked" | "trashed" | "admin-skipped";
   _id: string;
   employeeCode: string;
   name: string;

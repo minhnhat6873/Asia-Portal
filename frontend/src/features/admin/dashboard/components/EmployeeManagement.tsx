@@ -250,7 +250,7 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             type="text"
-            placeholder="Tìm theo mã nhân viên hoặc họ tên..."
+            placeholder="Tìm theo mã nhân viên, họ tên hoặc email..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="h-12 w-full pl-9 pr-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-colors placeholder:text-slate-400"
@@ -701,7 +701,7 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
             </div>
             <h3 className="font-bold text-slate-900 text-base">Xác nhận xóa nhân viên?</h3>
             <p className="text-xs text-slate-500 mt-1 mb-5">
-              Nhân viên <span className="font-semibold text-slate-700">{deletingEmployee?.fullName ?? 'đã chọn'}</span> sẽ được chuyển vào thùng rác và có thể khôi phục sau. Bạn có chắc chắn muốn tiếp tục?
+              Nhân viên <span className="font-semibold text-slate-700">{deletingEmployee?.fullName ?? 'đã chọn'}</span> sẽ được chuyển vào thùng rác và có thể khôi phục sau. Tài khoản đăng nhập của nhân viên này (nếu có) sẽ bị khóa. Bạn có chắc chắn muốn tiếp tục?
             </p>
             <div className="flex items-center justify-center gap-2">
               <button

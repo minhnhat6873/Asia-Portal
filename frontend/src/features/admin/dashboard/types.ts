@@ -26,6 +26,7 @@ export interface Employee {
 
 export type MediaCategory = 'Sự kiện' | 'Tin tức' | 'Nhân sự' | 'Thông báo' | 'Đào Tạo';
 
+
 export interface MediaPost {
   isDeleted?: boolean;
   deletedAt?: string | null;
@@ -50,4 +51,4 @@ export interface MediaPost {
   createdAt?: string;
 }
 
-export type ActiveTab = 'overview' | 'employees' | 'media' | 'meetings' | 'add-employee' | 'edit-employee' | 'add-media' | 'edit-media' | 'permissions' | 'system-settings' | 'account' | 'sessions' | 'feedback';
+export type ActiveTab = 'overview' | 'employees' | 'media' | 'meetings' | 'vehicles' | 'add-employee' | 'edit-employee' | 'add-media' | 'edit-media' | 'permissions' | 'system-settings' | 'account' | 'sessions' | 'feedback';

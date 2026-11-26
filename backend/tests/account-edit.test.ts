@@ -1,3 +1,4 @@
+jest.mock("../src/services/vehicle/vehicle-account-closed", () => ({ vehicleAccountClosedService: { cancelOpenTrips: jest.fn().mockResolvedValue(0) } }));
 import { authSessionRepository } from "../src/repositories/admin/auth-session.repository";
 import type { Request, Response } from "express";
 import type { ClientSession } from "mongoose";
@@ -21,6 +22,7 @@ beforeEach(() => {
   jest.spyOn(adminAccountRepository, "findById").mockResolvedValue(target as never);
   jest.spyOn(adminAccountRepository, "findByEmail").mockResolvedValue(null);
   jest.spyOn(adminAccountRepository, "findByPhone").mockResolvedValue(null);
+  jest.spyOn(adminAccountRepository, "findByUsername").mockResolvedValue(null);
   jest.spyOn(adminAccountRepository, "updateById").mockImplementation((_id, data) => Promise.resolve({ ...target, ...data }) as never);
   jest.spyOn(adminAccountRepository, "resetManagedPassword").mockResolvedValue(target as never);
   jest.spyOn(permissionGroupRepository, "findActiveByIds").mockResolvedValue([]);
@@ -91,5 +93,31 @@ describe("legacy mandatory password change no longer restricts access", () => {
     await requireAdminAuth(request, response as unknown as Response, next);
     expect(next).toHaveBeenCalledTimes(1);
     expect(request.admin).not.toHaveProperty("mustChangePassword");
+  });
+});
+
+describe("usernames", () => {
+  it("a new account signs in with its email unless another username is given", async () => {
+    const create = jest.spyOn(adminAccountRepository, "create").mockImplementation((data) => Promise.resolve({ toObject: () => ({ ...target, ...data }) }) as never);
+    const input = { name: "Nhân viên", email: "An@asiafnb.com", phone: "0912345678", password: "Password123!", role: "user" as const };
+    expect((await adminAccountService.createAccount(input, actorId)).username).toBe("an@asiafnb.com");
+    expect((await adminAccountService.createAccount({ ...input, username: "Kun@4890" }, actorId)).username).toBe("kun@4890");
+    expect(create).toHaveBeenLastCalledWith(expect.objectContaining({ username: "kun@4890", email: "an@asiafnb.com" }), session);
+  });
+  it("an admin renames someone (e.g. their username keeps being guessed); the email stays", async () => {
+    const result = await adminAccountService.updateAccount(targetId, { username: " Kun@4890 " }, actorId);
+    expect(result).toMatchObject({ username: "kun@4890", email: "old@asiafnb.com" });
+    expect(adminAccountRepository.findByUsername).toHaveBeenCalledWith("kun@4890");
+  });
+  it("two accounts cannot share a username, in any letter case", async () => {
+    jest.mocked(adminAccountRepository.findByUsername).mockResolvedValue({ ...target, _id: "507f1f77bcf86cd799439099" } as never);
+    await expect(adminAccountService.updateAccount(targetId, { username: "Taken" }, actorId))
+      .rejects.toMatchObject({ statusCode: 409, fieldErrors: { username: "Tên đăng nhập đã được sử dụng." } });
+    expect(adminAccountRepository.updateById).not.toHaveBeenCalled();
+  });
+  it("allows letters without accents, digits and . _ - @ +, 3 to 100 characters", () => {
+    for (const ok of ["kun@4890", "Nguyen.Van_An-1", "an@asiafnb.com"]) expect(updateAccountSchema.validate({ username: ok }).error).toBeUndefined();
+    for (const bad of ["ab", "có dấu", "a b c", "x".repeat(101), "abc#1"]) expect(updateAccountSchema.validate({ username: bad }).error).toBeDefined();
+    expect(updateAccountSchema.validate({ username: " Kun@4890 " }).value.username).toBe("kun@4890");
   });
 });

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { ArrowLeft, CalendarDays, Check, ChevronDown, LayoutDashboard, Newspaper, Users } from "lucide-react";
+import { ArrowLeft, CalendarDays, CarFront, Check, ChevronDown, LayoutDashboard, Newspaper, UserCheck, Users } from "lucide-react";
 import type { ModuleCategory, Role, SystemPermission } from "../types";
 import { GROUP_COLORS, GROUP_ICONS, type GroupColor, type GroupIcon } from "../permission-group-appearance";
 import { PermissionGroupBadge } from "./PermissionGroupBadge";
@@ -102,7 +102,7 @@ export function PermissionGroupForm({ initialRole, permissions, modules, saving,
               if (!items.length) return null;
               const checked = items.every((permission) => selectedIds.includes(permission.id));
               const expanded = expandedIds.includes(module.id);
-              const Icon = { meetings: CalendarDays, employees: Users, media: Newspaper, dashboard: LayoutDashboard }[module.id];
+              const Icon = { meetings: CalendarDays, employees: Users, media: Newspaper, dashboard: LayoutDashboard, accounts: UserCheck, vehicles: CarFront }[module.id];
               return <div key={module.id} className="overflow-hidden rounded-xl border border-slate-200">
                 <div className="flex min-h-16 items-center gap-3 bg-slate-50 px-3 sm:px-4">
                   <input type="checkbox" disabled={saving} checked={checked} aria-label={`Chọn tất cả quyền ${module.name}`} onChange={() => setSelectedIds((current) => checked ? current.filter((id) => !items.some((permission) => permission.id === id)) : [...new Set([...current, ...items.map((permission) => permission.id)])])} className="h-6 w-6 shrink-0 rounded accent-emerald-700" />

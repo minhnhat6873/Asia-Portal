@@ -10,6 +10,12 @@ function parseBoolean(value: string | undefined, fallback: boolean): boolean {
   return value.trim().toLowerCase() === "true";
 }
 
+// Self-registration for the user portal. Off unless explicitly enabled: accounts are
+// created by administrators. Read per request so changing .env and restarting is enough.
+export function isUserRegistrationEnabled(): boolean {
+  return parseBoolean(process.env.USER_REGISTRATION_ENABLED, false);
+}
+
 function getBaseCookieOptions(): CookieOptions {
   return {
     httpOnly: true,

@@ -57,21 +57,18 @@ Thứ tự map ở [error.middleware.ts](/D:/Vscode/Asia-Portal/backend/src/midd
 - Xóa media là xóa vĩnh viễn, response thành công vẫn có `{ success: true, message, data }`; không có API trash/restore cho media.
 - Account và permission group được map `_id` sang `id` trong `toAccountResponse` và `toResponse` ([account.service.ts](/D:/Vscode/Asia-Portal/backend/src/services/admin/account.service.ts:16), [permission-group.service.ts](/D:/Vscode/Asia-Portal/backend/src/services/admin/permission-group.service.ts:14)). Audit log, employee và dashboard không map tương tự; đây là không nhất quán quan sát được.
 
-## Meeting public API
+## Meeting API (cổng người dùng)
 
-Các endpoint meeting trả wrapper `{ success, message, data }`; không trả OTP/hash. Email trong dữ liệu lịch public được che. OTP sống 180 giây, cooldown resend 60 giây, tối đa 5 lần nhập sai và 3 lần resend.
+Mọi endpoint meeting cần đăng nhập cổng người dùng (`requireUserAuth`); khách nhận 401. Wrapper `{ success, message, data }`. Email người khác trong lịch được che. Không còn OTP khi đặt hoặc hủy: tên và email người đặt lấy từ tài khoản.
 
 | Method/path | Request body/query | Thành công |
 | --- | --- | --- |
-| `GET /user/meetings` | Query: `dateFrom`, `dateTo`, `roomId`, `department`, `search`, `page`, `limit` | 200; `data: { items, pagination }`, sort ngày/giờ tăng dần |
-| `POST /user/meetings/booking-requests` | `{ title, roomId, date, start, durationMinutes, attendees, organizer, email, department }` | 202; `Mã OTP đã được gửi đến email của bạn.`; data: `requestId`, `email`, `expiresInSeconds`, `resendAfterSeconds` |
-| `POST /user/meetings/booking-requests/verify-otp` | `{ requestId, code }` | 201; `Đặt phòng họp thành công.`; `data` là booking mới, email được che |
-| `POST /user/meetings/booking-requests/resend-otp` | `{ requestId }` | 200; data có thời gian OTP/cooldown |
-| `POST /user/meetings/cancel-requests` | `{ bookingId }` | 202; OTP gửi tới email trong MongoDB; data có email đã che và thời gian OTP/cooldown |
-| `POST /user/meetings/cancel-requests/verify-otp` | `{ bookingId, code }` | 200; `Đã hủy lịch họp.`; `data` là booking vừa hard-delete, email được che |
-| `POST /user/meetings/cancel-requests/resend-otp` | `{ bookingId }` | 200; data có thời gian OTP/cooldown |
+| `GET /user/meetings` | Query: `dateFrom`, `dateTo`, `roomId`, `department`, `search`, `page`, `limit` | 200; `data: { items, pagination }`, sort ngày/giờ tăng dần; mỗi item có `isMine` |
+| `GET /user/meetings/mine` | — | 200; `data: { upcoming, past }` của chính người đang đăng nhập (past: 15 ngày gần nhất) |
+| `POST /user/meetings/bookings` | `{ title, roomId, date, start, durationMinutes, attendees, department }` (`organizer`, `email` gửi lên bị bỏ qua) | 201; `Đặt phòng họp thành công.`; `data` là booking mới. Trùng lịch trả 409 |
+| `POST /user/meetings/bookings/:id/cancel` | — | 200; `Đã hủy lịch họp.`. Lịch của người khác trả 404; cuộc họp đã kết thúc trả 409 |
 
-Meeting rate limit mặc định 10 start/resend và 30 verify mỗi IP trong 15 phút; cấu hình qua `MEETING_OTP_RATE_LIMIT_MAX`, `MEETING_VERIFY_RATE_LIMIT_MAX`. OTP cần `OTP_SECRET`; email cần `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`.
+Đặt và hủy dùng chung limiter theo tài khoản: `MEETING_OTP_RATE_LIMIT_MAX` (mặc định 10) mỗi 15 phút. Email nhắc lịch cần `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`.
 
 ## Cookie phiên
 

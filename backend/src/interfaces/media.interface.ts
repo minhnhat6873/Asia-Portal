@@ -1,5 +1,7 @@
 export const MEDIA_CATEGORIES = ["Sự kiện", "Tin tức", "Nhân sự", "Thông báo", "Đào Tạo"] as const;
 export const MEDIA_STATUSES = ["published", "draft"] as const;
+/** Home page shows at most this many featured posts (slots 1..N); missing ones are filled with the latest posts. */
+export const MEDIA_FEATURED_LIMIT = 3;
 export const MEDIA_AUTHOR_DEPARTMENTS = [
   "Phòng Thiết kế",
   "Phòng Marketing & Truyền thông",
@@ -52,6 +54,8 @@ export interface Media {
   showAfterExpiry?: boolean;
   hiddenReason?: "expired" | "manual" | null;
   status: MediaStatus;
+  /** When the "new post" notification went out; internal, never returned. */
+  newsNotifiedAt?: Date | null;
   isDeleted?: boolean;
   deletedAt?: Date | null;
   deletedBy?: MediaActor;
@@ -62,12 +66,13 @@ export interface Media {
 
 export type CreateMediaInput = Omit<
   Media,
-  "createdAt" | "updatedAt" | "isDeleted" | "deletedAt" | "deletedBy" | "contentAssetPublicIds" | "expiryDate" | "showAfterExpiry" | "hiddenReason" | "featuredAt"
+  "createdAt" | "updatedAt" | "isDeleted" | "deletedAt" | "deletedBy" | "contentAssetPublicIds" | "expiryDate" | "showAfterExpiry" | "hiddenReason" | "featuredAt" | "newsNotifiedAt"
 > & { expiryDate?: Date | null };
 
 export type UpdateMediaInput = Partial<CreateMediaInput>;
 
 export interface MediaListQuery {
+  categories?: string;
   search?: string;
   category?: MediaCategory;
   status?: MediaStatus;

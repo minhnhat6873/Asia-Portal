@@ -1,21 +1,35 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-const PUBLIC_ADMIN_PATHS = new Set(["/admin/login", "/admin/register", "/admin/forgot-password"]);
+// Pages needing a signed-in account live under /user, admin pages under /admin; any
+// other path is public. These checks only look for a session cookie (fast redirect);
+// the pages and the API still verify the session itself.
+const PUBLIC_ADMIN_PATHS = new Set(["/admin/login", "/admin/forgot-password", "/admin/otp", "/admin/reset-password"]);
 
-export function proxy(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-  if (PUBLIC_ADMIN_PATHS.has(pathname)) return NextResponse.next();
+const hasCookie = (request: NextRequest, ...names: string[]) => names.some((name) => Boolean(request.cookies.get(name)?.value));
 
-  const accessToken = request.cookies.get("asia_admin_token")?.value;
-  const refreshToken = request.cookies.get("asia_admin_refresh_token")?.value;
-  if (accessToken || refreshToken) return NextResponse.next();
-
-  const loginUrl = new URL("/admin/login", request.url);
-  loginUrl.searchParams.set("next", pathname);
+function redirectToLogin(request: NextRequest, loginPath: string, next?: string) {
+  const loginUrl = new URL(loginPath, request.url);
+  if (next) loginUrl.searchParams.set("next", next);
   return NextResponse.redirect(loginUrl);
 }
 
+export function proxy(request: NextRequest) {
+  const { pathname, search } = request.nextUrl;
+  const signedInUser = hasCookie(request, "asia_user_token", "asia_user_refresh_token");
+
+  if (pathname === "/") return NextResponse.redirect(new URL(signedInUser ? "/user" : "/login", request.url));
+
+  if (pathname === "/user" || pathname.startsWith("/user/")) {
+    if (signedInUser) return NextResponse.next();
+    return redirectToLogin(request, "/login", pathname === "/user" ? undefined : `${pathname}${search}`);
+  }
+
+  if (PUBLIC_ADMIN_PATHS.has(pathname)) return NextResponse.next();
+  if (hasCookie(request, "asia_admin_token", "asia_admin_refresh_token")) return NextResponse.next();
+  return redirectToLogin(request, "/admin/login", pathname);
+}
+
 export const config = {
-  matcher: ["/admin/:path*"],
+  matcher: ["/", "/user/:path*", "/admin/:path*"],
 };

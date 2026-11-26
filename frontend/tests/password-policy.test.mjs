@@ -27,12 +27,11 @@ test("does not silently trim spaces and preserves case-sensitive confirmation", 
   assert.match(getPasswordValidationError(" Aa1!bbbb"), /khoảng trắng/);
   assert.ok(account.validateAccountPassword("Aa1!bbbb", "aa1!bbbb").confirmPassword);
 });
-test("accepts Unicode at 71/72 UTF-8 bytes but rejects 73 bytes without trimming or normalization", () => {
-  const prefix = "Aa1!" + "漢".repeat(22);
-  for (const suffix of ["a", "ab"]) {
-    const password = prefix + suffix;
-    assert.equal(getPasswordValidationError(password), undefined);
-    assert.equal(account.validateAccountPassword(password, password).password, undefined);
+test("rejects accents and other non-ASCII characters, matching the backend", () => {
+  for (const password of ["Mậtkhẩu1!", "Aa1!bbbé", "Aa1!" + "漢".repeat(4), "Aa1!bbb😀"]) {
+    assert.equal(getPasswordValidationError(password), "Mật khẩu chỉ được dùng ký tự không dấu.");
+    assert.equal(account.validateAccountPassword(password, password).password, "Mật khẩu chỉ được dùng ký tự không dấu.");
+    assert.equal(register.getPasswordValidationError(password), "Mật khẩu chỉ được dùng ký tự không dấu.");
   }
-  assert.match(getPasswordValidationError(prefix + "abc"), /Unicode/);
+  assert.equal(getPasswordValidationError("Aa1!@#$%^&*()_+-=[]{}|;:,.<>?/~`"), undefined);
 });

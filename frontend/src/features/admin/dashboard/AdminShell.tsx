@@ -7,7 +7,7 @@ import AdminDashboard from "./AdminDashboard";
 
 const PUBLIC_ADMIN_PATHS = new Set([
   "/admin/login",
-  "/admin/forgot-password",
+  "/admin/forgot-password", "/admin/otp", "/admin/reset-password",
 ]);
 
 export default function AdminShell({ children }: { children: ReactNode }) {

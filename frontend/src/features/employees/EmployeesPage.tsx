@@ -123,7 +123,7 @@ function EmployeesContent() {
     if (viewMode === "grid") params.set("view", "grid");
     if (page > 1) params.set("page", String(page));
     const query = params.toString();
-    router.replace(query ? `/employees?${query}` : "/employees", { scroll: false });
+    router.replace(query ? `/user/employees?${query}` : "/user/employees", { scroll: false });
   }, [department, newestFirst, page, rank, router, search, viewMode]);
 
   const openMobileProfile = () => {
@@ -178,7 +178,7 @@ function EmployeesContent() {
             setPage(1);
           }}
         />
-        <div className="mt-4 flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+        <div className="mt-4 flex min-w-0 flex-col gap-3 lg:flex-row lg:items-center lg:gap-4">
           <div className="min-w-0 flex-1">
             <EmployeeStats total={allEmployees.length} departments={departmentCount} positions={positionCount} />
           </div>
