@@ -4,17 +4,17 @@ import { loginSchema } from "../src/validates/admin/auth.validate";
 
 // NoSQL injection: sending an object such as {"$ne": null} instead of a string, hoping the
 // database query matches any account. Login must reject it before any query runs.
-const attacks: unknown[] = [{ $ne: null }, { $gt: "" }, { $regex: ".*" }, ["a@asiafnb.com"], { email: "a@asiafnb.com" }, 123, true];
+const attacks: unknown[] = [{ $ne: null }, { $gt: "" }, { $regex: ".*" }, ["a@asiafnb.com"], { username: "a@asiafnb.com" }, 123, true];
 
 describe.each([["user login", userLoginSchema], ["admin login", loginSchema]])("%s", (_label, schema) => {
-  it.each(attacks)("rejects a non-string email: %j", (email) => {
-    expect(schema.validate({ email, password: "Aa1!bbbb" }).error).toBeDefined();
+  it.each(attacks)("rejects a non-string username: %j", (username) => {
+    expect(schema.validate({ username, password: "Aa1!bbbb" }).error).toBeDefined();
   });
   it.each(attacks)("rejects a non-string password: %j", (password) => {
-    expect(schema.validate({ email: "a@asiafnb.com", password }).error).toBeDefined();
+    expect(schema.validate({ username: "a@asiafnb.com", password }).error).toBeDefined();
   });
   it("keeps a password that looks like an operator as plain text", () => {
-    const { error, value } = schema.validate({ email: "a@asiafnb.com", password: "{\"$ne\":null}" });
+    const { error, value } = schema.validate({ username: "a@asiafnb.com", password: "{\"$ne\":null}" });
     expect(error).toBeUndefined();
     expect(value.password).toBe("{\"$ne\":null}");
   });

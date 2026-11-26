@@ -1,3 +1,4 @@
+jest.mock("../src/services/vehicle/vehicle-account-closed", () => ({ vehicleAccountClosedService: { cancelOpenTrips: jest.fn().mockResolvedValue(0) } }));
 import type { Request, Response } from "express";
 import { permissionGroupService } from "../src/services/admin/permission-group.service";
 import { permissionGroupRepository } from "../src/repositories/admin/permission-group.repository";

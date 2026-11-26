@@ -19,26 +19,15 @@ export async function buildVehicleReportWorkbook(report: Report): Promise<Buffer
   summary.columns = [{ width: 36 }, { width: 14 }, { width: 18 }];
   summary.addRow([`Chi phí xe tháng ${report.month.split("-").reverse().join("/")}`]).font = { bold: true, size: 14 };
   summary.addRow([]);
-  const totals: [string, number][] = [
-    ["Tổng số chuyến", report.totals.trips],
-    ["Đã hoàn thành", report.totals.completed],
-    ["Xe công ty (hoàn thành)", report.totals.companyTrips],
-    ["Xe ngoài (hoàn thành)", report.totals.externalTrips],
-    ["Đã hủy", report.totals.cancelled],
-    ["Chưa chốt (chưa tính tiền)", report.totals.notClosed],
-  ];
-  totals.forEach((row) => summary.addRow(row));
-  const costRow = summary.addRow(["Tổng tiền xe ngoài (VND)", report.totals.externalCost]);
+  // The whole company together: external cars (trips, money) and company cars (trips, no cost).
+  summary.addRow(["Chuyến xe ngoài (đã chốt)", report.totals.externalTrips]);
+  const costRow = summary.addRow(["Tiền xe ngoài (VND)", report.totals.externalCost]);
   costRow.font = { bold: true };
   costRow.getCell(2).numFmt = MONEY;
-
-  for (const [title, rows, label] of [
-    ["Theo phòng ban", report.byDepartment, (name: string) => name],
-    ["Theo mục đích", report.byPurpose, (name: string) => PURPOSE[name] ?? name],
-  ] as const) {
+  summary.addRow(["Chuyến xe công ty (đã chốt, không tính tiền)", report.totals.companyTrips]);
+  if (report.totals.notClosed) {
     summary.addRow([]);
-    summary.addRow([title, "Số chuyến", "Tiền (VND)"]).font = { bold: true };
-    for (const row of rows) summary.addRow([label(row.name), row.trips, row.cost]).getCell(3).numFmt = MONEY;
+    summary.addRow([`Còn ${report.totals.notClosed} chuyến chưa chốt, chưa được tính ở trên.`]).font = { italic: true, color: { argb: "FFB45309" } };
   }
 
   const sheet = workbook.addWorksheet("Danh sách chuyến");

@@ -10,8 +10,12 @@ export const NOTIFICATION_TYPES = [
   "vehicle-pending-overdue",
   // The requester edited or cancelled a pending request: to HR
   "vehicle-request-updated", "vehicle-request-cancelled",
+  // The requester's account was deleted or locked: their open trips were cancelled (to HR)
+  "vehicle-requester-removed",
 ] as const;
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
+/** Which bell: "admin" = work notices that open an /admin page (HR); "user" = everything else. */
+export type NotificationScope = "user" | "admin";
 
 export interface UserNotification {
   accountId: string;

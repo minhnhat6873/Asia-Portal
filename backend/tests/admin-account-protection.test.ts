@@ -1,3 +1,4 @@
+jest.mock("../src/services/vehicle/vehicle-account-closed", () => ({ vehicleAccountClosedService: { cancelOpenTrips: jest.fn().mockResolvedValue(0) } }));
 ﻿import type { ClientSession } from "mongoose";
 import bcrypt from "bcryptjs";
 import { adminAccountRepository } from "../src/repositories/admin/account.repository";
@@ -68,6 +69,7 @@ describe("root Admin creation and passwords", () => {
   it("creates an Admin without needing permission groups", async () => {
     jest.spyOn(adminAccountRepository, "findByEmail").mockResolvedValue(null);
     jest.spyOn(adminAccountRepository, "findByPhone").mockResolvedValue(null);
+    jest.spyOn(adminAccountRepository, "findByUsername").mockResolvedValue(null);
     jest.spyOn(adminAccountRepository, "create").mockResolvedValue({ toObject: () => account } as never);
     await adminAccountService.createAccount({ name: "New Admin", email: "new@asiafnb.com", phone: "0901234567", password: "Password123!", role: "admin", permissionGroupIds: ["ignored"] }, otherAdminId);
     expect(adminAccountRepository.create).toHaveBeenCalledWith(expect.objectContaining({ role: "admin", permissionGroupIds: [], status: "active" }), session);

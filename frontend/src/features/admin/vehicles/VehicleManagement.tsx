@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { Building2, CalendarDays, Car, CheckCircle2, ChevronLeft, ChevronRight, CircleDot, Download, RotateCcw, Search, Target, Wallet, XCircle, type LucideIcon } from "lucide-react";
+import { Building2, CalendarDays, Car, Check, ChevronLeft, ChevronRight, CircleDot, Clock3, Download, Eye, Pencil, RotateCcw, Search, Target, Wallet, XCircle, type LucideIcon } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useAdminPermissions } from "@/lib/adminPermissions";
 import { useDelayedLoading } from "@/lib/useDelayedLoading";
@@ -13,19 +13,31 @@ import {
   listVehicleTrips,
   vehicleReportExportUrl,
   VEHICLE_PURPOSE_LABELS,
+  REQUESTER_GONE,
   VEHICLE_STATUS_LABELS,
-  VEHICLE_STATUS_TONES,
   VEHICLE_TYPE_LABELS,
   type VehicleListParams,
   type VehicleReport,
+  type VehicleStatus,
   type VehicleTrip,
 } from "@/services/vehicle.service";
 import VehicleTripDialog from "./VehicleTripDialog";
 import MonthPicker from "./MonthPicker";
+import DatePicker from "@/components/ui/DatePicker";
 import { mediaFont } from "@/features/admin/dashboard/media-font";
 import { AdminSelect } from "@/features/admin/dashboard/components/AdminSelect";
+import { useLiveRefresh } from "@/lib/liveRefresh";
 
 const currentMonth = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Ho_Chi_Minh", year: "numeric", month: "2-digit" }).format(new Date());
+
+const TABLE_STATUS_TONES: Record<VehicleStatus, string> = {
+  pending: "bg-[#fef3c7] text-[#92400e]",
+  arranged: "bg-[#c5e5ff] text-[#003cda]",
+  arrived: "bg-[#ede2ff] text-[#4c16d5]",
+  completed: "bg-[#b9f1c9] text-[#166534]",
+  cancelled: "bg-[#c7cbd0] text-[#1f2937]",
+};
+const TRIP_COLUMN_FONT = mediaFont.className;
 
 function TripsTable({ onOpen, refreshKey }: { onOpen: (trip: VehicleTrip) => void; refreshKey: number }) {
   const [filters, setFilters] = useState<VehicleListParams>({});
@@ -53,22 +65,31 @@ function TripsTable({ onOpen, refreshKey }: { onOpen: (trip: VehicleTrip) => voi
   const pageNumbers = [...new Set([1, totalPages, page - 1, page, page + 1])].filter((number) => number >= 1 && number <= totalPages).sort((a, b) => a - b);
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-2.5 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-        <label className="relative min-w-0 flex-1 basis-48">
+    <div className="min-w-0 space-y-4">
+      <div className="flex min-w-0 flex-wrap items-end gap-x-2.5 gap-y-4 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+        <label className="relative w-full min-w-0 flex-auto sm:min-w-72 sm:flex-1 sm:basis-80">
           <Search aria-hidden="true" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <input value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} placeholder="Tìm theo người đặt hoặc khách hàng…" aria-label="Tìm theo người đặt hoặc khách hàng" className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-3 text-sm outline-none focus:border-emerald-500" />
         </label>
-        <AdminSelect value={filters.status ?? ""} onChange={(value) => change({ status: (value || undefined) as VehicleListParams["status"] })} options={[{ value: "", label: "Tất cả trạng thái" }, ...Object.entries(VEHICLE_STATUS_LABELS).map(([value, label]) => ({ value, label }))]} searchable={false} showSelectionCheck={false} icon={<CircleDot className="h-4 w-4 text-emerald-600" />} className="w-full sm:w-56" />
+        <AdminSelect value={filters.status ?? ""} onChange={(value) => change({ status: (value || undefined) as VehicleListParams["status"] })} options={[{ value: "", label: "Tất cả trạng thái" }, ...Object.entries(VEHICLE_STATUS_LABELS).map(([value, label]) => ({ value, label }))]} searchable={false} showSelectionCheck={false} icon={<CircleDot className="h-4 w-4 text-emerald-600" />} className="w-full shrink-0 sm:w-56" />
         <AdminSelect value={filters.vehicleType ?? ""} onChange={(value) => change({ vehicleType: (value || undefined) as VehicleListParams["vehicleType"] })} options={[{ value: "", label: "Tất cả loại xe" }, ...Object.entries(VEHICLE_TYPE_LABELS).map(([value, label]) => ({ value, label }))]} searchable={false} showSelectionCheck={false} icon={<Car className="h-4 w-4 text-sky-600" />} className="w-full shrink-0 sm:w-52" />
         <AdminSelect value={filters.purpose ?? ""} onChange={(value) => change({ purpose: (value || undefined) as VehicleListParams["purpose"] })} options={[{ value: "", label: "Tất cả mục đích" }, ...Object.entries(VEHICLE_PURPOSE_LABELS).map(([value, label]) => ({ value, label }))]} searchable={false} showSelectionCheck={false} icon={<Target className="h-4 w-4 text-amber-600" />} className="w-full shrink-0 sm:w-56" />
-        <MonthPicker label="Tháng đi" value={filters.month ?? ""} onChange={(value) => change({ month: value || undefined })} allowClear />
-        <button type="button" onClick={() => { setFilters({}); setSearch(""); setPage(1); }} className="inline-flex h-11 items-center gap-2 rounded-xl border border-slate-200 px-3 text-sm font-semibold text-slate-600 hover:bg-slate-50"><RotateCcw aria-hidden="true" size={15} />Đặt lại</button>
+        <div role="group" aria-label="Lọc theo ngày đặt đơn" className="flex w-full min-w-0 flex-wrap items-end gap-2 sm:w-[360px] sm:shrink-0">
+          <div className="min-w-0 flex-1 basis-40">
+            <p className="mb-1 text-xs font-semibold text-slate-600">Từ ngày</p>
+            <DatePicker ariaLabel="Từ ngày đặt đơn" value={filters.dateFrom ?? ""} onChange={(value) => change({ dateFrom: value || undefined, dateTo: value && (!filters.dateTo || filters.dateTo < value) ? value : filters.dateTo, month: undefined })} />
+          </div>
+          <div className="min-w-0 flex-1 basis-40">
+            <p className="mb-1 text-xs font-semibold text-slate-600">Đến ngày</p>
+            <DatePicker ariaLabel="Đến ngày đặt đơn" value={filters.dateTo ?? ""} minValue={filters.dateFrom} onChange={(value) => change({ dateTo: value || undefined, month: undefined })} />
+          </div>
+        </div>
+        <button type="button" onClick={() => { setFilters({}); setSearch(""); setPage(1); }} className="inline-flex h-11 shrink-0 items-center gap-2 whitespace-nowrap rounded-xl border border-slate-200 px-3 text-sm font-semibold text-slate-600 hover:bg-slate-50"><RotateCcw aria-hidden="true" size={15} />Đặt lại</button>
       </div>
 
       {data && data.waiting > 0 && (
         <button type="button" onClick={() => change({ status: "pending" })} className="w-full rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-left text-sm font-semibold text-amber-800 hover:bg-amber-100">
-          Có {data.waiting} chuyến đang chờ HR xử lý hoặc chốt. Bấm để xem các yêu cầu chờ xử lý.
+          Có {data.waiting} yêu cầu đặt xe đang chờ xử lý. Bấm để xem.
         </button>
       )}
 
@@ -80,10 +101,15 @@ function TripsTable({ onOpen, refreshKey }: { onOpen: (trip: VehicleTrip) => voi
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[980px] text-center text-[13px] text-[#172B24]">
                     <thead className="border-b border-[#f0f3f6] bg-[#eef7f3] text-[14px] font-bold text-[#172B24] [&_th]:font-bold">
-                      <tr>{["Giờ đi", "Người đặt", "Mục đích / Khách", "Ngày giờ đặt", "Lộ trình", "Xe", "Trạng thái / Chi phí", "Thao tác"].map((heading) => <th key={heading} className={`px-4 py-3 ${heading === "Thao tác" ? "text-left" : "text-center"}`}>{heading}</th>)}</tr>
+                      <tr>{["Giờ đi", "Người đặt", "Mục đích / Khách", "Ngày giờ đặt", "Lộ trình", "Xe", "Trạng thái & chi phí", "Thao tác"].map((heading, index) => <th key={heading} className={`px-4 py-3 text-center ${index >= 5 ? `${TRIP_COLUMN_FONT} text-[13px] text-[#111827]` : ""}`}>{heading}</th>)}</tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {data.items.map((trip) => (
+                      {data.items.map((trip) => {
+                        const isClosed = trip.status === "completed" || trip.status === "cancelled";
+                        const StatusIcon = trip.status === "pending" || trip.status === "arrived" ? Clock3 : trip.status === "arranged" ? Car : trip.status === "completed" ? Check : XCircle;
+                        const ActionIcon = trip.status === "pending" ? Pencil : isClosed ? Eye : Check;
+                        const cost = trip.actualCost ?? trip.estimatedCost;
+                        return (
                         <tr key={trip.id} className="align-middle hover:bg-emerald-50">
                           <td className="whitespace-nowrap px-4 py-3 text-center text-[15px] font-bold text-[#111827]">
                             {(() => {
@@ -91,7 +117,7 @@ function TripsTable({ onOpen, refreshKey }: { onOpen: (trip: VehicleTrip) => voi
                               return date && time ? <><span className="block">{date.split("-").reverse().join("/")}</span><span className="mt-1 block">{time}{trip.roundTrip ? " · Khứ hồi" : ""}</span></> : "—";
                             })()}
                           </td>
-                          <td className="px-4 py-3"><span className="text-[15px] font-bold text-[#172B24]">{trip.requester.name}</span><span className="block text-xs text-[#64748B]">{trip.requester.department || "—"}</span>{trip.forOther && <span className="mt-0.5 block text-xs font-semibold text-sky-700">Đặt giúp: {trip.forOtherName}</span>}</td>
+                          <td className="px-4 py-3"><span className="text-[15px] font-bold text-[#172B24]">{trip.requester.name}</span>{trip.requesterStatus && trip.requesterStatus !== "active" && <span className="ml-1.5 inline-flex rounded-full bg-rose-50 px-2 py-0.5 align-middle text-[11px] font-semibold text-rose-700 ring-1 ring-rose-200">{REQUESTER_GONE[trip.requesterStatus]}</span>}<span className="block text-xs text-[#64748B]">{trip.requester.department || "—"}</span>{trip.forOther && <span className="mt-0.5 block text-xs font-semibold text-sky-700">Đặt giúp: {trip.forOtherName}</span>}</td>
                           <td className="max-w-52 px-4 py-3"><span className={`inline-flex rounded-md border px-2 py-1 text-xs font-medium ${trip.purpose === "delivery" ? "border-orange-200 bg-orange-50 text-orange-600" : "border-sky-100 bg-sky-100 text-blue-700"}`}>{VEHICLE_PURPOSE_LABELS[trip.purpose]}</span><span className="mt-1 block truncate font-bold text-[#172B24]" title={trip.customerName}>{trip.customerName}</span></td>
                           <td className="whitespace-nowrap px-4 py-3 text-center text-sm text-slate-700">
                             {trip.createdAt && !Number.isNaN(new Date(trip.createdAt).getTime()) ? (() => {
@@ -106,11 +132,21 @@ function TripsTable({ onOpen, refreshKey }: { onOpen: (trip: VehicleTrip) => voi
                               {(trip.extraDestinations?.length ?? 0) > 0 && <span className="text-xs font-semibold text-emerald-700">+{trip.extraDestinations!.length} điểm đến · Xem chi tiết</span>}
                             </div>
                           </td>
-                          <td className="whitespace-nowrap px-4 py-3 text-[15px] font-bold text-[#172B24]">{trip.vehicleType ? VEHICLE_TYPE_LABELS[trip.vehicleType] : <span className="text-amber-700">Chưa chọn</span>}</td>
-                          <td className="px-4 py-3"><span className={`inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${VEHICLE_STATUS_TONES[trip.status]}`}>{VEHICLE_STATUS_LABELS[trip.status]}</span><span className="mt-2 block whitespace-nowrap text-slate-700">{trip.vehicleType === "external" ? (trip.actualCost ? <strong>{formatVnd(trip.actualCost)}</strong> : <span title="Giá dự kiến">~ {formatVnd(trip.estimatedCost)}</span>) : "—"}</span></td>
-                          <td className="px-4 py-3 text-left align-middle"><button type="button" onClick={() => onOpen(trip)} className={`min-h-10 whitespace-nowrap rounded-lg border px-4 py-2 text-sm font-bold ${trip.status === "pending" ? "border-emerald-700 bg-emerald-700 text-white hover:bg-emerald-800" : trip.status === "completed" || trip.status === "cancelled" ? "border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100" : "border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100"}`}>{trip.status === "pending" ? "Xử lý" : trip.status === "arranged" ? "Chỉnh Sửa" : trip.status === "arrived" ? "Hoàn Thành" : "Xem"}</button></td>
+                          <td className={`${TRIP_COLUMN_FONT} whitespace-nowrap px-4 py-3 text-center text-[13px] font-bold leading-4 text-[#111827]`}>
+                            {trip.vehicleType === "external" ? <>Xe ngoài<span className="block">(Grab)</span></> : trip.vehicleType ? VEHICLE_TYPE_LABELS[trip.vehicleType] : <span className="text-amber-700">Chưa chọn</span>}
+                          </td>
+                          <td className={`${TRIP_COLUMN_FONT} px-4 py-3 text-center text-[13px] leading-4`}>
+                            <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded-md px-2 py-1 text-[11px] font-bold leading-none ${TABLE_STATUS_TONES[trip.status]}`}><StatusIcon aria-hidden="true" size={12} strokeWidth={2.5} />{VEHICLE_STATUS_LABELS[trip.status]}</span>
+                            {trip.status === "arrived" && <span className="mt-1 block whitespace-nowrap text-[11px] text-slate-600">Người đặt đã báo đi xong</span>}
+                            {trip.status === "pending" ? <span className="mt-1.5 block whitespace-nowrap text-[11px] font-bold text-[#111827]">Chưa cập nhật</span> : trip.vehicleType === "external" ? cost == null ? <span className="mt-1.5 block whitespace-nowrap text-[11px] font-bold text-[#111827]">Chưa cập nhật</span> : <>
+                              <span className={`mt-1.5 block text-[11px] ${trip.status === "completed" && trip.actualCost != null ? "text-[#15803d]" : "text-[#111827]"}`}>{trip.status === "cancelled" ? "Chi phí" : trip.actualCost != null ? "Chi phí thực tế" : "Chi phí dự kiến"}</span>
+                              <span className="mt-1 block whitespace-nowrap text-[14px] font-bold tabular-nums text-[#111827]">{formatVnd(cost)}</span>
+                            </> : <span className="mt-1.5 block text-slate-400">—</span>}
+                          </td>
+                          <td className={`${TRIP_COLUMN_FONT} px-4 py-3 text-center align-middle`}><button type="button" onClick={() => onOpen(trip)} className={`inline-flex min-h-8 items-center justify-center gap-1.5 whitespace-nowrap rounded-md border px-3 py-1.5 text-xs font-bold leading-4 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 ${isClosed ? "border-[#e2e8f0] bg-[#f8fafc] text-[#0f172a] hover:bg-slate-100" : "border-[#a7edbd] bg-[#f3fff6] text-[#14532d] hover:bg-green-100"}`}><ActionIcon aria-hidden="true" size={14} strokeWidth={2.5} />{trip.status === "pending" ? "Xử lý" : isClosed ? "Xem" : "Hoàn thành chuyến"}</button></td>
                         </tr>
-                      ))}
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -134,20 +170,6 @@ function Stat({ label, value, icon: Icon, tone }: { label: string; value: string
   return <div className="flex min-h-28 items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5"><span aria-hidden="true" className={`grid h-14 w-14 shrink-0 place-items-center rounded-2xl ${tone}`}><Icon className="h-7 w-7" /></span><div className="min-w-0"><p className="text-sm font-semibold text-slate-600">{label}</p><p className="mt-1 break-words text-2xl font-extrabold text-slate-900">{value}</p></div></div>;
 }
 
-function CostTable({ title, rows, label }: { title: string; rows: VehicleReport["byDepartment"]; label: (name: string) => string }) {
-  return (
-    <section className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-      <h3 className="mb-2 text-sm font-bold text-slate-900">{title}</h3>
-      {rows.length ? (
-        <table className="w-full text-sm">
-          <thead className="text-xs text-slate-500"><tr><th className="py-1.5 text-left font-semibold">Tên</th><th className="py-1.5 text-right font-semibold">Số chuyến</th><th className="py-1.5 text-right font-semibold">Tiền xe ngoài</th></tr></thead>
-          <tbody className="divide-y divide-slate-100">{rows.map((row) => <tr key={row.name}><td className="py-2 text-slate-800">{label(row.name)}</td><td className="py-2 text-right">{row.trips}</td><td className="py-2 text-right font-semibold">{formatVnd(row.cost)}</td></tr>)}</tbody>
-        </table>
-      ) : <p className="text-sm text-slate-500">Chưa có chuyến xe ngoài nào được chốt.</p>}
-    </section>
-  );
-}
-
 function ReportView() {
   const [month, setMonth] = useState(currentMonth);
   const [report, setReport] = useState<VehicleReport | null>(null);
@@ -163,24 +185,19 @@ function ReportView() {
   return (
     <div className="space-y-4">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            <Stat label="Tổng tiền xe ngoài" value={totals ? formatVnd(totals.externalCost) : "—"} icon={Wallet} tone="bg-emerald-50 text-emerald-600" />
+            {/* One month, the whole company together. Company cars have no cost. */}
             <Stat label="Chuyến xe ngoài" value={totals?.externalTrips ?? "—"} icon={Car} tone="bg-sky-50 text-sky-600" />
-            <Stat label="Chuyến xe công ty" value={totals?.companyTrips ?? "—"} icon={Building2} tone="bg-amber-50 text-amber-600" />
-            <Stat label="Đã hoàn thành / Tổng" value={totals ? `${totals.completed} / ${totals.trips}` : "—"} icon={CheckCircle2} tone="bg-violet-50 text-violet-600" />
-            <Stat label="Đã hủy" value={totals?.cancelled ?? "—"} icon={XCircle} tone="bg-rose-50 text-rose-600" />
-            <div className="flex min-h-28 items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+            <Stat label="Tiền xe ngoài trong tháng" value={totals ? formatVnd(totals.externalCost) : "—"} icon={Wallet} tone="bg-emerald-50 text-emerald-600" />
+            <Stat label="Chuyến xe công ty (không tính tiền)" value={totals?.companyTrips ?? "—"} icon={Building2} tone="bg-amber-50 text-amber-600" />
+            <div className="flex min-h-28 items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5 sm:col-span-2 lg:col-span-3">
               <span aria-hidden="true" className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-emerald-50 text-emerald-600"><CalendarDays className="h-7 w-7" /></span>
               <div className="min-w-0 flex-1"><p className="mb-2 text-sm font-semibold text-slate-600">Báo Cáo Tháng</p><div className="flex flex-wrap items-center gap-2"><MonthPicker label="Tháng báo cáo" value={month} onChange={setMonth} />
               <a href={vehicleReportExportUrl(month)} download className="inline-flex h-11 items-center gap-2 rounded-xl bg-emerald-700 px-4 text-sm font-bold text-white hover:bg-emerald-800"><Download aria-hidden="true" size={16} />Xuất Excel</a></div></div>
             </div>
           </div>
       {totals && totals.notClosed > 0 && <p className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">Còn {totals.notClosed} chuyến chưa chốt trong tháng này, chi phí của các chuyến đó chưa được tính.</p>}
-      {error ? <p role="alert" className="rounded-2xl bg-rose-50 p-4 text-sm text-rose-700">{error}</p> : !totals ? <p role="status" className="p-6 text-center text-sm text-slate-500">Đang tải báo cáo…</p> : (
-          <div className="grid gap-4 lg:grid-cols-2">
-            <CostTable title="Theo phòng ban" rows={report!.byDepartment} label={(name) => name} />
-            <CostTable title="Theo mục đích" rows={report!.byPurpose} label={(name) => VEHICLE_PURPOSE_LABELS[name as keyof typeof VEHICLE_PURPOSE_LABELS] ?? name} />
-          </div>
-      )}
+      {error ? <p role="alert" className="rounded-2xl bg-rose-50 p-4 text-sm text-rose-700">{error}</p> : !totals ? <p role="status" className="p-6 text-center text-sm text-slate-500">Đang tải báo cáo…</p>
+        : <p className="text-xs text-slate-500">Tính theo giờ đi trong tháng, chỉ các chuyến đã chốt hoàn thành. Xe ngoài tính theo giá thật; xe công ty chỉ đếm số chuyến.</p>}
     </div>
   );
 }
@@ -192,6 +209,8 @@ export default function VehicleManagement() {
   const [tab, setTab] = useState<"trips" | "report">("trips");
   const [selected, setSelected] = useState<VehicleTrip | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  // A new request, an edit or a cancel by the requester: the list updates without reloading the page.
+  useLiveRefresh("vehicle-", () => setRefreshKey((value) => value + 1));
 
   // Opened from a notification: /admin/vehicles?id=<trip>
   const linkedId = params.get("id");

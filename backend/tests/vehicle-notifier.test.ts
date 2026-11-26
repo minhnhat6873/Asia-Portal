@@ -1,12 +1,14 @@
 jest.mock("../src/repositories/vehicle-booking.repository", () => ({ vehicleBookingRepository: { managerAccounts: jest.fn() } }));
 jest.mock("../src/repositories/user/notification.repository", () => ({ notificationRepository: { insertForAccounts: jest.fn(), replaceForAccounts: jest.fn() } }));
 jest.mock("../src/services/notification/email.service", () => ({ emailService: { sendNotice: jest.fn() } }));
+jest.mock("../src/repositories/admin/account.repository", () => ({ adminAccountRepository: { findActiveById: jest.fn() } }));
 
 import { EventEmitter } from "node:events";
 import type { Request, Response } from "express";
 import { Types } from "mongoose";
 
 import { vehicleBookingRepository } from "../src/repositories/vehicle-booking.repository";
+import { adminAccountRepository } from "../src/repositories/admin/account.repository";
 import { notificationRepository } from "../src/repositories/user/notification.repository";
 import { emailService } from "../src/services/notification/email.service";
 import { vehicleNotifier } from "../src/services/vehicle/vehicle-notifier";
@@ -39,6 +41,8 @@ beforeEach(() => {
   clock += 10 * 60_000;
   jest.setSystemTime(clock);
   jest.mocked(vehicleBookingRepository.managerAccounts).mockResolvedValue(managers);
+  // The requester still has a working account unless a test says otherwise.
+  jest.mocked(adminAccountRepository.findActiveById).mockResolvedValue({ _id: "u1" } as never);
 });
 afterEach(() => jest.useRealTimers());
 
@@ -95,5 +99,16 @@ describe("request still waiting after its departure time", () => {
       type: "vehicle-pending-overdue", title: "Yêu cầu đặt xe của bạn chưa được HR xử lý",
       message: expect.stringContaining("vui lòng liên hệ HR"),
     }));
+  });
+});
+
+describe("requester whose account was deleted or locked", () => {
+  it("gets no web notice and no email any more", async () => {
+    jest.mocked(adminAccountRepository.findActiveById).mockResolvedValue(null);
+    await vehicleNotifier.toRequester(trip, "vehicle-reminder");
+    await vehicleNotifier.emailRequesterReminder(trip);
+    await vehicleNotifier.emailRequesterChange(trip, { at: new Date(), by: { accountId: "h1", name: "HR", email: "hr@asiafnb.com" }, reason: "Đổi giờ", items: [] });
+    expect(notificationRepository.insertForAccounts).not.toHaveBeenCalled();
+    expect(emailService.sendNotice).not.toHaveBeenCalled();
   });
 });

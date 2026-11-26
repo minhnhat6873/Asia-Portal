@@ -10,6 +10,7 @@ import { adminAccountRepository } from "../../repositories/admin/account.reposit
 import { permissionGroupRepository } from "../../repositories/admin/permission-group.repository";
 import { PERMISSION_ACTIONS, filterPermissionActions } from "../../interfaces/permission-group.interface";
 import { AppError } from "../../utils/errors/AppError";
+import { invalidLogin, loginGuardService } from "./login-guard.service";
 import { authSessionRepository } from "../../repositories/admin/auth-session.repository";
 import { AUTH_REMEMBER_LIFETIME_MS } from "../../config/auth.config";
 import type { SessionClientInfo } from "../../interfaces/auth-session.interface";
@@ -85,20 +86,22 @@ async function buildActiveAdmin(accountId: string, scope: "admin" | "user" = "ad
 
 export function createAuthService(scope: "admin" | "user") { return {
   async login(data: LoginInput, clientInfo: SessionClientInfo = {}) {
-    const account = await adminAccountRepository.findByEmailWithPassword(data.email);
+    const account = await adminAccountRepository.findByUsernameWithPassword(data.username);
     // Any account may sign in to the user portal: one person has one company email, so
     // admins use the same account there with user-level access. Only the admin portal
     // restricts by role (checked below).
     if (!account) {
       // Keep missing-account work comparable to a bcrypt password check.
-      if (scope === "user") await bcrypt.compare(data.password, "$2b$12$R9h/cIPz0gi.URNNX3kh2OPST9/PgBkqquzi.Ss7KIUgO2t0jWMUW");
-      throw new AppError(401, "Email hoặc mật khẩu không chính xác");
+      // Both portals, so the response time does not tell which usernames exist.
+      await bcrypt.compare(data.password, "$2b$12$R9h/cIPz0gi.URNNX3kh2OPST9/PgBkqquzi.Ss7KIUgO2t0jWMUW");
+      throw invalidLogin();
     }
 
+    // Too many wrong passwords: refused without trying this one (see login-guard.service.ts).
+    loginGuardService.assertMayTry(account);
     const passwordMatches = await bcrypt.compare(data.password, account.password);
-    if (!passwordMatches) {
-      throw new AppError(401, "Email hoặc mật khẩu không chính xác");
-    }
+    if (!passwordMatches) await loginGuardService.recordFailure(account);
+    await loginGuardService.clear(account);
 
     if (account.status === "pending") {
       throw new AppError(403, "Tài khoản đang chờ admin phê duyệt");

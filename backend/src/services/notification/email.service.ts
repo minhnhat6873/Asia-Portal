@@ -349,7 +349,8 @@ export const emailService = {
     }
   },
 
-  async sendPasswordResetOtp(email: string, code: string): Promise<void> {
+  /** username: shown too, so someone who forgot it can sign in again. */
+  async sendPasswordResetOtp(email: string, code: string, username?: string): Promise<void> {
     const { host, port, secure, user, pass, from } = getMailConfig();
     const transporter = nodemailer.createTransport({
       host,
@@ -371,7 +372,7 @@ export const emailService = {
         from,
         to: email,
         subject: "Mã xác thực (OTP) đặt lại mật khẩu Asia F&B",
-        text: `Mã OTP đặt lại mật khẩu của bạn là ${code}. Mã có hiệu lực trong ${OTP_EXPIRY_MINUTES} phút. Không chia sẻ mã này với bất kỳ ai.`,
+        text: `Mã OTP đặt lại mật khẩu của bạn là ${code}. Mã có hiệu lực trong ${OTP_EXPIRY_MINUTES} phút. Không chia sẻ mã này với bất kỳ ai.${username ? ` Tên đăng nhập của bạn: ${username}.` : ""}`,
         attachments: logoAttachment,
         html: `
           <div style="margin:0;padding:24px 12px;background:#ffffff;font-family:Arial,Helvetica,sans-serif;color:#173b35;">
@@ -393,6 +394,7 @@ export const emailService = {
                 <td style="padding:14px 34px 8px;font-size:14px;line-height:21px;color:#2f4540;">
                   <p style="margin:0 0 10px;font-weight:700;">Xin chào,</p>
                   <p style="margin:0 0 7px;">Chúng tôi đã nhận được yêu cầu đặt lại mật khẩu cho tài khoản của bạn tại <strong>Asia Food &amp; Beverage</strong>.</p>
+                  ${username ? `<p style="margin:0 0 7px;">Tên đăng nhập của bạn: <strong style="color:#08744d;">${escapeHtml(username)}</strong></p>` : ""}
                   <p style="margin:0;">Vui lòng sử dụng mã xác thực bên dưới để tiếp tục:</p>
                 </td>
               </tr>

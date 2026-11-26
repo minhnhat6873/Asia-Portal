@@ -5,6 +5,7 @@ import { useEffect, useRef } from "react";
 import { safeSitePath } from "@/lib/safeRedirect";
 import { claimNotification, playNotificationSound, showDesktopNotification, unlockNotificationSound } from "@/lib/notificationAlerts";
 import { subscribeNotificationStream } from "@/lib/notificationStream";
+import { announceFreshNotifications } from "@/lib/liveRefresh";
 import type { NotificationPage } from "@/services/notification.service";
 
 /** Backup check, in case the live stream is down. */
@@ -53,6 +54,8 @@ export default function NotificationAlerts({ scope, streamUrl, load, fallbackLin
         const fresh = page.items.filter((item) => !item.read && !previous.has(item.id));
         if (!fresh.length) return;
         onFreshRef.current?.();
+        // Every open tab of this browser: pages showing the same data reload it (lib/liveRefresh.ts).
+        announceFreshNotifications(fresh.map((item) => item.type));
         const mine = [];
         for (const item of fresh) if (await claimNotification(scope, item.id)) mine.push(item);
         if (!active || !mine.length) return;

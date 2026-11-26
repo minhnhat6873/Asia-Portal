@@ -6,10 +6,13 @@ export type VehicleStatus = "pending" | "arranged" | "arrived" | "completed" | "
 
 export const VEHICLE_PURPOSE_LABELS: Record<VehiclePurpose, string> = { guest: "Đón/đưa khách", delivery: "Giao/nhận hàng" };
 export const VEHICLE_TYPE_LABELS: Record<VehicleType, string> = { company: "Xe công ty", external: "Xe ngoài (Grab)" };
+/** Warning next to a requester whose account no longer works (admin portal). */
+export const REQUESTER_GONE = { locked: "Tài khoản người đặt đã bị khóa", deleted: "Tài khoản người đặt đã bị xóa" } as const;
+
 export const VEHICLE_STATUS_LABELS: Record<VehicleStatus, string> = {
   pending: "Chờ xử lý",
   arranged: "Đã sắp xếp xe",
-  arrived: "Chưa Hoàn Tất",
+  arrived: "Chờ HR xác nhận",
   completed: "Hoàn thành",
   cancelled: "Đã hủy",
 };
@@ -30,6 +33,8 @@ export const mapLink = (location: VehicleLocation) => `https://www.google.com/ma
 export interface VehicleTrip {
   id: string;
   requester: { accountId: string; name: string; email: string; department: string };
+  /** Admin portal only: the requester's account no longer works (their open trips were cancelled). */
+  requesterStatus?: "active" | "locked" | "deleted";
   /** Booked for someone else (name and phone of that person). */
   forOther: boolean;
   forOtherName: string;
@@ -119,9 +124,8 @@ export interface VehicleArrangeInput extends Partial<VehicleRequestInput> {
 
 export interface VehicleReport {
   month: string;
-  totals: { trips: number; completed: number; cancelled: number; companyTrips: number; externalTrips: number; externalCost: number; notClosed: number };
-  byDepartment: { name: string; trips: number; cost: number }[];
-  byPurpose: { name: string; trips: number; cost: number }[];
+  /** One month, the whole company: external cars (trips, money) and company cars (trips only). */
+  totals: { externalTrips: number; externalCost: number; companyTrips: number; notClosed: number };
   trips: VehicleTrip[];
 }
 
@@ -162,7 +166,7 @@ export const cancelMyTrip = (id: string, reason = "") => apiPost<VehicleTrip>(`/
 export const markTripArrived = (id: string, files: File[]) => apiPostFormData<VehicleTrip>(`/user/vehicles/${encodeURIComponent(id)}/arrived`, receiptsForm(files));
 
 // ---- HR (admin portal) ----
-export interface VehicleListParams { status?: VehicleStatus; vehicleType?: VehicleType; purpose?: VehiclePurpose; month?: string; search?: string; page?: number; limit?: number }
+export interface VehicleListParams { status?: VehicleStatus; vehicleType?: VehicleType; purpose?: VehiclePurpose; month?: string; dateFrom?: string; dateTo?: string; search?: string; page?: number; limit?: number }
 export function listVehicleTrips(params: VehicleListParams, signal?: AbortSignal) {
   const query = new URLSearchParams();
   Object.entries(params).forEach(([key, value]) => { if (value !== undefined && value !== "") query.set(key, String(value)); });

@@ -37,6 +37,9 @@ export function validate(
   values: typeof initial,
   mode: Mode,
 ): string {
+  // Login: the field is the username (any name, often the email); only presence is checked.
+  if (name === "email" && mode === "login")
+    return value.trim() ? "" : "Vui lòng nhập tên đăng nhập.";
   if (name === "email")
     return !value.trim()
       ? "Vui lòng nhập địa chỉ email."

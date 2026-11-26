@@ -4,7 +4,7 @@ import { notificationService } from "../src/services/user/notification.service";
 jest.mock("../src/repositories/user/notification.repository", () => ({ notificationRepository: {
   claimMediaAnnouncement: jest.fn(), activeAccountIds: jest.fn(), activeAccountIdByEmail: jest.fn(),
   insertForAccounts: jest.fn(), replaceForAccounts: jest.fn(), removeByRef: jest.fn(), list: jest.fn(), countUnread: jest.fn(),
-  markRead: jest.fn(), markAllRead: jest.fn(), deleteAll: jest.fn(),
+  markRead: jest.fn(), markAllRead: jest.fn(), deleteAll: jest.fn(), deleteOne: jest.fn(),
 } }));
 
 const repo = jest.mocked(notificationRepository);
@@ -106,5 +106,27 @@ describe("meeting changed or deleted by an admin", () => {
 
 it("deletes notifications only for the requested account", async () => {
   await notificationService.deleteAll("account-a");
-  expect(repo.deleteAll).toHaveBeenCalledWith("account-a");
+  expect(repo.deleteAll).toHaveBeenCalledWith("account-a", "user");
+});
+
+describe("two bells", () => {
+  it("the admin bell asks for work notices, the user bell for personal ones", async () => {
+    jest.mocked(repo.list).mockResolvedValue([] as never);
+    jest.mocked(repo.countUnread).mockResolvedValue(0 as never);
+    await notificationService.list("account-a");
+    expect(repo.list).toHaveBeenLastCalledWith("account-a", expect.any(Number), undefined, "user");
+    await notificationService.list("account-a", undefined, "admin");
+    expect(repo.list).toHaveBeenLastCalledWith("account-a", expect.any(Number), undefined, "admin");
+    expect(repo.countUnread).toHaveBeenLastCalledWith("account-a", "admin");
+  });
+});
+
+describe("delete one notification", () => {
+  it("deletes only the owner's own notice, from the user bell, and reports a missing one", async () => {
+    jest.mocked(repo.deleteOne).mockResolvedValueOnce({ _id: "n1" } as never);
+    await expect(notificationService.deleteOne("account-a", "n1")).resolves.toBe(true);
+    expect(repo.deleteOne).toHaveBeenLastCalledWith("account-a", "n1", "user");
+    jest.mocked(repo.deleteOne).mockResolvedValueOnce(null as never);
+    await expect(notificationService.deleteOne("account-a", "someone-elses")).resolves.toBe(false);
+  });
 });

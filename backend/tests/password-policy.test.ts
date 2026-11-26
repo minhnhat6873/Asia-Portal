@@ -28,7 +28,7 @@ it("does not trim a forbidden space into an accepted password", () => {
   expect(newPasswordSchema.validate(" Aa1!bbbb").error?.message).toContain("khoảng trắng");
 });
 it.each(["Aa1!", "Old Password123!", "A".repeat(40)])("preserves existing credentials during login and self-change verification: %j", (password) => {
-  const login = loginSchema.validate({ email, password });
+  const login = loginSchema.validate({ username: email, password });
   expect(login.error).toBeUndefined(); expect(login.value.password).toBe(password);
   const change = requestPasswordChangeOtpSchema.validate({ currentPassword: password, newPassword: "Aa1!bbbb" });
   expect(change.error).toBeUndefined(); expect(change.value.currentPassword).toBe(password);
@@ -44,5 +44,5 @@ it("still accepts every printable ASCII symbol, and never reaches bcrypt's 72-by
   }
 });
 it("keeps accepting existing accented passwords at sign-in", () => {
-  expect(loginSchema.validate({ email, password: "Mậtkhẩu cũ1!" }).error).toBeUndefined();
+  expect(loginSchema.validate({ username: email, password: "Mậtkhẩu cũ1!" }).error).toBeUndefined();
 });

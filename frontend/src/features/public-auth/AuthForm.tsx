@@ -50,6 +50,7 @@ export default function AuthForm({ mode }: { mode: "login" | "register" }) {
         showToast("Đã gửi mã xác thực", "Nếu thông tin hợp lệ, mã xác thực sẽ được gửi đến email của bạn.", "success");
         router.push("/otp");
       } else {
+        // On the login form the "email" field holds the username (often the company email).
         const account = await userAuthService.login(email, values.password, remember);
         setValues((v) => ({ ...v, password: "", confirm: "" }));
         showToast("Đăng nhập thành công!", `Chào mừng, ${account.name}.`, "success");

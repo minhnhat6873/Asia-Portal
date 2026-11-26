@@ -4,6 +4,8 @@ import AccountModel from "../../models/account.model";
 import type { UserAuthChallenge, UserOtpPurpose } from "../../interfaces/user-auth.interface";
 import { accountPhonePattern } from "../../utils/account/normalizeContact";
 
+/** May reset the password: active or waiting accounts, and an Admin gốc locked only by wrong passwords. */
+const RESETTABLE = { isDeleted: { $ne: true }, $or: [{ status: { $in: ["active", "pending"] } }, { role: "admin", status: "inactive", "lock.kind": "login-failed" }] };
 const generation = (value: UserAuthChallenge) => ({ email: value.email, purpose: value.purpose, requestId: value.requestId, otpHash: value.otpHash });
 export const userAuthChallengeRepository = {
   find(email: string, purpose: UserOtpPurpose) {
@@ -11,7 +13,7 @@ export const userAuthChallengeRepository = {
   },
   // Any role: admins share the account (and password) used in the user portal.
   findAccount(email: string) {
-    return AccountModel.findOne({ email, status: { $in: ["active", "pending"] } }).select("+authVersion").lean();
+    return AccountModel.findOne({ email, ...RESETTABLE }).select("+authVersion").lean();
   },
   contactExists(email: string, phone: string) {
     return AccountModel.exists({ $or: [{ email }, { phone: accountPhonePattern(phone) }, { phoneKey: phone }] });
@@ -41,8 +43,8 @@ export const userAuthChallengeRepository = {
     return account.save({ session });
   },
   resetPassword(value: UserAuthChallenge, password: string, session: ClientSession) {
-    return AccountModel.findOneAndUpdate({ _id: value.accountId, email: value.email, status: { $in: ["active", "pending"] }, authVersion: value.authVersion === 0 ? { $in: [0, null] } : value.authVersion },
-      { $set: { password }, $inc: { authVersion: 1 } }, { session, returnDocument: "after" }).lean();
+    return AccountModel.findOneAndUpdate({ _id: value.accountId, email: value.email, ...RESETTABLE, authVersion: value.authVersion === 0 ? { $in: [0, null] } : value.authVersion },
+      { $set: { password, loginGuard: null }, $inc: { authVersion: 1 } }, { session, returnDocument: "after" }).lean();
   },
   async transaction<T>(work: (session: ClientSession) => Promise<T>) {
     await AccountModel.init();

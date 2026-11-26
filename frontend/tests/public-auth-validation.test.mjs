@@ -17,7 +17,12 @@ test("email: malformed addresses get a format message that names no domain", () 
     const message = check("email", email, "register");
     assert.equal(message, "Email không đúng định dạng.");
   }
-  assert.equal(check("email", "  ", "login"), "Vui lòng nhập địa chỉ email.");
+  assert.equal(check("email", "  ", "register"), "Vui lòng nhập địa chỉ email.");
+});
+
+test("login: the field is the username (any name, often the email); only presence is checked", () => {
+  for (const username of ["Kun@4890", "abc", "ten@example.com"]) assert.equal(check("email", username, "login"), "");
+  assert.equal(check("email", "  ", "login"), "Vui lòng nhập tên đăng nhập.");
 });
 
 test("user auth browser code never mentions the company domain", async () => {

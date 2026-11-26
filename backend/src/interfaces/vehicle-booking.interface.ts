@@ -130,6 +130,8 @@ export interface VehicleListQuery {
   vehicleType?: VehicleType;
   purpose?: VehiclePurpose;
   month?: string;
+  dateFrom?: string;
+  dateTo?: string;
   search?: string;
   page?: string;
   limit?: string;

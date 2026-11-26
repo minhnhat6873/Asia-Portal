@@ -48,11 +48,18 @@ it("password update and session-version revocation participate in the OTP transa
   const query = jest.spyOn(AccountModel, "findOneAndUpdate").mockReturnValue(chain() as never);
   await adminAccountRepository.resetPassword("507f1f77bcf86cd799439012", "new-password-hash", session, snapshot.email);
   expect(query).toHaveBeenCalledWith({ _id: "507f1f77bcf86cd799439012", email: snapshot.email },
-    { $set: { password: "new-password-hash" }, $inc: { authVersion: 1 } }, { returnDocument: "after", runValidators: true, session });
+    { $set: { password: "new-password-hash", loginGuard: null }, $inc: { authVersion: 1 } }, { returnDocument: "after", runValidators: true, session });
 });
 it("delegates commit/rollback and write-conflict retry to MongoDB transactions", async () => {
   const transaction = jest.spyOn(mongoose.connection, "transaction").mockResolvedValue("committed" as never);
   const work = jest.fn().mockResolvedValue("result");
   await expect(repository.transaction(work)).resolves.toBe("committed");
   expect(transaction).toHaveBeenCalledWith(work, { readPreference: "primary" });
+});
+it("\"Quên mật khẩu\" unlocks only an Admin gốc locked by wrong passwords, never a manual or HR lock", async () => {
+  const update = jest.spyOn(AccountModel, "updateOne").mockResolvedValue({} as never);
+  await adminAccountRepository.unlockLoginFailed("507f1f77bcf86cd799439012");
+  expect(update).toHaveBeenCalledWith(
+    { _id: "507f1f77bcf86cd799439012", role: "admin", status: "inactive", "lock.kind": "login-failed", isDeleted: { $ne: true } },
+    { $set: { status: "active", lock: null, loginGuard: null } }, {});
 });

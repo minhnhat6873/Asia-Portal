@@ -3,6 +3,7 @@ import type { NotificationType } from "../../interfaces/notification.interface";
 import { notificationRepository } from "../../repositories/user/notification.repository";
 import { vehicleBookingRepository } from "../../repositories/vehicle-booking.repository";
 import { emailService } from "../notification/email.service";
+import { adminAccountRepository } from "../../repositories/admin/account.repository";
 import { notificationPresence } from "../../utils/notification/notificationEvents";
 
 const PURPOSE_LABEL = { guest: "Đón/đưa khách", delivery: "Giao/nhận hàng" } as const;
@@ -53,10 +54,16 @@ async function emailManagers(accounts: { email: string; name: string }[], notice
   }
 }
 
+/** A deleted or locked requester gets nothing more (no web notice, no email). */
+async function requesterReachable(trip: StoredVehicleBooking): Promise<boolean> {
+  return Boolean(await adminAccountRepository.findActiveById(trip.requester.accountId));
+}
+
 export const vehicleNotifier = {
   /** change: HR changed the time or route; the message then says what and why. */
   toRequester(trip: StoredVehicleBooking, type: Extract<NotificationType, "vehicle-arranged" | "vehicle-updated" | "vehicle-completed" | "vehicle-cancelled" | "vehicle-reminder" | "vehicle-pending-overdue">, change: VehicleChange | null = null) {
     return safely(type, async () => {
+      if (!(await requesterReachable(trip))) return;
       const titles = {
         "vehicle-arranged": `Đã sắp xếp xe: ${trip.vehicleType ? TYPE_LABEL[trip.vehicleType] : ""}${change?.items.length ? " (có thay đổi giờ/lộ trình)" : change ? " (có lời nhắn của HR)" : ""}`,
         "vehicle-updated": change?.items.length ? "HR đã đổi giờ/lộ trình chuyến xe của bạn" : change ? "HR gửi lời nhắn về chuyến xe của bạn" : "HR đã cập nhật chuyến xe của bạn",
@@ -75,7 +82,7 @@ export const vehicleNotifier = {
     });
   },
 
-  toHr(trip: StoredVehicleBooking, type: Extract<NotificationType, "vehicle-new" | "vehicle-arrived" | "vehicle-overdue" | "vehicle-pending-overdue" | "vehicle-request-updated" | "vehicle-request-cancelled">) {
+  toHr(trip: StoredVehicleBooking, type: Extract<NotificationType, "vehicle-new" | "vehicle-arrived" | "vehicle-overdue" | "vehicle-pending-overdue" | "vehicle-request-updated" | "vehicle-request-cancelled" | "vehicle-requester-removed">) {
     return safely(type, async () => {
       const titles = {
         "vehicle-new": `Yêu cầu đặt xe mới từ ${trip.requester.name}`,
@@ -84,14 +91,16 @@ export const vehicleNotifier = {
         "vehicle-pending-overdue": "Yêu cầu đặt xe đã quá giờ đi mà chưa được xử lý",
         "vehicle-request-updated": `${trip.requester.name} đã sửa yêu cầu đặt xe`,
         "vehicle-request-cancelled": `${trip.requester.name} đã hủy yêu cầu đặt xe`,
+        "vehicle-requester-removed": `Đã tự hủy chuyến của ${trip.requester.name}: tài khoản người đặt không còn hoạt động`,
       } as const;
       const refId = String(trip._id);
       const accounts = (await vehicleBookingRepository.managerAccounts()).map((account) => account.id);
-      if (type === "vehicle-request-cancelled") {
+      const cancelled = type === "vehicle-request-cancelled" || type === "vehicle-requester-removed";
+      if (cancelled) {
         // Nothing is left to arrange: earlier "new"/"edited" notices would open a cancelled trip.
         await Promise.all([notificationRepository.removeByRef("vehicle-new", refId), notificationRepository.removeByRef("vehicle-request-updated", refId)]);
       }
-      const message = type === "vehicle-request-cancelled" && trip.cancel?.reason ? shorten(`Lý do: ${trip.cancel.reason} · ${summary(trip)}`, 480) : summary(trip);
+      const message = cancelled && trip.cancel?.reason ? shorten(`Lý do: ${trip.cancel.reason} · ${summary(trip)}`, 480) : summary(trip);
       const data = { type, refId, link: hrLink(trip), title: titles[type], message };
       // Repeated edits replace the previous notice so it shows once, as new and unread.
       if (type === "vehicle-request-updated") await notificationRepository.replaceForAccounts(accounts, data);
@@ -131,6 +140,7 @@ export const vehicleNotifier = {
   /** Email to the requester when HR changed the time or route, with the reason. */
   emailRequesterChange(trip: StoredVehicleBooking, change: VehicleChange) {
     return safely("email báo thay đổi", async () => {
+      if (!(await requesterReachable(trip))) return;
       await emailService.sendNotice(trip.requester.email, {
         subject: change.items.length ? `Chuyến xe của bạn có thay đổi (${formatVietnamTime(trip.departAt)})` : `HR gửi lời nhắn về chuyến xe (${formatVietnamTime(trip.departAt)})`,
         heading: change.items.length ? "HR đã thay đổi chuyến xe của bạn" : "Lời nhắn của HR về chuyến xe",
@@ -152,6 +162,7 @@ export const vehicleNotifier = {
   /** Email to the requester 15 minutes before departure. */
   emailRequesterReminder(trip: StoredVehicleBooking) {
     return safely("email nhắc người đặt", async () => {
+      if (!(await requesterReachable(trip))) return;
       await emailService.sendNotice(trip.requester.email, {
         subject: `Nhắc chuyến xe lúc ${formatVietnamTime(trip.departAt)}`,
         heading: "Chuyến xe sắp khởi hành",

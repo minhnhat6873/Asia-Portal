@@ -89,7 +89,7 @@ export function UserManagementView({ users, roles, currentUserId, saving, canMan
   const [page, setPage] = useState(1);
   const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
   const filtered = users.filter((user) =>
-    `${user.name} ${user.email} ${user.phone}`.toLocaleLowerCase("vi").includes(search.trim().toLocaleLowerCase("vi"))
+    `${user.name} ${user.username} ${user.email} ${user.phone}`.toLocaleLowerCase("vi").includes(search.trim().toLocaleLowerCase("vi"))
     && (statusFilter === "all" || user.status === statusFilter)
     && (roleFilter === "all" || user.accountRole === roleFilter));
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
@@ -165,7 +165,7 @@ export function UserManagementView({ users, roles, currentUserId, saving, canMan
             const statusTone = user.status === "active" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700";
             const editLabel = user.status === "pending" ? "Duyệt và gán quyền" : "Chỉnh sửa";
             return <tr key={user.id} className="align-middle hover:bg-slate-50">
-              <td className="max-w-72 px-3 py-2 pl-4"><div className="flex items-center gap-3"><UserAvatar src={user.avatar} name={user.name} className="h-9 w-9 bg-emerald-100 text-xs font-bold text-emerald-800" /><div className="min-w-0"><strong className="block text-[15px] font-semibold [overflow-wrap:anywhere] text-slate-900">{user.name}</strong><span className="[overflow-wrap:anywhere] text-slate-500">{user.email}</span></div></div></td>
+              <td className="max-w-72 px-3 py-2 pl-4"><div className="flex items-center gap-3"><UserAvatar src={user.avatar} name={user.name} className="h-9 w-9 bg-emerald-100 text-xs font-bold text-emerald-800" /><div className="min-w-0"><strong className="block text-[15px] font-semibold [overflow-wrap:anywhere] text-slate-900">{user.name}</strong><span className="[overflow-wrap:anywhere] text-slate-500">{user.email}</span>{user.username !== user.email && <span className="block text-xs [overflow-wrap:anywhere] text-slate-400">Đăng nhập: {user.username}</span>}</div></div></td>
               <td className="whitespace-nowrap px-3 py-2">{user.phone || "—"}</td>
               <td className="whitespace-nowrap px-3 py-2"><PermissionGroupBadge name={ACCOUNT_ROLE_LABELS[user.accountRole]} color={isAdmin ? "orange" : user.accountRole === "user" ? "slate" : "blue"} icon={isAdmin ? "crown" : "user"} /></td>
               <td className="max-w-xs px-3 py-2">{isAdmin ? <span className="whitespace-nowrap font-semibold text-emerald-700">Toàn quyền hệ thống</span> : user.accountRole === "user" ? <span className="inline-flex items-center gap-2 whitespace-nowrap rounded-lg bg-slate-100 px-3 py-1.5 font-medium text-slate-600"><CircleMinus aria-hidden="true" className="h-4 w-4 shrink-0" />Không áp dụng</span> : <div className="flex flex-wrap gap-1">{user.roleIds.length ? user.roleIds.map((id) => {

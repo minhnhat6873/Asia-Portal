@@ -40,7 +40,7 @@ function toRole(group: ApiPermissionGroup): Role {
 
 function toUser(account: ApiAccount): User {
   return {
-    id: account.id, name: account.name, email: account.email, phone: account.phone ?? "",
+    id: account.id, name: account.name, username: account.username ?? account.email, email: account.email, phone: account.phone ?? "",
     accountRole: account.role, roleIds: account.permissionGroupIds,
     status: account.status === "inactive" ? "suspended" : account.status,
     createdAt: account.createdAt ? new Date(account.createdAt).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" }) : "",
@@ -105,7 +105,7 @@ export function AccessControlTabs({ activeTab, page, editingRoleId, editingAccou
     isRootAdmin={isRootAdmin}
     onCancel={() => onNavigateToPage("accounts")}
     onSave={(user) => mutate(() => createAccount({
-      name: user.name, email: user.email, password: user.password, confirmPassword: user.confirmPassword, phone: user.phone,
+      name: user.name, username: user.username, email: user.email, password: user.password, confirmPassword: user.confirmPassword, phone: user.phone,
       role: user.accountRole, permissionGroupIds: user.accountRole === "manager" ? user.roleIds : [],
     }), "Đã tạo tài khoản.", true)}
   />;

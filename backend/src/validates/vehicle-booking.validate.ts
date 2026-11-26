@@ -113,15 +113,23 @@ export const vehicleCompleteSchema = Joi.object({
 });
 export const vehicleArrivedSchema = Joi.object({});
 
+const filterDate = Joi.string().pattern(/^\d{4}-\d{2}-\d{2}$/).custom((value: string, helpers) => {
+  const date = new Date(`${value}T00:00:00Z`);
+  return Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== value ? helpers.error("any.invalid") : value;
+}).messages({ "string.pattern.base": "Ngày lọc phải có dạng YYYY-MM-DD.", "any.invalid": "Ngày lọc không hợp lệ." });
+
 export const vehicleListQuerySchema = Joi.object({
   status: Joi.string().valid(...VEHICLE_STATUSES),
   vehicleType: Joi.string().valid(...VEHICLE_TYPES),
   purpose: Joi.string().valid(...VEHICLE_PURPOSES),
   month: Joi.string().pattern(/^\d{4}-(0[1-9]|1[0-2])$/).messages({ "string.pattern.base": "Tháng không hợp lệ." }),
+  dateFrom: filterDate,
+  dateTo: filterDate,
   search: Joi.string().trim().allow("").max(100),
   page: Joi.number().integer().min(1),
   limit: Joi.number().integer().min(1).max(100),
-});
+}).custom((query, helpers) => query.dateFrom && query.dateTo && query.dateFrom > query.dateTo ? helpers.error("any.invalid") : query)
+  .messages({ "any.invalid": "Đến ngày phải bằng hoặc sau Từ ngày." });
 
 export const vehicleReportQuerySchema = Joi.object({
   month: Joi.string().pattern(/^\d{4}-(0[1-9]|1[0-2])$/).required().messages({ "string.pattern.base": "Tháng không hợp lệ.", "any.required": "Vui lòng chọn tháng." }),

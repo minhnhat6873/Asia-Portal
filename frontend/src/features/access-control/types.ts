@@ -38,6 +38,8 @@ export interface Role {
 export interface User {
   id: string;
   name: string;
+  /** Signs in with this; starts as the email. */
+  username: string;
   email: string;
   phone: string;
   roleIds: string[];
@@ -53,4 +55,4 @@ export interface User {
   password?: string;
 }
 
-export type NewUserInput = Pick<User, 'name' | 'email' | 'phone' | 'roleIds'> & {accountRole: 'admin' | 'manager' | 'user'; password: string; confirmPassword: string};
+export type NewUserInput = Pick<User, 'name' | 'username' | 'email' | 'phone' | 'roleIds'> & {accountRole: 'admin' | 'manager' | 'user'; password: string; confirmPassword: string};

@@ -3,6 +3,7 @@ import { createHmac, randomInt, randomUUID, timingSafeEqual } from "crypto";
 import type { UserAuthChallenge, UserOtpPurpose, UserRegistrationInput } from "../../interfaces/user-auth.interface";
 import { userAuthChallengeRepository as repository } from "../../repositories/user/auth-challenge.repository";
 import { emailService } from "../notification/email.service";
+import { adminAccountRepository } from "../../repositories/admin/account.repository";
 import { AppError } from "../../utils/errors/AppError";
 
 const result = { expiresInSeconds: 180, resendAfterSeconds: 60 };
@@ -22,7 +23,7 @@ function matches(value: UserAuthChallenge, code: string) {
 }
 async function send(value: UserAuthChallenge, code: string) {
   if (value.purpose === "register") await emailService.sendRegistrationOtp(value.email, code);
-  else await emailService.sendPasswordResetOtp(value.email, code);
+  else await emailService.sendPasswordResetOtp(value.email, code, (await adminAccountRepository.findByEmail(value.email))?.username);
 }
 async function assertOtp(email: string, purpose: UserOtpPurpose, code: string) {
   const value = await repository.find(email, purpose);
@@ -89,7 +90,10 @@ export const userAuthOtpService = {
     const hash = await bcrypt.hash(password, 12);
     await repository.transaction(async session => {
       const consumed = await repository.consume(value, session);
-      if (!consumed || !await repository.resetPassword(consumed, hash, session)) throw invalid();
+      const updated = consumed ? await repository.resetPassword(consumed, hash, session) : null;
+      if (!updated) throw invalid();
+      // An Admin gốc locked by wrong passwords: proving the mailbox lifts the lock (nobody else could).
+      await adminAccountRepository.unlockLoginFailed(updated._id, session);
     });
   },
 };

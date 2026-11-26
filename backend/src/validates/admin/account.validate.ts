@@ -6,6 +6,16 @@ import {
   ACCOUNT_STATUSES,
 } from "../../interfaces/account.interface";
 
+/** Letters without accents, digits and . _ - @ + (so it can equal an email). Not case sensitive. */
+export const USERNAME_PATTERN = /^[a-z0-9._@+-]{3,100}$/;
+export const usernameSchema = Joi.string().trim().lowercase().max(100).pattern(USERNAME_PATTERN)
+  .messages({
+    "any.required": "Vui lòng nhập tên đăng nhập.",
+    "string.empty": "Vui lòng nhập tên đăng nhập.",
+    "string.max": "Tên đăng nhập từ 3 đến 100 ký tự.",
+    "string.pattern.base": "Tên đăng nhập từ 3 đến 100 ký tự, chỉ gồm chữ không dấu, số và . _ - @ +",
+  });
+
 const accountFields = {
   name: Joi.string().trim().min(2).max(100)
     .pattern(/^[\p{L}][\p{L}\p{M}'’.-]*(?:\s+[\p{L}][\p{L}\p{M}'’.-]*)*$/u)
@@ -44,6 +54,8 @@ export const MANAGER_NEEDS_GROUP = "Vui lòng chọn ít nhất một nhóm quy�
 
 export const createAccountSchema = Joi.object({
   name: accountFields.name.required(),
+  // Empty: the email is used.
+  username: usernameSchema.allow(""),
   email: accountFields.email.required(),
   phone: accountFields.phone.required(),
   password: accountFields.password.required(),
@@ -69,12 +81,14 @@ export const employeeLookupSchema = Joi.object({
 });
 
 export const checkAccountContactsSchema = Joi.object({
+  username: usernameSchema,
   email: accountFields.email,
   phone: accountFields.phone,
 }).min(1);
 
 export const updateAccountSchema = Joi.object({
   name: accountFields.name,
+  username: usernameSchema,
   email: accountFields.email,
   phone: accountFields.phone,
   notes: Joi.string().trim().max(1000).allow(""),

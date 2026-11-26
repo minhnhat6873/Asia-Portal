@@ -1,3 +1,4 @@
+jest.mock("../src/services/vehicle/vehicle-account-closed", () => ({ vehicleAccountClosedService: { cancelOpenTrips: jest.fn().mockResolvedValue(0) } }));
 import type { ClientSession } from "mongoose";
 import { adminAccountRepository } from "../src/repositories/admin/account.repository";
 import { accountAdministrationRepository } from "../src/repositories/admin/account-administration.repository";

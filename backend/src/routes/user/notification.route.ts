@@ -2,6 +2,7 @@ import { Router } from "express";
 
 import {
   deleteAllNotifications,
+  deleteNotification,
   listNotifications,
   markAllNotificationsRead,
   markNotificationRead,
@@ -24,5 +25,6 @@ router.get("/unread-count", unreadNotifications);
 router.get("/stream", (request, response) => openNotificationStream(request, response, request.user!.id));
 router.post("/read-all", markAllNotificationsRead);
 router.post("/:id/read", markNotificationRead);
+router.delete("/:id", deleteNotification);
 
 export default router;

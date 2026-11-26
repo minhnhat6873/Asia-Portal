@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { CarFront, CircleCheck, CircleHelp, CirclePlus, Clock, ImagePlus, Pencil, Phone, X } from "lucide-react";
-import { useCallback, useEffect, useState, type ChangeEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "react";
 import { showToast } from "@/features/admin/auth/notify";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import ImageLightbox from "@/components/ui/ImageLightbox";
 import {
   cancelMyTrip,
   formatTripTime,
@@ -18,11 +19,36 @@ import {
   type VehicleTrip,
 } from "@/services/vehicle.service";
 import AccountShell, { Card } from "./AccountShell";
+import { useLiveRefresh } from "@/lib/liveRefresh";
 
 const MAX_FILES = 3;
 
 export function TripStatusBadge({ status }: { status: VehicleTrip["status"] }) {
   return <span className={`inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${VEHICLE_STATUS_TONES[status]}`}>{VEHICLE_STATUS_LABELS[status]}</span>;
+}
+
+function CompletionImagePreview({ file, disabled, onRemove }: { file: File; disabled: boolean; onRemove: () => void }) {
+  const image = useRef<HTMLImageElement>(null);
+  const url = useRef("");
+  const [viewingImage, setViewingImage] = useState<{ src: string; name: string } | null>(null);
+  useEffect(() => {
+    const objectUrl = URL.createObjectURL(file);
+    url.current = objectUrl;
+    if (image.current) image.current.src = objectUrl;
+    return () => { URL.revokeObjectURL(objectUrl); url.current = ""; };
+  }, [file]);
+
+  return (
+    <div className="relative w-28 shrink-0 rounded-xl border border-slate-200 bg-white">
+      <button type="button" aria-label={`Xem ảnh ${file.name}`} onClick={() => { if (url.current) setViewingImage({ src: url.current, name: file.name }); }} className="block aspect-square w-full cursor-zoom-in overflow-hidden rounded-xl focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-emerald-600">
+        {/* eslint-disable-next-line @next/next/no-img-element -- Local preview uses a browser object URL */}
+        <img ref={image} alt={`Ảnh hoàn thành chuyến: ${file.name}`} className="h-full w-full object-cover" />
+      </button>
+      <button type="button" disabled={disabled} aria-label={`Bỏ ảnh ${file.name}`} onClick={onRemove} className="absolute -right-1 -top-1 grid h-6 w-6 place-items-center rounded-full bg-slate-700 text-white shadow-sm hover:bg-rose-700 disabled:opacity-50"><X aria-hidden="true" size={14} /></button>
+      <p title={file.name} className="truncate px-2 py-1.5 text-[11px] font-semibold text-slate-700">{file.name}</p>
+      <ImageLightbox image={viewingImage} onClose={() => setViewingImage(null)} />
+    </div>
+  );
 }
 
 /** "Đã đi xong": optional pictures (receipt, delivery proof), then HR closes the trip. */
@@ -47,20 +73,17 @@ function ArrivedDialog({ trip, onClose, onDone }: { trip: VehicleTrip; onClose: 
   };
   return (
     <div role="dialog" aria-modal="true" aria-labelledby="arrived-title" className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/50 p-4">
-      <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+      <div className="max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl">
         <h2 id="arrived-title" className="text-lg font-bold text-slate-900">Báo đã đi xong</h2>
         <p className="mt-1 text-sm text-slate-600">HR sẽ được báo để chốt chuyến. Bạn có thể gửi kèm ảnh hóa đơn, ảnh chụp Grab hoặc ảnh giao hàng (không bắt buộc, tối đa {MAX_FILES} ảnh).</p>
-        <div className="mt-4 flex flex-wrap gap-2">
+        <div className="mt-4 flex flex-wrap items-center gap-4">
           {files.map((file, index) => (
-            <span key={`${file.name}-${index}`} className="inline-flex max-w-full items-center gap-1.5 rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs text-slate-700">
-              <span className="max-w-40 truncate">{file.name}</span>
-              <button type="button" aria-label={`Bỏ ảnh ${file.name}`} onClick={() => setFiles((current) => current.filter((_, position) => position !== index))} className="text-slate-500 hover:text-rose-600"><X aria-hidden="true" size={14} /></button>
-            </span>
+            <CompletionImagePreview key={`${file.name}-${index}`} file={file} disabled={saving} onRemove={() => setFiles((current) => current.filter((_, position) => position !== index))} />
           ))}
           {files.length < MAX_FILES && (
-            <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-dashed border-slate-300 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-50">
-              <ImagePlus aria-hidden="true" size={15} />Thêm ảnh
-              <input type="file" accept="image/jpeg,image/png,image/webp" multiple className="hidden" onChange={pick} />
+            <label className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-dashed border-emerald-300 px-4 py-2.5 text-xs font-semibold text-emerald-700 focus-within:ring-2 focus-within:ring-emerald-500 focus-within:ring-offset-2 ${files.length ? "w-auto" : "w-full"} ${saving ? "cursor-not-allowed opacity-50" : "cursor-pointer hover:bg-emerald-50"}`}>
+              <ImagePlus aria-hidden="true" size={15} />{files.length ? "Thêm ảnh khác" : "Thêm ảnh"}
+              <input type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={saving} className="sr-only" onChange={pick} />
             </label>
           )}
         </div>
@@ -203,6 +226,8 @@ export default function MyTripsPage() {
     load(controller.signal);
     return () => controller.abort();
   }, [load]);
+  // HR arranged, changed, closed or cancelled a trip: show it without reloading the page.
+  useLiveRefresh("vehicle-", () => load());
 
   const replace = (trip: VehicleTrip) => setTrips((current) => current?.map((item) => (item.id === trip.id ? trip : item)) ?? null);
   const confirmCancel = async () => {
@@ -218,8 +243,11 @@ export default function MyTripsPage() {
     }
   };
 
-  const active = trips?.filter((trip) => ["pending", "arranged", "arrived"].includes(trip.status)) ?? [];
-  const past = trips?.filter((trip) => ["completed", "cancelled"].includes(trip.status)) ?? [];
+  // Newest booking first (when it was sent, not when the car leaves).
+  const bookedAt = (trip: VehicleTrip) => new Date(trip.createdAt ?? trip.departAt).getTime() || 0;
+  const newestFirst = [...(trips ?? [])].sort((a, b) => bookedAt(b) - bookedAt(a));
+  const active = newestFirst.filter((trip) => ["pending", "arranged", "arrived"].includes(trip.status));
+  const past = newestFirst.filter((trip) => ["completed", "cancelled"].includes(trip.status));
   const shown = tab === "active" ? active : past;
   const tabs = [
     { id: "active", label: "Đang xử lý", count: active.length },

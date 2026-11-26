@@ -18,12 +18,14 @@ export type PermissionAction =
   | "vehicles:manage" | "vehicles:delete";
 
 // Why a locked account is locked. "restored" = came back from the trash, still locked.
-export type AccountLockKind = "manual" | "employee-left" | "employee-deleted" | "restored";
+export type AccountLockKind = "manual" | "employee-left" | "employee-deleted" | "restored" | "login-failed";
 export interface AccountLock { kind: AccountLockKind; note?: string; byName?: string; at: string }
 
 export interface ApiAccount {
   id: string;
   name: string;
+  /** Signs in with this; new accounts start with their email. */
+  username: string;
   email: string;
   phone?: string;
   notes?: string;
@@ -53,11 +55,11 @@ export interface ApiPermissionGroup {
 
 export const getAccounts = (): Promise<ApiAccount[]> => apiGet<ApiAccount[]>("/admin/accounts");
 
-export function checkAccountContacts(input: { email?: string; phone?: string }): Promise<{ emailAvailable?: boolean; phoneAvailable?: boolean }> {
+export function checkAccountContacts(input: { username?: string; email?: string; phone?: string }): Promise<{ usernameAvailable?: boolean; emailAvailable?: boolean; phoneAvailable?: boolean }> {
   return apiPost("/admin/accounts/check-contacts", input);
 }
 
-export function createAccount(input: { name: string; email: string; password: string; confirmPassword: string; phone: string; role: ApiAccountRole; permissionGroupIds?: string[] }): Promise<ApiAccount> {
+export function createAccount(input: { name: string; username?: string; email: string; password: string; confirmPassword: string; phone: string; role: ApiAccountRole; permissionGroupIds?: string[] }): Promise<ApiAccount> {
   return apiPost<ApiAccount>("/admin/accounts", input);
 }
 
@@ -71,7 +73,7 @@ export function lookupEmployeesForAccount(query: string, signal?: AbortSignal): 
   return apiGet<EmployeeLookupResult[]>(`/admin/accounts/employee-lookup?q=${encodeURIComponent(query)}`, signal);
 }
 
-export function updateAccount(id: string, input: Partial<Pick<ApiAccount, "name" | "email" | "phone" | "notes" | "role" | "status" | "permissionGroupIds">>): Promise<ApiAccount> {
+export function updateAccount(id: string, input: Partial<Pick<ApiAccount, "name" | "username" | "email" | "phone" | "notes" | "role" | "status" | "permissionGroupIds">>): Promise<ApiAccount> {
   return apiPatch<ApiAccount>(`/admin/accounts/${encodeURIComponent(id)}`, input);
 }
 

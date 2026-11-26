@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 
-import type { NotificationInput, NotificationType } from "../../interfaces/notification.interface";
+import type { NotificationInput, NotificationScope, NotificationType } from "../../interfaces/notification.interface";
 import AccountModel from "../../models/account.model";
 import MediaModel from "../../models/media.model";
 import NotificationModel from "../../models/notification.model";
@@ -10,6 +10,14 @@ function isDuplicateKeyError(error: unknown): boolean {
   const value = error as { code?: number; writeErrors?: { code?: number }[] } | null;
   return value?.code === 11000 || Boolean(value?.writeErrors?.length && value.writeErrors.every((item) => item.code === 11000));
 }
+
+/**
+ * The admin bell shows the work notices (HR: new requests, trips to close…), which open an
+ * /admin page; the user bell shows the rest (my trips, meetings, news). Split by the link, so
+ * notices stored before the split land in the right bell too.
+ */
+const ADMIN_LINK = /^\/admin(?:[/?#]|$)/;
+const inScope = (scope: NotificationScope) => (scope === "admin" ? { link: ADMIN_LINK } : { link: { $not: ADMIN_LINK } });
 
 export const notificationRepository = {
   async insertForAccounts(accountIds: string[], data: NotificationInput): Promise<void> {
@@ -51,33 +59,43 @@ export const notificationRepository = {
     return row ? String(row._id) : null;
   },
 
-  list(accountId: string, limit: number, before?: Date) {
-    return NotificationModel.find({ accountId, ...(before ? { createdAt: { $lt: before } } : {}) })
+  list(accountId: string, limit: number, before?: Date, scope: NotificationScope = "user") {
+    return NotificationModel.find({ accountId, ...inScope(scope), ...(before ? { createdAt: { $lt: before } } : {}) })
       .select("type title message link readAt createdAt")
       .sort({ createdAt: -1, _id: -1 })
       .limit(limit)
       .lean();
   },
 
-  countUnread(accountId: string) {
-    return NotificationModel.countDocuments({ accountId, readAt: null });
+  countUnread(accountId: string, scope: NotificationScope = "user") {
+    return NotificationModel.countDocuments({ accountId, ...inScope(scope), readAt: null });
   },
 
-  markRead(accountId: string, id: string) {
+  markRead(accountId: string, id: string, scope: NotificationScope = "user") {
     if (!mongoose.isValidObjectId(id)) return Promise.resolve(null);
-    return NotificationModel.findOneAndUpdate({ _id: id, accountId }, { $set: { readAt: new Date() } }, { returnDocument: "after" })
+    return NotificationModel.findOneAndUpdate({ _id: id, accountId, ...inScope(scope) }, { $set: { readAt: new Date() } }, { returnDocument: "after" })
       .select("_id").lean();
   },
 
-  markAllRead(accountId: string) {
-    return NotificationModel.updateMany({ accountId, readAt: null }, { $set: { readAt: new Date() } });
+  markAllRead(accountId: string, scope: NotificationScope = "user") {
+    return NotificationModel.updateMany({ accountId, ...inScope(scope), readAt: null }, { $set: { readAt: new Date() } });
   },
 
-  deleteAll(accountId: string) {
-    return NotificationModel.deleteMany({ accountId });
+  /** One notification, only the owner's own (and only from its own bell). */
+  deleteOne(accountId: string, id: string, scope: NotificationScope = "user") {
+    if (!mongoose.isValidObjectId(id)) return Promise.resolve(null);
+    return NotificationModel.findOneAndDelete({ _id: id, accountId, ...inScope(scope) }).select("_id").lean();
+  },
+
+  deleteAll(accountId: string, scope: NotificationScope = "user") {
+    return NotificationModel.deleteMany({ accountId, ...inScope(scope) });
   },
 
   removeByRef(type: NotificationType, refId: string) {
     return NotificationModel.deleteMany({ type, refId });
+  },
+  /** Every notification of these types about one thing, for everyone (e.g. a trip deleted for good). */
+  removeAllByRef(types: readonly NotificationType[], refId: string) {
+    return NotificationModel.deleteMany({ type: { $in: types }, refId });
   },
 };

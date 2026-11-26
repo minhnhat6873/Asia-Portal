@@ -18,6 +18,11 @@ import { vietnameseSearchRegex } from "../../utils/text/vietnameseSearchRegex";
 import { getVietnamDateTimeAsUtc } from "../../utils/time/vietnamTime";
 import { removeVehicleReceiptFiles } from "../../utils/vehicle/receipts";
 import { formatVietnamTime, vehicleNotifier } from "./vehicle-notifier";
+import { notificationRepository } from "../../repositories/user/notification.repository";
+import { NOTIFICATION_TYPES } from "../../interfaces/notification.interface";
+
+/** Every notification kind about a trip (removed with the trip when it is deleted for good). */
+const VEHICLE_NOTIFICATION_TYPES = NOTIFICATION_TYPES.filter((type) => type.startsWith("vehicle-"));
 
 /** Requests must be sent at least this long before departure, so HR can arrange a car. */
 export const VEHICLE_MIN_LEAD_MINUTES = 15;
@@ -274,9 +279,13 @@ function listFilter(query: VehicleListQuery): QueryFilter<VehicleBooking> {
   if (query.status) filter.status = query.status;
   if (query.vehicleType) filter.vehicleType = query.vehicleType;
   if (query.purpose) filter.purpose = query.purpose;
-  if (query.month) {
+  if (query.dateFrom || query.dateTo) {
+    const from = getVietnamDateTimeAsUtc((query.dateFrom ?? query.dateTo)!, "00:00");
+    const lastDay = getVietnamDateTimeAsUtc((query.dateTo ?? query.dateFrom)!, "00:00");
+    filter.createdAt = { $gte: from, $lt: new Date(lastDay.getTime() + DAY_MS) };
+  } else if (query.month) {
     const { from, to } = monthRange(query.month);
-    filter.departAt = { $gte: from, $lt: to };
+    filter.createdAt = { $gte: from, $lt: to };
   }
   const search = query.search?.trim();
   if (search) {
@@ -303,6 +312,13 @@ async function loadAny(id: string) {
   return trip;
 }
 
+/** HR also sees whether the requester's account still works (deleted or locked: shown as a warning). */
+async function hrResponses(trips: StoredVehicleBooking[]) {
+  const states = await vehicleBookingRepository.requesterStates(trips.map((trip) => trip.requester.accountId));
+  return trips.map((trip) => ({ ...toResponse(trip), requesterStatus: states.get(trip.requester.accountId) ?? "active" }));
+}
+const hrResponse = async (trip: StoredVehicleBooking) => (await hrResponses([trip]))[0]!;
+
 /** HR's side (admin portal, "vehicles:manage"). */
 export const hrVehicleService = {
   async list(query: VehicleListQuery) {
@@ -312,17 +328,18 @@ export const hrVehicleService = {
     const [items, total, waiting] = await Promise.all([
       vehicleBookingRepository.list(filter, (page - 1) * limit, limit),
       vehicleBookingRepository.count(filter),
-      vehicleBookingRepository.count({ status: { $in: ["pending", "arrived"] } }),
+      // Only requests still waiting for a car (the yellow banner); trips waiting to be closed are not counted.
+      vehicleBookingRepository.count({ status: "pending" }),
     ]);
     return {
-      items: (items as StoredVehicleBooking[]).map(toResponse),
+      items: await hrResponses(items as StoredVehicleBooking[]),
       pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
       waiting,
     };
   },
 
   async get(id: string) {
-    return toResponse(await loadAny(id));
+    return hrResponse(await loadAny(id));
   },
 
   /** Chooses the car and/or edits the trip. A pending request becomes "arranged" once a car is chosen. */
@@ -363,7 +380,7 @@ export const hrVehicleService = {
     await vehicleNotifier.toRequester(saved, becomesArranged ? "vehicle-arranged" : "vehicle-updated", changeEntry);
     // A changed time or place matters before departure: email as well, not only the web bell.
     if (changeEntry) await vehicleNotifier.emailRequesterChange(saved, changeEntry);
-    return toResponse(saved);
+    return hrResponse(saved);
   },
 
   /**
@@ -394,7 +411,7 @@ export const hrVehicleService = {
       const saved = await vehicleBookingRepository.updateIfStatus(id, [trip.status], update) as StoredVehicleBooking | null;
       if (!saved) throw changedElsewhere();
       await vehicleNotifier.toRequester(saved, "vehicle-completed");
-      return toResponse(saved);
+      return hrResponse(saved);
     } catch (error) {
       await removeVehicleReceiptFiles(uploads.map((upload) => upload.publicId));
       throw error;
@@ -409,14 +426,22 @@ export const hrVehicleService = {
     }) as StoredVehicleBooking | null;
     if (!saved) throw changedElsewhere();
     await vehicleNotifier.toRequester(saved, "vehicle-cancelled");
-    return toResponse(saved);
+    return hrResponse(saved);
   },
 
-  /** Separate right ("vehicles:delete"): only cancelled trips, completed ones stay for the reports. */
+  /**
+   * Separate right ("vehicles:delete"): deletes a trip for good, also one still being handled.
+   * Nobody is told; it disappears from the requester's page and every notification about it
+   * goes too. Completed trips stay for the cost reports.
+   */
   async remove(id: string) {
     ensureId(id);
-    const deleted = await vehicleBookingRepository.deleteCancelled(id) as StoredVehicleBooking | null;
-    if (!deleted) throw new AppError(409, "Chỉ xóa được chuyến xe đã hủy.");
+    const deleted = await vehicleBookingRepository.deleteUnlessCompleted(id) as StoredVehicleBooking | null;
+    if (!deleted) {
+      if (await vehicleBookingRepository.findById(id)) throw new AppError(409, "Chuyến xe đã hoàn thành không xóa được (cần giữ cho báo cáo chi phí).");
+      throw new AppError(404, "Không tìm thấy chuyến xe.");
+    }
+    await notificationRepository.removeAllByRef(VEHICLE_NOTIFICATION_TYPES, id);
     await removeVehicleReceiptFiles([...(deleted.receipts ?? []), ...(deleted.attachments ?? [])].map((receipt) => receipt.publicId));
     return { id };
   },
@@ -424,31 +449,19 @@ export const hrVehicleService = {
   async report(month: string) {
     const { from, to } = monthRange(month);
     const trips = await vehicleBookingRepository.findForReport(from, to) as StoredVehicleBooking[];
+    // One month, the whole company together (no split by department). Only closed trips count;
+    // company cars cost nothing, external cars count at their real price.
     const completed = trips.filter((trip) => trip.status === "completed");
     const external = completed.filter((trip) => trip.vehicleType === "external");
-    const sumBy = (key: (trip: StoredVehicleBooking) => string) => {
-      const map = new Map<string, { trips: number; cost: number }>();
-      for (const trip of external) {
-        const entry = map.get(key(trip)) ?? { trips: 0, cost: 0 };
-        entry.trips += 1; entry.cost += trip.actualCost ?? 0;
-        map.set(key(trip), entry);
-      }
-      return [...map.entries()].map(([name, value]) => ({ name, ...value })).sort((a, b) => b.cost - a.cost);
-    };
     return {
       month,
       totals: {
-        trips: trips.length,
-        completed: completed.length,
-        cancelled: trips.filter((trip) => trip.status === "cancelled").length,
-        companyTrips: completed.filter((trip) => trip.vehicleType === "company").length,
         externalTrips: external.length,
         externalCost: external.reduce((sum, trip) => sum + (trip.actualCost ?? 0), 0),
-        // Not closed yet: their real cost is still missing from the total.
+        companyTrips: completed.filter((trip) => trip.vehicleType === "company").length,
+        // Not closed yet: they are missing from the figures above.
         notClosed: trips.filter((trip) => ["pending", "arranged", "arrived"].includes(trip.status)).length,
       },
-      byDepartment: sumBy((trip) => trip.requester.department || "Chưa có phòng ban"),
-      byPurpose: sumBy((trip) => trip.purpose),
       trips: trips.map(toResponse),
     };
   },

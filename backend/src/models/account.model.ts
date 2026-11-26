@@ -12,6 +12,8 @@ import {
 const accountSchema = new Schema<Account>(
   {
     name: { type: String, required: true, trim: true },
+    // Filled from the email when empty (see the hook below); unique index further down.
+    username: { type: String, lowercase: true, trim: true },
     email: {
       type: String,
       required: true,
@@ -59,6 +61,16 @@ const accountSchema = new Schema<Account>(
       }, { _id: false }),
       default: null,
     },
+    loginGuard: {
+      type: new Schema({
+        count: { type: Number, default: 0 },
+        level: { type: Number, default: 0 },
+        lastFailedAt: Date,
+        waitUntil: { type: Date, default: null },
+      }, { _id: false }),
+      default: null,
+      select: false,
+    },
     avatar: { type: String, trim: true, default: "" },
     avatarPublicId: { type: String, trim: true, select: false },
     isDeleted: { type: Boolean, default: false, index: true },
@@ -76,6 +88,10 @@ const accountSchema = new Schema<Account>(
 // Existing accounts may already share a phone. Keep them intact and enforce
 // uniqueness for new/changed phones without a destructive data migration.
 accountSchema.index({ phoneKey: 1 }, { unique: true, partialFilterExpression: { phoneKey: { $type: "string" } } });
+accountSchema.index({ username: 1 }, { unique: true, partialFilterExpression: { username: { $type: "string" } } });
+accountSchema.pre("validate", function defaultUsername() {
+  if (!this.username && this.email) this.username = this.email.trim().toLowerCase();
+});
 accountSchema.pre("validate", function normalizePhone() {
   if (!this.isModified("phone")) return;
   const phone = this.phone ? normalizeAccountPhone(this.phone) : undefined;

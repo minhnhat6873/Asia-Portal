@@ -1,7 +1,9 @@
+jest.mock("../src/repositories/user/notification.repository", () => ({ notificationRepository: { removeAllByRef: jest.fn() } }));
 jest.mock("../src/repositories/vehicle-booking.repository", () => ({ vehicleBookingRepository: {
   create: jest.fn(), findById: jest.fn(), findMine: jest.fn(), list: jest.fn(), count: jest.fn(), findForReport: jest.fn(),
-  updateIfStatus: jest.fn(), deleteCancelled: jest.fn(), findDepartReminders: jest.fn(), findOverdueForHr: jest.fn(),
+  updateIfStatus: jest.fn(), deleteUnlessCompleted: jest.fn(), findDepartReminders: jest.fn(), findOverdueForHr: jest.fn(),
   findOverdueEmailDue: jest.fn(), findPendingOverdue: jest.fn(), claimFlag: jest.fn(), managerAccounts: jest.fn(),
+  findOpenByRequester: jest.fn(), requesterStates: jest.fn(),
 } }));
 jest.mock("../src/services/vehicle/vehicle-notifier", () => ({
   formatVietnamTime: (value: Date | null) => (value ? value.toISOString() : ""),
@@ -16,9 +18,10 @@ import { vehicleNotifier } from "../src/services/vehicle/vehicle-notifier";
 import { removeVehicleReceiptFiles } from "../src/utils/vehicle/receipts";
 import { hrVehicleService, monthRange, userVehicleService, VEHICLE_ALLOW_FUTURE_END } from "../src/services/vehicle/vehicle-booking.service";
 import { runVehicleReminders } from "../src/jobs/vehicle-booking-reminder.job";
-import { vehicleArrangeSchema, vehicleCompleteSchema, vehicleHrCancelSchema, vehicleRequestSchema } from "../src/validates/vehicle-booking.validate";
+import { vehicleArrangeSchema, vehicleCompleteSchema, vehicleHrCancelSchema, vehicleListQuerySchema, vehicleRequestSchema } from "../src/validates/vehicle-booking.validate";
 import type { AuthenticatedAccount } from "../src/interfaces/account.interface";
 import type { VehicleRequestInput } from "../src/interfaces/vehicle-booking.interface";
+import { notificationRepository } from "../src/repositories/user/notification.repository";
 
 const repo = jest.mocked(vehicleBookingRepository);
 const user: AuthenticatedAccount = { id: "u1", name: "Nguyễn Văn An", email: "an@asiafnb.com", role: "user", permissions: [] };
@@ -40,9 +43,41 @@ beforeEach(() => {
   jest.useFakeTimers();
   jest.setSystemTime(NOW);
   repo.create.mockImplementation(async (data) => ({ _id: new Types.ObjectId(), ...data }) as never);
+  repo.requesterStates.mockResolvedValue(new Map());
   repo.updateIfStatus.mockImplementation(((_id: string, _statuses: string[], update: { $set: object }) => Promise.resolve({ ...stored(), ...update.$set })) as never);
 });
 afterEach(() => jest.useRealTimers());
+
+describe("HR booking creation date filters", () => {
+  it.each([
+    [{ dateFrom: "2026-11-26", dateTo: "2026-11-28" }, "2026-11-25T17:00:00Z", "2026-11-28T17:00:00Z"],
+    [{ dateFrom: "2026-11-26", dateTo: "2026-11-26" }, "2026-11-25T17:00:00Z", "2026-11-26T17:00:00Z"],
+    [{ dateFrom: "2026-12-31" }, "2026-12-30T17:00:00Z", "2026-12-31T17:00:00Z"],
+    [{ dateTo: "2028-02-29" }, "2028-02-28T17:00:00Z", "2028-02-29T17:00:00Z"],
+    [{ month: "2026-10", dateFrom: "2026-11-26" }, "2026-11-25T17:00:00Z", "2026-11-26T17:00:00Z"],
+    [{ month: "2026-11" }, "2026-10-31T17:00:00Z", "2026-11-30T17:00:00Z"],
+  ])("includes the whole last Vietnam day with query %j", async (query, start, end) => {
+    repo.list.mockResolvedValueOnce([] as never);
+    repo.count.mockResolvedValue(0);
+    await hrVehicleService.list({ ...query, status: "completed", page: "2", limit: "10" });
+    const filter = { status: "completed", createdAt: { $gte: new Date(start), $lt: new Date(end) } };
+    expect(repo.list).toHaveBeenCalledWith(filter, 10, 10);
+    expect(repo.count).toHaveBeenCalledWith(filter);
+  });
+
+  it.each([
+    { dateFrom: "2026-02-29" }, { dateTo: "2026-11-31" }, { dateFrom: "26/11/2026" },
+    { dateFrom: "2026-11-28", dateTo: "2026-11-26" },
+  ])("rejects invalid or reversed dates %j", (query) => {
+    expect(vehicleListQuerySchema.validate(query).error).toBeDefined();
+  });
+
+  it("accepts a single day, a range across years, and a valid leap day", () => {
+    for (const query of [{ dateFrom: "2026-11-26", dateTo: "2026-11-26" }, { dateFrom: "2026-12-31", dateTo: "2027-01-02" }, { dateFrom: "2028-02-29" }]) {
+      expect(vehicleListQuerySchema.validate(query).error).toBeUndefined();
+    }
+  });
+});
 
 describe("requester", () => {
   it("creates a request with the account's name and department, and tells HR", async () => {
@@ -166,6 +201,10 @@ describe("requester", () => {
     repo.findById.mockResolvedValueOnce(stored({ status: "arranged", vehicleType: "company" }) as never);
     const trip = await userVehicleService.markArrived(user, String(new Types.ObjectId()), [{ url: "u", publicId: "asia-portal/vehicle-receipts/a" }]);
     expect(trip.status).toBe("arrived");
+    expect(repo.updateIfStatus).toHaveBeenLastCalledWith(expect.any(String), ["arranged"], {
+      $set: expect.objectContaining({ status: "arrived" }),
+      $push: { receipts: { $each: [expect.objectContaining({ url: "u", uploadedBy: "requester", at: NOW })] } },
+    }, { "requester.accountId": user.id });
     expect(vehicleNotifier.toHr).toHaveBeenCalledWith(expect.anything(), "vehicle-arrived");
 
     repo.findById.mockResolvedValueOnce(stored({ status: "pending" }) as never);
@@ -175,6 +214,42 @@ describe("requester", () => {
 });
 
 describe("HR", () => {
+  it("saves time and route before choosing a car without arranging the pending request", async () => {
+    repo.findById.mockResolvedValueOnce(stored({ expectedEndAt: null }) as never);
+    await hrVehicleService.arrange(hr, String(new Types.ObjectId()), {
+      departAt: "2026-11-25T10:30", destination: "Sân bay Long Thành", changeReason: "Đổi lịch đón khách",
+    });
+    const update = repo.updateIfStatus.mock.calls[0]![2] as { $set: Record<string, unknown>; $push: unknown };
+    expect(update.$set).toMatchObject({ departAt: new Date("2026-11-25T03:30:00Z"), destination: "Sân bay Long Thành" });
+    for (const field of ["status", "vehicleType", "estimatedCost", "driverName", "expectedEndAt"]) expect(update.$set).not.toHaveProperty(field);
+    expect(vehicleNotifier.toRequester).toHaveBeenCalledWith(expect.anything(), "vehicle-updated", expect.objectContaining({ reason: "Đổi lịch đón khách" }));
+    expect(vehicleNotifier.emailRequesterChange).toHaveBeenCalled();
+  });
+
+  it("saves car information without rewriting time, route, or change history", async () => {
+    repo.findById.mockResolvedValueOnce(stored({ status: "arranged", vehicleType: "external", estimatedCost: 150000, roundTrip: true, returnAt: new Date("2026-11-25T06:00:00Z") }) as never);
+    await hrVehicleService.arrange(hr, String(new Types.ObjectId()), { vehicleType: "external", estimatedCost: 200000, expectedEndAt: "2026-11-25T13:00" });
+    const update = repo.updateIfStatus.mock.calls[0]![2] as { $set: Record<string, unknown> };
+    expect(update.$set).toMatchObject({ vehicleType: "external", estimatedCost: 200000, expectedEndAt: new Date("2026-11-25T06:00:00Z") });
+    for (const field of ["departAt", "returnAt", "pickup", "destination"]) expect(update.$set).not.toHaveProperty(field);
+    expect(update).not.toHaveProperty("$push");
+    expect(vehicleNotifier.emailRequesterChange).not.toHaveBeenCalled();
+  });
+
+  it("returns initial, requester completion, and HR pictures separately without exposing storage IDs", async () => {
+    const initial = { url: "https://example.com/initial.jpg", publicId: "initial", uploadedBy: "requester", at: NOW };
+    const completion = { url: "https://example.com/completion.jpg", publicId: "completion", uploadedBy: "requester", at: NOW };
+    const confirmation = { url: "https://example.com/hr.jpg", publicId: "hr", uploadedBy: "hr", at: NOW };
+    repo.findById.mockResolvedValueOnce(stored({ status: "completed", attachments: [initial], receipts: [completion, confirmation] }) as never);
+
+    const trip = await hrVehicleService.get(String(new Types.ObjectId()));
+    expect(trip.attachments).toEqual([{ url: initial.url, uploadedBy: "requester", at: NOW }]);
+    expect(trip.receipts).toEqual([
+      { url: completion.url, uploadedBy: "requester", at: NOW },
+      { url: confirmation.url, uploadedBy: "hr", at: NOW },
+    ]);
+  });
+
   it("HR sets the expected end when arranging; the requester cannot", async () => {
     expect(vehicleRequestSchema.validate({ ...request, expectedEndAt: "2026-11-25T12:00" }).value).not.toHaveProperty("expectedEndAt");
     repo.findById.mockResolvedValue(stored({ expectedEndAt: null }) as never);
@@ -272,12 +347,23 @@ describe("HR", () => {
     expect(vehicleCompleteSchema.validate({}).error?.message).toContain("hoàn thành thật");
   });
 
-  it("only cancelled trips can be deleted", async () => {
-    repo.deleteCancelled.mockResolvedValueOnce(null as never);
-    await expect(hrVehicleService.remove(String(new Types.ObjectId()))).rejects.toMatchObject({ statusCode: 409 });
-    repo.deleteCancelled.mockResolvedValueOnce(stored({ status: "cancelled", receipts: [{ publicId: "asia-portal/vehicle-receipts/z" }] }) as never);
-    await hrVehicleService.remove(String(new Types.ObjectId()));
+  it("deletes any trip that is not completed, silently, with its pictures and every notice about it", async () => {
+    const id = String(new Types.ObjectId());
+    // Completed: kept for the cost reports.
+    repo.deleteUnlessCompleted.mockResolvedValueOnce(null as never);
+    repo.findById.mockResolvedValueOnce(stored({ status: "completed" }) as never);
+    await expect(hrVehicleService.remove(id)).rejects.toMatchObject({ statusCode: 409 });
+    // Unknown id.
+    repo.deleteUnlessCompleted.mockResolvedValueOnce(null as never);
+    repo.findById.mockResolvedValueOnce(null as never);
+    await expect(hrVehicleService.remove(id)).rejects.toMatchObject({ statusCode: 404 });
+    // Still being handled: deleted for good, nobody is notified.
+    repo.deleteUnlessCompleted.mockResolvedValueOnce(stored({ status: "arranged", receipts: [{ publicId: "asia-portal/vehicle-receipts/z" }] }) as never);
+    await hrVehicleService.remove(id);
     expect(removeVehicleReceiptFiles).toHaveBeenLastCalledWith(["asia-portal/vehicle-receipts/z"]);
+    expect(notificationRepository.removeAllByRef).toHaveBeenCalledWith(expect.arrayContaining(["vehicle-new", "vehicle-arranged"]), id);
+    expect(vehicleNotifier.toRequester).not.toHaveBeenCalled();
+    expect(vehicleNotifier.toHr).not.toHaveBeenCalled();
   });
 
   it("the monthly report counts only closed external trips at their real price", async () => {
@@ -289,8 +375,9 @@ describe("HR", () => {
       stored({ status: "cancelled", vehicleType: "external", actualCost: 777 }),
     ] as never);
     const report = await hrVehicleService.report("2026-11");
-    expect(report.totals).toMatchObject({ trips: 5, completed: 3, companyTrips: 1, externalTrips: 2, externalCost: 150000, cancelled: 1, notClosed: 1 });
-    expect(report.byDepartment).toEqual([{ name: "Sales", trips: 1, cost: 100000 }, { name: "Kho", trips: 1, cost: 50000 }]);
+    // The whole company together: no split by department; company cars have no cost.
+    expect(report.totals).toEqual({ externalTrips: 2, externalCost: 150000, companyTrips: 1, notClosed: 1 });
+    expect(report).not.toHaveProperty("byDepartment");
   });
 
   it("months follow Vietnam time", () => {

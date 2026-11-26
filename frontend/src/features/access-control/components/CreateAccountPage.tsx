@@ -31,14 +31,18 @@ type EmailLink = { email: string; employee: EmployeeLookupResult | null };
 // name, email or phone (or earlier entries). Passwords stay "new-password" for the same reason.
 const fields: { key: keyof CreateAccountFormValues; label: string; type: string; autoComplete: string; maxLength: number; placeholder?: string }[] = [
   { key: "name", label: "Họ và tên", type: "text", autoComplete: "off", maxLength: 100 },
-  { key: "email", label: "Email đăng nhập", type: "email", autoComplete: "off", maxLength: 150, placeholder: "ten@asiafnb.com" },
+  { key: "email", label: "Email", type: "email", autoComplete: "off", maxLength: 150, placeholder: "ten@asiafnb.com" },
+  { key: "username", label: "Tên đăng nhập", type: "text", autoComplete: "off", maxLength: 100, placeholder: "Tự điền theo email" },
+  { key: "phone", label: "Số điện thoại", type: "tel", autoComplete: "off", maxLength: 30 },
   { key: "password", label: "Mật khẩu", type: "password", autoComplete: "new-password", maxLength: PASSWORD_MAX_LENGTH, placeholder: "Từ 8 đến 32 ký tự" },
   { key: "confirmPassword", label: "Xác nhận mật khẩu", type: "password", autoComplete: "new-password", maxLength: PASSWORD_MAX_LENGTH },
-  { key: "phone", label: "Số điện thoại", type: "tel", autoComplete: "off", maxLength: 30 },
 ];
+const TAKEN = { username: "Tên đăng nhập đã được sử dụng.", email: "Email đã được sử dụng.", phone: "Số điện thoại đã được sử dụng." } as const;
 
 export function CreateAccountPage({ roles, isRootAdmin, onCancel, onSave }: Props) {
-  const [values, setValues] = useState<CreateAccountFormValues>({ name: "", email: "", password: "", confirmPassword: "", phone: "" });
+  const [values, setValues] = useState<CreateAccountFormValues>({ name: "", email: "", username: "", password: "", confirmPassword: "", phone: "" });
+  // The username follows the email until someone types a different one (cleared: follows again).
+  const usernameTyped = useRef(false);
   const [errors, setErrors] = useState<CreateAccountFormErrors>({});
   const [showPassword, setShowPassword] = useState({ password: false, confirmPassword: false });
   const [roleIds, setRoleIds] = useState<string[]>([]);
@@ -62,21 +66,22 @@ export function CreateAccountPage({ roles, isRootAdmin, onCancel, onSave }: Prop
   };
 
   const pickEmployee = (employee: EmployeeLookupResult) => {
-    const next = { ...valuesRef.current, name: employee.name, email: employee.email.toLowerCase(), phone: normalizeAccountPhone(employee.phone) };
+    const email = employee.email.toLowerCase();
+    const next = { ...valuesRef.current, name: employee.name, email, phone: normalizeAccountPhone(employee.phone), ...(usernameTyped.current ? {} : { username: email }) };
     valuesRef.current = next;
-    contactRequests.current.email++; contactRequests.current.phone++;
+    contactRequests.current.username++; contactRequests.current.email++; contactRequests.current.phone++;
     linkRequest.current++;
     setValues(next);
     setEmailLink({ email: next.email, employee });
     setSaveError("");
     // Show problems with the copied data right away, e.g. a landline phone in the record.
     const nextErrors = validateCreateAccount(next);
-    setErrors((current) => ({ ...current, name: nextErrors.name, email: nextErrors.email, phone: nextErrors.phone }));
+    setErrors((current) => ({ ...current, name: nextErrors.name, email: nextErrors.email, phone: nextErrors.phone, ...(usernameTyped.current ? {} : { username: undefined }) }));
   };
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
   const valuesRef = useRef(values);
-  const contactRequests = useRef({ email: 0, phone: 0 });
+  const contactRequests = useRef({ username: 0, email: 0, phone: 0 });
   // Anything typed or chosen counts as unsaved: leaving the page (menu, back arrow, browser
   // back, closing the tab, Hủy) asks first instead of silently dropping the new account.
   const hasChanges = Object.values(values).some((value) => value.trim() !== "") || roleIds.length > 0 || accountRole !== "user";
@@ -86,30 +91,37 @@ export function CreateAccountPage({ roles, isRootAdmin, onCancel, onSave }: Prop
     const snapshot = valuesRef.current;
     const localError = validateCreateAccount(snapshot)[key];
     setErrors((current) => ({ ...current, [key]: localError }));
-    if (localError || (key !== "email" && key !== "phone")) return;
-    if (key === "email") void checkEmailLink(snapshot.email.trim().toLowerCase());
+    if (localError || (key !== "username" && key !== "email" && key !== "phone")) return;
+    if (key === "email") {
+      void checkEmailLink(snapshot.email.trim().toLowerCase());
+      // The username was filled from this email: check it too.
+      if (!usernameTyped.current) void blurField("username");
+    }
     const request = ++contactRequests.current[key];
-    const value = key === "email" ? snapshot.email.trim().toLowerCase() : normalizeAccountPhone(snapshot.phone);
+    const value = key === "phone" ? normalizeAccountPhone(snapshot.phone) : snapshot[key].trim().toLowerCase();
     try {
       const result = await checkAccountContacts({ [key]: value });
       if (request !== contactRequests.current[key] || valuesRef.current[key] !== snapshot[key]) return;
-      const taken = key === "email" ? result.emailAvailable === false : result.phoneAvailable === false;
-      setErrors((current) => ({ ...current, [key]: taken ? key === "email" ? "Email đã được sử dụng." : "Số điện thoại đã được sử dụng." : undefined }));
+      const taken = key === "username" ? result.usernameAvailable === false : key === "email" ? result.emailAvailable === false : result.phoneAvailable === false;
+      setErrors((current) => ({ ...current, [key]: taken ? TAKEN[key] : undefined }));
     } catch {
       // Saving always rechecks contacts on the server, even if this early check fails.
     }
   };
 
   const changeField = (key: keyof CreateAccountFormValues, value: string) => {
-    const next = { ...values, [key]: value };
+    if (key === "username") usernameTyped.current = value.trim() !== "";
+    const next = { ...values, [key]: value, ...(key === "email" && !usernameTyped.current ? { username: value.trim().toLowerCase() } : {}) };
     valuesRef.current = next;
-    if (key === "email" || key === "phone") contactRequests.current[key]++;
+    if (key === "username" || key === "email" || key === "phone") contactRequests.current[key]++;
+    if (key === "email" && !usernameTyped.current) contactRequests.current.username++;
     setValues(next);
     setSaveError("");
     const nextErrors = validateCreateAccount(next);
     setErrors((current) => ({
       ...current,
       [key]: current[key] ? nextErrors[key] : undefined,
+      ...(key === "email" && !usernameTyped.current ? { username: current.username ? nextErrors.username : undefined } : {}),
       ...(key === "password" && next.confirmPassword ? { confirmPassword: nextErrors.confirmPassword } : {}),
     }));
   };
@@ -145,11 +157,12 @@ export function CreateAccountPage({ roles, isRootAdmin, onCancel, onSave }: Prop
     setSaving(true);
     setSaveError("");
     // Ignore any in-flight blur checks; the POST response is authoritative.
+    contactRequests.current.username++;
     contactRequests.current.email++;
     contactRequests.current.phone++;
     try {
       return await onSave({
-        name: values.name.trim(), email: values.email.trim().toLowerCase(),
+        name: values.name.trim(), username: values.username.trim().toLowerCase(), email: values.email.trim().toLowerCase(),
         password: values.password, confirmPassword: values.confirmPassword,
         phone: normalizeAccountPhone(values.phone), accountRole, roleIds: accountRole === "manager" ? roleIds : [],
       });
@@ -191,7 +204,7 @@ export function CreateAccountPage({ roles, isRootAdmin, onCancel, onSave }: Prop
                     type={passwordField && showPassword[passwordField] ? "text" : field.type}
                     autoComplete={field.autoComplete} maxLength={field.maxLength} placeholder={field.placeholder}
                     spellCheck={field.key === "name" ? undefined : false}
-                    autoCapitalize={field.key === "email" ? "none" : undefined}
+                    autoCapitalize={field.key === "email" || field.key === "username" ? "none" : undefined}
                     value={values[field.key]} onChange={(event) => changeField(field.key, event.target.value)}
                     onBlur={() => void blurField(field.key)}
                     aria-invalid={Boolean(errors[field.key])} aria-describedby={errors[field.key] ? `${id}-error` : undefined}
@@ -206,6 +219,7 @@ export function CreateAccountPage({ roles, isRootAdmin, onCancel, onSave }: Prop
                     ? <p role="status" className="mt-1.5 text-sm text-rose-600">Nhân viên {currentLink.employee.name} ({currentLink.employee.employeeCode}) đã có tài khoản.</p>
                     : <p role="status" className="mt-1.5 text-sm text-emerald-700">Đã liên kết hồ sơ {currentLink.employee.employeeCode} · {currentLink.employee.name}</p>
                   : <p role="status" className="mt-1.5 text-sm text-amber-700">Email này chưa có trong danh bạ nhân viên. Tài khoản vẫn tạo được nhưng sẽ không hiện ảnh và chức vụ.</p>)}
+                {field.key === "username" && !errors.username && <p className="mt-1.5 text-xs text-slate-500">Tự điền giống email. Sửa nếu muốn dùng tên khác; đổi lại được trong Chỉnh sửa tài khoản.</p>}
                 {field.key === "password" && <p className="mt-2 text-xs leading-5 text-slate-500">{PASSWORD_REQUIREMENTS}</p>}
               </div>
             );

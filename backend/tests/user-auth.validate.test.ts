@@ -32,16 +32,17 @@ it("reports a malformed email as a format error and a non-company email only as 
   expect(userRegisterSchema.validate({ ...valid, email: "a@gmail.com" }).error!.message).toBe("Email không hợp lệ.");
 });
 it("login checks only that credentials are present, without the domain or password policy", () => {
-  for (const email of ["a@gmail.com", "TEST@asiafnb.com"]) {
-    const result = userLoginSchema.validate({ email, password: "abc" });
+  // A username may be the email or any other name; only presence is checked.
+  for (const username of ["a@gmail.com", "TEST@asiafnb.com", "Kun@4890", "abc"]) {
+    const result = userLoginSchema.validate({ username, password: "abc" });
     expect(result.error).toBeUndefined();
-    expect(result.value.email).toBe(email.toLowerCase());
+    expect(result.value.username).toBe(username.toLowerCase());
   }
-  expect(userLoginSchema.validate({ email: valid.email, password: " Aa1!bbbb" }).value.password).toBe(" Aa1!bbbb");
-  expect(userLoginSchema.validate({ email: "abc", password: "x" }).error!.message).toBe("Email không đúng định dạng.");
-  expect(userLoginSchema.validate({ email: valid.email, password: "" }).error!.message).toBe("Vui lòng nhập mật khẩu.");
-  expect(userLoginSchema.validate({ email: valid.email }).error!.message).toBe("Vui lòng nhập mật khẩu.");
-  const oversized = userLoginSchema.validate({ email: valid.email, password: "a".repeat(129) }).error!.message;
-  expect(oversized).toBe("Email hoặc mật khẩu không chính xác.");
+  expect(userLoginSchema.validate({ username: valid.email, password: " Aa1!bbbb" }).value.password).toBe(" Aa1!bbbb");
+  expect(userLoginSchema.validate({ username: "", password: "x" }).error!.message).toBe("Vui lòng nhập tên đăng nhập.");
+  expect(userLoginSchema.validate({ username: valid.email, password: "" }).error!.message).toBe("Vui lòng nhập mật khẩu.");
+  expect(userLoginSchema.validate({ username: valid.email }).error!.message).toBe("Vui lòng nhập mật khẩu.");
+  const oversized = userLoginSchema.validate({ username: valid.email, password: "a".repeat(129) }).error!.message;
+  expect(oversized).toBe("Tên đăng nhập hoặc mật khẩu không chính xác.");
   expect(oversized).not.toMatch(/ký tự|chữ hoa|asiafnb/);
 });

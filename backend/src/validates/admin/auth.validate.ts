@@ -3,7 +3,9 @@ import { newPasswordSchema } from "./password.validate";
 import { accountEmailSchema } from "./account.validate";
 
 export const loginSchema = Joi.object({
-  email: Joi.string().trim().lowercase().email().max(150).required(),
+  // Only presence is checked: a wrong format answers like a wrong password.
+  username: Joi.string().trim().lowercase().max(150).required()
+    .messages({ "string.empty": "Vui lòng nhập tên đăng nhập.", "any.required": "Vui lòng nhập tên đăng nhập.", "string.max": "Tên đăng nhập hoặc mật khẩu không chính xác." }),
   // Validate existing credentials verbatim; new password policy is enforced when setting passwords.
   password: Joi.string().max(100).required(),
   rememberMe: Joi.boolean().default(false),

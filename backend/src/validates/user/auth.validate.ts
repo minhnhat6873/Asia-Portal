@@ -14,8 +14,9 @@ const password = newPasswordSchema.required();
 const confirmPassword = Joi.string().valid(Joi.ref("password")).required().strip().messages({ "any.only": "Xác nhận mật khẩu không khớp.", "any.required": "Vui lòng xác nhận mật khẩu.", "string.empty": "Vui lòng xác nhận mật khẩu." });
 // Login checks only that credentials are present: the domain and password policy are not
 // revealed here, and any wrong combination gets the same "incorrect" response from the service.
-const loginPassword = Joi.string().max(128).required().messages({ "string.base": "Vui lòng nhập mật khẩu.", "string.empty": "Vui lòng nhập mật khẩu.", "any.required": "Vui lòng nhập mật khẩu.", "string.max": "Email hoặc mật khẩu không chính xác." });
-export const userLoginSchema = Joi.object({ email: userEmailFormatSchema, password: loginPassword, rememberMe: Joi.boolean().default(false) });
+const loginPassword = Joi.string().max(128).required().messages({ "string.base": "Vui lòng nhập mật khẩu.", "string.empty": "Vui lòng nhập mật khẩu.", "any.required": "Vui lòng nhập mật khẩu.", "string.max": "Tên đăng nhập hoặc mật khẩu không chính xác." });
+const loginUsername = Joi.string().trim().lowercase().max(150).required().messages({ "string.base": "Vui lòng nhập tên đăng nhập.", "string.empty": "Vui lòng nhập tên đăng nhập.", "any.required": "Vui lòng nhập tên đăng nhập.", "string.max": "Tên đăng nhập hoặc mật khẩu không chính xác." });
+export const userLoginSchema = Joi.object({ username: loginUsername, password: loginPassword, rememberMe: Joi.boolean().default(false) });
 export const userRegisterSchema = Joi.object({
   name: Joi.string().trim().min(2).max(100).pattern(/^[\p{L}][\p{L}\p{M}'’.-]*(?:\s+[\p{L}][\p{L}\p{M}'’.-]*)*$/u).required()
     .messages({ "string.pattern.base": "Họ và tên không hợp lệ.", "string.min": "Họ và tên cần từ 2 đến 100 ký tự.", "string.max": "Họ và tên cần từ 2 đến 100 ký tự.", "string.empty": "Vui lòng nhập họ và tên.", "any.required": "Vui lòng nhập họ và tên." }),

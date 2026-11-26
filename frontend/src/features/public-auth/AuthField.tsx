@@ -37,13 +37,13 @@ export default function AuthField({
     const placeholders: Record<FieldName, string> = {
       name: "Nguyễn Minh An",
       phone: "09xx xxx xxx",
-      email: "ten@example.com",
+      email: mode === "login" ? "Tên đăng nhâp" : "ten@example.com",
       password: mode === "register" ? "Tạo mật khẩu" : "Nhập mật khẩu",
       confirm: "Nhập lại mật khẩu",
     };
     const Icon =
       name === "email"
-        ? Mail
+        ? mode === "login" ? UserRound : Mail
         : name === "phone"
           ? Phone
           : name === "name"
@@ -66,7 +66,7 @@ export default function AuthField({
                   ? "text"
                   : "password"
                 : name === "email"
-                  ? "email"
+                  ? mode === "login" ? "text" : "email"
                   : name === "phone"
                     ? "tel"
                     : "text"

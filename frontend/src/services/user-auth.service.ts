@@ -55,8 +55,8 @@ export function getUserSession(): Promise<UserAccount> {
   return pending;
 }
 export const userAuthService = {
-  async login(email: string, password: string, rememberMe: boolean) {
-    const account = await request<UserAccount>("/login", { email, password, rememberMe });
+  async login(username: string, password: string, rememberMe: boolean) {
+    const account = await request<UserAccount>("/login", { username, password, rememberMe });
     window.dispatchEvent(new Event("asia-user-session-changed"));
     return account;
   },

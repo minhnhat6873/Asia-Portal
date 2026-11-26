@@ -1,4 +1,4 @@
-import type { QueryFilter, UpdateQuery } from "mongoose";
+import { isValidObjectId, type QueryFilter, type UpdateQuery } from "mongoose";
 
 import type { VehicleBooking, VehicleStatus } from "../interfaces/vehicle-booking.interface";
 import AccountModel from "../models/account.model";
@@ -9,7 +9,26 @@ const internalFields = "-departReminderSentAt -hrOverdueNotifiedAt -hrOverdueEma
 /** Older pending requests are not chased any more (e.g. test data when this check went live). */
 const PENDING_OVERDUE_LOOKBACK_MS = 24 * 60 * 60_000;
 
+export type RequesterState = "active" | "locked" | "deleted";
+
 export const vehicleBookingRepository = {
+  /** Trips of one requester that have not happened yet (cancelled when their account goes). */
+  findOpenByRequester(accountId: string) {
+    return VehicleBookingModel.find({ "requester.accountId": accountId, status: { $in: ["pending", "arranged"] } }).select(internalFields).limit(200).lean();
+  },
+
+  /** Whether each requester's account still works: shown to HR as a warning. Missing = deleted for good. */
+  async requesterStates(accountIds: string[]): Promise<Map<string, RequesterState>> {
+    const ids = [...new Set(accountIds)].filter((id) => isValidObjectId(id));
+    const accounts = ids.length ? await AccountModel.find({ _id: { $in: ids } }).select("status isDeleted").lean() : [];
+    const byId = new Map(accounts.map((account) => [String(account._id), account]));
+    return new Map(accountIds.map((id) => {
+      const account = byId.get(id);
+      const state: RequesterState = !account || account.isDeleted ? "deleted" : account.status === "inactive" ? "locked" : "active";
+      return [id, state];
+    }));
+  },
+
   create(data: Partial<VehicleBooking>) {
     return VehicleBookingModel.create(data).then((doc) => doc.toObject() as VehicleBooking & { _id: unknown });
   },
@@ -24,7 +43,7 @@ export const vehicleBookingRepository = {
   },
 
   list(filter: QueryFilter<VehicleBooking>, skip: number, limit: number) {
-    return VehicleBookingModel.find(filter).select(internalFields).sort({ departAt: -1, _id: -1 }).skip(skip).limit(limit).lean();
+    return VehicleBookingModel.find(filter).select(internalFields).sort({ createdAt: -1, _id: -1 }).skip(skip).limit(limit).lean();
   },
 
   count(filter: QueryFilter<VehicleBooking>) {
@@ -41,8 +60,9 @@ export const vehicleBookingRepository = {
       .select(internalFields).lean();
   },
 
-  deleteCancelled(id: string) {
-    return VehicleBookingModel.findOneAndDelete({ _id: id, status: "cancelled" }).lean();
+  /** Permanent delete of any trip that is not completed (completed ones stay for the cost reports). */
+  deleteUnlessCompleted(id: string) {
+    return VehicleBookingModel.findOneAndDelete({ _id: id, status: { $ne: "completed" } }).lean();
   },
 
   // ---- reminders (job) ----

@@ -1,3 +1,4 @@
+jest.mock("../src/services/vehicle/vehicle-account-closed", () => ({ vehicleAccountClosedService: { cancelOpenTrips: jest.fn().mockResolvedValue(0) } }));
 import type { NextFunction, Request, Response } from "express";
 
 jest.mock("../src/services/admin/employee.service", () => ({ adminEmployeeService: {

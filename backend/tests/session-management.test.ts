@@ -179,12 +179,12 @@ it("handles old sessions without device metadata without inventing a device or l
   expect(result.items[0]).toMatchObject({ browser: "Chưa xác định", operatingSystem: "Chưa xác định", ipAddress: null });
 });
 it("records device/IP hints during login without trusting invalid IP values", async () => {
-  jest.spyOn(adminAccountRepository, "findByEmailWithPassword").mockResolvedValue({ ...accounts.get(managerId), password: "$2b$04$fixture" } as never);
+  jest.spyOn(adminAccountRepository, "findByUsernameWithPassword").mockResolvedValue({ ...accounts.get(managerId), password: "$2b$04$fixture" } as never);
   const bcrypt = (await import("bcryptjs")).default;
   jest.spyOn(bcrypt, "compare").mockImplementation(async () => true);
   const create = jest.spyOn(authSessionRepository, "create").mockResolvedValue({} as never);
   const ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/130.0.0.0 Safari/537.36 Edg/130.0.0.0";
-  await adminAuthService.login({ email: "test@asiafnb.com", password: "Password123!" }, { ipAddress: "::ffff:192.168.26.50", userAgent: ua });
+  await adminAuthService.login({ username: "test@asiafnb.com", password: "Password123!" }, { ipAddress: "::ffff:192.168.26.50", userAgent: ua });
   expect(create).toHaveBeenCalledWith(expect.objectContaining({ browser: "Microsoft Edge", operatingSystem: "Windows", ipAddress: "192.168.26.50", lastSeenAt: expect.any(Date) }));
   expect(describeSessionClient({ ipAddress: "forged-header", userAgent: "unknown" })).toMatchObject({ ipAddress: undefined, browser: "Chưa xác định" });
 });

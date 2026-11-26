@@ -1,3 +1,4 @@
+jest.mock("../src/services/vehicle/vehicle-account-closed", () => ({ vehicleAccountClosedService: { cancelOpenTrips: jest.fn().mockResolvedValue(0) } }));
 import type { ClientSession } from "mongoose";
 import { adminAccountRepository } from "../src/repositories/admin/account.repository";
 import { accountAdministrationRepository } from "../src/repositories/admin/account-administration.repository";
@@ -5,6 +6,7 @@ import { permissionGroupRepository } from "../src/repositories/admin/permission-
 import { adminAccountService } from "../src/services/admin/account.service";
 import { lockAccountSchema } from "../src/validates/admin/account.validate";
 import AccountModel from "../src/models/account.model";
+import { vehicleAccountClosedService } from "../src/services/vehicle/vehicle-account-closed";
 
 // Lock/unlock and the account trash. Admin gốc may lock anyone but themself and the last
 // active Admin gốc; a manager with "accounts:manage-users" may lock user accounts only.
@@ -41,11 +43,19 @@ describe("locking", () => {
     const result = await adminAccountService.lockAccount(otherAdminId, "  Nghi lộ mật khẩu ", adminId);
     expect(result).toMatchObject({ status: "inactive", lock: { kind: "manual", note: "Nghi lộ mật khẩu", byName: "Admin Một" } });
     expect(adminAccountRepository.lock).toHaveBeenCalledWith(otherAdminId, expect.objectContaining({ kind: "manual", note: "Nghi lộ mật khẩu" }), "admin", session);
+    // Their trips that have not happened yet are cancelled, in the admin's name.
+    expect(vehicleAccountClosedService.cancelOpenTrips).toHaveBeenCalledWith(otherAdminId, "locked", expect.objectContaining({ accountId: adminId }));
   });
 
   it("leaves the reason out when none is given", async () => {
     await adminAccountService.lockAccount(userId, "   ", adminId);
     expect(jest.mocked(adminAccountRepository.lock).mock.calls[0][1]).not.toHaveProperty("note");
+  });
+
+  it("a refused lock cancels no trips", async () => {
+    jest.mocked(vehicleAccountClosedService.cancelOpenTrips).mockClear();
+    await expect(adminAccountService.lockAccount(adminId, "", adminId)).rejects.toMatchObject({ statusCode: 400 });
+    expect(vehicleAccountClosedService.cancelOpenTrips).not.toHaveBeenCalled();
   });
 
   it("refuses to lock yourself or the last active Admin gốc", async () => {
@@ -132,8 +142,8 @@ describe("trashed accounts cannot sign in", () => {
     const query = { select: jest.fn().mockReturnThis(), session: jest.fn().mockReturnThis(), lean: jest.fn() };
     jest.mocked(adminAccountRepository.findActiveById).mockRestore();
     const findOne = jest.spyOn(AccountModel, "findOne").mockReturnValue(query as never);
-    adminAccountRepository.findByEmailWithPassword("NV@asiafnb.com");
-    expect(findOne).toHaveBeenLastCalledWith({ email: "nv@asiafnb.com", isDeleted: { $ne: true } });
+    adminAccountRepository.findByUsernameWithPassword("NV@asiafnb.com");
+    expect(findOne).toHaveBeenLastCalledWith({ username: "nv@asiafnb.com", isDeleted: { $ne: true } });
     adminAccountRepository.findActiveById(userId);
     expect(findOne).toHaveBeenLastCalledWith({ _id: userId, status: "active", isDeleted: { $ne: true } });
   });

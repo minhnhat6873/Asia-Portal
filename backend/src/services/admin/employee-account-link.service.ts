@@ -1,5 +1,6 @@
 import type { AccountActorRef } from "../../interfaces/account.interface";
 import { adminAccountRepository } from "../../repositories/admin/account.repository";
+import { vehicleAccountClosedService } from "../vehicle/vehicle-account-closed";
 
 // An employee record and a login account are separate; they are matched by company email.
 // When an employee leaves or is removed, the matching login must stop working.
@@ -20,7 +21,10 @@ export const employeeAccountLinkService = {
     // Never lock an Admin gốc automatically: a mistaken HR edit must not lock out the administrator.
     if (account.role === "admin") return { action: "admin-skipped", ...describe(account) };
     const locked = await adminAccountRepository.lockLinked(String(account._id), reason);
-    return locked ? { action: "locked", ...describe(locked) } : { action: "none" };
+    if (!locked) return { action: "none" };
+    // Their trips that have not happened yet are cancelled and HR is told.
+    await vehicleAccountClosedService.cancelOpenTrips(String(locked._id), "locked");
+    return { action: "locked", ...describe(locked) };
   },
 
   // Employee permanently deleted: move the login to the account trash (deleted for good only from there).
@@ -29,6 +33,8 @@ export const employeeAccountLinkService = {
     if (!account) return { action: "none" };
     if (account.role === "admin") return { action: "admin-skipped", ...describe(account) };
     const trashed = await adminAccountRepository.trashLinked(String(account._id), by);
-    return trashed ? { action: "trashed", ...describe(trashed) } : { action: "none" };
+    if (!trashed) return { action: "none" };
+    await vehicleAccountClosedService.cancelOpenTrips(String(trashed._id), "deleted", by);
+    return { action: "trashed", ...describe(trashed) };
   },
 };

@@ -2,6 +2,7 @@ import { MEETING_REMINDER_LEAD_MINUTES, MEETING_ROOMS } from "../../config/meeti
 import type { Media } from "../../interfaces/media.interface";
 import type { MeetingBooking } from "../../interfaces/meeting.interface";
 import { notificationRepository } from "../../repositories/user/notification.repository";
+import type { NotificationScope } from "../../interfaces/notification.interface";
 
 const PAGE_SIZE = 20;
 const toDisplayDate = (date: string) => date.split("-").reverse().join("/");
@@ -125,10 +126,12 @@ export const notificationService = {
     });
   },
 
-  async list(accountId: string, before?: Date) {
+  // scope: which bell asks. The user portal shows personal notices only; the admin portal shows
+  // the work notices (those that open an /admin page). See notification.repository.ts.
+  async list(accountId: string, before?: Date, scope: NotificationScope = "user") {
     const [rows, unread] = await Promise.all([
-      notificationRepository.list(accountId, PAGE_SIZE + 1, before),
-      notificationRepository.countUnread(accountId),
+      notificationRepository.list(accountId, PAGE_SIZE + 1, before, scope),
+      notificationRepository.countUnread(accountId, scope),
     ]);
     const items = rows.slice(0, PAGE_SIZE).map((row) => ({
       id: String(row._id), type: row.type, title: row.title, message: row.message, link: row.link,
@@ -137,19 +140,23 @@ export const notificationService = {
     return { items, unread, hasMore: rows.length > PAGE_SIZE };
   },
 
-  unreadCount(accountId: string) {
-    return notificationRepository.countUnread(accountId);
+  unreadCount(accountId: string, scope: NotificationScope = "user") {
+    return notificationRepository.countUnread(accountId, scope);
   },
 
-  async markRead(accountId: string, id: string): Promise<boolean> {
-    return Boolean(await notificationRepository.markRead(accountId, id));
+  async markRead(accountId: string, id: string, scope: NotificationScope = "user"): Promise<boolean> {
+    return Boolean(await notificationRepository.markRead(accountId, id, scope));
   },
 
-  async deleteAll(accountId: string): Promise<void> {
-    await notificationRepository.deleteAll(accountId);
+  async deleteOne(accountId: string, id: string, scope: NotificationScope = "user"): Promise<boolean> {
+    return Boolean(await notificationRepository.deleteOne(accountId, id, scope));
   },
 
-  async markAllRead(accountId: string): Promise<void> {
-    await notificationRepository.markAllRead(accountId);
+  async deleteAll(accountId: string, scope: NotificationScope = "user"): Promise<void> {
+    await notificationRepository.deleteAll(accountId, scope);
+  },
+
+  async markAllRead(accountId: string, scope: NotificationScope = "user"): Promise<void> {
+    await notificationRepository.markAllRead(accountId, scope);
   },
 };

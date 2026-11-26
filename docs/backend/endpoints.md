@@ -22,13 +22,14 @@ Tất cả endpoint đi qua middleware toàn cục tại `backend/index.ts`: Hel
 | POST | `/user/account/logout-others` | USER GATE | `logoutOtherDevices` | `userAuthService.logoutOthers` | `{ count }` phiên đã đăng xuất |
 | POST | `/user/account/avatar` | USER GATE, limiter theo account, multipart `avatar` (JPG/PNG/WEBP ≤ 5MB, Cloudinary `asia-portal/account-avatars`) | `uploadAvatar` | `accountAvatarService.set` | `{ avatar, customAvatar: true }`; xóa file ảnh riêng cũ. Không đổi ảnh hồ sơ nhân sự |
 | DELETE | `/user/account/avatar` | USER GATE, limiter theo account | `removeAvatar` | `accountAvatarService.clear` | `{ avatar, customAvatar: false }`: quay về ảnh hồ sơ nhân sự cùng email (hoặc rỗng) |
-| GET | `/user/notifications` | USER GATE, validate query (`before`) | `listNotifications` | `notificationService.list` | `{ items, unread, hasMore }`, 20 mục mỗi trang |
+| GET | `/user/notifications` | USER GATE, validate query (`before`) | `listNotifications` | `notificationService.list` | `{ items, unread, hasMore }`, 20 mục mỗi trang. Chuông trang user chỉ có thông báo cá nhân; thông báo công việc (link mở trang `/admin`, ví dụ HR: đơn đặt xe mới, chờ chốt) chỉ có ở `/admin/notifications`. Đếm chưa đọc, đọc hết, xóa hết cũng tách theo từng chuông |
 | DELETE | `/user/notifications` | USER GATE, CSRF | `deleteAllNotifications` | `notificationService.deleteAll` | Delete current account notifications |
 | GET | `/user/notifications/unread-count` | USER GATE | `unreadNotifications` | `notificationService.unreadCount` | `{ unread }` |
 | GET | `/user/notifications/stream` (và `/admin/notifications/stream`) | USER GATE / ADMIN GATE | `openNotificationStream` | `notificationEvents` | Server-Sent Events: gửi `event: notification` (không kèm dữ liệu) ngay khi tài khoản có thông báo mới, trang tự tải lại danh sách và phát âm thanh; `: ping` mỗi 25 giây; đóng sau 10 phút để trình duyệt kết nối lại và kiểm tra phiên. Tín hiệu nằm trong bộ nhớ, chỉ đúng khi backend chạy 1 tiến trình. Nginx không đệm nhờ header `X-Accel-Buffering: no` |
 | POST | `/user/notifications/read-all` | USER GATE | `markAllNotificationsRead` | `notificationService.markAllRead` | — |
 | POST | `/user/notifications/:id/read` | USER GATE | `markNotificationRead` | `notificationService.markRead` | 404 nếu không phải thông báo của mình |
-| POST | `/admin/auth/login` | login limiter, body login | `login` | `adminAuthService.login` | admin; set cookie |
+| DELETE | `/user/notifications/:id` | USER GATE, CSRF | `deleteNotification` | `notificationService.deleteOne` | Xóa một thông báo của chính mình (chỉ trong chuông trang user); 404 nếu không phải của mình |
+| POST | `/admin/auth/login` | login limiter, body `{ username, password, rememberMe }` | `login` | `adminAuthService.login` | admin; set cookie. Sai mật khẩu: chờ 10 phút, 30 phút rồi khóa (xem auth-and-permissions.md) |
 | POST | `/admin/auth/register` | register limiter, body register | `register` | `registrationOtpService.start` | email, `expiresInSeconds` (202) |
 | POST | `/admin/auth/register/verify-otp` | register limiter, body OTP | `verifyRegistrationOtp` | `registrationOtpService.verify` | account pending (201) |
 | POST | `/admin/auth/register/resend-otp` | register limiter, body email | `resendRegistrationOtp` | `registrationOtpService.resend` | `expiresInSeconds` |
@@ -129,7 +130,7 @@ Bài truyền thông không còn phạm vi Công khai/Nội bộ: cả cổng l�
 
 ## Đặt xe
 
-Nhân viên gửi yêu cầu (đón/đưa khách hoặc giao/nhận hàng); HR (quyền `vehicles:manage`) chọn xe công ty hoặc xe ngoài (Grab), nhập giá dự kiến và giá thật, chốt chuyến. Xóa chuyến đã hủy cần thêm quyền `vehicles:delete`. Chuyến đã hoàn thành không bao giờ xóa được.
+Nhân viên gửi yêu cầu (đón/đưa khách hoặc giao/nhận hàng); HR (quyền `vehicles:manage`) chọn xe công ty hoặc xe ngoài (Grab), nhập giá dự kiến và giá thật, chốt chuyến. Quyền `vehicles:delete` (Phân quyền: "Xóa vĩnh viễn chuyến xe") xóa hẳn chuyến đã hủy hoặc đang xử lý (`pending`, `arranged`, `arrived`) cùng ảnh và mọi thông báo về chuyến đó; không báo cho người đặt, chuyến cũng biến mất khỏi trang của họ. Chuyến đã hoàn thành không bao giờ xóa được (giữ cho báo cáo chi phí).
 
 Yêu cầu đặt xe hỗ trợ `extraDestinations`, một mảng tùy chọn tối đa 20 địa chỉ bổ sung, mỗi địa chỉ từ 3 đến 300 ký tự. `destination` vẫn là điểm đến đầu tiên. Các chuyến cũ không có mảng này được trả về với danh sách rỗng.
 
@@ -146,19 +147,22 @@ Kiểm tra dữ liệu (frontend `src/lib/vehicleValidation.ts` và backend dùn
 | PATCH | `/user/vehicles/:id` | USER GATE, limiter, validate | chỉ khi `pending` |
 | POST | `/user/vehicles/:id/cancel` | USER GATE, limiter, validate | chỉ khi `pending` |
 | POST | `/user/vehicles/:id/arrived` | USER GATE, limiter, multipart `receipts` ≤ 3 ảnh | "Đã đi xong" khi `arranged`; báo HR |
-| GET | `/admin/vehicles` | ADMIN GATE, `vehicles:manage` | lọc `status`, `vehicleType`, `purpose`, `month`, `search`; trả `waiting` |
+| GET | `/admin/vehicles` | ADMIN GATE, `vehicles:manage` | lọc `status`, `vehicleType`, `purpose`, `month`, `dateFrom`, `dateTo`, `search`; `dateFrom`/`dateTo` dạng `YYYY-MM-DD`, lọc theo ngày giờ đặt đơn (`createdAt`) và gồm trọn ngày cuối theo giờ Việt Nam. Hai ngày bằng nhau hoặc chỉ truyền một ngày thì lọc riêng ngày đó; khoảng ngày ưu tiên hơn `month`. Ngày không hợp lệ hoặc ngày kết thúc trước ngày bắt đầu trả 400. Trả `waiting`; đơn đặt mới nhất lên đầu |
 | GET | `/admin/vehicles/:id` | như trên | |
 | PATCH | `/admin/vehicles/:id` | như trên, validate | chọn xe/sửa chuyến; bắt buộc `expectedEndAt` (HR quyết định, người đặt không nhập); xe ngoài cần `estimatedCost`; báo người đặt. Đổi giờ đi/giờ về/điểm đón/điểm đến so với yêu cầu thì bắt buộc `changeReason` (≥ 3 ký tự): lưu vào `changes[]` và gửi người đặt qua thông báo web + email. Không đổi gì mà vẫn gửi `changeReason` thì lưu thành lời nhắn của HR (`items` rỗng) và cũng gửi người đặt. HR không sửa được `note` của người đặt |
 | POST | `/admin/vehicles/:id/complete` | như trên, multipart `receipts` | chốt; bắt buộc `actualEndAt` (giờ hoàn thành thật, giờ Việt Nam, sau giờ đi và không ở tương lai); xe ngoài cần thêm `actualCost` |
 | POST | `/admin/vehicles/:id/cancel` | như trên | `reason` bắt buộc |
-| DELETE | `/admin/vehicles/:id` | thêm `vehicles:delete` | chỉ chuyến `cancelled`; xóa luôn ảnh |
-| GET | `/admin/vehicles/report?month=YYYY-MM` | `vehicles:manage` | tổng tiền xe ngoài theo giá thật (chỉ chuyến `completed`), theo phòng ban, theo mục đích |
+| DELETE | `/admin/vehicles/:id` | thêm `vehicles:delete` | mọi chuyến trừ `completed` (409); xóa luôn ảnh và mọi thông báo về chuyến; không báo cho ai |
+| GET | `/admin/vehicles/report?month=YYYY-MM` | `vehicles:manage` | một tháng, tính chung cả công ty (không tách phòng ban): `totals.externalTrips`, `totals.externalCost` (giá thật), `totals.companyTrips` (xe công ty không tính tiền), `totals.notClosed`; chỉ chuyến `completed` |
 | GET | `/admin/vehicles/report/export?month=YYYY-MM` | `vehicles:manage` | file Excel |
 | GET/POST | `/admin/notifications`, `/unread-count`, `/read-all`, `/:id/read` | ADMIN GATE | chuông thông báo trong trang quản trị |
 
 Nhắc tự động (job `vehicle-booking-reminder`, mỗi phút): người đặt được nhắc trên web và email trước giờ đi 15 phút. HR được báo trên web khi có yêu cầu mới, khi người đặt bấm "Đã đi xong", hoặc khi quá giờ hoàn thành dự kiến mà chưa chốt. 30 phút sau lần báo đó mà vẫn chưa chốt thì gửi email cho mọi tài khoản có quyền `vehicles:manage`.
+Thông báo vàng ở danh sách chuyến (`waiting` của `GET /admin/vehicles`) chỉ đếm yêu cầu `pending`.
 
 Người nhận thông báo đặt xe ("HR") là Admin gốc và các tài khoản `manager` có nhóm quyền (đang bật) chứa `vehicles:manage`.
+
+Tài khoản người đặt bị xóa (vào thùng rác) hoặc bị khóa (khóa tay, sửa trạng thái, hoặc tự khóa vì nhân viên nghỉ việc/xóa hồ sơ): các chuyến `pending`/`arranged` của người đó tự chuyển `cancelled` (lý do "Tài khoản người đặt đã bị xóa/khóa.", người hủy là admin thao tác hoặc "Hệ thống"), HR nhận thông báo `vehicle-requester-removed` cho từng chuyến (`services/vehicle/vehicle-account-closed.ts`). Chuyến `arrived`/`completed` giữ nguyên cho báo cáo. Khóa do nhập sai mật khẩu là tạm thời nên không hủy chuyến. Người đặt không còn hoạt động không nhận thông báo web hay email nào nữa. API phía HR trả thêm `requesterStatus` (`active` / `locked` / `deleted`) để giao diện hiện nhãn cảnh báo.
 
 - Yêu cầu mới: nếu còn ít nhất một HR đang mở trang `/admin` (đang giữ luồng `GET /admin/notifications/stream`, hoặc vừa ngắt dưới 60 giây) thì chỉ báo trên web. Không còn ai mở thì gửi email cho tất cả HR. Hệ thống chỉ biết trang đang mở, không biết người có ngồi trước máy hay không.
 - Yêu cầu vẫn `pending` sau giờ đi 5 phút: báo trên web cho HR và người đặt, gửi email cho tất cả HR (kể cả người đang mở web). Mỗi yêu cầu chỉ gửi một lần (cờ `pendingOverdueNotifiedAt`), bỏ qua yêu cầu có giờ đi cũ hơn 24 giờ.

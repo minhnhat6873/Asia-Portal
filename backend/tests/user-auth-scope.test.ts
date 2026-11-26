@@ -45,7 +45,11 @@ beforeAll(async () => {
 });
 beforeEach(() => {
   account.role = "admin"; account.status = "active"; account.authVersion = 0; sessions.clear();
-  jest.spyOn(adminAccountRepository, "findByEmailWithPassword").mockImplementation(() => Promise.resolve({ ...account }) as never);
+  jest.spyOn(adminAccountRepository, "findByUsernameWithPassword").mockImplementation(() => Promise.resolve({ ...account }) as never);
+  // Wrong-password bookkeeping (covered in login-guard.test.ts).
+  jest.spyOn(adminAccountRepository, "resetStaleLoginGuard").mockResolvedValue({} as never);
+  jest.spyOn(adminAccountRepository, "addLoginFailure").mockResolvedValue({ loginGuard: { count: 1, level: 0 } } as never);
+  jest.spyOn(adminAccountRepository, "clearLoginGuard").mockResolvedValue({} as never);
   jest.spyOn(adminAccountRepository, "findActiveById").mockImplementation(() => Promise.resolve(account.status === "active" ? { ...account } : null) as never);
   jest.spyOn(permissionGroupRepository, "findActiveByIds").mockResolvedValue([]);
   jest.spyOn(adminEmployeeRepository, "findByEmail").mockResolvedValue({ position: "Kế toán", department: "Tài chính", avatar: "" } as never);
@@ -78,7 +82,7 @@ function cookieValue(response: Response, name: string) {
   if (!header) throw new Error(`missing cookie ${name}`);
   return decodeURIComponent(header.slice(name.length + 1).split(";")[0]!);
 }
-const credentials = { email: account.email, password };
+const credentials = { username: account.email, password };
 
 it("lets an admin account sign in to the user portal with user-level access only", async () => {
   const response = await call("/user/login", "POST", "", credentials);
@@ -129,13 +133,13 @@ it("keeps regular users out of the admin portal but lets them use the user porta
   expect((await call("/user/login", "POST", "", credentials)).status).toBe(200);
 });
 
-it("gives the same generic answer for a wrong password and an unknown email", async () => {
+it("gives the same generic answer for a wrong password and an unknown username", async () => {
   const wrong = await call("/user/login", "POST", "", { ...credentials, password: "Wrong-password1!" });
-  jest.mocked(adminAccountRepository.findByEmailWithPassword).mockResolvedValue(null);
-  const unknown = await call("/user/login", "POST", "", { email: "nobody@gmail.com", password });
+  jest.mocked(adminAccountRepository.findByUsernameWithPassword).mockResolvedValue(null);
+  const unknown = await call("/user/login", "POST", "", { username: "nobody", password });
   for (const response of [wrong, unknown]) {
     expect(response.status).toBe(401);
-    expect((await response.json()).message).toBe("Email hoặc mật khẩu không chính xác");
+    expect((await response.json()).message).toBe("Tên đăng nhập hoặc mật khẩu không chính xác.");
   }
 });
 

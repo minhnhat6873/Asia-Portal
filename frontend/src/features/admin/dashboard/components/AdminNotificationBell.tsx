@@ -9,6 +9,7 @@ import { safeSitePath } from "@/lib/safeRedirect";
 import { NotificationRow } from "@/components/layout/NotificationBell";
 import type { NotificationPage, UserNotification } from "@/services/notification.service";
 import NotificationAlerts from "@/components/layout/NotificationAlerts";
+import { announceFreshNotifications } from "@/lib/liveRefresh";
 
 const loadAdminNotifications = () => apiGet<NotificationPage>("/admin/notifications");
 
@@ -40,6 +41,8 @@ export default function AdminNotificationBell() {
   const open = (item: UserNotification) => {
     if (!item.read) void apiPost(`/admin/notifications/${encodeURIComponent(item.id)}/read`, {}).finally(refreshCount);
     setIsOpen(false);
+    // Already on /admin/vehicles: the list reloads (going to the same page does not).
+    announceFreshNotifications([item.type]);
     router.push(safeSitePath(item.link, "/admin"));
   };
   const readAll = async () => {

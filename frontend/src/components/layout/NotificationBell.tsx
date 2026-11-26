@@ -15,6 +15,7 @@ import {
   type UserNotification,
 } from "@/services/notification.service";
 import { setUnreadNotificationCount, useUnreadNotificationCount } from "@/lib/notificationCount";
+import { announceFreshNotifications } from "@/lib/liveRefresh";
 
 export const NOTIFICATION_ICONS: Record<NotificationType, typeof Bell> = {
   news: Newspaper,
@@ -25,7 +26,7 @@ export const NOTIFICATION_ICONS: Record<NotificationType, typeof Bell> = {
   "vehicle-arranged": CarFront, "vehicle-updated": CarFront, "vehicle-completed": CarFront, "vehicle-cancelled": CarFront,
   "vehicle-reminder": CarFront, "vehicle-new": CarFront, "vehicle-arrived": CarFront, "vehicle-overdue": CarFront,
   "vehicle-pending-overdue": CarFront,
-  "vehicle-request-updated": CarFront, "vehicle-request-cancelled": CarFront,
+  "vehicle-request-updated": CarFront, "vehicle-request-cancelled": CarFront, "vehicle-requester-removed": CarFront,
 };
 
 export function NotificationRow({ item, onOpen }: { item: UserNotification; onOpen: (item: UserNotification) => void }) {
@@ -57,6 +58,8 @@ export function useOpenNotification(onDone?: () => void) {
       void markNotificationRead(item.id).finally(() => window.dispatchEvent(new Event("asia-notifications-changed")));
     }
     onDone?.();
+    // Already on that page (e.g. "Chuyến xe của tôi"): going there again does not reload it.
+    announceFreshNotifications([item.type]);
     router.push(safeNotificationLink(item.link));
   };
 }

@@ -7,7 +7,7 @@ import {
   Eye,
   EyeOff,
   Lock,
-  Mail,
+  UserRound,
   Sparkles,
 } from "lucide-react";
 import { getAdminLandingPath } from "@/lib/adminPermissions";
@@ -48,7 +48,7 @@ function LoginScreen() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const errs: { identifier?: string; password?: string } = {};
-    if (!identifier.trim()) errs.identifier = "Vui lòng nhập email";
+    if (!identifier.trim()) errs.identifier = "Vui lòng nhập tên đăng nhập";
     if (!password) errs.password = "Vui lòng nhập mật khẩu";
 
     setErrors(errs);
@@ -64,7 +64,7 @@ function LoginScreen() {
     setIsLoading(true);
     try {
       const admin = await loginAdmin({
-        email: identifier.trim(),
+        username: identifier.trim(),
         password,
         rememberMe,
       });
@@ -116,7 +116,7 @@ function LoginScreen() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label htmlFor="login-identifier" className={LABEL}>
-              Email
+              Tên đăng nhập
             </label>
             <FloatingField
               id="login-identifier"
@@ -126,9 +126,9 @@ function LoginScreen() {
                 if (errors.identifier)
                   setErrors({ ...errors, identifier: undefined });
               }}
-              label="Email"
-              placeholder="name@asiafnb.com"
-              icon={<Mail className="h-4 w-4" />}
+              label="Tên đăng nhập"
+              placeholder="Tên đăng nhâp"
+              icon={<UserRound className="h-4 w-4" />}
               invalid={Boolean(errors.identifier)}
               autoComplete="username"
             />

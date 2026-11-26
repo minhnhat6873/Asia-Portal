@@ -7,7 +7,7 @@ import type { Role, User } from "../types";
 import { checkAccountContacts, resetAccountPassword, updateAccount } from "@/services/access-control.service";
 import { ApiError } from "@/services/api";
 import { PASSWORD_MAX_LENGTH, PASSWORD_REQUIREMENTS } from "@/lib/password-validation";
-import { MANAGER_NEEDS_GROUP, normalizeAccountPhone, validateAccountIdentity, validateAccountPassword, type CreateAccountFormErrors } from "../create-account.validation";
+import { MANAGER_NEEDS_GROUP, normalizeAccountPhone, validateAccountIdentity, validateAccountPassword, validateUsername, type CreateAccountFormErrors } from "../create-account.validation";
 import { deriveInitials } from "@/lib/adminSession";
 import { useUnsavedChanges } from "@/lib/useUnsavedChanges";
 import { navigateWithUnsavedChangesGuard } from "@/lib/unsavedChangesNavigation";
@@ -26,7 +26,7 @@ function focusesAction(event: FocusEvent<HTMLInputElement>): boolean {
 }
 
 function initialProfile(user: User) {
-  return { name: user.name, email: user.email, phone: user.phone, role: user.accountRole,
+  return { name: user.name, username: user.username, email: user.email, phone: user.phone, role: user.accountRole,
     status: user.status === "suspended" ? "inactive" : user.status === "pending" ? "pending" : "active",
     permissionGroupIds: [...user.roleIds] };
 }
@@ -53,7 +53,7 @@ export function EditAccountPage({ user, roles, isRootAdmin, currentUserId, onBac
   const [message, setMessage] = useState("");
   const [errors, setErrors] = useState<CreateAccountFormErrors>({});
   const profileRef = useRef(profile);
-  const contactRequests = useRef({ email: 0, phone: 0 });
+  const contactRequests = useRef({ username: 0, email: 0, phone: 0 });
   const profileDirty = profileSignature(profile) !== profileSignature(baseline);
   const passwordDirty = Boolean(password || confirmation) || notifyUser !== notifyBaseline;
   const hasChanges = profileDirty || passwordDirty;
@@ -63,6 +63,8 @@ export function EditAccountPage({ user, roles, isRootAdmin, currentUserId, onBac
     const next = validateAccountIdentity(values);
     if (isSelf || values.email.trim().toLowerCase() === baseline.email.trim().toLowerCase()) delete next.email;
     if (normalizeAccountPhone(values.phone) === normalizeAccountPhone(baseline.phone)) delete next.phone;
+    const usernameError = values.username.trim().toLowerCase() === baseline.username ? "" : validateUsername(values.username);
+    if (usernameError) next.username = usernameError;
     return next;
   };
   const fieldClass = (field: keyof CreateAccountFormErrors) => `${INPUT} ${errors[field] ? "border-rose-500 focus:border-rose-500" : "border-slate-200 focus:border-emerald-600"}`;
@@ -78,7 +80,7 @@ export function EditAccountPage({ user, roles, isRootAdmin, currentUserId, onBac
   const handleFailure = (cause: unknown, fallback: string) => {
     if (cause instanceof ApiError) {
       const next: CreateAccountFormErrors = {};
-      for (const key of ["name", "email", "phone", "password", "confirmPassword"] as const) {
+      for (const key of ["name", "username", "email", "phone", "password", "confirmPassword"] as const) {
         if (cause.fieldErrors[key]) next[key] = cause.fieldErrors[key];
       }
       if (Object.keys(next).length) { showErrors(next); return; }
@@ -89,28 +91,29 @@ export function EditAccountPage({ user, roles, isRootAdmin, currentUserId, onBac
   const changeProfile = <K extends keyof typeof profile>(key: K, value: typeof profile[K]) => {
     const next = { ...profile, [key]: value };
     profileRef.current = next;
-    if (key === "email" || key === "phone") contactRequests.current[key as "email" | "phone"]++;
+    if (key === "username" || key === "email" || key === "phone") contactRequests.current[key as "username" | "email" | "phone"]++;
     setProfile(next); setError(""); setMessage("");
-    if (key === "name" || key === "email" || key === "phone") {
-      const field = key as "name" | "email" | "phone";
+    if (key === "name" || key === "username" || key === "email" || key === "phone") {
+      const field = key as "name" | "username" | "email" | "phone";
       setErrors((current) => ({ ...current, [field]: current[field] ? profileErrors(next)[field] : undefined }));
     }
   };
-  const blurField = async (field: "name" | "email" | "phone", event: FocusEvent<HTMLInputElement>) => {
+  const blurField = async (field: "name" | "username" | "email" | "phone", event: FocusEvent<HTMLInputElement>) => {
     if (focusesAction(event)) return;
     const snapshot = profileRef.current;
     const localError = profileErrors(snapshot)[field];
     setErrors((current) => ({ ...current, [field]: localError }));
     if (localError || field === "name" || savingRef.current) return;
-    const value = field === "email" ? snapshot.email.trim().toLowerCase() : normalizeAccountPhone(snapshot.phone);
-    const original = field === "email" ? baseline.email.trim().toLowerCase() : normalizeAccountPhone(baseline.phone);
+    const value = field === "phone" ? normalizeAccountPhone(snapshot.phone) : snapshot[field].trim().toLowerCase();
+    const original = field === "phone" ? normalizeAccountPhone(baseline.phone) : baseline[field].trim().toLowerCase();
     if (value === original || (field === "email" && isSelf)) return;
     const sequence = ++contactRequests.current[field];
     try {
       const result = await checkAccountContacts({ [field]: value });
       if (sequence !== contactRequests.current[field] || profileRef.current[field] !== snapshot[field]) return;
-      const taken = field === "email" ? result.emailAvailable === false : result.phoneAvailable === false;
-      setErrors((current) => ({ ...current, [field]: taken ? field === "email" ? "Email đã được sử dụng." : "Số điện thoại đã được sử dụng." : undefined }));
+      const taken = field === "username" ? result.usernameAvailable === false : field === "email" ? result.emailAvailable === false : result.phoneAvailable === false;
+      const takenText = { username: "Tên đăng nhập đã được sử dụng.", email: "Email đã được sử dụng.", phone: "Số điện thoại đã được sử dụng." }[field];
+      setErrors((current) => ({ ...current, [field]: taken ? takenText : undefined }));
     } catch { /* The save API always rechecks uniqueness. */ }
   };
   const changePassword = (field: "password" | "confirmPassword", value: string) => {
@@ -135,18 +138,20 @@ export function EditAccountPage({ user, roles, isRootAdmin, currentUserId, onBac
       setTab("permissions"); setMessage(""); setError(MANAGER_NEEDS_GROUP); return false;
     }
     const changedEmail = profile.email.trim().toLowerCase() !== baseline.email.trim().toLowerCase();
-    contactRequests.current.email++; contactRequests.current.phone++;
+    contactRequests.current.username++; contactRequests.current.email++; contactRequests.current.phone++;
+    const changedUsername = profile.username.trim().toLowerCase() !== baseline.username;
     savingRef.current = true; setSaving(true); setError(""); setMessage("");
     try {
       const saved = await updateAccount(user.id, {
         name: profile.name.trim(),
+        ...(changedUsername ? { username: profile.username.trim().toLowerCase() } : {}),
         ...(changedEmail && !isSelf ? { email: profile.email.trim().toLowerCase() } : {}),
         ...(normalizeAccountPhone(profile.phone) !== normalizeAccountPhone(baseline.phone) ? { phone: normalizeAccountPhone(profile.phone) } : {}),
         // Only Admin gốc changes the account type or permission groups; only managers carry groups.
         ...(!isSelf ? { status: profile.status as "pending" | "active" | "inactive",
           ...(isRootAdmin ? { role: profile.role, permissionGroupIds: profile.role === "manager" ? profile.permissionGroupIds : [] } : {}) } : {}),
       });
-      const savedProfile = { name: saved.name, email: saved.email, phone: saved.phone ?? "", role: saved.role, status: saved.status, permissionGroupIds: [...saved.permissionGroupIds] };
+      const savedProfile = { name: saved.name, username: saved.username, email: saved.email, phone: saved.phone ?? "", role: saved.role, status: saved.status, permissionGroupIds: [...saved.permissionGroupIds] };
       profileRef.current = savedProfile;
       setProfile(savedProfile); setBaseline(savedProfile); setErrors({});
       await onSaved();
@@ -219,12 +224,12 @@ export function EditAccountPage({ user, roles, isRootAdmin, currentUserId, onBac
         <fieldset disabled={saving} className="min-w-0 space-y-5 disabled:opacity-70">
           {tab === "info" && <div className="grid gap-5 sm:grid-cols-2">
             <div><label htmlFor="edit-account-name" className="text-sm font-semibold text-slate-700">Họ và tên *</label><input id="edit-account-name" maxLength={100} value={profile.name} onChange={(e) => changeProfile("name", e.target.value)} onBlur={(event) => void blurField("name", event)} className={fieldClass("name")} autoComplete="off" aria-invalid={Boolean(errors.name)} aria-describedby={errors.name ? "edit-account-name-error" : undefined} />{fieldError("name")}</div>
-            <label className="text-sm font-semibold text-slate-700">Trạng thái tài khoản<select aria-label="Trạng thái tài khoản" disabled={isSelf} value={profile.status} onChange={(e) => changeProfile("status", e.target.value)} className={`${INPUT} border-slate-200 focus:border-emerald-600`}><option value="active">Đang hoạt động</option><option value="inactive">Tạm khóa</option><option value="pending">Chờ duyệt</option></select>{unlockingEmployeeLock && <span role="alert" className="mt-2 block rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-normal text-amber-800">Nhân viên này đã nghỉ việc hoặc hồ sơ đã bị xóa. Lưu sẽ mở khóa tài khoản.</span>}</label>
+            <div><label htmlFor="edit-account-username" className="text-sm font-semibold text-slate-700">Tên đăng nhập *</label><input id="edit-account-username" maxLength={100} value={profile.username} onChange={(e) => changeProfile("username", e.target.value)} onBlur={(event) => void blurField("username", event)} className={fieldClass("username")} autoComplete="off" autoCapitalize="none" spellCheck={false} aria-invalid={Boolean(errors.username)} aria-describedby={errors.username ? "edit-account-username-error" : "edit-account-username-help"} />{fieldError("username")}<p id="edit-account-username-help" className="mt-1.5 text-xs text-slate-500">Mặc định là email. Nếu có người cố dò mật khẩu tài khoản này, đổi sang tên khác rồi báo cho người dùng. Email vẫn giữ nguyên để dùng khi quên mật khẩu.</p></div>
             <div><label htmlFor="edit-account-email" className="text-sm font-semibold text-slate-700">Email *</label><input id="edit-account-email" type="email" maxLength={150} disabled={isSelf} value={profile.email} onChange={(e) => changeProfile("email", e.target.value)} onBlur={(event) => void blurField("email", event)} className={fieldClass("email")} autoComplete="off" autoCapitalize="none" spellCheck={false} aria-invalid={Boolean(errors.email)} aria-describedby={errors.email ? "edit-account-email-error" : undefined} />{fieldError("email")}{isSelf && <p className="mt-2 text-xs text-slate-500">Đổi email của chính bạn cần xác nhận OTP. <Link href="/admin/account/change-email" className="font-semibold text-emerald-700 underline">Đổi email của tôi</Link></p>}</div>
+            <label className="text-sm font-semibold text-slate-700">Trạng thái tài khoản<select aria-label="Trạng thái tài khoản" disabled={isSelf} value={profile.status} onChange={(e) => changeProfile("status", e.target.value)} className={`${INPUT} border-slate-200 focus:border-emerald-600`}><option value="active">Đang hoạt động</option><option value="inactive">Tạm khóa</option><option value="pending">Chờ duyệt</option></select>{unlockingEmployeeLock && <span role="alert" className="mt-2 block rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-normal text-amber-800">Nhân viên này đã nghỉ việc hoặc hồ sơ đã bị xóa. Lưu sẽ mở khóa tài khoản.</span>}</label>
+            <div><label htmlFor="edit-account-phone" className="text-sm font-semibold text-slate-700">Số điện thoại</label><input id="edit-account-phone" type="tel" maxLength={30} value={profile.phone} onChange={(e) => changeProfile("phone", e.target.value)} onBlur={(event) => void blurField("phone", event)} className={fieldClass("phone")} autoComplete="off" aria-invalid={Boolean(errors.phone)} aria-describedby={errors.phone ? "edit-account-phone-error" : undefined} />{fieldError("phone")}</div>
             {/* Managers only manage user accounts, so the type is not shown as a choice. */}
             {isRootAdmin && <label className="text-sm font-semibold text-slate-700">Loại tài khoản<select aria-label="Loại tài khoản" disabled={isSelf} value={profile.role} onChange={(e) => changeProfile("role", e.target.value as User["accountRole"])} className={`${INPUT} border-slate-200 focus:border-emerald-600`}><option value="user">Người dùng</option><option value="manager">Quản lý</option><option value="admin">Admin gốc</option></select></label>}
-            <div><label htmlFor="edit-account-phone" className="text-sm font-semibold text-slate-700">Số điện thoại</label><input id="edit-account-phone" type="tel" maxLength={30} value={profile.phone} onChange={(e) => changeProfile("phone", e.target.value)} onBlur={(event) => void blurField("phone", event)} className={fieldClass("phone")} autoComplete="off" aria-invalid={Boolean(errors.phone)} aria-describedby={errors.phone ? "edit-account-phone-error" : undefined} />{fieldError("phone")}</div>
-            <p className="text-xs text-slate-500 sm:col-span-2">Tài khoản tiếp tục sử dụng email để đăng nhập.</p>
           </div>}
           {tab === "permissions" && <div className="space-y-4"><h3 className="text-base font-bold text-slate-900">Nhóm quyền</h3>{profile.role !== "manager" || !isRootAdmin ? <p className="rounded-xl border border-emerald-100 bg-emerald-50 p-4 text-sm text-emerald-800">{profile.role === "admin" ? "Admin gốc có toàn quyền hệ thống, không cần gán nhóm quyền." : "Chỉ tài khoản Quản lý mới được gán nhóm quyền."}</p> : <div className="space-y-3">{roles.filter((role) => role.status === "active" || profile.permissionGroupIds.includes(role.id)).map((role) => <label key={role.id} className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 p-4"><input type="checkbox" checked={profile.permissionGroupIds.includes(role.id)} onChange={(e) => changeProfile("permissionGroupIds", e.target.checked ? [...profile.permissionGroupIds, role.id] : profile.permissionGroupIds.filter((id) => id !== role.id))} className="mt-0.5 h-5 w-5 shrink-0 accent-emerald-700" /><span><strong className="text-sm text-slate-800">{role.name}{role.status === "inactive" ? " (đã vô hiệu hóa)" : ""}</strong><span className="mt-1 block text-xs text-slate-500">{role.description || `${role.permissionIds.length} quyền`}</span></span></label>)}{!activeRoles.length && <p className="text-sm text-slate-500">Chưa có nhóm quyền đang hoạt động. <Link href="/admin/access-control/roles/new" className="font-semibold text-emerald-700 underline">Tạo nhóm quyền</Link></p>}{profile.permissionGroupIds.some((id) => !activeRoles.some((role) => role.id === id)) && <p className="text-sm text-amber-700">Tài khoản có nhóm quyền đã vô hiệu hóa. Bỏ chọn nhóm cũ trước khi lưu hoặc kích hoạt lại nhóm.</p>}</div>}</div>}
           {tab === "password" && (isSelf ? <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-5 text-sm text-emerald-900">Để đổi mật khẩu của chính mình, bạn cần nhập mật khẩu hiện tại và xác nhận OTP.<Link href="/admin/account?tab=password" className="mt-3 block font-bold underline">Đổi mật khẩu của tôi</Link></div> : <div className="space-y-5">

@@ -1,6 +1,5 @@
 import { Router, type RequestHandler } from "express";
 import { isUserRegistrationEnabled } from "../../config/auth.config";
-import { createHash } from "crypto";
 import rateLimit from "express-rate-limit";
 import { currentUser, loginUser, logoutUser, refreshUser, userOtpAction } from "../../controllers/user/auth.controller";
 import { requireCsrfProtection } from "../../middlewares/csrf.middleware";
@@ -10,14 +9,12 @@ import { securityConfig } from "../../config/security.config";
 const router = Router();
 const limiter = (limit: number, skipSuccessfulRequests = false) => rateLimit({ windowMs: securityConfig.rateLimitWindowMs, limit, skipSuccessfulRequests,
   standardHeaders: "draft-8", legacyHeaders: false, message: { success: false, message: "Bạn đã gửi quá nhiều yêu cầu. Vui lòng thử lại sau." } });
-const loginLimit = limiter(securityConfig.authRateLimitMax, true);
-const accountLoginLimit = rateLimit({ windowMs: securityConfig.rateLimitWindowMs, limit: 15, skipSuccessfulRequests: true,
-  keyGenerator: request => createHash("sha256").update(request.body.email).digest("hex"),
-  standardHeaders: "draft-8", legacyHeaders: false, message: { success: false, message: "Bạn đã thử đăng nhập quá nhiều lần. Vui lòng thử lại sau." } });
+// Per machine; each account also has its own wrong-password rule (login-guard.service.ts).
+const loginLimit = limiter(securityConfig.loginRateLimitMax, true);
 const otpLimit = limiter(20);
 router.use((_request, response, next) => { response.setHeader("Cache-Control", "no-store"); next(); });
 router.use(requireCsrfProtection);
-router.post("/login", loginLimit, validateBody(userLoginSchema), accountLoginLimit, loginUser);
+router.post("/login", loginLimit, validateBody(userLoginSchema), loginUser);
 // Disabled self-registration answers like a route that does not exist.
 const registrationEnabled: RequestHandler = (_request, response, next) => {
   if (isUserRegistrationEnabled()) { next(); return; }

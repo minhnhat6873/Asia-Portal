@@ -4,8 +4,9 @@ export type AccountRole = (typeof ACCOUNT_ROLES)[number];
 export type AccountStatus = (typeof ACCOUNT_STATUSES)[number];
 
 // Why an account is locked (status "inactive"): locked by hand, by the employee record
-// (left or removed), or restored from the trash and waiting to be unlocked.
-export const ACCOUNT_LOCK_KINDS = ["manual", "employee-left", "employee-deleted", "restored"] as const;
+// (left or removed), restored from the trash and waiting to be unlocked, or too many wrong
+// passwords ("login-failed": the owner may unlock it with "Quên mật khẩu").
+export const ACCOUNT_LOCK_KINDS = ["manual", "employee-left", "employee-deleted", "restored", "login-failed"] as const;
 export type AccountLockKind = (typeof ACCOUNT_LOCK_KINDS)[number];
 export interface AccountLock {
   kind: AccountLockKind;
@@ -15,12 +16,26 @@ export interface AccountLock {
 }
 export interface AccountActorRef { accountId: string; name: string; email: string }
 
+/** Wrong-password bookkeeping (internal, never returned). See services/admin/login-guard.service.ts. */
+export interface AccountLoginGuard {
+  /** Wrong passwords in the current round (0-4). */
+  count: number;
+  /** Rounds of 5 wrong passwords already used: 1 = waited 10 min, 2 = waited 30 min. */
+  level: number;
+  lastFailedAt?: Date;
+  /** Sign-in refused until then. */
+  waitUntil?: Date | null;
+}
+
 export interface Account {
   authVersion?: number;
   name: string;
+  /** Signs in with this (lowercase, unique). New accounts start with their email. */
+  username: string;
   email: string;
   phone?: string;
   notes?: string;
+  loginGuard?: AccountLoginGuard | null;
   /** Internal unique key for new/changed phone numbers; never returned by API. */
   phoneKey?: string;
   password: string;
@@ -53,7 +68,7 @@ export interface AuthenticatedAccount {
 }
 
 export interface LoginInput {
-  email: string;
+  username: string;
   password: string;
   rememberMe?: boolean;
 }
@@ -66,12 +81,15 @@ export interface RegisterAccountInput {
 }
 
 export interface CreateAdminAccountInput extends RegisterAccountInput {
+  /** Empty: the email is used. */
+  username?: string;
   role: AccountRole;
   permissionGroupIds?: string[];
 }
 
 export interface UpdateAdminAccountInput {
   name?: string;
+  username?: string;
   email?: string;
   phone?: string;
   notes?: string;
@@ -91,6 +109,7 @@ export interface ResetAccountPasswordInput {
 export interface AccountResponse {
   id: string;
   name: string;
+  username: string;
   email: string;
   phone?: string;
   notes?: string;

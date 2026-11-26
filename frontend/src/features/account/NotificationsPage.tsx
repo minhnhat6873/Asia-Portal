@@ -2,7 +2,7 @@
 
 import { Bell, CalendarCheck2, CalendarClock, CalendarX2, CarFront, CheckCheck, Trash2, CircleCheck, CircleX, Clock3, Newspaper, Package, Pencil } from "lucide-react";
 import { useEffect, useState } from "react";
-import { deleteAllNotifications, formatNotificationTime, getNotifications, markAllNotificationsRead, type NotificationType, type UserNotification } from "@/services/notification.service";
+import { deleteAllNotifications, deleteNotification, formatNotificationTime, getNotifications, markAllNotificationsRead, type NotificationType, type UserNotification } from "@/services/notification.service";
 import { setUnreadNotificationCount, useUnreadNotificationCount } from "@/lib/notificationCount";
 import { useOpenNotification } from "@/components/layout/NotificationBell";
 import { showToast } from "@/features/admin/auth/notify";
@@ -46,13 +46,13 @@ function iconFor(type: NotificationType, purpose?: Purpose): { Icon: typeof Bell
   return { Icon: Bell, tone: "bg-slate-100 text-slate-500 ring-slate-200" };
 }
 
-function NotificationItem({ item, onOpen }: { item: UserNotification; onOpen: (item: UserNotification) => void }) {
+function NotificationItem({ item, onOpen, onDelete, deleting }: { item: UserNotification; onOpen: (item: UserNotification) => void; onDelete: (item: UserNotification) => void; deleting: boolean }) {
   const trip = item.type.startsWith("vehicle-") ? parseVehicleMessage(item.message) : null;
   const { Icon, tone } = iconFor(item.type, trip?.purpose);
   const category = item.type.startsWith("vehicle-") ? "Đặt xe" : item.type.startsWith("meeting-") ? "Đặt phòng" : "Truyền thông";
   const accent = item.type.startsWith("vehicle-") ? "border-l-blue-500" : item.type.startsWith("meeting-") ? "border-l-violet-500" : "border-l-emerald-500";
   return (
-    <li className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <li className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
       <button
         type="button"
         onClick={() => onOpen(item)}
@@ -88,6 +88,11 @@ function NotificationItem({ item, onOpen }: { item: UserNotification; onOpen: (i
           <span className="mt-3 block text-xs font-semibold text-emerald-700">{category === "Đặt xe" ? "Xem chuyến xe" : category === "Đặt phòng" ? "Xem lịch họp" : "Xem nội dung"} →</span>
         </span>
       </button>
+      {/* Beside the card's own button (a button cannot sit inside another one). */}
+      <button type="button" onClick={() => onDelete(item)} disabled={deleting} aria-label={`Xóa thông báo: ${item.title}`} title="Xóa thông báo này"
+        className="absolute bottom-4 right-4 inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-slate-400 hover:bg-rose-50 hover:text-rose-600 focus-visible:outline-2 focus-visible:outline-rose-500 disabled:opacity-50 sm:right-5">
+        <Trash2 aria-hidden="true" size={14} />{deleting ? "Đang xóa…" : "Xóa"}
+      </button>
     </li>
   );
 }
@@ -100,7 +105,21 @@ export default function NotificationsPage() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState("");
+  const [removingId, setRemovingId] = useState("");
   const open = useOpenNotification();
+
+  const removeOne = async (item: UserNotification) => {
+    if (removingId) return;
+    setRemovingId(item.id);
+    try {
+      await deleteNotification(item.id);
+      setItems((current) => current?.filter((existing) => existing.id !== item.id) ?? null);
+      if (!item.read) setUnreadNotificationCount(Math.max(0, unread - 1));
+      showToast("Đã xóa thông báo", "", "success");
+    } catch (reason) {
+      showToast("Không thể xóa thông báo", reason instanceof Error ? reason.message : "Vui lòng thử lại.", "error");
+    } finally { setRemovingId(""); }
+  };
 
   useEffect(() => {
     const controller = new AbortController();
@@ -177,7 +196,7 @@ export default function NotificationsPage() {
           {items.length === 0 ? (
             <p className="px-5 py-12 text-center text-sm text-slate-500">Bạn chưa có thông báo nào.</p>
           ) : (
-            <ul className="space-y-3 bg-slate-50/60 p-3 sm:p-4">{items.map((item) => <NotificationItem key={item.id} item={item} onOpen={open} />)}</ul>
+            <ul className="space-y-3 bg-slate-50/60 p-3 sm:p-4">{items.map((item) => <NotificationItem key={item.id} item={item} onOpen={open} onDelete={(target) => void removeOne(target)} deleting={removingId === item.id} />)}</ul>
           )}
           {items.length > 0 && (
             <div className="border-t border-slate-100 bg-slate-50/60 px-5 py-4 text-center">

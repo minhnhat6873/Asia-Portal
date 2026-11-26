@@ -21,6 +21,9 @@ export const securityConfig = {
   rateLimitWindowMs: parsePositiveInteger(process.env.RATE_LIMIT_WINDOW_MS, 15 * 60 * 1000),
   rateLimitMax: parsePositiveInteger(process.env.RATE_LIMIT_MAX, 300),
   authRateLimitMax: parsePositiveInteger(process.env.AUTH_RATE_LIMIT_MAX, 5),
+  // Wrong passwords per machine (all usernames). Each account has its own stricter rule
+  // (services/admin/login-guard.service.ts); this one stops one machine trying many usernames.
+  loginRateLimitMax: parsePositiveInteger(process.env.LOGIN_RATE_LIMIT_MAX, 30),
   feedbackRateLimitMax: parsePositiveInteger(process.env.FEEDBACK_RATE_LIMIT_MAX, 5),
   meetingOtpRateLimitMax: parsePositiveInteger(process.env.MEETING_OTP_RATE_LIMIT_MAX, 10),
   meetingVerifyRateLimitMax: parsePositiveInteger(process.env.MEETING_VERIFY_RATE_LIMIT_MAX, 30),

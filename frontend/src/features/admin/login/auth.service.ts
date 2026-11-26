@@ -13,7 +13,7 @@ export interface AuthenticatedAdmin {
 }
 
 export interface LoginPayload {
-  email: string;
+  username: string;
   password: string;
   rememberMe: boolean;
 }

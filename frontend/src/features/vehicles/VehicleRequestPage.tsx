@@ -6,6 +6,7 @@ import { ArrowDownUp, CarFront, ChevronRight, LocateFixed, Mail, Package, ImageP
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import Navbar from "@/components/layout/Navbar";
 import UnsavedChangesDialog from "@/components/ui/UnsavedChangesDialog";
+import ImageLightbox from "@/components/ui/ImageLightbox";
 import { useUnsavedChanges } from "@/lib/useUnsavedChanges";
 import Footer from "@/components/layout/Footer";
 import { ApiError } from "@/services/api";
@@ -53,21 +54,22 @@ function Field({ id, label, labelAction, required, error, hint, children, classN
   );
 }
 
-function ImagePreview({ file, onRemove }: { file: File; onRemove: () => void }) {
+/** Thumbnail of a chosen picture; clicking it shows the picture over the page (onView). */
+function ImagePreview({ file, onRemove, onView }: { file: File; onRemove: () => void; onView: (image: { src: string; name: string }) => void }) {
   const image = useRef<HTMLImageElement>(null);
-  const link = useRef<HTMLAnchorElement>(null);
+  const url = useRef("");
   useEffect(() => {
     const objectUrl = URL.createObjectURL(file);
+    url.current = objectUrl;
     if (image.current) image.current.src = objectUrl;
-    if (link.current) link.current.href = objectUrl;
     return () => URL.revokeObjectURL(objectUrl);
   }, [file]);
   return <div className="group relative overflow-hidden rounded-xl border border-slate-200 bg-white">
-    <a ref={link} target="_blank" rel="noopener noreferrer" aria-label={`Xem ảnh ${file.name}`} className="block aspect-square focus-visible:outline-2 focus-visible:outline-emerald-600">
+    <button type="button" onClick={() => { if (url.current) onView({ src: url.current, name: file.name }); }} aria-label={`Xem ảnh ${file.name}`} className="block aspect-square w-full cursor-zoom-in focus-visible:outline-2 focus-visible:outline-emerald-600">
       {/* Local previews use browser object URLs. */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img ref={image} alt={file.name} className="h-full w-full object-cover" />
-    </a>
+    </button>
     <button type="button" onClick={onRemove} aria-label={`Gỡ ảnh ${file.name}`} className="absolute right-1.5 top-1.5 grid h-8 w-8 place-items-center rounded-full bg-slate-900/75 text-white hover:bg-rose-700"><X size={16} /></button>
     <p title={file.name} className="truncate px-2 py-1.5 text-xs text-slate-600">{file.name}</p>
   </div>;
@@ -97,6 +99,8 @@ export default function VehicleRequestPage() {
   const [extraDestinationError, setExtraDestinationError] = useState("");
   const [invalidExtraDestination, setInvalidExtraDestination] = useState<number | null>(null);
   const [goodsImages, setGoodsImages] = useState<File[]>([]);
+  // The attachment shown over the page (X, Esc or a click outside closes it).
+  const [viewingImage, setViewingImage] = useState<{ src: string; name: string } | null>(null);
   const [goodsImageError, setGoodsImageError] = useState("");
   const dirty = JSON.stringify({ values, extraDestinations }) !== baseline || goodsImages.length > 0;
   const navigation = useUnsavedChanges(dirty, saving);
@@ -263,6 +267,7 @@ export default function VehicleRequestPage() {
 
   return (
     <main className="flex min-h-screen flex-col bg-slate-50 text-slate-800">
+      <ImageLightbox image={viewingImage} onClose={() => setViewingImage(null)} />
       <UnsavedChangesDialog open={navigation.isPromptOpen} saving={saving} description="Bạn muốn lưu yêu cầu đặt xe trước khi rời trang?" onContinue={navigation.cancelNavigation} onDiscard={() => void navigation.leave()} onSave={() => { navigation.hidePrompt(); saveAndLeave.current = true; requestAnimationFrame(() => formRef.current?.requestSubmit()); }} />
       <Navbar />
       <div className="mx-auto w-full max-w-[1200px] flex-1 px-4 py-8 sm:px-6 lg:py-10">
@@ -419,7 +424,7 @@ export default function VehicleRequestPage() {
                 <p className="block text-sm font-semibold text-slate-700">Ảnh đính kèm <span className="font-normal text-slate-500">· Không bắt buộc</span></p>
                 <div className="mt-2 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-3">
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                    {goodsImages.map((file, index) => <ImagePreview key={`${file.name}-${file.lastModified}-${index}`} file={file} onRemove={() => { setGoodsImages(current => current.filter((_, i) => i !== index)); setGoodsImageError(""); }} />)}
+                    {goodsImages.map((file, index) => <ImagePreview key={`${file.name}-${file.lastModified}-${index}`} file={file} onView={setViewingImage} onRemove={() => { setGoodsImages(current => current.filter((_, i) => i !== index)); setGoodsImageError(""); }} />)}
                     {goodsImages.length < VEHICLE_MAX_ATTACHMENTS && <label htmlFor="vehicle-goods-images" className="flex min-h-28 cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-emerald-300 bg-white p-3 text-center text-sm font-semibold text-emerald-700 transition hover:bg-emerald-50 focus-within:outline-2 focus-within:outline-emerald-600">
                       <ImagePlus size={23} aria-hidden="true" /><span>Thêm ảnh</span>
                       <input id="vehicle-goods-images" type="file" accept="image/jpeg,image/png,image/webp" multiple className="sr-only" onChange={event => {

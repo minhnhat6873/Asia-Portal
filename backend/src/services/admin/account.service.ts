@@ -21,6 +21,7 @@ import type { PermissionAction } from "../../interfaces/permission-group.interfa
 import type { AccountActorRef } from "../../interfaces/account.interface";
 import { MANAGER_NEEDS_GROUP } from "../../validates/admin/account.validate";
 import { resolveAccountAvatars, removeAccountAvatarFile } from "../../utils/account/accountAvatar";
+import { vehicleAccountClosedService } from "../vehicle/vehicle-account-closed";
 
 type StoredAccount = Account & { _id: unknown };
 
@@ -53,6 +54,7 @@ function toAccountResponse(account: StoredAccount, avatars?: Map<string, string>
   return {
     id: String(account._id),
     name: account.name,
+    username: account.username ?? account.email,
     email: account.email,
     phone: account.phone,
     notes: account.notes ?? "",
@@ -144,7 +146,9 @@ export const adminAccountService = {
     data: CreateAdminAccountInput,
     currentAdminId: string,
   ): Promise<AccountResponse> {
-    await accountContactService.ensureAvailable(data);
+    // Empty username: sign in with the email.
+    const username = (data.username || data.email).trim().toLowerCase();
+    await accountContactService.ensureAvailable({ ...data, username });
 
     // Only managers carry permission groups, and a manager needs at least one.
     const groupIds = data.role === "manager" ? data.permissionGroupIds ?? [] : [];
@@ -157,6 +161,7 @@ export const adminAccountService = {
       }
       const account = await adminAccountRepository.create({
         ...data,
+        username,
         email: data.email.trim().toLowerCase(),
         status: "active",
         permissionGroupIds: groupIds,
@@ -172,7 +177,9 @@ export const adminAccountService = {
   ): Promise<AccountResponse> {
     ensureValidId(id);
 
-    return withAdminMutation(currentAdminId, async (session, scope, actor) => {
+    // Set when this edit locks the account: its trips that have not happened yet are cancelled after saving.
+    let lockedBy: AccountActorRef | null = null;
+    const saved = await withAdminMutation(currentAdminId, async (session, scope, actor) => {
       const existingAccount = await findListedAccount(id, session);
       requireUserTarget(scope, existingAccount);
       if (scope === "users" && ((data.role !== undefined && data.role !== "user") || (data.permissionGroupIds?.length ?? 0) > 0)) {
@@ -189,7 +196,10 @@ export const adminAccountService = {
 
       const updateData: UpdateAdminAccountInput = { ...data };
       // Locking from the edit form counts as a manual lock; unlocking clears the reason.
-      if (data.status === "inactive" && existingAccount.status !== "inactive") updateData.lock = { kind: "manual", byName: actor.ref.name, at: new Date() };
+      if (data.status === "inactive" && existingAccount.status !== "inactive") {
+        updateData.lock = { kind: "manual", byName: actor.ref.name, at: new Date() };
+        lockedBy = actor.ref;
+      }
       else if (data.status !== undefined && data.status !== "inactive") updateData.lock = null;
       if (data.email !== undefined) {
         const email = data.email.trim().toLowerCase();
@@ -200,6 +210,12 @@ export const adminAccountService = {
           await accountContactService.ensureAvailable({ email });
         }
         updateData.email = email;
+      }
+      if (data.username !== undefined) {
+        // Changing it (e.g. someone keeps guessing the old one) does not touch the email or sessions.
+        const username = data.username.trim().toLowerCase();
+        if (username !== (existingAccount.username ?? "")) await accountContactService.ensureAvailable({ username });
+        updateData.username = username;
       }
       if (data.phone !== undefined && normalizeAccountPhone(data.phone) !== normalizeAccountPhone(existingAccount.phone ?? "")) {
         await accountContactService.ensureAvailable({ phone: data.phone });
@@ -223,6 +239,8 @@ export const adminAccountService = {
 
       return toAccountResponse(account);
     });
+    if (lockedBy) await vehicleAccountClosedService.cancelOpenTrips(id, "locked", lockedBy);
+    return saved;
   },
 
   // Lock: Admin gốc may lock anyone except themself and the last active Admin gốc;
@@ -230,7 +248,8 @@ export const adminAccountService = {
   async lockAccount(id: string, reason: string, currentAdminId: string): Promise<AccountResponse> {
     ensureValidId(id);
     if (id.toLowerCase() === currentAdminId.toLowerCase()) throw new AppError(400, "Không thể tự khóa tài khoản đang đăng nhập.");
-    return withAdminMutation(currentAdminId, async (session, scope, actor) => {
+    let lockedBy: AccountActorRef | null = null;
+    const locked = await withAdminMutation(currentAdminId, async (session, scope, actor) => {
       const existingAccount = await findListedAccount(id, session);
       requireUserTarget(scope, existingAccount);
       if (existingAccount.status === "inactive") throw new AppError(409, "Tài khoản đã bị khóa.");
@@ -238,8 +257,11 @@ export const adminAccountService = {
       const note = reason.trim();
       const account = await adminAccountRepository.lock(id, { kind: "manual", ...(note ? { note } : {}), byName: actor.ref.name, at: new Date() }, existingAccount.role, session);
       if (!account) throw changed();
+      lockedBy = actor.ref;
       return toAccountResponse(account);
     });
+    if (lockedBy) await vehicleAccountClosedService.cancelOpenTrips(id, "locked", lockedBy);
+    return locked;
   },
 
   async unlockAccount(id: string, currentAdminId: string): Promise<AccountResponse> {
@@ -285,14 +307,18 @@ export const adminAccountService = {
     if (id.toLowerCase() === currentAdminId.toLowerCase()) {
       throw new AppError(400, "Không thể xóa tài khoản đang đăng nhập.");
     }
-    return withAdminMutation(currentAdminId, async (session, scope, actor) => {
+    let deletedBy: AccountActorRef | null = null;
+    const removed = await withAdminMutation(currentAdminId, async (session, scope, actor) => {
       const existingAccount = await findListedAccount(id, session);
       requireUserTarget(scope, existingAccount);
       await protectLastAdmin(existingAccount, session);
       const deleted = await adminAccountRepository.softDelete(id, actor.ref, existingAccount.role, session);
       if (!deleted) throw changed();
+      deletedBy = actor.ref;
       return toAccountResponse(deleted);
     });
+    if (deletedBy) await vehicleAccountClosedService.cancelOpenTrips(id, "deleted", deletedBy);
+    return removed;
   },
 
   // Trash (needs "accounts:trash"). Managers only see user accounts.

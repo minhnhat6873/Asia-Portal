@@ -62,7 +62,7 @@ router.use("/admin/auth", adminAuthRouter);
 router.use("/admin", requireAdminAuth, authenticatedAdminLimiter);
 router.use("/admin/feedback", adminFeedbackRouter);
 router.use("/admin/notifications", adminNotificationRouter);
-// HR manages vehicle requests; deleting cancelled trips needs "vehicles:delete" as well.
+// HR manages vehicle requests; deleting a trip for good needs "vehicles:delete" as well.
 router.use("/admin/vehicles", requirePermissions("vehicles:manage"), adminVehicleRouter);
 router.use("/admin/dashboard", adminDashboardRouter);
 router.use("/admin/site-settings", adminSiteSettingsRouter);

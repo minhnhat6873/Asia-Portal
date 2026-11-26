@@ -5,6 +5,7 @@ import type { UserAuthChallenge } from "../src/interfaces/user-auth.interface";
 import { userAuthChallengeRepository as repo } from "../src/repositories/user/auth-challenge.repository";
 import { userAuthOtpService as service } from "../src/services/user/auth-otp.service";
 import { emailService } from "../src/services/notification/email.service";
+import { adminAccountRepository } from "../src/repositories/admin/account.repository";
 
 const email = "member@asiafnb.com", code = "123456", secret = "user-otp-test-only";
 let pending: UserAuthChallenge | null;
@@ -54,7 +55,9 @@ beforeEach(() => {
     const consumed = { ...pending }; pending = null; return Promise.resolve(consumed) as never;
   });
   jest.spyOn(repo, "createAccount").mockResolvedValue({ role: "user", status: "pending" } as never);
-  jest.spyOn(repo, "resetPassword").mockResolvedValue({} as never);
+  jest.spyOn(repo, "resetPassword").mockResolvedValue({ _id: "507f1f77bcf86cd799439012" } as never);
+  jest.spyOn(adminAccountRepository, "unlockLoginFailed").mockResolvedValue({} as never);
+  jest.spyOn(adminAccountRepository, "findByEmail").mockResolvedValue({ username: "an@asiafnb.com" } as never);
   jest.spyOn(repo, "transaction").mockImplementation(async work => {
     const before = tail; let unlock!: () => void; tail = new Promise<void>(resolve => { unlock = resolve; });
     await before; const original = pending ? { ...pending } : null;
@@ -125,4 +128,12 @@ it("expired OTP and an OTP for another purpose cannot authorize registration", a
   pending = fixture("reset");
   await expect(service.verify(email, "register", code)).rejects.toMatchObject({ statusCode: 400 });
   expect(repo.createAccount).not.toHaveBeenCalled();
+});
+it("a new password asks to lift a wrong-password lock (Admin gốc only), and the code email shows the username", async () => {
+  pending = fixture("reset");
+  await service.reset(email, code, "New-password123!");
+  expect(adminAccountRepository.unlockLoginFailed).toHaveBeenCalledWith("507f1f77bcf86cd799439012", expect.anything());
+  pending = null; jest.mocked(repo.findAccount).mockResolvedValue({ _id: "507f1f77bcf86cd799439012", authVersion: 0 } as never);
+  await service.start(email, "reset");
+  expect(emailService.sendPasswordResetOtp).toHaveBeenLastCalledWith(email, expect.any(String), "an@asiafnb.com");
 });

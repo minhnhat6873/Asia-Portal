@@ -5,7 +5,7 @@ export type NotificationType = "news" | "meeting-booked" | "meeting-reminder"
   | "meeting-updated" | "meeting-cancelled"
   | "vehicle-arranged" | "vehicle-updated" | "vehicle-completed" | "vehicle-cancelled" | "vehicle-reminder"
   | "vehicle-new" | "vehicle-arrived" | "vehicle-overdue" | "vehicle-pending-overdue"
-  | "vehicle-request-updated" | "vehicle-request-cancelled";
+  | "vehicle-request-updated" | "vehicle-request-cancelled" | "vehicle-requester-removed";
 
 export interface UserNotification {
   id: string;
@@ -30,6 +30,10 @@ export async function getUnreadNotificationCount(signal?: AbortSignal): Promise<
 
 export function markNotificationRead(id: string): Promise<void> {
   return apiPost<void>(`/user/notifications/${encodeURIComponent(id)}/read`, {});
+}
+
+export function deleteNotification(id: string): Promise<void> {
+  return apiDelete<void>(`/user/notifications/${encodeURIComponent(id)}`);
 }
 
 export function deleteAllNotifications(): Promise<void> {

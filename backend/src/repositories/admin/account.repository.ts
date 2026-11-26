@@ -26,9 +26,74 @@ export const adminAccountRepository = {
     );
   },
 
-  // Accounts in the trash cannot sign in; they answer like an unknown email.
-  findByEmailWithPassword(email: string) {
-    return AccountModel.findOne({ email: email.toLowerCase(), isDeleted: { $ne: true } }).select("+password +authVersion");
+  // Accounts in the trash cannot sign in; they answer like an unknown username.
+  findByUsernameWithPassword(username: string) {
+    return AccountModel.findOne({ username: username.trim().toLowerCase(), isDeleted: { $ne: true } }).select("+password +authVersion +loginGuard");
+  },
+
+  /** Any account (also in the trash): usernames stay unique. */
+  findByUsername(username: string, session?: ClientSession) {
+    return AccountModel.findOne({ username: username.trim().toLowerCase() }).session(session ?? null).lean();
+  },
+
+  /** Accounts made before usernames existed sign in with their email. Safe to run at every start. */
+  fillMissingUsernames() {
+    return AccountModel.updateMany(
+      { $or: [{ username: { $exists: false } }, { username: null }, { username: "" }] },
+      [{ $set: { username: { $toLower: { $trim: { input: "$email" } } } } }],
+      // Mongoose 9 refuses an aggregation-pipeline update unless asked for explicitly.
+      { timestamps: false, updatePipeline: true },
+    );
+  },
+
+  // ---- wrong passwords (see services/admin/login-guard.service.ts) ----
+  /** Starts over when the last wrong password is older than `before`. */
+  resetStaleLoginGuard(id: unknown, before: Date) {
+    return AccountModel.updateOne(
+      { _id: id, "loginGuard.lastFailedAt": { $lt: before } },
+      { $set: { loginGuard: { count: 0, level: 0, waitUntil: null } } },
+      { timestamps: false },
+    );
+  },
+  addLoginFailure(id: unknown, at: Date) {
+    return AccountModel.findOneAndUpdate(
+      { _id: id },
+      { $inc: { "loginGuard.count": 1 }, $set: { "loginGuard.lastFailedAt": at } },
+      { returnDocument: "after", timestamps: false },
+    ).select("+loginGuard").lean();
+  },
+  /** Closes a full round of wrong passwords; only one of several parallel requests wins. */
+  closeLoginRound(id: unknown, perRound: number) {
+    return AccountModel.findOneAndUpdate(
+      { _id: id, "loginGuard.count": { $gte: perRound } },
+      { $set: { "loginGuard.count": 0 }, $inc: { "loginGuard.level": 1 } },
+      { returnDocument: "after", timestamps: false },
+    ).select("+loginGuard").lean();
+  },
+  setLoginWait(id: unknown, until: Date) {
+    return AccountModel.updateOne({ _id: id }, { $set: { "loginGuard.waitUntil": until } }, { timestamps: false });
+  },
+  /** Third round: lock like the lock button, ending every session. */
+  lockForLoginFailures(id: unknown, at: Date) {
+    return AccountModel.findOneAndUpdate(
+      { _id: id, status: "active", isDeleted: { $ne: true } },
+      { $set: { status: "inactive", lock: { kind: "login-failed", at }, loginGuard: null }, $inc: { authVersion: 1 } },
+      { returnDocument: "after" },
+    ).lean();
+  },
+  clearLoginGuard(id: unknown) {
+    return AccountModel.updateOne({ _id: id }, { $set: { loginGuard: null } }, { timestamps: false });
+  },
+  /**
+   * An Admin gốc who sets a new password through "Quên mật khẩu" lifts a lock caused by wrong
+   * passwords (only that kind). Everyone else waits for an admin to unlock them.
+   */
+  unlockLoginFailed(id: unknown, session?: ClientSession) {
+    return AccountModel.updateOne(
+      { _id: id, role: "admin", status: "inactive", "lock.kind": "login-failed", isDeleted: { $ne: true } },
+      { $set: { status: "active", lock: null, loginGuard: null } },
+      { ...(session ? { session } : {}) },
+    );
   },
 
   findByIdWithPassword(id: string) {
@@ -143,7 +208,7 @@ export const adminAccountRepository = {
   unlock(id: string, expectedRole: AccountRole, session: ClientSession) {
     return AccountModel.findOneAndUpdate(
       { _id: id, role: expectedRole, status: "inactive", isDeleted: { $ne: true } },
-      { $set: { status: "active", lock: null } },
+      { $set: { status: "active", lock: null, loginGuard: null } },
       { returnDocument: "after", session },
     ).lean();
   },
@@ -202,14 +267,14 @@ export const adminAccountRepository = {
   resetManagedPassword(id: string, passwordHash: string, session: ClientSession) {
     return AccountModel.findOneAndUpdate(
       { _id: id },
-      { $set: { password: passwordHash }, $inc: { authVersion: 1 } },
+      { $set: { password: passwordHash, loginGuard: null }, $inc: { authVersion: 1 } },
       { returnDocument: "after", runValidators: true, session },
     ).lean();
   },
 
   resetPassword(id: string, passwordHash: string, session?: ClientSession, expectedEmail?: string) {
     return AccountModel.findOneAndUpdate(
-      { _id: id, ...(expectedEmail ? { email: expectedEmail } : {}) }, { $set: { password: passwordHash }, $inc: { authVersion: 1 } },
+      { _id: id, ...(expectedEmail ? { email: expectedEmail } : {}) }, { $set: { password: passwordHash, loginGuard: null }, $inc: { authVersion: 1 } },
       { returnDocument: "after", runValidators: true, ...(session ? { session } : {}) },
     ).lean();
   },

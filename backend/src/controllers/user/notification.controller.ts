@@ -32,6 +32,13 @@ export async function markAllNotificationsRead(request: Request, response: Respo
   } catch (error) { next(error); }
 }
 
+export async function deleteNotification(request: Request<{ id: string }>, response: Response, next: NextFunction): Promise<void> {
+  try {
+    if (!(await notificationService.deleteOne(request.user!.id, request.params.id))) throw new AppError(404, "Không tìm thấy thông báo.");
+    response.json({ success: true });
+  } catch (error) { next(error); }
+}
+
 export async function deleteAllNotifications(request: Request, response: Response, next: NextFunction): Promise<void> {
   try {
     await notificationService.deleteAll(request.user!.id);
